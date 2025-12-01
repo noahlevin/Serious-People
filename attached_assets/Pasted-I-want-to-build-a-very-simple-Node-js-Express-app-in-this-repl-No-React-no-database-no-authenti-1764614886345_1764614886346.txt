@@ -1,0 +1,123 @@
+I want to build a very simple Node.js + Express app in this repl. No React, no database, no authentication.
+
+High-level behavior:
+
+Serve a static landing page at / from public/index.html.
+
+That page has a “Get my scripts – $19” button.
+
+When clicked, the browser does a POST to /checkout using fetch. The server:
+
+Creates a Stripe Checkout session (one-time payment) using a price id from process.env.STRIPE_PRICE_ID.
+
+Returns { url: session.url }.
+
+The browser then redirects window.location to that URL.
+
+Stripe Checkout uses:
+
+success_url = BASE_URL/success.html?session_id={CHECKOUT_SESSION_ID}
+
+cancel_url = BASE_URL/
+where BASE_URL is process.env.BASE_URL.
+
+After payment, Stripe redirects to success.html with a session_id query param.
+
+On success.html:
+
+The page is served as static HTML from public/success.html.
+
+It has inline JS that:
+
+Reads session_id from window.location.search.
+
+Calls GET /verify-session?session_id=....
+
+If the response is OK, hides the “checking payment” message and shows an intake form.
+
+If not OK, shows an error message (“could not verify payment”).
+
+The intake form has the following fields (text inputs / textareas):
+
+role
+
+companyContext
+
+whatsNotWorking
+
+whatYouWant
+
+bossAsk
+
+partnerContext
+
+runway
+
+riskTolerance
+
+On submit, the form does a fetch POST to /generate with JSON { role, companyContext, ... }.
+
+Server routes (Express, in a single index.js file):
+
+app.use(express.static("public")) to serve static files.
+
+POST /checkout: uses Stripe secret key from process.env.STRIPE_SECRET_KEY. Creates a Checkout session in mode: "payment" for process.env.STRIPE_PRICE_ID. Responds JSON { url: session.url }.
+
+GET /verify-session: reads req.query.session_id, retrieves the Stripe checkout session, and if payment_status === "paid", responds { ok: true }. Otherwise responds with a 403 error.
+
+POST /generate: reads the form fields from req.body, builds a prompt, sends it to the OpenAI Chat Completions API with model gpt-4.1-mini using process.env.OPENAI_API_KEY, and responds { text: generatedText }.
+
+Use express.json() for JSON bodies.
+
+Prompt for /generate:
+Please use this exact prompt, interpolating the form fields:
+
+```
+You are a candid but compassionate career coach.
+
+User details:
+
+Role: {{role}}
+
+Company context: {{companyContext}}
+
+What's not working: {{whatsNotWorking}}
+
+What they want instead: {{whatYouWant}}
+
+What they'd ask their boss for: {{bossAsk}}
+
+Partner context: {{partnerContext}}
+
+Financial runway: {{runway}}
+
+Risk tolerance (1-5): {{riskTolerance}}
+
+Produce three sections:
+
+"Script for talking to my boss" – a conversational 2–3 minute script they can mostly read verbatim. Be honest but non-destructive. Model "disagree and commit" if staying is on the table.
+
+"Script for talking to my partner" – empathetic, transparent about risk and money, asking for support, not just permission.
+
+"Clarity memo" – one page with:
+
+Summary of the situation
+
+2–3 realistic options (e.g., stay and renegotiate, line up a new job then quit, sabbatical/independent)
+
+Top 3 risks for each option
+
+A concrete 30-day experiment.
+
+Keep language plain, no corporate jargon, no AI-speak.
+```
+
+Constraints:
+
+Keep everything in a single Express server file (e.g. index.js) plus static files in public/.
+
+Do not add React, template engines, databases, or authentication.
+
+Use environment variables for STRIPE_SECRET_KEY, STRIPE_PRICE_ID, OPENAI_API_KEY, and BASE_URL. Do not expose them in client-side JavaScript.
+
+Please scaffold the full app (server + two HTML pages) so I can test the flow end-to-end in Stripe test mode.
