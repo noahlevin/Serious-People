@@ -5,11 +5,19 @@ import OpenAI from "openai";
 import path from "path";
 import express from "express";
 
+// Validate required environment variables
+const requiredEnvVars = ['STRIPE_SECRET_KEY', 'STRIPE_PRICE_ID', 'OPENAI_API_KEY'];
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`Missing required environment variable: ${envVar}`);
+  }
+}
+
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 // Using gpt-4.1-mini as specifically requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: "2025-04-30.basil",
 });
 
@@ -35,6 +43,11 @@ export async function registerRoutes(
   // POST /checkout - Create Stripe Checkout session
   app.post("/checkout", async (req, res) => {
     try {
+      // Validate Stripe configuration
+      if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_PRICE_ID) {
+        return res.status(500).json({ error: "Stripe configuration missing" });
+      }
+
       const baseUrl = getBaseUrl();
       
       const session = await stripe.checkout.sessions.create({
@@ -81,6 +94,11 @@ export async function registerRoutes(
   // POST /generate - Generate career coaching scripts with OpenAI
   app.post("/generate", async (req, res) => {
     try {
+      // Validate OpenAI API key is configured
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: "OpenAI API key not configured" });
+      }
+
       const {
         role,
         companyContext,
@@ -91,6 +109,14 @@ export async function registerRoutes(
         runway,
         riskTolerance,
       } = req.body;
+
+      // Validate required fields
+      const requiredFields = ['role', 'companyContext', 'whatsNotWorking', 'whatYouWant', 'bossAsk', 'runway', 'riskTolerance'];
+      for (const field of requiredFields) {
+        if (!req.body[field] || typeof req.body[field] !== 'string' || req.body[field].trim() === '') {
+          return res.status(400).json({ error: `Missing or invalid field: ${field}` });
+        }
+      }
 
       const prompt = `You are a candid but compassionate career coach.
 
