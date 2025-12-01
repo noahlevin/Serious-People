@@ -1,25 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import Stripe from "stripe";
 import OpenAI from "openai";
 import path from "path";
 import express from "express";
+import { getStripeClient } from "./stripeClient";
 
-// Validate required environment variables
-const requiredEnvVars = ['STRIPE_SECRET_KEY', 'STRIPE_PRICE_ID', 'OPENAI_API_KEY'];
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    console.error(`Missing required environment variable: ${envVar}`);
-  }
-}
-
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 // Using gpt-4.1-mini as specifically requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: "2025-04-30.basil",
-});
 
 function getBaseUrl(): string {
   if (process.env.BASE_URL) {
@@ -29,6 +16,53 @@ function getBaseUrl(): string {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
   }
   return "http://localhost:5000";
+}
+
+// Cache the price ID after creation
+let testPriceId: string | null = null;
+
+// Create or get a $19 test price
+async function getOrCreateTestPrice(): Promise<string> {
+  if (testPriceId) return testPriceId;
+  
+  const stripe = await getStripeClient();
+  
+  // Check for existing product with our metadata
+  const existingProducts = await stripe.products.list({ limit: 100 });
+  const existingProduct = existingProducts.data.find(
+    p => p.metadata?.app === 'career-scripts'
+  );
+  
+  if (existingProduct) {
+    // Find an active price for this product
+    const prices = await stripe.prices.list({ 
+      product: existingProduct.id, 
+      active: true,
+      limit: 1 
+    });
+    if (prices.data.length > 0) {
+      testPriceId = prices.data[0].id;
+      console.log(`Using existing price: ${testPriceId}`);
+      return testPriceId;
+    }
+  }
+  
+  // Create product and price if not found
+  const product = await stripe.products.create({
+    name: 'Career Coaching Scripts',
+    description: 'Three personalized scripts to navigate your career transition',
+    metadata: { app: 'career-scripts' }
+  });
+  
+  const price = await stripe.prices.create({
+    product: product.id,
+    unit_amount: 1900, // $19.00
+    currency: 'usd',
+  });
+  
+  testPriceId = price.id;
+  console.log(`Created new price: ${testPriceId}`);
+  return testPriceId;
 }
 
 export async function registerRoutes(
@@ -43,18 +77,15 @@ export async function registerRoutes(
   // POST /checkout - Create Stripe Checkout session
   app.post("/checkout", async (req, res) => {
     try {
-      // Validate Stripe configuration
-      if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_PRICE_ID) {
-        return res.status(500).json({ error: "Stripe configuration missing" });
-      }
-
+      const stripe = await getStripeClient();
+      const priceId = await getOrCreateTestPrice();
       const baseUrl = getBaseUrl();
       
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         line_items: [
           {
-            price: process.env.STRIPE_PRICE_ID!,
+            price: priceId,
             quantity: 1,
           },
         ],
@@ -78,6 +109,7 @@ export async function registerRoutes(
         return res.status(400).json({ ok: false, error: "Missing session_id" });
       }
 
+      const stripe = await getStripeClient();
       const session = await stripe.checkout.sessions.retrieve(sessionId);
 
       if (session.payment_status === "paid") {
