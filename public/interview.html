@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Serious People – Interview</title>
+  <meta name="description" content="Start your career coaching interview with Serious People.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f8f9fa;
+      color: #1a1a2e;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 1rem 2rem;
+      flex-shrink: 0;
+    }
+
+    .header-content {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #1a1a2e;
+    }
+
+    .logo-subtitle {
+      font-size: 0.875rem;
+      color: #6b7280;
+      font-weight: 400;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 700px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    .chat-window {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 0.875rem 1rem;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: #2563eb;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.75rem;
+      padding: 1rem 0;
+      border-top: 1px solid #e5e7eb;
+      background: #f8f9fa;
+      flex-shrink: 0;
+    }
+
+    textarea {
+      flex: 1;
+      padding: 0.875rem 1rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      resize: none;
+      min-height: 48px;
+      max-height: 120px;
+      line-height: 1.5;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .send-button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0 1.25rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .send-button:hover {
+      background: #1d4ed8;
+    }
+
+    .send-button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .status-line {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #6b7280;
+      padding: 0.5rem;
+      min-height: 2rem;
+    }
+
+    .paywall {
+      background: white;
+      border: 2px solid #2563eb;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 1rem;
+      text-align: center;
+    }
+
+    .paywall h3 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: #1a1a2e;
+    }
+
+    .paywall > p {
+      color: #4b5563;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+
+    #reasons {
+      text-align: left;
+      margin-bottom: 1.25rem;
+    }
+
+    #reasons .intro {
+      font-weight: 500;
+      color: #1a1a2e;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    #reasons ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    #reasons li {
+      padding: 0.5rem 0;
+      padding-left: 1.25rem;
+      position: relative;
+      font-size: 0.9rem;
+      color: #4b5563;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    #reasons li:last-child {
+      border-bottom: none;
+    }
+
+    #reasons li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: #2563eb;
+    }
+
+    .checkout-button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.875rem 2rem;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      width: 100%;
+      max-width: 300px;
+    }
+
+    .checkout-button:hover {
+      background: #1d4ed8;
+    }
+
+    .checkout-button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .price-note {
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 640px) {
+      main {
+        padding: 1rem;
+      }
+
+      .message {
+        max-width: 90%;
+      }
+
+      .input-row {
+        flex-direction: column;
+      }
+
+      .send-button {
+        padding: 0.875rem 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div>
+        <span class="logo">Serious People</span>
+        <span class="logo-subtitle"> · Interview</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="chat-window" id="chatWindow" data-testid="chat-window"></div>
+    
+    <div class="status-line" id="status" data-testid="status-line"></div>
+    
+    <div class="input-row">
+      <textarea 
+        id="userInput" 
+        data-testid="input-message"
+        placeholder="Type your answer here..."
+        rows="1"
+      ></textarea>
+      <button class="send-button" id="sendBtn" data-testid="button-send">Send</button>
+    </div>
+
+    <div id="paywall" class="paywall" style="display:none;" data-testid="paywall">
+      <h3>Ready to see your scripts?</h3>
+      <p>
+        I have enough to write a boss script, a partner script, and a clarity memo about your options.
+      </p>
+      <div id="reasons"></div>
+      <button id="checkoutBtn" class="checkout-button" data-testid="button-checkout">
+        Unlock scripts & memo – $19
+      </button>
+      <div class="price-note">
+        Payment is handled via Stripe. You'll be redirected back here after checkout to generate your scripts.
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'serious_people_transcript';
+    let transcript = [];
+    let interviewComplete = false;
+
+    const chatWindow = document.getElementById('chatWindow');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const status = document.getElementById('status');
+    const paywall = document.getElementById('paywall');
+    const reasonsDiv = document.getElementById('reasons');
+    const checkoutBtn = document.getElementById('checkoutBtn');
+
+    function loadTranscript() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          transcript = JSON.parse(saved);
+          transcript.forEach(msg => renderMessage(msg.role, msg.content));
+        }
+      } catch (e) {
+        console.error('Failed to load transcript:', e);
+        transcript = [];
+      }
+    }
+
+    function saveTranscript() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(transcript));
+      } catch (e) {
+        console.error('Failed to save transcript:', e);
+      }
+    }
+
+    function renderMessage(role, content) {
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+      div.textContent = content;
+      chatWindow.appendChild(div);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    function setStatus(text) {
+      status.textContent = text;
+    }
+
+    function showPaywall(valueBullets) {
+      paywall.style.display = 'block';
+      
+      if (valueBullets) {
+        const lines = valueBullets.trim().split('\n').filter(line => line.trim().startsWith('-'));
+        if (lines.length > 0) {
+          let html = '<p class="intro">Why these scripts will actually help you:</p><ul>';
+          lines.forEach(line => {
+            const text = line.replace(/^-\s*/, '').trim();
+            if (text) {
+              html += `<li>${text}</li>`;
+            }
+          });
+          html += '</ul>';
+          reasonsDiv.innerHTML = html;
+        }
+      }
+      
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    async function sendMessage(userMessage = null) {
+      sendBtn.disabled = true;
+      setStatus('Thinking...');
+
+      if (userMessage) {
+        transcript.push({ role: 'user', content: userMessage });
+        saveTranscript();
+        renderMessage('user', userMessage);
+      }
+
+      try {
+        const response = await fetch('/interview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to get response');
+        }
+
+        const data = await response.json();
+        
+        transcript.push({ role: 'assistant', content: data.reply });
+        saveTranscript();
+        renderMessage('assistant', data.reply);
+
+        if (data.done) {
+          interviewComplete = true;
+          setStatus('Interview complete (you can keep going).');
+          showPaywall(data.valueBullets);
+        } else {
+          setStatus('');
+        }
+      } catch (error) {
+        console.error('Interview error:', error);
+        setStatus('Something went wrong. Please try again.');
+      } finally {
+        sendBtn.disabled = false;
+        userInput.focus();
+      }
+    }
+
+    async function handleCheckout() {
+      checkoutBtn.disabled = true;
+      checkoutBtn.innerHTML = '<span class="spinner"></span>Redirecting...';
+
+      try {
+        const response = await fetch('/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error(data.error || 'Failed to create checkout session');
+        }
+      } catch (error) {
+        console.error('Checkout error:', error);
+        alert('Something went wrong. Please try again.');
+        checkoutBtn.disabled = false;
+        checkoutBtn.innerHTML = 'Unlock scripts & memo – $19';
+      }
+    }
+
+    function autoResize() {
+      userInput.style.height = 'auto';
+      userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
+    }
+
+    sendBtn.addEventListener('click', () => {
+      const text = userInput.value.trim();
+      if (text) {
+        userInput.value = '';
+        autoResize();
+        sendMessage(text);
+      }
+    });
+
+    userInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const text = userInput.value.trim();
+        if (text) {
+          userInput.value = '';
+          autoResize();
+          sendMessage(text);
+        }
+      }
+    });
+
+    userInput.addEventListener('input', autoResize);
+
+    checkoutBtn.addEventListener('click', handleCheckout);
+
+    loadTranscript();
+
+    if (transcript.length === 0) {
+      sendMessage();
+    } else {
+      setStatus('Continue your interview or unlock your scripts below.');
+      const lastResponse = transcript.filter(t => t.role === 'assistant').pop();
+      if (lastResponse && lastResponse.content.includes('I think I have enough')) {
+        interviewComplete = true;
+        showPaywall(null);
+      }
+    }
+  </script>
+</body>
+</html>

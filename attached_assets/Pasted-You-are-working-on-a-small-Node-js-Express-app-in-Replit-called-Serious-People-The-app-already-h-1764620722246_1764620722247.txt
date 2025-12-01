@@ -1,0 +1,432 @@
+You are working on a small Node.js + Express app in Replit called Serious People.
+
+The app already has:
+
+A Node/Express server file (e.g. index.js)
+
+Static HTML in a public/ folder
+
+Stripe Checkout integration
+
+OpenAI integration
+
+A basic interview + paywall flow
+
+I want you to refactor and improve the app with the following constraints and features. Please read all of this before you start making changes.
+
+0. Constraints (do NOT break these)
+
+Use Node.js + Express only.
+
+Serve plain HTML/CSS/JS from /public.
+
+Do not add React, templating engines, databases, or authentication.
+
+All secrets must stay server-side:
+
+STRIPE_SECRET_KEY
+
+STRIPE_PRICE_ID
+
+OPENAI_API_KEY
+
+BASE_URL
+
+Stripe should use Checkout sessions with success_url and cancel_url as before.
+
+The basic routes we need:
+
+express.static("public")
+
+POST /checkout
+
+GET /verify-session
+
+POST /interview
+
+POST /generate
+
+If anything currently violates those constraints (e.g., React, extra frameworks), remove or simplify it.
+
+1. Branding and tagline
+
+Product name: Serious People
+Tagline / H1: Short scripts for big career conversations.
+
+Please:
+
+Set the <title> in the landing page <head> to:
+Serious People – Short scripts for big career conversations
+
+Use the tagline as the main <h1> text on the landing page.
+
+2. Landing page (public/index.html)
+
+I want the landing page to do this:
+
+Explain, in a clean layout, what Serious People does.
+
+Make it clear that:
+
+You start with a free AI interview.
+
+You only pay $19 if you want to unlock the scripts + memo.
+
+The primary CTA should be: “Start the interview”, which navigates to /interview.html.
+
+Please rewrite/replace public/index.html with a modern but simple layout that:
+
+Has a header with the product name and a small subtitle.
+
+Main hero section:
+
+H1: Short scripts for big career conversations.
+
+Subtext explaining:
+
+Serious People walks you through a short AI interview about your job.
+
+At the end, you can optionally pay $19 to get:
+
+A boss script
+
+A partner script
+
+A one-page clarity memo
+
+A clear CTA button:
+
+Text: Start the interview
+
+On click: window.location.href = "/interview.html";
+
+A line right under the CTA that makes the pricing structure explicit, e.g.:
+
+“The interview is free. If you want the scripts and memo at the end, it’s $19 via Stripe.”
+
+A secondary card/section titled something like “What you get for $19 (after a free interview)” listing:
+
+Boss script
+
+Partner script
+
+Clarity memo
+
+Use simple CSS inside <style> in the same file (no external frameworks).
+
+3. AI Interview page (public/interview.html)
+
+I want /interview.html to be a chat-style AI interview.
+
+Behavior
+
+When the page loads, it immediately calls POST /interview with the current transcript (which will be empty on first load).
+
+The server responds with the coach’s first question.
+
+The user types answers into a textarea and clicks “Send” (or presses Enter).
+
+Each turn:
+
+The front-end appends the user’s message and the assistant’s reply to a local transcript array.
+
+The transcript is also saved to localStorage under the key:
+serious_people_transcript
+
+The transcript is sent to /interview on each turn.
+
+Front-end structure
+
+In public/interview.html:
+
+A simple header: Serious People · Interview
+
+A chat window that shows:
+
+AI messages (coach) styled on the left
+
+User messages styled on the right
+
+A textarea input + “Send” button row.
+
+A small status line (e.g. “Thinking…”, “Interview complete (you can keep going).”)
+
+A paywall section that starts hidden and appears once the interview is complete. More on this in section 5.
+
+Do NOT block the user from continuing after completion
+
+After the AI indicates it has enough info, the paywall appears, but the user should still be able to:
+
+Type more answers
+
+Continue to refine the conversation
+
+So: do not prematurely return in the send handler based on interviewComplete. Just keep appending.
+
+4. /interview route: new system prompt and structure
+
+Update the /interview API route in the server to:
+
+Accept a JSON body: { transcript }, where transcript is an array of { role: "user" | "assistant", content: string } objects.
+
+Construct OpenAI messages as:
+
+System message (new prompt, below)
+
+All previous user and assistant turns, in order.
+
+If transcript is empty, add an extra message like:
+
+{ role: "user", content: "Start the interview. Ask your first question." }
+
+New system prompt
+
+Replace your existing system prompt for /interview with this:
+
+You are "Serious People", a candid but compassionate career coach.
+Your job is to interview the user about their current job situation and whether they should leave.
+
+Rough framework (adapt as needed based on their answers):
+- Questions 1–2: Clarify role & context
+  - What do they do? Where do they work? How long?
+- Questions 3–4: What's not working?
+  - Specific frictions, patterns, people, expectations.
+- Questions 5–6: Stakes & constraints
+  - Money, family, health, identity, visa, geography, etc.
+- Questions 7–8: Options & appetite
+  - What have they already considered? What are they scared of?
+
+Rules:
+- Ask ONE question at a time.
+- Keep questions concrete and practical (not therapy).
+- Every 2–3 user answers, pause to reflect back what you think you understand in 2–3 short bullet points. This is your proof of understanding.
+- Aim for about 6–8 questions total *before* you feel ready.
+
+After you feel you have enough information to write:
+  - a boss conversation script,
+  - a partner conversation script,
+  - and a one-page clarity memo about their options,
+
+do this in your next reply:
+1) Talk to the user normally, in plain language, and say something like:
+   - "I think I have enough to write your scripts. If you want, we can keep going and add more detail in any area that feels important."
+   Offer 1–2 examples of areas they might want to go deeper (e.g. money, boss dynamics, partner’s perspective).
+
+2) At the VERY END of your reply, append the exact token:
+   [[INTERVIEW_COMPLETE]]
+
+3) After that token, append a short, user-specific list of why the scripts will be valuable for them personally, in this format:
+
+[[VALUE_BULLETS]]
+- bullet about their boss situation
+- bullet about their partner / home situation
+- bullet about their internal dilemma or stakes
+[[END_VALUE_BULLETS]]
+
+Tone:
+- Plain, direct, no corporate jargon.
+- Respectful but not fawning. You are talking to a competent adult.
+- You can be lightly funny or wry, but never mean.
+
+Important:
+- Do NOT mention these rules, tokens, or that you will later write scripts.
+- Do NOT output [[INTERVIEW_COMPLETE]] until you genuinely feel ready to write useful scripts.
+
+/interview implementation details
+
+Use OpenAI Chat Completions (gpt-4.1-mini or similar; use the existing OpenAI client).
+
+After you get reply from OpenAI:
+
+Determine if done = reply.includes("[[INTERVIEW_COMPLETE]]").
+
+If done is true:
+
+Extract the text between [[VALUE_BULLETS]] and [[END_VALUE_BULLETS]] into a string (call it valueBullets).
+
+Remove [[INTERVIEW_COMPLETE]], [[VALUE_BULLETS]], the bullets, and [[END_VALUE_BULLETS]] from the visible reply.
+
+Respond with JSON:
+
+{
+  "reply": "cleaned visible text",
+  "done": true_or_false,
+  "valueBullets": "optional bullets block or null"
+}
+
+5. Paywall section on /interview.html (using user-specific value bullets)
+
+In public/interview.html, add a paywall panel that is initially hidden, e.g.:
+
+<div id="paywall" class="paywall" style="display:none;">
+  <strong>Ready to see your scripts?</strong>
+  <p>
+    I have enough to write a boss script, a partner script, and a clarity memo about your options.
+  </p>
+  <div id="reasons"></div>
+  <button id="checkoutBtn">Unlock scripts & memo – $19</button>
+  <div class="price-note">
+    Payment is handled via Stripe. You’ll be redirected back here after checkout to generate your scripts.
+  </div>
+</div>
+
+
+Then, in the interview JavaScript:
+
+In the function that handles the /interview response:
+
+If done is true:
+
+Set interviewComplete = true.
+
+Call a showPaywall(valueBullets) function.
+
+Implement showPaywall(valueBullets) to:
+
+Show the paywall (style.display = "block").
+
+If valueBullets exists:
+
+Parse each line starting with - as a bullet.
+
+Render them as an HTML <ul> inside the #reasons div, with a short introduction line like:
+
+“Why these scripts will actually help you:”
+
+This is where the user sees personalized reasons based on what they told the AI, e.g.:
+
+You’re trying to protect your relationship with your manager while being honest about burnout.
+
+Your partner is worried about income and stability while you change roles.
+
+You keep bouncing between “burn it down” and “I should be grateful,” which is freezing you.
+
+Checkout button
+
+The “Unlock scripts & memo – $19” button should:
+
+POST to /checkout
+
+Read the returned { url }
+
+Set window.location.href = url to send the user to Stripe Checkout.
+
+This is the same checkout route/flow you already have, just triggered from here instead of the landing page.
+
+6. /generate route: use the interview transcript instead of form fields
+
+Update the /generate route to:
+
+Accept a JSON body: { transcript }.
+
+Validate: if transcript is missing or empty, return 400.
+
+Reconstruct the conversation into a readable string for the prompt, e.g.:
+
+const formatted = transcript
+  .map(turn => {
+    if (!turn || !turn.role || !turn.content) return "";
+    const who = turn.role === "assistant" ? "Coach" : "You";
+    return `${who}: ${turn.content}`;
+  })
+  .join("\n\n");
+
+
+Use the following prompt:
+
+You previously interviewed a user about their job situation and whether they should quit.
+
+Here is the full conversation between you (the coach) and the user:
+
+{{formatted transcript}}
+
+Based on this transcript, produce three sections in clear, readable text:
+
+1) "Script for talking to my boss"
+- A conversational 2–3 minute script they can mostly read verbatim.
+- Be honest but non-destructive.
+- If staying is still on the table, model "disagree and commit" after decisions are made.
+- Avoid therapy language. Use plain, direct English.
+
+2) "Script for talking to my partner"
+- A script that is empathetic and transparent about risk and money.
+- Acknowledges their likely concerns (stability, income, stress at home).
+- Asks for support and collaboration, not just permission.
+
+3) "Clarity memo"
+- A one-page style write-up with:
+  - A short summary of the situation in 3–5 sentences.
+  - 2–3 realistic options (e.g., stay and renegotiate, line up a new job then quit, take a sabbatical / independent path).
+  - Top 3 risks for each option.
+  - A concrete 30-day experiment plan.
+
+Format:
+- Use clear headings for each section.
+- Use short paragraphs and bullet points where helpful.
+- No corporate jargon. No mention of being an AI or a coach. Write as if the user drafted this themselves after talking it through with a mentor.
+
+
+Send this prompt as the single user message to OpenAI chat completions.
+
+Return JSON: { text: generatedText }.
+
+7. success.html: verify payment, then call /generate
+
+Replace public/success.html with a simple page that:
+
+On load:
+
+Extracts session_id from the URL query string.
+
+Calls GET /verify-session?session_id=....
+
+If not valid, show an error message.
+
+If valid, show a card with a “Generate my scripts” button.
+
+When the user clicks “Generate my scripts”:
+
+Read serious_people_transcript from localStorage.
+
+Parse it as JSON.
+
+POST to /generate with { transcript }.
+
+Show a status message (“Generating, this may take a few seconds…”).
+
+On success, show:
+
+“Copy all” button.
+
+<pre> block with the generated text (boss script, partner script, clarity memo).
+
+If the transcript is missing (e.g., they switched devices), show a gentle error:
+“Looks like I can’t find your interview on this device. For now this tool assumes you complete the interview and payment on the same device/browser.”
+
+8. Keep Stripe + OpenAI wiring intact
+
+Keep using Stripe Checkout as you are now.
+
+Keep using OpenAI Chat Completions.
+
+Ensure no secret keys are exposed in client-side JS.
+
+9. After you finish
+
+After you make these changes:
+
+Make sure the flow works end-to-end in test mode:
+
+index.html → click “Start the interview”.
+
+/interview.html → go through several Q&A turns.
+
+See the paywall appear with user-specific bullet reasons.
+
+Click “Unlock” → Stripe Checkout.
+
+After successful test payment → /success.html verifies it.
+
+Click “Generate my scripts” → get the 3 sections based on the interview.
+
+Please implement all of the above, and keep the code clean and well-commented where non-obvious.
