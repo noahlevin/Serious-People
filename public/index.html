@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Serious People – Short scripts for big career conversations</title>
+  <title>Serious People – Career Coaching Scripts</title>
   <meta name="description" content="Get personalized scripts for talking to your boss and partner about your career. Start with a free AI interview, pay $19 only if you want the scripts.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -16,69 +16,58 @@
     }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #f8f9fa;
-      color: #1a1a2e;
+      font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+      background: #faf9f6;
+      color: #1a1a1a;
       line-height: 1.6;
       min-height: 100vh;
     }
 
-    header {
-      background: white;
-      border-bottom: 1px solid #e5e7eb;
-      padding: 0.5rem 2rem;
-    }
-
-    .header-content {
-      max-width: 800px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .logo-link {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      text-decoration: none;
-    }
-
-    .logo-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 6px;
-      object-fit: cover;
-    }
-
-    .logo {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #1a1a2e;
-    }
-
     main {
-      max-width: 640px;
+      max-width: 680px;
       margin: 0 auto;
-      padding: 3rem 1.5rem;
+      padding: 3rem 1.5rem 2rem;
+    }
+
+    .masthead {
+      text-align: center;
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+      border-bottom: 3px double #1a1a1a;
+    }
+
+    .masthead-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #1a1a1a;
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+
+    .masthead-date {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 0.75rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
     }
 
     .quote-box {
       display: flex;
       align-items: center;
       gap: 1.5rem;
-      background: white;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 1.25rem;
-      margin-bottom: 2.5rem;
+      padding: 1.25rem 0;
+      margin-bottom: 2rem;
+      border-top: 1px solid #d4d4d4;
+      border-bottom: 1px solid #d4d4d4;
     }
 
     .quote-image {
       width: auto;
       height: auto;
-      max-width: 140px;
-      border-radius: 8px;
+      max-width: 120px;
       flex-shrink: 0;
     }
 
@@ -89,77 +78,102 @@
     }
 
     .quote-text {
-      font-family: Georgia, 'Times New Roman', serif;
-      font-size: 0.95rem;
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.1rem;
       font-style: italic;
-      color: #1a1a2e;
+      color: #1a1a1a;
       margin-bottom: 0.5rem;
       line-height: 1.5;
     }
 
     .quote-attribution {
-      font-family: Georgia, 'Times New Roman', serif;
-      font-size: 0.875rem;
-      color: #6b7280;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 0.8rem;
+      color: #666;
+      font-style: normal;
+      letter-spacing: 0.05em;
     }
 
     .hero {
       text-align: center;
-      margin-bottom: 3rem;
+      margin-bottom: 2.5rem;
     }
 
     h1 {
-      font-size: 2.25rem;
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 2.75rem;
       font-weight: 700;
-      color: #1a1a2e;
-      margin-bottom: 1.5rem;
-      line-height: 1.2;
+      color: #1a1a1a;
+      margin-bottom: 1.25rem;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
     }
 
     .hero-text {
+      font-family: 'Source Serif 4', Georgia, serif;
       font-size: 1.125rem;
-      color: #4b5563;
+      color: #333;
       margin-bottom: 2rem;
-      line-height: 1.7;
+      line-height: 1.75;
     }
 
     .cta-button {
       display: inline-block;
-      background: #2563eb;
-      color: white;
-      font-size: 1.125rem;
-      font-weight: 600;
-      padding: 1rem 2.5rem;
-      border: none;
-      border-radius: 8px;
+      background: #1a1a1a;
+      color: #fff;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 1rem;
+      font-weight: 500;
+      padding: 0.875rem 2.5rem;
+      border: 2px solid #1a1a1a;
       cursor: pointer;
-      transition: background 0.2s ease;
+      transition: all 0.2s ease;
       text-decoration: none;
+      letter-spacing: 0.02em;
     }
 
     .cta-button:hover {
-      background: #1d4ed8;
+      background: #fff;
+      color: #1a1a1a;
     }
 
     .pricing-note {
-      margin-top: 1rem;
-      font-size: 0.9rem;
-      color: #6b7280;
+      margin-top: 1.25rem;
+      font-size: 0.875rem;
+      color: #666;
+      font-style: italic;
     }
 
-    .features-card {
-      background: white;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 2rem;
-      margin-top: 3rem;
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 2.5rem 0 2rem;
     }
 
-    .features-card h2 {
-      font-size: 1.125rem;
+    .section-divider::before,
+    .section-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #d4d4d4;
+    }
+
+    .section-divider-diamond {
+      width: 8px;
+      height: 8px;
+      background: #1a1a1a;
+      transform: rotate(45deg);
+    }
+
+    .features-section h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.5rem;
       font-weight: 600;
-      color: #1a1a2e;
-      margin-bottom: 1.25rem;
+      color: #1a1a1a;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      letter-spacing: -0.01em;
     }
 
     .features-list {
@@ -169,63 +183,73 @@
     .features-list li {
       display: flex;
       align-items: flex-start;
-      gap: 0.75rem;
-      padding: 0.75rem 0;
-      border-bottom: 1px solid #f3f4f6;
+      gap: 1rem;
+      padding: 1.25rem 0;
+      border-bottom: 1px solid #e5e5e5;
     }
 
-    .features-list li:last-child {
-      border-bottom: none;
+    .features-list li:first-child {
+      border-top: 1px solid #e5e5e5;
     }
 
-    .feature-icon {
-      width: 24px;
-      height: 24px;
-      background: #dbeafe;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-
-    .feature-icon svg {
-      width: 14px;
-      height: 14px;
-      color: #2563eb;
+    .feature-number {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      line-height: 1;
+      min-width: 28px;
     }
 
     .feature-content h3 {
-      font-size: 1rem;
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.125rem;
       font-weight: 600;
-      color: #1a1a2e;
-      margin-bottom: 0.25rem;
+      color: #1a1a1a;
+      margin-bottom: 0.375rem;
     }
 
     .feature-content p {
-      font-size: 0.9rem;
-      color: #6b7280;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 0.95rem;
+      color: #444;
+      line-height: 1.6;
     }
 
     footer {
       text-align: center;
-      padding: 2rem;
-      color: #9ca3af;
-      font-size: 0.875rem;
+      padding: 2.5rem 1.5rem;
+      border-top: 1px solid #d4d4d4;
+      margin-top: 2rem;
+    }
+
+    footer p {
+      font-family: 'Source Serif 4', Georgia, serif;
+      color: #666;
+      font-size: 0.8rem;
+      letter-spacing: 0.02em;
     }
 
     footer a {
-      color: #6b7280;
+      color: #1a1a1a;
+      text-decoration: underline;
+    }
+
+    footer a:hover {
+      text-decoration: none;
     }
 
     @media (max-width: 640px) {
-      h1 {
+      .masthead-title {
         font-size: 1.75rem;
       }
 
+      h1 {
+        font-size: 2rem;
+      }
+
       main {
-        padding: 2rem 1rem;
+        padding: 2rem 1rem 1.5rem;
       }
 
       .cta-button {
@@ -239,13 +263,23 @@
       }
 
       .quote-image {
-        max-width: 120px;
+        max-width: 100px;
+      }
+
+      .feature-number {
+        font-size: 1.25rem;
+        min-width: 24px;
       }
     }
   </style>
 </head>
 <body>
   <main>
+    <div class="masthead">
+      <h2 class="masthead-title">Serious People</h2>
+      <p class="masthead-date">Career Coaching Scripts</p>
+    </div>
+
     <div class="quote-box">
       <img src="/logan-roy.png" alt="Logan Roy" class="quote-image">
       <div class="quote-content">
@@ -260,51 +294,43 @@
         Turn your messy thoughts about work into a clear story with a short interview with our AI coach. Sharpen what you want, see the real trade-offs, and walk into big conversations—with your boss, your partner, and yourself—knowing exactly what you're asking for.
       </p>
       <button class="cta-button" data-testid="button-start-interview" onclick="window.location.href='/interview.html'">
-        Start the interview
+        Start the Interview
       </button>
       <p class="pricing-note">
-        The interview is free. If you want the scripts and memo at the end, it's $19 via Stripe.
+        The interview is free. Scripts and memo are $19.
       </p>
     </section>
 
-    <div class="features-card">
-      <h2>What you get for $19 (after a free interview)</h2>
+    <div class="section-divider">
+      <span class="section-divider-diamond"></span>
+    </div>
+
+    <section class="features-section">
+      <h2>What You Get for $19</h2>
       <ul class="features-list">
         <li>
-          <div class="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-          </div>
+          <span class="feature-number">1.</span>
           <div class="feature-content">
-            <h3>Boss script</h3>
+            <h3>Boss Script</h3>
             <p>A 2–3 minute conversation script for talking to your manager. Honest but non-destructive.</p>
           </div>
         </li>
         <li>
-          <div class="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-          </div>
+          <span class="feature-number">2.</span>
           <div class="feature-content">
-            <h3>Partner script</h3>
+            <h3>Partner Script</h3>
             <p>A script for your spouse or partner about money, risk, and what happens if you stay or leave.</p>
           </div>
         </li>
         <li>
-          <div class="feature-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
+          <span class="feature-number">3.</span>
           <div class="feature-content">
-            <h3>Clarity memo</h3>
+            <h3>Clarity Memo</h3>
             <p>A one-page write-up of your situation, options, risks, and a concrete 30-day experiment.</p>
           </div>
         </li>
       </ul>
-    </div>
+    </section>
   </main>
 
   <footer>

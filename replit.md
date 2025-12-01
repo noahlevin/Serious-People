@@ -19,7 +19,8 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 **Technology Stack:**
 - Static HTML pages with inline CSS and vanilla JavaScript
 - No React, no build process for frontend
-- Inter font family for professional typography
+- WSJ-inspired typography: Playfair Display (headlines) + Source Serif 4 (body)
+- Design inspired by Wall Street Journal print edition for old-school business credibility
 
 **Static Pages:**
 - `public/index.html` - Landing page with hero section and "Start the interview" CTA

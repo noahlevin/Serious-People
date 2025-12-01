@@ -7,7 +7,7 @@
   <meta name="description" content="Start your career coaching interview with Serious People.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -16,9 +16,9 @@
     }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #f8f9fa;
-      color: #1a1a2e;
+      font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+      background: #faf9f6;
+      color: #1a1a1a;
       line-height: 1.6;
       min-height: 100vh;
       display: flex;
@@ -26,9 +26,9 @@
     }
 
     header {
-      background: white;
-      border-bottom: 1px solid #e5e7eb;
-      padding: 0.5rem 2rem;
+      background: #faf9f6;
+      border-bottom: 1px solid #d4d4d4;
+      padding: 0.75rem 2rem;
       flex-shrink: 0;
     }
 
@@ -43,26 +43,29 @@
     .logo-link {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.75rem;
       text-decoration: none;
     }
 
     .logo-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 6px;
+      width: 36px;
+      height: 36px;
       object-fit: cover;
     }
 
     .logo {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #1a1a2e;
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
     }
 
     .logo-subtitle {
+      font-family: 'Source Serif 4', Georgia, serif;
       font-size: 0.875rem;
-      color: #6b7280;
+      color: #666;
       font-weight: 400;
     }
 
@@ -82,47 +85,48 @@
       padding: 1rem 0;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 1.25rem;
     }
 
     .message {
       max-width: 85%;
-      padding: 0.875rem 1rem;
-      border-radius: 12px;
-      font-size: 0.95rem;
-      line-height: 1.6;
+      padding: 1rem 1.25rem;
+      font-size: 1rem;
+      line-height: 1.7;
     }
 
     .message.assistant {
       align-self: flex-start;
-      background: white;
-      border: 1px solid #e5e7eb;
-      border-bottom-left-radius: 4px;
+      background: #fff;
+      border-left: 3px solid #1a1a1a;
+      border-top: 1px solid #e5e5e5;
+      border-right: 1px solid #e5e5e5;
+      border-bottom: 1px solid #e5e5e5;
     }
 
     .message.user {
       align-self: flex-end;
-      background: #2563eb;
-      color: white;
-      border-bottom-right-radius: 4px;
+      background: #1a1a1a;
+      color: #fff;
+      border-left: 3px solid #666;
     }
 
     .input-row {
       display: flex;
       gap: 0.75rem;
-      padding: 1rem 0;
-      border-top: 1px solid #e5e7eb;
-      background: #f8f9fa;
+      padding: 1.25rem 0;
+      border-top: 1px solid #d4d4d4;
+      background: #faf9f6;
       flex-shrink: 0;
     }
 
     textarea {
       flex: 1;
       padding: 0.875rem 1rem;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      font-family: inherit;
-      font-size: 0.95rem;
+      border: 1px solid #d4d4d4;
+      background: #fff;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 1rem;
       resize: none;
       min-height: 48px;
       max-height: 120px;
@@ -131,72 +135,85 @@
 
     textarea:focus {
       outline: none;
-      border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      border-color: #1a1a1a;
     }
 
     .send-button {
-      background: #2563eb;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 0 1.25rem;
-      font-weight: 600;
+      background: #1a1a1a;
+      color: #fff;
+      border: 2px solid #1a1a1a;
+      padding: 0 1.5rem;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-weight: 500;
       font-size: 0.95rem;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s;
       white-space: nowrap;
     }
 
     .send-button:hover {
-      background: #1d4ed8;
+      background: #fff;
+      color: #1a1a1a;
     }
 
     .send-button:disabled {
-      background: #9ca3af;
+      background: #999;
+      border-color: #999;
+      color: #fff;
       cursor: not-allowed;
+    }
+
+    .send-button:disabled:hover {
+      background: #999;
+      color: #fff;
     }
 
     .status-line {
       text-align: center;
       font-size: 0.85rem;
-      color: #6b7280;
+      color: #666;
       padding: 0.5rem;
       min-height: 2rem;
+      font-style: italic;
     }
 
     .paywall {
-      background: white;
-      border: 2px solid #2563eb;
-      border-radius: 12px;
-      padding: 1.5rem;
-      margin-top: 1rem;
+      background: #fff;
+      border: 2px solid #1a1a1a;
+      padding: 2rem;
+      margin-top: 1.5rem;
       text-align: center;
     }
 
     .paywall h3 {
-      font-size: 1.125rem;
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.375rem;
       font-weight: 600;
       margin-bottom: 0.75rem;
-      color: #1a1a2e;
+      color: #1a1a1a;
     }
 
     .paywall > p {
-      color: #4b5563;
-      margin-bottom: 1rem;
-      font-size: 0.95rem;
+      font-family: 'Source Serif 4', Georgia, serif;
+      color: #444;
+      margin-bottom: 1.25rem;
+      font-size: 1rem;
+      line-height: 1.6;
     }
 
     #reasons {
       text-align: left;
-      margin-bottom: 1.25rem;
+      margin-bottom: 1.5rem;
+      border-top: 1px solid #e5e5e5;
+      padding-top: 1rem;
     }
 
     #reasons .intro {
-      font-weight: 500;
-      color: #1a1a2e;
-      margin-bottom: 0.5rem;
-      font-size: 0.9rem;
+      font-family: 'Playfair Display', Georgia, serif;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
     }
 
     #reasons ul {
@@ -205,12 +222,13 @@
     }
 
     #reasons li {
-      padding: 0.5rem 0;
-      padding-left: 1.25rem;
+      padding: 0.625rem 0;
+      padding-left: 1.5rem;
       position: relative;
-      font-size: 0.9rem;
-      color: #4b5563;
-      border-bottom: 1px solid #f3f4f6;
+      font-size: 0.95rem;
+      color: #444;
+      border-bottom: 1px solid #f0f0f0;
+      line-height: 1.5;
     }
 
     #reasons li:last-child {
@@ -218,39 +236,47 @@
     }
 
     #reasons li::before {
-      content: "→";
+      content: "—";
       position: absolute;
       left: 0;
-      color: #2563eb;
+      color: #1a1a1a;
     }
 
     .checkout-button {
-      background: #2563eb;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 0.875rem 2rem;
-      font-weight: 600;
+      background: #1a1a1a;
+      color: #fff;
+      border: 2px solid #1a1a1a;
+      padding: 1rem 2rem;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-weight: 500;
       font-size: 1rem;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s;
       width: 100%;
-      max-width: 300px;
+      max-width: 320px;
     }
 
     .checkout-button:hover {
-      background: #1d4ed8;
+      background: #fff;
+      color: #1a1a1a;
     }
 
     .checkout-button:disabled {
-      background: #9ca3af;
+      background: #999;
+      border-color: #999;
       cursor: not-allowed;
     }
 
+    .checkout-button:disabled:hover {
+      background: #999;
+      color: #fff;
+    }
+
     .price-note {
-      margin-top: 0.75rem;
+      margin-top: 1rem;
       font-size: 0.8rem;
-      color: #6b7280;
+      color: #666;
+      font-style: italic;
     }
 
     .spinner {
@@ -270,6 +296,10 @@
     }
 
     @media (max-width: 640px) {
+      header {
+        padding: 0.75rem 1rem;
+      }
+
       main {
         padding: 1rem;
       }
@@ -285,6 +315,10 @@
       .send-button {
         padding: 0.875rem 1rem;
       }
+
+      .paywall {
+        padding: 1.5rem;
+      }
     }
   </style>
 </head>
@@ -292,7 +326,7 @@
   <header>
     <div class="header-content">
       <a href="/" class="logo-link">
-        <img src="/logan-roy.png" alt="Serious People icon" class="logo-icon">
+        <img src="/logan-roy.png" alt="Serious People" class="logo-icon">
         <span class="logo">Serious People</span>
         <span class="logo-subtitle"> · Interview</span>
       </a>
@@ -321,10 +355,10 @@
       </p>
       <div id="reasons"></div>
       <button id="checkoutBtn" class="checkout-button" data-testid="button-checkout">
-        Unlock scripts & memo – $19
+        Unlock Scripts & Memo – $19
       </button>
       <div class="price-note">
-        Payment is handled via Stripe. You'll be redirected back here after checkout to generate your scripts.
+        Payment handled securely via Stripe.
       </div>
     </div>
   </main>
@@ -381,7 +415,7 @@
       if (valueBullets) {
         const lines = valueBullets.trim().split('\n').filter(line => line.trim().startsWith('-'));
         if (lines.length > 0) {
-          let html = '<p class="intro">Why these scripts will actually help you:</p><ul>';
+          let html = '<p class="intro">Why these scripts will help:</p><ul>';
           lines.forEach(line => {
             const text = line.replace(/^-\s*/, '').trim();
             if (text) {
@@ -425,7 +459,7 @@
 
         if (data.done) {
           interviewComplete = true;
-          setStatus('Interview complete (you can keep going).');
+          setStatus('Interview complete.');
           showPaywall(data.valueBullets);
         } else {
           setStatus('');
@@ -460,7 +494,7 @@
         console.error('Checkout error:', error);
         alert('Something went wrong. Please try again.');
         checkoutBtn.disabled = false;
-        checkoutBtn.innerHTML = 'Unlock scripts & memo – $19';
+        checkoutBtn.innerHTML = 'Unlock Scripts & Memo – $19';
       }
     }
 
