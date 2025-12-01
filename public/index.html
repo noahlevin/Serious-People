@@ -37,22 +37,57 @@
       justify-content: space-between;
     }
 
+    .logo-link {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      object-fit: cover;
+    }
+
     .logo {
       font-size: 1.25rem;
       font-weight: 700;
       color: #1a1a2e;
     }
 
-    .logo-subtitle {
-      font-size: 0.875rem;
-      color: #6b7280;
-      font-weight: 400;
-    }
-
     main {
       max-width: 640px;
       margin: 0 auto;
-      padding: 4rem 1.5rem;
+      padding: 3rem 1.5rem;
+    }
+
+    .quote-section {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .quote-image {
+      width: 160px;
+      height: 160px;
+      border-radius: 12px;
+      object-fit: cover;
+      margin-bottom: 1.25rem;
+      border: 1px solid #e5e7eb;
+    }
+
+    .quote-text {
+      font-size: 1.25rem;
+      font-style: italic;
+      color: #1a1a2e;
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+
+    .quote-attribution {
+      font-size: 0.9rem;
+      color: #6b7280;
     }
 
     .hero {
@@ -184,20 +219,35 @@
         width: 100%;
         text-align: center;
       }
+
+      .quote-image {
+        width: 120px;
+        height: 120px;
+      }
+
+      .quote-text {
+        font-size: 1.125rem;
+      }
     }
   </style>
 </head>
 <body>
   <header>
     <div class="header-content">
-      <div>
+      <a href="/" class="logo-link">
+        <img src="/logan-roy.png" alt="Serious People icon" class="logo-icon">
         <span class="logo">Serious People</span>
-        <span class="logo-subtitle"> · Career scripts</span>
-      </div>
+      </a>
     </div>
   </header>
 
   <main>
+    <section class="quote-section">
+      <img src="/logan-roy.png" alt="Logan Roy" class="quote-image">
+      <p class="quote-text">"I love you, but you are not serious people."</p>
+      <p class="quote-attribution">— Logan Roy</p>
+    </section>
+
     <section class="hero">
       <h1>Short scripts for big career conversations.</h1>
       <p class="hero-text">

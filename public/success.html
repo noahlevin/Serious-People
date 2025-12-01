@@ -34,6 +34,20 @@
       margin: 0 auto;
     }
 
+    .logo-link {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 5px;
+      object-fit: cover;
+    }
+
     .logo {
       font-size: 1.125rem;
       font-weight: 600;
@@ -266,8 +280,10 @@
 <body>
   <header>
     <div class="header-content">
-      <span class="logo">Serious People</span>
-      <span class="logo-subtitle"> · Your Scripts</span>
+      <a href="/" class="logo-link">
+        <img src="/logan-roy.png" alt="Serious People icon" class="logo-icon">
+        <span class="logo">Serious People</span>
+      </a>
     </div>
   </header>
 
