@@ -1,119 +1,123 @@
-# Career Coaching Script Generator
+# Serious People - Career Coaching Scripts
 
 ## Overview
 
-This is a career coaching script generation service that helps users navigate career transitions. Users pay $19 via Stripe to access a form where they input career details, which then generates three personalized scripts: one for their boss, one for their partner, and a clarity memo with concrete next steps. The application follows a simple conversion funnel: landing page → payment → form → AI-generated scripts.
+Serious People is a career coaching service that helps users navigate career transitions. The app provides a **free AI-powered interview** to understand the user's situation, then charges $19 via Stripe for three personalized career coaching scripts: one for their boss, one for their partner, and a clarity memo with concrete next steps.
+
+**Tagline:** "Short scripts for big career conversations."
+
+**User Flow:** Landing page → Free AI interview → Personalized paywall → $19 Stripe payment → Script generation
 
 ## User Preferences
 
-Preferred communication style: Simple, everyday language.
+Preferred communication style: Simple, everyday language. Plain, direct, no corporate jargon.
 
 ## System Architecture
 
 ### Frontend Architecture
 
 **Technology Stack:**
-- React with TypeScript for UI components
-- Vite as the build tool and development server
-- Wouter for client-side routing
-- TanStack Query for server state management
-- Tailwind CSS for styling with shadcn/ui component library
-
-**Design System:**
-- Uses shadcn/ui components built on Radix UI primitives
-- Custom Tailwind configuration with HSL-based color system
-- Design follows a hybrid approach combining Stripe's trust-building aesthetics with Linear's clean form design
-- Typography uses Inter font family for professional, form-optimized readability
-- Single-column, focused layouts optimized for conversion and form completion
+- Static HTML pages with inline CSS and vanilla JavaScript
+- No React, no build process for frontend
+- Inter font family for professional typography
 
 **Static Pages:**
-- Landing page served from `public/index.html` - displays hero section with CTA button
-- Success page served from `public/success.html` - handles payment verification and displays intake form
-- Both pages use inline styling to work independently of the React build
+- `public/index.html` - Landing page with hero section and "Start the interview" CTA
+- `public/interview.html` - Chat-style AI interview with conversation UI
+- `public/success.html` - Payment verification and script generation
+
+**Interview Page Features:**
+- Chat-style conversation interface
+- Transcript stored in localStorage (`serious_people_transcript` key)
+- Auto-scrolling chat container
+- Personalized paywall with value bullets from AI
+- Checkout button that creates Stripe session
+
+**Success Page Features:**
+- Payment verification via session_id query param
+- Transcript retrieval from localStorage
+- Script generation on button click
+- Copy-to-clipboard functionality
 
 ### Backend Architecture
 
 **Framework:** Express.js with TypeScript
 
 **Server Structure:**
-- Express server with JSON body parsing and raw body preservation for webhook verification
-- Custom logging middleware for API request monitoring
-- Static file serving from the `public` directory for landing/success pages
-- Development mode uses Vite middleware for HMR; production serves pre-built static files
+- Express server with JSON body parsing
+- Static file serving from `public` directory
+- Development mode uses Vite middleware for HMR
 
 **API Endpoints:**
-1. `POST /checkout` - Creates Stripe Checkout session and returns redirect URL
-2. `GET /verify-session` - Validates Stripe payment session using session_id query parameter
-3. `POST /generate-scripts` - Accepts intake form data and generates AI scripts via OpenAI
-4. `POST /webhook` - Receives Stripe webhook events for payment confirmation
+1. `POST /checkout` - Creates Stripe Checkout session, returns redirect URL
+2. `GET /verify-session?session_id=xxx` - Validates Stripe payment session
+3. `POST /interview` - AI interview endpoint, accepts `{ transcript: [] }`, returns `{ reply, done, valueBullets }`
+4. `POST /generate` - Generates scripts from `{ transcript }`, returns `{ text }`
 
 **AI Integration:**
-- Uses OpenAI API with GPT-4.1-mini model for script generation
-- Generates three personalized scripts based on user's career context:
-  - Script for boss conversation
-  - Script for partner discussion
-  - Clarity memo with next steps
+- Uses OpenAI API with GPT-4.1-mini model
+- Interview system prompt conducts 6-8 questions
+- Uses `[[INTERVIEW_COMPLETE]]` token to signal completion
+- Uses `[[VALUE_BULLETS]]...[[END_VALUE_BULLETS]]` for personalized paywall content
+- Script generation creates three sections: boss script, partner script, clarity memo
 
 ### Data Storage
 
-**Database:** PostgreSQL via Neon serverless driver
-
-**ORM:** Drizzle ORM for type-safe database operations
-
-**Schema:**
-- Simple user table with id, username, and password fields (defined in `shared/schema.ts`)
-- Uses Drizzle-Zod for schema validation
-- Database migrations managed via `drizzle-kit`
-
-**Storage Strategy:**
-- In-memory storage implementation (`MemStorage`) provided as fallback
-- Production uses PostgreSQL connection via `DATABASE_URL` environment variable
+**No Database:** This app does not use a database.
+- Interview transcripts stored client-side in localStorage
+- No user accounts or persistent server-side storage
+- Payment verification is session-based via Stripe
 
 ### Authentication & Authorization
 
-**Payment Verification:**
-- Stripe Checkout session validation ensures users have paid before accessing the form
-- Session ID passed via query parameter from Stripe redirect
-- Backend verifies session status before allowing form submission
-
 **No User Authentication:**
-- No traditional login/registration system
-- Access control is payment-based rather than account-based
-- Sessions are ephemeral and tied to Stripe checkout flow
+- No login/registration system
+- Access control is payment-based
+- Stripe Checkout session validates payment
+- Scripts only generated after successful payment verification
 
 ### External Dependencies
 
 **Payment Processing:**
-- **Stripe** - Handles one-time $19 payment via Checkout Sessions
-- Uses environment variables: `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`
-- Implements webhook handling for payment events
+- **Stripe** - One-time $19 payment via Checkout Sessions
+- Uses `STRIPE_SECRET_KEY` (via Replit Stripe connection)
+- Auto-creates product/price if not found
 - Success URL: `{BASE_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`
-- Cancel URL: `{BASE_URL}/` (returns to landing page)
+- Cancel URL: `{BASE_URL}/interview.html`
 
 **AI Script Generation:**
-- **OpenAI API** - Generates personalized career coaching scripts
-- Uses GPT-4.1-mini model (explicitly specified)
+- **OpenAI API** - Powers interview and script generation
+- Uses GPT-4.1-mini model
 - Requires `OPENAI_API_KEY` environment variable
 
-**Database:**
-- **Neon Serverless PostgreSQL** - Cloud-hosted database
-- Requires `DATABASE_URL` environment variable
-- Connection handled via `@neondatabase/serverless` driver
-
-**UI Component Library:**
-- **shadcn/ui** - Pre-built accessible components based on Radix UI
-- Extensive collection of form inputs, dialogs, tooltips, etc.
-- Customized via Tailwind with "new-york" style variant
-
 **Build & Development:**
-- **Vite** - Development server with HMR and production bundler
-- **esbuild** - Server-side bundling with selective dependency bundling
-- **tsx** - TypeScript execution for development and build scripts
-- Replit-specific plugins for development banners and error handling
+- **Vite** - Development server with HMR
+- **esbuild** - Server-side bundling
+- **tsx** - TypeScript execution
 
-**Environment Configuration:**
-- `BASE_URL` - Application base URL (defaults to Replit domain or localhost)
-- `DATABASE_URL` - PostgreSQL connection string
-- `STRIPE_SECRET_KEY` - Stripe API secret
-- `STRIPE_PRICE_ID` - Stripe price object ID for $19 product
-- `OPENAI_API_KEY` - OpenAI API authentication
+### Environment Variables
+
+- `OPENAI_API_KEY` - OpenAI API authentication (required)
+- `STRIPE_SECRET_KEY` - Stripe API secret (via Replit connection)
+- `BASE_URL` - Application base URL (auto-detected from Replit domain)
+
+### Key Implementation Details
+
+**Interview Completion Detection:**
+- AI includes `[[INTERVIEW_COMPLETE]]` token when ready to write scripts
+- Token is stripped from user-facing reply
+- Value bullets extracted from `[[VALUE_BULLETS]]...[[END_VALUE_BULLETS]]` block
+
+**Transcript Format:**
+```json
+[
+  { "role": "assistant", "content": "..." },
+  { "role": "user", "content": "..." },
+  ...
+]
+```
+
+**Script Parsing:**
+- Scripts returned as single text block with section headers
+- Frontend displays as preformatted text
+- Copy-to-clipboard for easy sharing
