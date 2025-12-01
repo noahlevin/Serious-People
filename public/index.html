@@ -26,7 +26,7 @@
     header {
       background: white;
       border-bottom: 1px solid #e5e7eb;
-      padding: 1rem 2rem;
+      padding: 0.5rem 2rem;
     }
 
     .header-content {
@@ -40,20 +40,20 @@
     .logo-link {
       display: flex;
       align-items: center;
-      gap: 0.625rem;
+      gap: 0.5rem;
       text-decoration: none;
     }
 
     .logo-icon {
-      width: 32px;
-      height: 32px;
+      width: 40px;
+      height: 40px;
       border-radius: 6px;
       object-fit: cover;
     }
 
     .logo {
-      font-size: 1.25rem;
-      font-weight: 700;
+      font-size: 1rem;
+      font-weight: 600;
       color: #1a1a2e;
     }
 
@@ -63,30 +63,43 @@
       padding: 3rem 1.5rem;
     }
 
-    .quote-section {
-      text-align: center;
+    .quote-box {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 1.25rem;
       margin-bottom: 2.5rem;
     }
 
     .quote-image {
-      width: 160px;
-      height: 160px;
-      border-radius: 12px;
-      object-fit: cover;
-      margin-bottom: 1.25rem;
-      border: 1px solid #e5e7eb;
+      width: auto;
+      height: auto;
+      max-width: 140px;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .quote-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
     .quote-text {
-      font-size: 1.25rem;
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 0.95rem;
       font-style: italic;
       color: #1a1a2e;
       margin-bottom: 0.5rem;
-      line-height: 1.4;
+      line-height: 1.5;
     }
 
     .quote-attribution {
-      font-size: 0.9rem;
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 0.875rem;
       color: #6b7280;
     }
 
@@ -220,13 +233,13 @@
         text-align: center;
       }
 
-      .quote-image {
-        width: 120px;
-        height: 120px;
+      .quote-box {
+        flex-direction: column;
+        text-align: center;
       }
 
-      .quote-text {
-        font-size: 1.125rem;
+      .quote-image {
+        max-width: 120px;
       }
     }
   </style>
@@ -242,11 +255,13 @@
   </header>
 
   <main>
-    <section class="quote-section">
+    <div class="quote-box">
       <img src="/logan-roy.png" alt="Logan Roy" class="quote-image">
-      <p class="quote-text">"I love you, but you are not serious people."</p>
-      <p class="quote-attribution">— Logan Roy</p>
-    </section>
+      <div class="quote-content">
+        <p class="quote-text">"I love you, but you are not serious people."</p>
+        <p class="quote-attribution">— Logan Roy</p>
+      </div>
+    </div>
 
     <section class="hero">
       <h1>Short scripts for big career conversations.</h1>
