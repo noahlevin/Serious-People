@@ -196,7 +196,55 @@
       min-height: 44px;
       max-height: 150px;
       line-height: 1.5;
+      overflow-y: hidden;
+    }
+
+    textarea.scrollable {
       overflow-y: auto;
+    }
+
+    .typing-indicator {
+      align-self: flex-start;
+      background: #fff;
+      border-left: 3px solid #1a1a1a;
+      border-top: 1px solid #e5e5e5;
+      border-right: 1px solid #e5e5e5;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .typing-indicator .dot {
+      width: 8px;
+      height: 8px;
+      background: #666;
+      border-radius: 50%;
+      animation: typingBounce 1.4s infinite ease-in-out;
+    }
+
+    .typing-indicator .dot:nth-child(1) {
+      animation-delay: 0s;
+    }
+
+    .typing-indicator .dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-indicator .dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes typingBounce {
+      0%, 80%, 100% {
+        transform: translateY(0);
+        opacity: 0.4;
+      }
+      40% {
+        transform: translateY(-6px);
+        opacity: 1;
+      }
     }
 
     textarea:focus {
@@ -530,6 +578,70 @@
       status.textContent = text;
     }
 
+    function showTypingIndicator() {
+      const indicator = document.createElement('div');
+      indicator.className = 'typing-indicator';
+      indicator.id = 'typing-indicator';
+      indicator.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+      chatWindow.appendChild(indicator);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+      return indicator;
+    }
+
+    function hideTypingIndicator() {
+      const indicator = document.getElementById('typing-indicator');
+      if (indicator) {
+        indicator.remove();
+      }
+    }
+
+    function randomDelay(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    const TEST_TRANSCRIPT = [
+      { role: 'assistant', content: "Hello! I'm here to help you prepare for some important career conversations. Before we write your scripts, I'd like to understand your situation better.\n\nWhat's prompting you to think about a career change right now?" },
+      { role: 'user', content: "I've been at my company for 3 years and I feel stuck. My manager keeps promising a promotion but it never happens." },
+      { role: 'assistant', content: "Three years is significant, and broken promises around promotion are frustrating. That erodes trust.\n\nWhat role are you in currently, and what's the promotion you've been waiting for?" },
+      { role: 'user', content: "I'm a senior software engineer. The promotion would be to staff engineer, which comes with a significant pay bump and more autonomy." },
+      { role: 'assistant', content: "Staff engineer is a meaningful step up. The autonomy piece is often as important as the money.\n\nHave you had direct conversations with your manager about specific criteria for the promotion?" },
+      { role: 'user', content: "Yes, we've had several. Each time they say I'm 'almost there' but the goalposts keep moving. First it was completing a big project, then it was 'demonstrating leadership,' now it's some vague thing about 'executive presence.'" },
+      { role: 'assistant', content: "Moving goalposts are a classic stalling tactic. The shift from concrete deliverables to vague qualities like 'executive presence' is particularly telling.\n\nDo you have a sense of whether this is your manager's decision, or if they're getting blocked from above?" },
+      { role: 'user', content: "I think my manager wants to promote me but their boss is the blocker. My skip-level seems to have favorites and I'm not one of them." },
+      { role: 'assistant', content: "Politics at the skip level is tough because you have less direct influence there. This context is helpful.\n\nWhat's your financial situation? Could you afford to leave without another job lined up, or do you need to line something up first?" },
+      { role: 'user', content: "I have about 6 months of expenses saved. I could leave but I'd rather have something lined up. My partner is supportive but nervous about me quitting without a plan." },
+      { role: 'assistant', content: "Six months gives you some runway, and your partner's concern is reasonable. Having a plan matters for both practical and relationship reasons.\n\nWhat does your partner do for work? Understanding your household situation helps me write a better script for that conversation." },
+      { role: 'user', content: "She's a teacher. Stable income but not enough to cover all our expenses alone. We have a mortgage and a young kid." },
+      { role: 'assistant', content: "Stable but not sufficient on its own—that means you need a plan, not an impulse exit. The mortgage and kid add real stakes.\n\nAre you already job searching, or is that something you'd start after we clarify your strategy?" },
+      { role: 'user', content: "I've been casually looking for a few months. Had a few interviews but nothing has clicked yet. I think I'm underselling myself." },
+      { role: 'assistant', content: "Underselling yourself is common when you've been overlooked internally—it messes with your sense of your own value.\n\nWhat would an ideal next role look like for you? Same type of work at a better company, or something different?" },
+      { role: 'user', content: "Same technical work but at a company with clearer growth paths. I want to make staff engineer within a year or two and eventually move toward engineering management." },
+      { role: 'assistant', content: "Clear growth path to staff, eventual move to management—that's a solid trajectory. It's also a compelling story for interviews.\n\nLast question: What's your timeline? When do you want to have made a decision or a move by?" },
+      { role: 'user', content: "I'd like to have an offer in hand within the next 3 months. If not, I might need to have a harder conversation with my current company about my future there." },
+      { role: 'assistant', content: "Three months to secure an offer, with a fallback plan to have a frank conversation if needed. That's actionable.\n\nI think I have enough to write your scripts now. Ready to see them?" }
+    ];
+
+    const TEST_VALUE_BULLETS = `- Address the promotion stall with concrete next steps, not vague promises
+- Give your partner confidence with a clear 3-month timeline and financial safety net
+- Articulate your staff engineer trajectory to command better offers
+- Prepare a diplomatic but firm exit conversation if the job search doesn't pan out`;
+
+    function handleTestBypass() {
+      transcript = [...TEST_TRANSCRIPT];
+      saveTranscript();
+      
+      chatWindow.innerHTML = '';
+      
+      transcript.forEach(msg => {
+        renderMessage(msg.role, msg.content, false);
+      });
+      
+      interviewComplete = true;
+      inputArea.style.display = 'none';
+      showPaywall(TEST_VALUE_BULLETS);
+      setStatus('');
+    }
+
     let currentOptionsContainer = null;
 
     function renderOptions(options) {
@@ -589,13 +701,21 @@
 
     async function sendMessage(userMessage = null) {
       sendBtn.disabled = true;
-      setStatus('Thinking...');
 
       if (userMessage) {
+        if (userMessage.toLowerCase() === 'testskip') {
+          handleTestBypass();
+          sendBtn.disabled = false;
+          return;
+        }
+        
         transcript.push({ role: 'user', content: userMessage });
         saveTranscript();
         renderMessage('user', userMessage);
       }
+
+      showTypingIndicator();
+      setStatus('');
 
       try {
         const response = await fetch('/interview', {
@@ -609,6 +729,11 @@
         }
 
         const data = await response.json();
+        
+        const thinkingDelay = randomDelay(800, 2000);
+        await new Promise(resolve => setTimeout(resolve, thinkingDelay));
+        
+        hideTypingIndicator();
         
         transcript.push({ role: 'assistant', content: data.reply });
         saveTranscript();
@@ -633,6 +758,7 @@
         }
       } catch (error) {
         console.error('Interview error:', error);
+        hideTypingIndicator();
         setStatus('Something went wrong. Please try again.');
       } finally {
         sendBtn.disabled = false;
@@ -667,7 +793,14 @@
 
     function autoResize() {
       userInput.style.height = 'auto';
-      userInput.style.height = Math.min(userInput.scrollHeight, 150) + 'px';
+      const newHeight = Math.min(userInput.scrollHeight, 150);
+      userInput.style.height = newHeight + 'px';
+      
+      if (userInput.scrollHeight > 150) {
+        userInput.classList.add('scrollable');
+      } else {
+        userInput.classList.remove('scrollable');
+      }
     }
 
     function clearOptionsAndSend(text) {
