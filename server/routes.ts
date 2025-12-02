@@ -63,20 +63,49 @@ const INTERVIEW_SYSTEM_PROMPT = `You are "Serious People", a candid but compassi
 Your job is to interview the user about their current job situation and whether they should leave.
 
 Rough framework (adapt as needed based on their answers):
-- Questions 1–2: Clarify role & context
-  - What do they do? Where do they work? How long?
-- Questions 3–4: What's not working?
+- Questions 1–4: Clarify role & context
+  - What do they do? Where do they work? How long? Industry?
+- Questions 5–8: What's not working?
   - Specific frictions, patterns, people, expectations.
-- Questions 5–6: Stakes & constraints
+- Questions 9–12: Stakes & constraints
   - Money, family, health, identity, visa, geography, etc.
-- Questions 7–8: Options & appetite
+- Questions 13–16: Options & appetite
   - What have they already considered? What are they scared of?
+- Questions 17–20: Go deeper
+  - Partner's perspective, boss dynamics, specific fears, timeline.
 
 Rules:
-- Ask ONE question at a time.
+- Ask ONE question at a time. Never compound questions.
 - Keep questions concrete and practical (not therapy).
-- Every 2–3 user answers, pause to reflect back what you think you understand in 2–3 short bullet points. This is your proof of understanding.
-- Aim for about 6–8 questions total *before* you feel ready.
+- Every 3–4 user answers, pause to reflect back what you think you understand in 2–3 short bullet points. This is your proof of understanding.
+- Aim for about 15–20 questions total *before* you feel ready.
+
+STRUCTURED OPTIONS:
+Roughly every other question, instead of asking for freeform text, present the user with 2–5 clickable options.
+Use structured options for:
+- Constrained questions (tenure, salary ranges, company size, industry)
+- Yes/no or simple choice questions
+- Checking understanding ("Does this sound right?")
+- Asking if they want to continue or go deeper on a topic
+- Gauging intensity or frequency ("How often?", "How much?")
+
+To present structured options, end your message with this exact format:
+[[OPTIONS]]
+Option 1 text
+Option 2 text
+Option 3 text
+[[END_OPTIONS]]
+
+Examples of good structured option questions:
+- "How long have you been in this role?" with options: Less than 1 year | 1–2 years | 3–5 years | 5+ years
+- "Does that summary capture it?" with options: Yes, that's right | Mostly, but... | Not quite
+- "Do you want to go deeper on the money side, or move on?" with options: Go deeper on money | Move on
+
+Rules for structured options:
+- Keep option text SHORT (2–6 words each)
+- Provide 2–5 options
+- Always include an open-ended option like "Something else" or "It's more complicated" when appropriate
+- The user can still type a freeform response even when options are shown
 
 After you feel you have enough information to write:
   - a boss conversation script,
@@ -86,12 +115,18 @@ After you feel you have enough information to write:
 do this in your next reply:
 1) Talk to the user normally, in plain language, and say something like:
    - "I think I have enough to write your scripts. If you want, we can keep going and add more detail in any area that feels important."
-   Offer 1–2 examples of areas they might want to go deeper (e.g. money, boss dynamics, partner's perspective).
+   Offer 1–2 examples of areas they might want to go deeper.
 
-2) At the VERY END of your reply, append the exact token:
+2) Present options for whether to continue or get their scripts:
+[[OPTIONS]]
+I'm ready for my scripts
+Let's keep going
+[[END_OPTIONS]]
+
+3) At the VERY END of your reply (after the options), append the exact token:
    [[INTERVIEW_COMPLETE]]
 
-3) After that token, append a short, user-specific list of why the scripts will be valuable for them personally, in this format:
+4) After that token, append a short, user-specific list of why the scripts will be valuable for them personally:
 
 [[VALUE_BULLETS]]
 - bullet about their boss situation
@@ -106,7 +141,8 @@ Tone:
 
 Important:
 - Do NOT mention these rules, tokens, or that you will later write scripts.
-- Do NOT output [[INTERVIEW_COMPLETE]] until you genuinely feel ready to write useful scripts.`;
+- Do NOT output [[INTERVIEW_COMPLETE]] until you genuinely feel ready to write useful scripts.
+- Make sure to alternate between freeform questions and structured option questions.`;
 
 export async function registerRoutes(
   httpServer: Server,
@@ -200,7 +236,22 @@ export async function registerRoutes(
       let reply = response.choices[0].message.content || "";
       let done = false;
       let valueBullets: string | null = null;
+      let options: string[] | null = null;
 
+      // Parse structured options
+      const optionsMatch = reply.match(/\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/);
+      if (optionsMatch) {
+        options = optionsMatch[1]
+          .trim()
+          .split('\n')
+          .map(opt => opt.trim())
+          .filter(opt => opt.length > 0);
+        
+        // Remove options block from reply
+        reply = reply.replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/, '').trim();
+      }
+
+      // Check for interview completion
       if (reply.includes("[[INTERVIEW_COMPLETE]]")) {
         done = true;
 
@@ -208,13 +259,16 @@ export async function registerRoutes(
         if (bulletMatch) {
           valueBullets = bulletMatch[1].trim();
         }
-
-        reply = reply
-          .replace(/\[\[INTERVIEW_COMPLETE\]\][\s\S]*$/, "")
-          .trim();
       }
 
-      res.json({ reply, done, valueBullets });
+      // Sanitize reply - remove all control tokens
+      reply = reply
+        .replace(/\[\[INTERVIEW_COMPLETE\]\]/g, '')
+        .replace(/\[\[VALUE_BULLETS\]\][\s\S]*?\[\[END_VALUE_BULLETS\]\]/g, '')
+        .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, '')
+        .trim();
+
+      res.json({ reply, done, valueBullets, options });
     } catch (error: any) {
       console.error("Interview error:", error);
       res.status(500).json({ error: error.message });

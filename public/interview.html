@@ -132,6 +132,40 @@
       border-left: 3px solid #666;
     }
 
+    .options-container {
+      align-self: flex-end;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      max-width: 85%;
+      justify-content: flex-end;
+    }
+
+    .option-pill {
+      background: #fff;
+      border: 1px solid #1a1a1a;
+      padding: 0.5rem 1rem;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 0.95rem;
+      color: #1a1a1a;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .option-pill:hover {
+      background: #1a1a1a;
+      color: #fff;
+    }
+
+    .option-pill:active {
+      transform: scale(0.98);
+    }
+
+    .options-container.hidden {
+      display: none;
+    }
+
     .input-area {
       position: fixed;
       bottom: 0;
@@ -444,21 +478,22 @@
       return formatted;
     }
 
-    function renderMessage(role, content, animate = false) {
+    function renderMessage(role, content, animate = false, onComplete = null) {
       const div = document.createElement('div');
       div.className = `message ${role}`;
       
       if (role === 'assistant' && animate) {
-        typewriterEffect(div, content);
+        typewriterEffect(div, content, onComplete);
       } else {
         div.innerHTML = formatContent(content);
+        if (onComplete) onComplete();
       }
       
       chatWindow.appendChild(div);
       chatWindow.scrollTop = chatWindow.scrollHeight;
     }
 
-    function typewriterEffect(element, text) {
+    function typewriterEffect(element, text, onComplete = null) {
       const formattedText = formatContent(text);
       let index = 0;
       const speed = 12;
@@ -483,6 +518,8 @@
           }
           chatWindow.scrollTop = chatWindow.scrollHeight;
           setTimeout(type, speed);
+        } else {
+          if (onComplete) onComplete();
         }
       }
       
@@ -491,6 +528,42 @@
 
     function setStatus(text) {
       status.textContent = text;
+    }
+
+    let currentOptionsContainer = null;
+
+    function renderOptions(options) {
+      if (currentOptionsContainer) {
+        currentOptionsContainer.remove();
+        currentOptionsContainer = null;
+      }
+
+      const container = document.createElement('div');
+      container.className = 'options-container';
+      container.setAttribute('data-testid', 'options-container');
+
+      options.forEach((optionText, index) => {
+        const pill = document.createElement('button');
+        pill.className = 'option-pill';
+        pill.textContent = optionText;
+        pill.setAttribute('data-testid', `option-pill-${index}`);
+        pill.addEventListener('click', () => selectOption(optionText));
+        container.appendChild(pill);
+      });
+
+      chatWindow.appendChild(container);
+      currentOptionsContainer = container;
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    function selectOption(optionText) {
+      if (currentOptionsContainer) {
+        currentOptionsContainer.remove();
+        currentOptionsContainer = null;
+      }
+      
+      userInput.value = '';
+      sendMessage(optionText);
     }
 
     function showPaywall(valueBullets) {
@@ -539,7 +612,16 @@
         
         transcript.push({ role: 'assistant', content: data.reply });
         saveTranscript();
-        renderMessage('assistant', data.reply, true);
+        
+        const hasOptions = data.options && data.options.length > 0;
+        
+        if (hasOptions) {
+          renderMessage('assistant', data.reply, true, () => {
+            renderOptions(data.options);
+          });
+        } else {
+          renderMessage('assistant', data.reply, true);
+        }
 
         if (data.done) {
           interviewComplete = true;
@@ -588,12 +670,20 @@
       userInput.style.height = Math.min(userInput.scrollHeight, 150) + 'px';
     }
 
+    function clearOptionsAndSend(text) {
+      if (currentOptionsContainer) {
+        currentOptionsContainer.remove();
+        currentOptionsContainer = null;
+      }
+      sendMessage(text);
+    }
+
     sendBtn.addEventListener('click', () => {
       const text = userInput.value.trim();
       if (text) {
         userInput.value = '';
         autoResize();
-        sendMessage(text);
+        clearOptionsAndSend(text);
       }
     });
 
@@ -604,7 +694,7 @@
         if (text) {
           userInput.value = '';
           autoResize();
-          sendMessage(text);
+          clearOptionsAndSend(text);
         }
       }
     });
