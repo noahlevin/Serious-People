@@ -38,6 +38,23 @@
       flex-shrink: 0;
     }
 
+    .progress-bar-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: transparent;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #1a1a1a;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
     .header-content {
       max-width: 800px;
       margin: 0 auto;
@@ -445,6 +462,9 @@
         <span class="logo-subtitle"> · Interview</span>
       </a>
     </div>
+    <div class="progress-bar-container">
+      <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
   </header>
 
   <main>
@@ -480,6 +500,7 @@
 
   <script>
     const STORAGE_KEY = 'serious_people_transcript';
+    const PROGRESS_KEY = 'serious_people_progress';
     let transcript = [];
     let interviewComplete = false;
 
@@ -491,6 +512,40 @@
     const reasonsDiv = document.getElementById('reasons');
     const checkoutBtn = document.getElementById('checkoutBtn');
     const inputArea = document.getElementById('inputArea');
+    const progressBar = document.getElementById('progressBar');
+
+    let currentProgress = 0;
+
+    function loadProgress() {
+      try {
+        const saved = localStorage.getItem(PROGRESS_KEY);
+        if (saved) {
+          const value = parseInt(saved, 10);
+          if (!isNaN(value) && value >= 0 && value <= 100) {
+            currentProgress = value;
+            progressBar.style.width = value + '%';
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load progress:', e);
+      }
+    }
+
+    function saveProgress(value) {
+      try {
+        localStorage.setItem(PROGRESS_KEY, value.toString());
+      } catch (e) {
+        console.error('Failed to save progress:', e);
+      }
+    }
+
+    function updateProgress(value) {
+      if (value !== null && value >= 0 && value <= 100 && value >= currentProgress) {
+        currentProgress = value;
+        progressBar.style.width = value + '%';
+        saveProgress(value);
+      }
+    }
 
     function loadTranscript() {
       try {
@@ -636,6 +691,7 @@
         renderMessage(msg.role, msg.content, false);
       });
       
+      updateProgress(100);
       interviewComplete = true;
       inputArea.style.display = 'none';
       showPaywall(TEST_VALUE_BULLETS);
@@ -734,6 +790,10 @@
         await new Promise(resolve => setTimeout(resolve, thinkingDelay));
         
         hideTypingIndicator();
+        
+        if (data.progress !== null && data.progress !== undefined) {
+          updateProgress(data.progress);
+        }
         
         transcript.push({ role: 'assistant', content: data.reply });
         saveTranscript();
@@ -837,6 +897,7 @@
     checkoutBtn.addEventListener('click', handleCheckout);
 
     loadTranscript();
+    loadProgress();
 
     if (transcript.length === 0) {
       sendMessage();
