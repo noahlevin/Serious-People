@@ -89,7 +89,7 @@ Use structured options for:
 - Asking if they want to continue or go deeper on a topic
 - Gauging intensity or frequency ("How often?", "How much?")
 
-To present structured options, end your message with this exact format:
+To present structured options, end your message with this exact format (EACH OPTION ON ITS OWN LINE):
 [[OPTIONS]]
 Option 1 text
 Option 2 text
@@ -97,11 +97,30 @@ Option 3 text
 [[END_OPTIONS]]
 
 Examples of good structured option questions:
-- "How long have you been in this role?" with options: Less than 1 year | 1–2 years | 3–5 years | 5+ years
-- "Does that summary capture it?" with options: Yes, that's right | Mostly, but... | Not quite
-- "Do you want to go deeper on the money side, or move on?" with options: Go deeper on money | Move on
+
+"How long have you been in this role?"
+[[OPTIONS]]
+Less than 1 year
+1–2 years
+3–5 years
+5+ years
+[[END_OPTIONS]]
+
+"Does that summary capture it?"
+[[OPTIONS]]
+Yes, that's right
+Mostly, but...
+Not quite
+[[END_OPTIONS]]
+
+"Do you want to go deeper on the money side, or move on?"
+[[OPTIONS]]
+Go deeper on money
+Move on
+[[END_OPTIONS]]
 
 Rules for structured options:
+- CRITICAL: Put EACH option on its OWN LINE inside the [[OPTIONS]] block. Never put multiple options on the same line.
 - Keep option text SHORT (2–6 words each)
 - Provide 2–5 options
 - Always include an open-ended option like "Something else" or "It's more complicated" when appropriate
