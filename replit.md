@@ -28,11 +28,13 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - `public/success.html` - Payment verification and script generation
 
 **Interview Page Features:**
-- Chat-style conversation interface
+- Chat-style conversation interface with Logan AI coach
 - Transcript stored in localStorage (`serious_people_transcript` key)
+- Progress bar integrated into header separator line (0-100%, persisted to localStorage `serious_people_progress`)
 - Auto-scrolling chat container
 - Personalized paywall with value bullets from AI
 - Checkout button that creates Stripe session
+- Test bypass: Type "testskip" to skip to paywall with sample data
 
 **Success Page Features:**
 - Payment verification via session_id query param
@@ -57,9 +59,12 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 
 **AI Integration:**
 - Uses OpenAI API with GPT-4.1-mini model
+- Interview conducted by "Logan" character with warm, direct personality
 - Interview system prompt conducts 6-8 questions
+- Uses `[[PROGRESS]]...[[END_PROGRESS]]` token to track interview progress (5-100)
 - Uses `[[INTERVIEW_COMPLETE]]` token to signal completion
 - Uses `[[VALUE_BULLETS]]...[[END_VALUE_BULLETS]]` for personalized paywall content
+- Uses `[[OPTIONS]]...[[END_OPTIONS]]` for clickable response options
 - Script generation creates three sections: boss script, partner script, clarity memo
 
 ### Data Storage
