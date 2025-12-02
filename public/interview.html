@@ -310,28 +310,36 @@
       margin: 0 auto;
     }
 
-    .paywall {
-      background: #fff;
-      border: 2px solid #1a1a1a;
-      padding: 2rem;
-      margin-top: 1.5rem;
-      text-align: center;
+    .paywall-inline {
+      width: 100%;
+      display: flex;
+      justify-content: flex-start;
+      margin-top: 1rem;
+      padding-bottom: 2rem;
     }
 
-    .paywall h3 {
+    .paywall-card {
+      background: #fff;
+      border: 2px solid #1a1a1a;
+      padding: 1.5rem 2rem;
+      text-align: center;
+      max-width: 480px;
+    }
+
+    .paywall-card h3 {
       font-family: 'Playfair Display', Georgia, serif;
-      font-size: 1.375rem;
+      font-size: 1.25rem;
       font-weight: 600;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.5rem;
       color: #1a1a1a;
     }
 
-    .paywall > p {
+    .paywall-card > p {
       font-family: 'Source Serif 4', Georgia, serif;
       color: #444;
-      margin-bottom: 1.25rem;
-      font-size: 1rem;
-      line-height: 1.6;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+      line-height: 1.5;
     }
 
     #reasons {
@@ -447,8 +455,9 @@
         padding: 0.75rem;
       }
 
-      .paywall {
-        padding: 1.5rem;
+      .paywall-card {
+        padding: 1.25rem;
+        max-width: 100%;
       }
     }
   </style>
@@ -468,19 +477,21 @@
   </header>
 
   <main>
-    <div class="chat-window" id="chatWindow" data-testid="chat-window"></div>
-    
-    <div id="paywall" class="paywall" style="display:none;" data-testid="paywall">
-      <h3>Ready to see your scripts?</h3>
-      <p>
-        I have enough to write a boss script, a partner script, and a clarity memo about your options.
-      </p>
-      <div id="reasons"></div>
-      <button id="checkoutBtn" class="checkout-button" data-testid="button-checkout">
-        Unlock Scripts & Memo – $19
-      </button>
-      <div class="price-note">
-        Payment handled securely via Stripe.
+    <div class="chat-window" id="chatWindow" data-testid="chat-window">
+      <div id="paywall" class="paywall-inline" style="display:none;" data-testid="paywall">
+        <div class="paywall-card">
+          <h3>Ready to see your scripts?</h3>
+          <p>
+            I have enough to write a boss script, a partner script, and a clarity memo about your options.
+          </p>
+          <div id="reasons"></div>
+          <button id="checkoutBtn" class="checkout-button" data-testid="button-checkout">
+            Unlock Scripts & Memo – $19
+          </button>
+          <div class="price-note">
+            Payment handled securely via Stripe.
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -735,7 +746,8 @@
     }
 
     function showPaywall(valueBullets) {
-      paywall.style.display = 'block';
+      chatWindow.appendChild(paywall);
+      paywall.style.display = 'flex';
       
       if (valueBullets) {
         const lines = valueBullets.trim().split('\n').filter(line => line.trim().startsWith('-'));
@@ -752,7 +764,9 @@
         }
       }
       
-      chatWindow.scrollTop = chatWindow.scrollHeight;
+      setTimeout(() => {
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+      }, 50);
     }
 
     async function sendMessage(userMessage = null) {
