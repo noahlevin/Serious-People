@@ -37,8 +37,11 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - Progress bar integrated into header separator line (per-module progress, persisted to sessionStorage `serious_people_progress`)
 - Module name shown in header subtitle (updates when module title cards detected)
 - Auto-scrolling chat container
-- Inline module title cards: `— Module Name (est. X minutes) —`
+- Elegant WSJ-style module title cards with decorative lines and uppercase headings
+- Title card format: `— Module Name (est. X minutes) —` (rendered as styled element)
+- Typing indicator: 0.4–1.5 seconds max delay
 - Personalized paywall with value bullets from AI
+- Two-step paywall: user must confirm plan via structured option before paywall appears
 - Checkout button that creates Stripe session
 - Test bypass: Type "testskip" to skip to paywall with sample data
 
