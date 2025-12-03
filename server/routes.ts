@@ -272,6 +272,11 @@ When the user selects the confirmation option (or types something equivalent lik
 - bullet about their internal dilemma/tension
 [[END_VALUE_BULLETS]]
 
+5. After the value bullets, append ONE context-relevant piece of social proof:
+[[SOCIAL_PROOF]]
+A single sentence that either: references $19 vs. typical career coach fees ($150-300/hour), OR cites a relevant stat about career transitions/coaching effectiveness, OR provides context about why structured coaching helps in their specific situation. Make it feel natural and relevant to what they shared. Do NOT make up fake testimonials or specific client references.
+[[END_SOCIAL_PROOF]]
+
 CRITICAL: The paywall only appears after [[INTERVIEW_COMPLETE]]. This token should ONLY be emitted after the user explicitly confirms the plan.
 
 ### Post-paywall modules
@@ -395,6 +400,7 @@ export async function registerRoutes(
       let reply = response.choices[0].message.content || "";
       let done = false;
       let valueBullets: string | null = null;
+      let socialProof: string | null = null;
       let options: string[] | null = null;
       let progress: number | null = null;
       let planCard: { name: string; modules: { name: string; desc: string }[]; careerBrief: string } | null = null;
@@ -452,6 +458,11 @@ export async function registerRoutes(
         if (bulletMatch) {
           valueBullets = bulletMatch[1].trim();
         }
+
+        const socialProofMatch = reply.match(/\[\[SOCIAL_PROOF\]\]([\s\S]*?)\[\[END_SOCIAL_PROOF\]\]/);
+        if (socialProofMatch) {
+          socialProof = socialProofMatch[1].trim();
+        }
       }
 
       // Sanitize reply - remove all control tokens
@@ -459,11 +470,12 @@ export async function registerRoutes(
         .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, '')
         .replace(/\[\[INTERVIEW_COMPLETE\]\]/g, '')
         .replace(/\[\[VALUE_BULLETS\]\][\s\S]*?\[\[END_VALUE_BULLETS\]\]/g, '')
+        .replace(/\[\[SOCIAL_PROOF\]\][\s\S]*?\[\[END_SOCIAL_PROOF\]\]/g, '')
         .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, '')
         .replace(/\[\[PLAN_CARD\]\][\s\S]*?\[\[END_PLAN_CARD\]\]/g, '')
         .trim();
 
-      res.json({ reply, done, valueBullets, options, progress, planCard });
+      res.json({ reply, done, valueBullets, socialProof, options, progress, planCard });
     } catch (error: any) {
       console.error("Interview error:", error);
       res.status(500).json({ error: error.message });

@@ -80,6 +80,7 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - Uses `[[VALUE_BULLETS]]...[[END_VALUE_BULLETS]]` for personalized paywall content
 - Uses `[[OPTIONS]]...[[END_OPTIONS]]` for clickable response options
 - Uses `[[PLAN_CARD]]...[[END_PLAN_CARD]]` for premium coaching plan card with structured fields (NAME, MODULE1_NAME, MODULE1_DESC, etc.)
+- Uses `[[SOCIAL_PROOF]]...[[END_SOCIAL_PROOF]]` for context-relevant pricing comparison or coaching stat in paywall
 - Career Brief generation creates structured document: Mirror, Diagnosis, Decision Framework, Action Plan, Conversation Kit, Further Support
 
 ### Data Storage

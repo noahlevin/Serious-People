@@ -532,6 +532,23 @@
       color: #1a1a1a;
     }
 
+    .social-proof {
+      margin: 1.25rem 0;
+      padding: 1rem 1.25rem;
+      background: #f8f7f4;
+      border-left: 2px solid #888;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 0.9rem;
+      font-style: italic;
+      color: #444;
+      line-height: 1.6;
+      text-align: left;
+    }
+
+    .social-proof:empty {
+      display: none;
+    }
+
     .checkout-button {
       background: #1a1a1a;
       color: #fff;
@@ -634,6 +651,7 @@
             We've mapped out a custom 3-module coaching session plus your Career Brief.
           </p>
           <div id="reasons"></div>
+          <div id="socialProof" class="social-proof"></div>
           <button id="checkoutBtn" class="checkout-button" data-testid="button-checkout">
             Let's Work the Plan – $19
           </button>
@@ -670,6 +688,7 @@
     const status = document.getElementById('status');
     const paywall = document.getElementById('paywall');
     const reasonsDiv = document.getElementById('reasons');
+    const socialProofDiv = document.getElementById('socialProof');
     const checkoutBtn = document.getElementById('checkoutBtn');
     const inputArea = document.getElementById('inputArea');
     const progressBar = document.getElementById('progressBar');
@@ -937,6 +956,8 @@
 - Articulate your staff engineer trajectory to command better offers
 - Prepare a diplomatic but firm exit conversation if the job search doesn't pan out`;
 
+    const TEST_SOCIAL_PROOF = `At $19, this is a fraction of what a single session with a career coach typically costs ($150–300/hour)—and you'll leave with a structured document, not just a conversation.`;
+
     function handleTestBypass() {
       transcript = [...TEST_TRANSCRIPT];
       saveTranscript();
@@ -950,7 +971,7 @@
       updateProgress(100);
       interviewComplete = true;
       inputArea.style.display = 'none';
-      showPaywall(TEST_VALUE_BULLETS);
+      showPaywall(TEST_VALUE_BULLETS, TEST_SOCIAL_PROOF);
       setStatus('');
     }
 
@@ -990,14 +1011,14 @@
       sendMessage(optionText);
     }
 
-    function showPaywall(valueBullets) {
+    function showPaywall(valueBullets, socialProof) {
       chatWindow.appendChild(paywall);
       paywall.style.display = 'flex';
       
       if (valueBullets) {
         const lines = valueBullets.trim().split('\n').filter(line => line.trim().startsWith('-'));
         if (lines.length > 0) {
-          let html = '<p class="intro">Why these scripts will help:</p><ul>';
+          let html = '<p class="intro">Why you\'ll benefit from this program:</p><ul>';
           lines.forEach(line => {
             const text = line.replace(/^-\s*/, '').trim();
             if (text) {
@@ -1007,6 +1028,10 @@
           html += '</ul>';
           reasonsDiv.innerHTML = html;
         }
+      }
+      
+      if (socialProof) {
+        socialProofDiv.textContent = socialProof;
       }
       
       setTimeout(() => {
@@ -1081,7 +1106,7 @@
           interviewComplete = true;
           setStatus('');
           inputArea.style.display = 'none';
-          showPaywall(data.valueBullets);
+          showPaywall(data.valueBullets, data.socialProof);
         } else {
           setStatus('');
         }
