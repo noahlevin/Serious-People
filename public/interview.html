@@ -468,7 +468,7 @@
       <a href="/" class="logo-link">
         <img src="/logan-roy.png" alt="Serious People" class="logo-icon">
         <span class="logo">Serious People</span>
-        <span class="logo-subtitle"> · Interview</span>
+        <span class="logo-subtitle" id="moduleSubtitle"> · Intro</span>
       </a>
     </div>
     <div class="progress-bar-container">
@@ -480,13 +480,13 @@
     <div class="chat-window" id="chatWindow" data-testid="chat-window">
       <div id="paywall" class="paywall-inline" style="display:none;" data-testid="paywall">
         <div class="paywall-card">
-          <h3>Ready to see your scripts?</h3>
+          <h3>Ready to work the plan?</h3>
           <p>
-            I have enough to write a boss script, a partner script, and a clarity memo about your options.
+            We've mapped out a custom 3-module coaching session plus your Career Brief.
           </p>
           <div id="reasons"></div>
           <button id="checkoutBtn" class="checkout-button" data-testid="button-checkout">
-            Unlock Scripts & Memo – $19
+            Let's Work the Plan – $19
           </button>
           <div class="price-note">
             Payment handled securely via Stripe.
@@ -524,8 +524,11 @@
     const checkoutBtn = document.getElementById('checkoutBtn');
     const inputArea = document.getElementById('inputArea');
     const progressBar = document.getElementById('progressBar');
+    const moduleSubtitle = document.getElementById('moduleSubtitle');
 
     let currentProgress = 0;
+    let currentModule = 'Intro';
+    let moduleJustChanged = false;
 
     function loadProgress() {
       try {
@@ -550,12 +553,29 @@
       }
     }
 
-    function updateProgress(value) {
-      if (value !== null && value >= 0 && value <= 100 && value >= currentProgress) {
-        currentProgress = value;
-        progressBar.style.width = value + '%';
-        saveProgress(value);
+    function updateProgress(value, forceReset = false) {
+      if (value !== null && value >= 0 && value <= 100) {
+        if (forceReset || value >= currentProgress) {
+          currentProgress = value;
+          progressBar.style.width = value + '%';
+          saveProgress(value);
+        }
       }
+    }
+
+    function detectAndUpdateModule(content) {
+      const moduleMatch = content.match(/^—\s*(.+?)\s*\(est\./m);
+      if (moduleMatch) {
+        const moduleName = moduleMatch[1].trim();
+        if (moduleName !== currentModule) {
+          currentModule = moduleName;
+          moduleSubtitle.textContent = ' · ' + moduleName;
+          moduleJustChanged = true;
+          updateProgress(5, true);
+        }
+        return true;
+      }
+      return false;
     }
 
     function loadTranscript() {
@@ -563,7 +583,12 @@
         const saved = sessionStorage.getItem(STORAGE_KEY);
         if (saved) {
           transcript = JSON.parse(saved);
-          transcript.forEach(msg => renderMessage(msg.role, msg.content, false));
+          transcript.forEach(msg => {
+            if (msg.role === 'assistant') {
+              detectAndUpdateModule(msg.content);
+            }
+            renderMessage(msg.role, msg.content, false);
+          });
         }
       } catch (e) {
         console.error('Failed to load transcript:', e);
@@ -805,8 +830,14 @@
         
         hideTypingIndicator();
         
+        detectAndUpdateModule(data.reply);
+        
         if (data.progress !== null && data.progress !== undefined) {
-          updateProgress(data.progress);
+          if (moduleJustChanged) {
+            moduleJustChanged = false;
+          } else {
+            updateProgress(data.progress);
+          }
         }
         
         transcript.push({ role: 'assistant', content: data.reply });
@@ -861,7 +892,7 @@
         console.error('Checkout error:', error);
         alert('Something went wrong. Please try again.');
         checkoutBtn.disabled = false;
-        checkoutBtn.innerHTML = 'Unlock Scripts & Memo – $19';
+        checkoutBtn.innerHTML = 'Let\'s Work the Plan – $19';
       }
     }
 

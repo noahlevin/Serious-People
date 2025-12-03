@@ -1,12 +1,16 @@
-# Serious People - Career Coaching Scripts
+# Serious People - Career Coaching
 
 ## Overview
 
-Serious People is a career coaching service that helps users navigate career transitions. The app provides a **free AI-powered interview** to understand the user's situation, then charges $19 via Stripe for three personalized career coaching scripts: one for their boss, one for their partner, and a clarity memo with concrete next steps.
+Serious People is a career coaching service that helps users navigate career transitions. The app provides a **structured coaching session** with:
+1. A free intro phase to understand the big problem and propose a custom 3-module plan
+2. $19 payment via Stripe to unlock the full coaching modules
+3. Three coaching modules: Job Autopsy, Fork in the Road, The Great Escape Plan
+4. A final "Career Brief" deliverable with diagnosis, action plan, and conversation scripts
 
 **Tagline:** "Short scripts for big career conversations."
 
-**User Flow:** Landing page → Free AI interview → Personalized paywall → $19 Stripe payment → Script generation
+**User Flow:** Landing page → Free intro & plan proposal → Paywall → $19 Stripe payment → 3 coaching modules → Career Brief generation
 
 ## User Preferences
 
@@ -28,18 +32,20 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - `public/success.html` - Payment verification and script generation
 
 **Interview Page Features:**
-- Chat-style conversation interface with Logan AI coach
+- Chat-style conversation interface with AI coach (no specific name)
 - Transcript stored in sessionStorage (`serious_people_transcript` key) - clears when browser closes
-- Progress bar integrated into header separator line (0-100%, persisted to sessionStorage `serious_people_progress`)
+- Progress bar integrated into header separator line (per-module progress, persisted to sessionStorage `serious_people_progress`)
+- Module name shown in header subtitle (updates when module title cards detected)
 - Auto-scrolling chat container
+- Inline module title cards: `— Module Name (est. X minutes) —`
 - Personalized paywall with value bullets from AI
 - Checkout button that creates Stripe session
 - Test bypass: Type "testskip" to skip to paywall with sample data
 
 **Success Page Features:**
 - Payment verification via session_id query param
-- Transcript retrieval from localStorage
-- Script generation on button click
+- Transcript retrieval from sessionStorage
+- Career Brief generation on button click
 - Copy-to-clipboard functionality
 
 ### Backend Architecture
@@ -59,18 +65,18 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 
 **AI Integration:**
 - Uses OpenAI API with GPT-4.1-mini model
-- Interview conducted by "Logan" character with warm, direct personality
-- Interview system prompt conducts 6-8 questions
-- Uses `[[PROGRESS]]...[[END_PROGRESS]]` token to track interview progress (5-100)
-- Uses `[[INTERVIEW_COMPLETE]]` token to signal completion
+- Interview conducted by plain-spoken career coach (no name)
+- Interview system prompt conducts structured coaching session with modules
+- Uses `[[PROGRESS]]...[[END_PROGRESS]]` token to track per-module progress (5-100)
+- Uses `[[INTERVIEW_COMPLETE]]` token to signal completion (triggers paywall after plan proposal)
 - Uses `[[VALUE_BULLETS]]...[[END_VALUE_BULLETS]]` for personalized paywall content
 - Uses `[[OPTIONS]]...[[END_OPTIONS]]` for clickable response options
-- Script generation creates three sections: boss script, partner script, clarity memo
+- Career Brief generation creates structured document: Mirror, Diagnosis, Decision Framework, Action Plan, Conversation Kit, Further Support
 
 ### Data Storage
 
 **No Database:** This app does not use a database.
-- Interview transcripts stored client-side in localStorage
+- Interview transcripts stored client-side in sessionStorage (clears when browser closes)
 - No user accounts or persistent server-side storage
 - Payment verification is session-based via Stripe
 

@@ -1,0 +1,503 @@
+You’re working on a small TypeScript + Express app called Serious People hosted on Replit.
+
+Context (current behavior)
+
+Stack / structure
+
+Backend: Express.js with TypeScript.
+
+Serves static files from public/.
+
+JSON endpoints:
+
+POST /checkout → Stripe Checkout session
+
+GET /verify-session?session_id=… → validate payment
+
+POST /interview → AI interview endpoint
+
+POST /generate → generates scripts from transcript
+
+Frontend:
+
+public/index.html – landing page with hero + “Start the interview” CTA.
+
+public/interview.html – chat-style AI interview.
+
+Stores transcript in sessionStorage under key serious_people_transcript.
+
+Has a progress bar (0–100) stored in sessionStorage as serious_people_progress.
+
+Shows a paywall when the /interview response includes [[INTERVIEW_COMPLETE]] and valueBullets.
+
+public/success.html – after Stripe payment.
+
+Verifies payment via session_id.
+
+Loads transcript from storage.
+
+Calls /generate to produce the scripts.
+
+AI:
+
+Uses OpenAI gpt-4.1-mini.
+
+/interview uses a system prompt that:
+
+Conducts a linear interview (questions only).
+
+Returns [[PROGRESS]]…[[END_PROGRESS]] tokens (5–100).
+
+Returns [[OPTIONS]]…[[END_OPTIONS]] for clickable options.
+
+Returns [[INTERVIEW_COMPLETE]] + [[VALUE_BULLETS]]…[[END_VALUE_BULLETS]] once ready, which the frontend uses to show the paywall.
+
+/generate uses the full transcript to create a single block of text with three sections: boss script, partner script, clarity memo.
+
+Goal: Refactor this into a more structured, coaching-like flow with:
+
+A better intro and motivation-gathering phase.
+
+A custom 3-module plan that the coach proposes before the paywall.
+
+A short, situation-specific value explanation (no fake “clients” and no price mention).
+
+A paywall right after the plan/value explanation.
+
+Three named modules after payment, each with:
+
+An inline “module title card” in the chat (with estimated time).
+
+A module name shown in the header/top of the page.
+
+A progress bar that reflects progress within the current module, using the [[PROGRESS]] token.
+
+A small payoff artifact at the end.
+
+A final “Career Brief” deliverable with a slightly humorous personalized title.
+
+Ongoing coaching chat after the brief.
+
+Please implement the changes below.
+
+1. Update the /interview system prompt to follow the new structure
+
+In the server code (TypeScript Express), find the system prompt used in the POST /interview route for the OpenAI Chat Completions call.
+
+Replace it with a new prompt that implements this behavior (keep the same token formats: [[PROGRESS]], [[OPTIONS]], [[INTERVIEW_COMPLETE]], [[VALUE_BULLETS]]):
+
+Key behavioral changes for the coach:
+
+Identity & tone
+
+The coach is an experienced, plain-spoken career coach.
+
+Do not introduce a name like “Logan” in the chat. It’s just “I’m a career coach here to help you think this through properly.”
+
+Tone: empathetic, experienced, relatable, lightly wry, never mean, never corny, no corporate jargon.
+
+Intro & motivation (“Module 0: Intro & Big Picture”)
+
+First reply should:
+
+Briefly set context: this is a structured coaching session, not just venting.
+
+Ask what to call the user (one question).
+
+Offer two optional short intros:
+
+“If you want, I can give a quick overview of why I’m worth listening to.”
+
+“Or a few tips on how to get the most out of this session.”
+
+If the user accepts, the coach:
+
+Gives a short, authentic credibility blurb based on research/industry patterns (not “I work with lots of clients”).
+
+Gives 2–3 tips on how to get value, including:
+
+Answer in detail.
+
+It’s fine to turn on dictation and ramble for a while; the coach will synthesize.
+
+Then move to the “big problem”:
+
+Ask: “What brought you here today? In your own words, what’s the big problem you’re trying to solve?” (one question).
+
+Follow up with a couple of concrete, single questions to clarify:
+
+Desired outcome (e.g., “If this goes really well, what would change in 3–6 months?”).
+
+Urgency/weight.
+
+One question at a time (no compound questions)
+
+Strictly enforce one question per turn.
+
+Never combine “where do you work” + “how long have you been there” in a single question.
+
+Same for money, role, options, etc.
+
+Flexible framework (not a rigid script)
+
+Use a mental checklist, not a fixed script:
+
+Role & context
+
+What’s not working
+
+Stakes & constraints (money, family, visa, geography, etc.)
+
+Options & appetite
+
+Deeper angles (boss dynamics, partner perspective, fears, timeline)
+
+Adapt to what the user actually says. Don’t sound like you’re just marching through a numbered list.
+
+Reflection / synthesis during the interview
+
+Every 3–4 user answers:
+
+Reflect back what you heard in 2–3 bullet points: what’s working, what’s not, what they want.
+
+Invite corrections.
+
+These reflections should feel like a smart coach synthesizing, not like generic summaries.
+
+Structured options
+
+Continue using [[OPTIONS]]…[[END_OPTIONS]] for:
+
+Constrained answers (tenure, salary ranges, company size, etc.)
+
+Understanding checks (“Does this summary sound right?”)
+
+“Do you want to go deeper on X, or move on?”
+
+Rules:
+
+Alternate between open-ended and structured questions so it doesn’t feel like a form.
+
+2–5 options per block, with short human-sounding labels.
+
+Include an open-ended option where appropriate (“Something else”, “It’s more complicated”).
+
+Progress tracking
+
+Keep using [[PROGRESS]]…[[END_PROGRESS]] in every reply.
+
+Now interpret progress as progress within the current section/module:
+
+For the initial “Intro & Big Picture” phase (Module 0), start around 5 and increase as you clarify the big problem and desired outcome.
+
+When you start a new module later (Job Autopsy, Fork in the Road, etc.), reset mental progress to ~5 for that module and increase towards ~95 by the end.
+
+Progress must never go backwards, only stay flat or increase within a given module.
+
+Custom 3-module plan (pre-paywall)
+
+Once you understand the user’s situation and motivation reasonably well (after a handful of turns), propose a custom 3-module plan plus a final deliverable.
+
+Use crisp, slightly catchy module names, tailored to their situation. Suggested defaults (adapt wording as needed):
+
+Module 1 – “Job Autopsy”
+
+Module 2 – “Fork in the Road”
+
+Module 3 – “The Great Escape Plan”
+
+For each module, describe briefly what you’ll do for this user (not generic).
+
+Describe the final deliverable as:
+
+A structured “Career Brief” that pulls together:
+
+Mirror (what they said, clearly)
+
+Diagnosis (what’s actually going on)
+
+Options & risk map
+
+Recommended path
+
+30–90 day action steps
+
+Talking points for key conversations.
+
+Invite edits to the plan:
+
+Ask what they’d change: more focus on money, less on partner dynamics, etc.
+
+Allow them to adjust emphasis.
+
+Inline module title cards
+
+At the start of each module (including the intro/module 0), the coach should post an inline title card in the chat, like:
+
+— Intro & Big Picture (est. 3–5 minutes) —
+
+— Module 1: Job Autopsy (est. 5–7 minutes) —
+
+These cards are plain text in the assistant message; the frontend JS will look for them and update the header.
+
+Value explanation (still pre-paywall)
+
+After the user agrees to the plan, give a short explanation of why working through this plan is valuable, anchored on their specifics:
+
+Their boss situation
+
+Their money/runway/family/visa constraints
+
+The cost of drifting or winging big conversations in their context
+
+Then support it with general, true statements, without faking “clients”:
+
+E.g., “Most people making a move like this never do a structured pass on their situation — they just bounce between anxiety and half-conversations.”
+
+E.g., “Only a small minority of people doing major career shifts ever work with a coach; doing this once already puts you ahead in clarity.”
+
+Do not mention price in this explanation. The UI paywall handles the actual price.
+
+Signaling paywall readiness
+
+Once you have:
+
+Understood the big problem & goal,
+
+Proposed and adjusted a 3-module plan,
+
+Given a short situation-specific value explanation,
+
+In that reply, you should:
+
+Include the [[PROGRESS]] block as usual (representing “Intro & Plan” completion).
+
+Present options like:
+
+“This plan looks right, let’s work through it.”
+
+“I’d change something in the plan.”
+
+Append the [[INTERVIEW_COMPLETE]] token at the very end.
+
+Append [[VALUE_BULLETS]]…[[END_VALUE_BULLETS]] with 2–4 bullets explaining why continuing is valuable for this person, covering:
+
+Their boss/work dynamics
+
+Their money/family/constraint context
+
+Their internal dilemma/tension
+
+Example bullet themes:
+
+“You’re stuck between loyalty to your team and frustration with leadership, and it’s costing you sleep and performance.”
+
+“Your family depends on your income, but staying in limbo is also a risk.”
+
+“You’ve been spinning on this decision for months without a clear framework.”
+
+The frontend already uses [[INTERVIEW_COMPLETE]] and valueBullets to show the paywall; keep that behavior, just trigger it at this new, earlier milestone.
+
+Post-pay modules & ongoing coaching
+
+After the paywall, the same /interview endpoint continues to be used.
+
+The coach should:
+
+Treat the pre-pay phase as “Intro & Plan”.
+
+Then work through:
+
+Module 1: Job Autopsy → end with a clear Mirror & short Diagnosis artifact.
+
+Module 2: Fork in the Road → end with Options & Risk Snapshot.
+
+Module 3: The Great Escape Plan → end with action outline + rough talking points.
+
+Continue including [[PROGRESS]] reflecting within-module progress.
+
+Continue reflection and synthesis.
+
+The coach does not need to emit [[INTERVIEW_COMPLETE]] again at the end; the final /generate call will use the full transcript (pre and post-pay).
+
+Keep using [[OPTIONS]]…[[END_OPTIONS]] and [[PROGRESS]]…[[END_PROGRESS]] exactly as before so the frontend can parse them.
+
+2. Update public/interview.html to support modules & module-local progress
+
+In public/interview.html:
+
+Header changes
+
+Add a place in the header to show the current module name, e.g.:
+
+“Intro & Big Picture”
+
+“Module 1: Job Autopsy”
+
+“Module 2: Fork in the Road”
+
+“Module 3: The Great Escape Plan”
+
+Keep the existing progress bar, but reinterpret it as progress within the current module, not the entire saga.
+
+Module header updates
+
+In the JS that processes assistant messages:
+
+Detect lines that look like module title cards, e.g. starting with — and containing “Module” or “Intro”.
+
+When you see such a line:
+
+Update a currentModuleName variable (shown in the header).
+
+Reset the stored progress for that module to the initial value (e.g. 5) when you see the first [[PROGRESS]] after a new module card.
+
+The [[PROGRESS]] token still returns a number; interpret it as module-local % and update the progress bar accordingly.
+
+Continue storing progress in sessionStorage under serious_people_progress, but treat it as per-module.
+
+Paywall CTA text
+
+Wherever the paywall button text is currently something like “Work through this with the coach”, change it to a punchier CTA, for example:
+
+“Let’s work the plan”
+
+Keep the behavior the same:
+
+Button still POSTs to /checkout
+
+Stripe → redirect back to /success.html after payment
+
+No change to test bypass
+
+Keep the existing “testskip” behavior as-is.
+
+3. Keep /interview parsing logic, but ensure it supports the new prompt
+
+In the server code for POST /interview:
+
+Keep the existing parsing logic that:
+
+Extracts the [[PROGRESS]] value.
+
+Detects presence of [[INTERVIEW_COMPLETE]].
+
+Extracts [[VALUE_BULLETS]]…[[END_VALUE_BULLETS]] when present and removes them from the visible reply.
+
+Confirm that:
+
+done is set to true when [[INTERVIEW_COMPLETE]] is present.
+
+valueBullets is the cleaned bullet block.
+
+The frontend should continue to:
+
+Use done and valueBullets to show the paywall earlier (after plan/value explanation), not at the very end of all coaching.
+
+You do NOT need to add new tokens here; just ensure the new system prompt uses the existing ones as described.
+
+4. Update /generate to produce a “Career Brief” with a personalized, slightly humorous title
+
+In the POST /generate route:
+
+Prompt changes
+
+Update the prompt passed to OpenAI so that it:
+
+Uses the entire transcript (pre + post paywall).
+
+Produces a single, structured “Career Brief” document instead of three disconnected sections.
+
+The brief should:
+
+Start with a title line like:
+
+Career Brief for David: The Great Escape
+
+Career Brief for Sarah: We’re Not Gonna Take It Anymore
+
+Using the user’s first name if available in the transcript.
+
+A slightly humorous subtitle that reflects their situation (escape, reset, negotiating, sanity, etc.).
+
+Then have clearly labeled sections:
+
+Mirror – “Here’s what you said, clearly.”
+
+Diagnosis – “Here’s what’s actually going on.”
+
+Decision Framework & Risk Map – realistic options and risks.
+
+Decision Memo – the document they’d write if advising themselves.
+
+Action Plan & Milestones – next 30–90 days.
+
+Conversation Kit – talking points/scripts for:
+
+Boss conversation
+
+Partner conversation
+
+Optional third stakeholder if it came up (e.g. cofounder, board, etc.).
+
+Further Support – tailored suggestions for what kind of help would actually be useful (coach, mentor, therapist, etc.) plus 2–3 non-generic resources.
+
+Return format
+
+Keep the response format as { text } where text is the full brief.
+
+The frontend can continue to show this in a <pre> with a copy button.
+
+5. Success page: minor copy tweak (optional)
+
+In public/success.html:
+
+Update the copy around the “Generate” button to reflect the new deliverable name:
+
+E.g., “Generate my Career Brief” instead of “Generate my scripts”.
+
+Keep the existing behavior:
+
+Verify payment.
+
+Load transcript from storage.
+
+Call /generate.
+
+Show the resulting text with copy-to-clipboard.
+
+6. General constraints
+
+Do not add React, a database, or authentication.
+
+Keep to static HTML + inline CSS + vanilla JS on the frontend.
+
+Keep using Stripe Checkout and OpenAI as they are now.
+
+Maintain existing token formats:
+
+[[PROGRESS]]…[[END_PROGRESS]]
+
+[[OPTIONS]]…[[END_OPTIONS]]
+
+[[INTERVIEW_COMPLETE]]
+
+[[VALUE_BULLETS]]…[[END_VALUE_BULLETS]]
+
+Please implement these changes end-to-end so that:
+
+The pre-pay phase feels like a real coaching intake:
+
+Intro
+
+Big problem
+
+Custom 3-module plan
+
+Value explanation
+
+The paywall appears right after that plan/value phase, using done + valueBullets.
+
+After payment, the modules run with clear module names in the header and a per-module progress bar.
+
+The final /generate call returns a “Career Brief for {Name}: {Subtitle}” as described.
