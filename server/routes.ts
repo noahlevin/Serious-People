@@ -205,24 +205,24 @@ Where NN is 5–100. Progress is **per-module**:
 
 ### Custom 3-module plan (pre-paywall)
 
-Once you understand the user's situation reasonably well (after understanding big problem, desired outcome, and key constraints), propose a custom 3-module plan:
+Once you understand the user's situation reasonably well (after understanding big problem, desired outcome, and key constraints), propose a custom 3-module plan using the PLAN_CARD token.
 
-1. Introduce the plan with tailored module names. Defaults (adapt wording to their situation):
-   - Module 1 – "Job Autopsy"
-   - Module 2 – "Fork in the Road"  
-   - Module 3 – "The Great Escape Plan"
+Output the plan as a structured card using this EXACT format:
 
-2. For each module, describe briefly what you'll do FOR THIS USER (not generic).
+[[PLAN_CARD]]
+NAME: [User's first name]
+MODULE1_NAME: Job Autopsy
+MODULE1_DESC: [1-2 sentence personalized description of what you'll cover for THIS user]
+MODULE2_NAME: Fork in the Road
+MODULE2_DESC: [1-2 sentence personalized description of what you'll cover for THIS user]
+MODULE3_NAME: The Great Escape Plan
+MODULE3_DESC: [1-2 sentence personalized description of what you'll cover for THIS user]
+CAREER_BRIEF: [2-3 sentences describing the final deliverable - a structured document with their situation mirror, diagnosis, options map, action plan, and conversation scripts tailored to their specific people and dynamics]
+[[END_PLAN_CARD]]
 
-3. Describe the final deliverable: a structured "Career Brief" that pulls together:
-   - Mirror (what they said, clearly)
-   - Diagnosis (what's actually going on)
-   - Options & risk map
-   - Recommended path
-   - 30–90 day action steps
-   - Talking points for key conversations
+Adapt the module names if helpful (e.g., "The Boss Problem" instead of "Job Autopsy" if that fits better). The descriptions MUST be personalized to their situation, not generic.
 
-4. Invite edits: "What would you change? More focus on money? Less on partner dynamics?"
+After the plan card, invite edits: "What would you change? More focus on money? Less on partner dynamics?"
 
 ### Value explanation (pre-paywall)
 
@@ -397,6 +397,7 @@ export async function registerRoutes(
       let valueBullets: string | null = null;
       let options: string[] | null = null;
       let progress: number | null = null;
+      let planCard: { name: string; modules: { name: string; desc: string }[]; careerBrief: string } | null = null;
 
       // Parse progress token
       const progressMatch = reply.match(/\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/);
@@ -417,6 +418,32 @@ export async function registerRoutes(
           .filter(opt => opt.length > 0);
       }
 
+      // Parse plan card
+      const planCardMatch = reply.match(/\[\[PLAN_CARD\]\]([\s\S]*?)\[\[END_PLAN_CARD\]\]/);
+      if (planCardMatch) {
+        const cardContent = planCardMatch[1].trim();
+        const nameMatch = cardContent.match(/NAME:\s*(.+)/);
+        const module1NameMatch = cardContent.match(/MODULE1_NAME:\s*(.+)/);
+        const module1DescMatch = cardContent.match(/MODULE1_DESC:\s*(.+)/);
+        const module2NameMatch = cardContent.match(/MODULE2_NAME:\s*(.+)/);
+        const module2DescMatch = cardContent.match(/MODULE2_DESC:\s*(.+)/);
+        const module3NameMatch = cardContent.match(/MODULE3_NAME:\s*(.+)/);
+        const module3DescMatch = cardContent.match(/MODULE3_DESC:\s*(.+)/);
+        const careerBriefMatch = cardContent.match(/CAREER_BRIEF:\s*(.+)/);
+
+        if (nameMatch) {
+          planCard = {
+            name: nameMatch[1].trim(),
+            modules: [
+              { name: module1NameMatch?.[1]?.trim() || 'Job Autopsy', desc: module1DescMatch?.[1]?.trim() || '' },
+              { name: module2NameMatch?.[1]?.trim() || 'Fork in the Road', desc: module2DescMatch?.[1]?.trim() || '' },
+              { name: module3NameMatch?.[1]?.trim() || 'The Great Escape Plan', desc: module3DescMatch?.[1]?.trim() || '' }
+            ],
+            careerBrief: careerBriefMatch?.[1]?.trim() || ''
+          };
+        }
+      }
+
       // Check for interview completion
       if (reply.includes("[[INTERVIEW_COMPLETE]]")) {
         done = true;
@@ -433,9 +460,10 @@ export async function registerRoutes(
         .replace(/\[\[INTERVIEW_COMPLETE\]\]/g, '')
         .replace(/\[\[VALUE_BULLETS\]\][\s\S]*?\[\[END_VALUE_BULLETS\]\]/g, '')
         .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, '')
+        .replace(/\[\[PLAN_CARD\]\][\s\S]*?\[\[END_PLAN_CARD\]\]/g, '')
         .trim();
 
-      res.json({ reply, done, valueBullets, options, progress });
+      res.json({ reply, done, valueBullets, options, progress, planCard });
     } catch (error: any) {
       console.error("Interview error:", error);
       res.status(500).json({ error: error.message });

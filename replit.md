@@ -39,6 +39,11 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - Auto-scrolling chat container
 - Elegant WSJ-style module title cards with decorative lines and uppercase headings
 - Title card format: `— Module Name (est. X minutes) —` (rendered as styled element)
+- Premium plan card: personalized coaching plan rendered as a standout card with:
+  - Header with "[Name]'s Coaching Plan"
+  - Three numbered modules with personalized descriptions
+  - "Your Career Brief" section highlighting the final deliverable
+  - WSJ-premium styling with shadow, offset background, and elegant typography
 - Typing indicator: 0.4–1.5 seconds max delay
 - Personalized paywall with value bullets from AI
 - Two-step paywall: user must confirm plan via structured option before paywall appears
@@ -74,6 +79,7 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - Uses `[[INTERVIEW_COMPLETE]]` token to signal completion (triggers paywall after plan proposal)
 - Uses `[[VALUE_BULLETS]]...[[END_VALUE_BULLETS]]` for personalized paywall content
 - Uses `[[OPTIONS]]...[[END_OPTIONS]]` for clickable response options
+- Uses `[[PLAN_CARD]]...[[END_PLAN_CARD]]` for premium coaching plan card with structured fields (NAME, MODULE1_NAME, MODULE1_DESC, etc.)
 - Career Brief generation creates structured document: Mirror, Diagnosis, Decision Framework, Action Plan, Conversation Kit, Further Support
 
 ### Data Storage
