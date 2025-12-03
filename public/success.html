@@ -413,7 +413,7 @@
 
     function loadTranscript() {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = sessionStorage.getItem(STORAGE_KEY);
         if (saved) {
           transcript = JSON.parse(saved);
           return transcript && transcript.length > 0;

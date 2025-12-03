@@ -29,8 +29,8 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 
 **Interview Page Features:**
 - Chat-style conversation interface with Logan AI coach
-- Transcript stored in localStorage (`serious_people_transcript` key)
-- Progress bar integrated into header separator line (0-100%, persisted to localStorage `serious_people_progress`)
+- Transcript stored in sessionStorage (`serious_people_transcript` key) - clears when browser closes
+- Progress bar integrated into header separator line (0-100%, persisted to sessionStorage `serious_people_progress`)
 - Auto-scrolling chat container
 - Personalized paywall with value bullets from AI
 - Checkout button that creates Stripe session

@@ -529,7 +529,7 @@
 
     function loadProgress() {
       try {
-        const saved = localStorage.getItem(PROGRESS_KEY);
+        const saved = sessionStorage.getItem(PROGRESS_KEY);
         if (saved) {
           const value = parseInt(saved, 10);
           if (!isNaN(value) && value >= 0 && value <= 100) {
@@ -544,7 +544,7 @@
 
     function saveProgress(value) {
       try {
-        localStorage.setItem(PROGRESS_KEY, value.toString());
+        sessionStorage.setItem(PROGRESS_KEY, value.toString());
       } catch (e) {
         console.error('Failed to save progress:', e);
       }
@@ -560,7 +560,7 @@
 
     function loadTranscript() {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = sessionStorage.getItem(STORAGE_KEY);
         if (saved) {
           transcript = JSON.parse(saved);
           transcript.forEach(msg => renderMessage(msg.role, msg.content, false));
@@ -573,7 +573,7 @@
 
     function saveTranscript() {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(transcript));
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(transcript));
       } catch (e) {
         console.error('Failed to save transcript:', e);
       }
