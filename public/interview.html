@@ -661,9 +661,13 @@
       
       formatted = formatted.replace(/^- (.+)$/gm, '• $1');
       
+      formatted = formatted.replace(/\n{3,}/g, '\n\n');
+      
       formatted = formatted.replace(/\n/g, '<br>');
       
       formatted = formatted.replace(/^(<br>)+/, '');
+      
+      formatted = formatted.replace(/(<br>){3,}/g, '<br><br>');
       
       return formatted;
     }
