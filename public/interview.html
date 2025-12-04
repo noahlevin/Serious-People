@@ -610,9 +610,122 @@
       to { transform: rotate(360deg); }
     }
 
+    .profile-menu-container {
+      position: relative;
+    }
+
+    .profile-button {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: transparent;
+      border: 1px solid #d4d4d4;
+      padding: 0.375rem 0.75rem;
+      cursor: pointer;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 0.85rem;
+      color: #1a1a1a;
+      transition: all 0.2s ease;
+    }
+
+    .profile-button:hover {
+      background: #f5f4f0;
+      border-color: #999;
+    }
+
+    .profile-icon {
+      width: 20px;
+      height: 20px;
+      color: #666;
+    }
+
+    .profile-name {
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .profile-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 0.25rem;
+      background: #fff;
+      border: 1px solid #d4d4d4;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      min-width: 160px;
+      z-index: 200;
+      display: none;
+    }
+
+    .profile-dropdown.open {
+      display: block;
+    }
+
+    .profile-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.625rem 0.875rem;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 0.9rem;
+      color: #1a1a1a;
+      text-align: left;
+      transition: background 0.15s ease;
+    }
+
+    .profile-dropdown-item:hover {
+      background: #f5f4f0;
+    }
+
+    .profile-dropdown-item svg {
+      width: 16px;
+      height: 16px;
+      color: #666;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #faf9f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .loading-overlay.hidden {
+      display: none;
+    }
+
+    .loading-spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid #e5e5e5;
+      border-top-color: #1a1a1a;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
     @media (max-width: 640px) {
       header {
         padding: 0.75rem 1rem;
+      }
+
+      .profile-name {
+        display: none;
+      }
+
+      .profile-button {
+        padding: 0.375rem 0.5rem;
       }
 
       main {
@@ -637,6 +750,10 @@
   </style>
 </head>
 <body>
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+  </div>
+
   <header>
     <div class="header-content">
       <a href="/" class="logo-link">
@@ -644,6 +761,25 @@
         <span class="logo">Serious People</span>
         <span class="logo-subtitle" id="moduleSubtitle"> · Interview</span>
       </a>
+      <div class="profile-menu-container" id="profileMenuContainer" style="display: none;">
+        <button class="profile-button" id="profileButton" data-testid="button-profile">
+          <svg class="profile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span class="profile-name" id="profileName"></span>
+        </button>
+        <div class="profile-dropdown" id="profileDropdown">
+          <button class="profile-dropdown-item" id="logoutButton" data-testid="button-logout">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            Sign out
+          </button>
+        </div>
+      </div>
     </div>
     <div class="progress-bar-container">
       <div class="progress-bar-fill" id="progressBar"></div>
@@ -689,6 +825,9 @@
     const PROGRESS_KEY = 'serious_people_progress';
     let transcript = [];
     let interviewComplete = false;
+    let currentUser = null;
+    let hasPaid = false;
+    let isSyncing = false;
 
     const chatWindow = document.getElementById('chatWindow');
     const userInput = document.getElementById('userInput');
@@ -701,10 +840,128 @@
     const inputArea = document.getElementById('inputArea');
     const progressBar = document.getElementById('progressBar');
     const moduleSubtitle = document.getElementById('moduleSubtitle');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const profileMenuContainer = document.getElementById('profileMenuContainer');
+    const profileButton = document.getElementById('profileButton');
+    const profileDropdown = document.getElementById('profileDropdown');
+    const profileName = document.getElementById('profileName');
+    const logoutButton = document.getElementById('logoutButton');
 
     let currentProgress = 0;
     let currentModule = 'Interview';
     let moduleJustChanged = false;
+
+    // Auth and profile menu
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/auth/check');
+        const data = await response.json();
+        
+        if (!data.authenticated) {
+          window.location.href = '/login.html';
+          return false;
+        }
+        
+        currentUser = data.user;
+        showProfileMenu();
+        return true;
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        window.location.href = '/login.html';
+        return false;
+      }
+    }
+
+    function showProfileMenu() {
+      if (currentUser) {
+        const displayName = currentUser.firstName || currentUser.email?.split('@')[0] || 'User';
+        profileName.textContent = displayName;
+        profileMenuContainer.style.display = 'block';
+      }
+    }
+
+    profileButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      profileDropdown.classList.toggle('open');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!profileMenuContainer.contains(e.target)) {
+        profileDropdown.classList.remove('open');
+      }
+    });
+
+    logoutButton.addEventListener('click', async () => {
+      await saveProgressToServer();
+      window.location.href = '/api/logout';
+    });
+
+    // Server sync functions
+    async function loadProgressFromServer() {
+      try {
+        const response = await fetch('/api/progress');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.transcript && data.transcript.length > 0) {
+            transcript = data.transcript;
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(transcript));
+          }
+          if (data.progress !== undefined && data.progress !== null) {
+            currentProgress = data.progress;
+            progressBar.style.width = data.progress + '%';
+            sessionStorage.setItem(PROGRESS_KEY, data.progress.toString());
+          }
+          if (data.hasPaid) {
+            hasPaid = true;
+          }
+          return data;
+        }
+      } catch (error) {
+        console.error('Failed to load progress from server:', error);
+      }
+      return null;
+    }
+
+    async function saveProgressToServer() {
+      if (isSyncing || !currentUser) return;
+      isSyncing = true;
+      
+      try {
+        await fetch('/api/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transcript,
+            progress: currentProgress,
+            lastLocation: '/interview.html'
+          })
+        });
+      } catch (error) {
+        console.error('Failed to save progress:', error);
+      } finally {
+        isSyncing = false;
+      }
+    }
+
+    // Debounced save for performance
+    let saveTimeout = null;
+    function debouncedSave() {
+      if (saveTimeout) clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(saveProgressToServer, 1000);
+    }
+
+    // Save on page unload - use Blob with proper content-type for JSON parsing
+    window.addEventListener('beforeunload', () => {
+      if (currentUser) {
+        const data = JSON.stringify({
+          transcript,
+          progress: currentProgress,
+          lastLocation: '/interview.html'
+        });
+        const blob = new Blob([data], { type: 'application/json' });
+        navigator.sendBeacon('/api/progress', blob);
+      }
+    });
 
     function loadProgress() {
       try {
@@ -724,6 +981,7 @@
     function saveProgress(value) {
       try {
         sessionStorage.setItem(PROGRESS_KEY, value.toString());
+        debouncedSave();
       } catch (e) {
         console.error('Failed to save progress:', e);
       }
@@ -775,6 +1033,7 @@
     function saveTranscript() {
       try {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(transcript));
+        debouncedSave();
       } catch (e) {
         console.error('Failed to save transcript:', e);
       }
@@ -1200,21 +1459,42 @@
 
     checkoutBtn.addEventListener('click', handleCheckout);
 
-    loadTranscript();
-    loadProgress();
+    // Main initialization
+    async function init() {
+      const isAuthenticated = await checkAuth();
+      if (!isAuthenticated) return;
 
-    if (transcript.length === 0) {
-      sendMessage();
-    } else {
-      const lastResponse = transcript.filter(t => t.role === 'assistant').pop();
-      if (lastResponse && lastResponse.content.includes('I think I have enough')) {
-        interviewComplete = true;
-        inputArea.style.display = 'none';
-        showPaywall(null);
+      // Load from server first, then fall back to sessionStorage
+      await loadProgressFromServer();
+      
+      // Render loaded transcript
+      if (transcript.length > 0) {
+        transcript.forEach(msg => {
+          if (msg.role === 'assistant') {
+            detectAndUpdateModule(msg.content);
+          }
+          renderMessage(msg.role, msg.content, false);
+        });
+      }
+      
+      loadProgress();
+      loadingOverlay.classList.add('hidden');
+
+      if (transcript.length === 0) {
+        sendMessage();
       } else {
-        setStatus('');
+        const lastResponse = transcript.filter(t => t.role === 'assistant').pop();
+        if (lastResponse && lastResponse.content.includes('I think I have enough')) {
+          interviewComplete = true;
+          inputArea.style.display = 'none';
+          showPaywall(null);
+        } else {
+          setStatus('');
+        }
       }
     }
+
+    init();
   </script>
 </body>
 </html>

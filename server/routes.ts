@@ -4,6 +4,8 @@ import OpenAI from "openai";
 import path from "path";
 import express from "express";
 import { getStripeClient } from "./stripeClient";
+import { setupAuth, isAuthenticated, optionalAuth } from "./replitAuth";
+import { storage } from "./storage";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -348,15 +350,72 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // Set up authentication before static file serving
+  await setupAuth(app);
+  
   const publicPath = path.resolve(process.cwd(), "public");
   app.use(express.static(publicPath));
   
-  // POST /checkout - Create Stripe Checkout session
-  app.post("/checkout", async (req, res) => {
+  // Auth API endpoints
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Check auth status without requiring login (for optional UI elements)
+  app.get('/api/auth/check', optionalAuth, async (req: any, res) => {
+    if (req.isAuthenticated() && req.user?.claims?.sub) {
+      const user = await storage.getUser(req.user.claims.sub);
+      res.json({ authenticated: true, user });
+    } else {
+      res.json({ authenticated: false });
+    }
+  });
+
+  // Progress API endpoints
+  app.get('/api/progress', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const progress = await storage.getUserProgress(userId);
+      res.json(progress || { transcript: [], progress: 0, lastLocation: '/interview.html', hasPaid: 0 });
+    } catch (error) {
+      console.error("Error fetching progress:", error);
+      res.status(500).json({ message: "Failed to fetch progress" });
+    }
+  });
+
+  app.post('/api/progress', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { transcript, progress, lastLocation } = req.body;
+      // Note: hasPaid can only be set via verified Stripe session, not from client
+      const updated = await storage.upsertUserProgress(userId, { 
+        transcript, 
+        progress, 
+        lastLocation
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error saving progress:", error);
+      res.status(500).json({ message: "Failed to save progress" });
+    }
+  });
+
+  // POST /checkout - Create Stripe Checkout session (requires auth to bind payment to user)
+  app.post("/checkout", isAuthenticated, async (req: any, res) => {
     try {
       const stripe = await getStripeClient();
       const priceId = await getOrCreateTestPrice();
       const baseUrl = getBaseUrl();
+      
+      // Bind the checkout session to the authenticated user for verification
+      const userId = req.user.claims.sub;
       
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
@@ -368,6 +427,7 @@ export async function registerRoutes(
         ],
         success_url: `${baseUrl}/success.html?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/interview.html`,
+        client_reference_id: userId,
       });
 
       res.json({ url: session.url });
@@ -377,8 +437,8 @@ export async function registerRoutes(
     }
   });
 
-  // GET /verify-session - Verify Stripe payment
-  app.get("/verify-session", async (req, res) => {
+  // GET /verify-session - Verify Stripe payment and mark user as paid (requires auth + ownership)
+  app.get("/verify-session", isAuthenticated, async (req: any, res) => {
     try {
       const sessionId = req.query.session_id as string;
       
@@ -390,6 +450,15 @@ export async function registerRoutes(
       const session = await stripe.checkout.sessions.retrieve(sessionId);
 
       if (session.payment_status === "paid") {
+        const userId = req.user.claims.sub;
+        
+        // Verify this payment belongs to this user via client_reference_id
+        if (!session.client_reference_id || session.client_reference_id !== userId) {
+          console.warn(`Payment ownership mismatch: session for ${session.client_reference_id || 'none'}, claimed by ${userId}`);
+          return res.status(403).json({ ok: false, error: "Payment not associated with this account" });
+        }
+        
+        await storage.upsertUserProgress(userId, { hasPaid: 1 });
         return res.json({ ok: true });
       } else {
         return res.status(403).json({ ok: false, error: "Payment not completed" });

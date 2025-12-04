@@ -397,6 +397,7 @@
     const scriptsContent = document.getElementById('scripts-content');
 
     let transcript = null;
+    let currentUser = null;
 
     function hideAllStates() {
       verifyingState.style.display = 'none';
@@ -409,6 +410,23 @@
     function showState(stateEl) {
       hideAllStates();
       stateEl.style.display = 'flex';
+    }
+
+    async function loadTranscriptFromServer() {
+      try {
+        const response = await fetch('/api/progress');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.transcript && data.transcript.length > 0) {
+            transcript = data.transcript;
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(transcript));
+            return true;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load transcript from server:', error);
+      }
+      return false;
     }
 
     function loadTranscript() {
@@ -424,6 +442,20 @@
       return false;
     }
 
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/auth/check');
+        const data = await response.json();
+        if (data.authenticated) {
+          currentUser = data.user;
+          return true;
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      }
+      return false;
+    }
+
     async function verifyPayment() {
       if (!sessionId) {
         showState(errorState);
@@ -435,7 +467,17 @@
         const data = await response.json();
 
         if (data.ok) {
-          if (loadTranscript()) {
+          // Payment is now marked server-side in verify-session endpoint
+          // Try loading from server first, then sessionStorage
+          let hasTranscript = false;
+          if (currentUser) {
+            hasTranscript = await loadTranscriptFromServer();
+          }
+          if (!hasTranscript) {
+            hasTranscript = loadTranscript();
+          }
+          
+          if (hasTranscript) {
             showState(readyState);
           } else {
             showState(transcriptErrorState);
@@ -497,7 +539,13 @@
       }
     });
 
-    verifyPayment();
+    // Initialize with auth check
+    async function init() {
+      await checkAuth();
+      verifyPayment();
+    }
+    
+    init();
   </script>
 </body>
 </html>

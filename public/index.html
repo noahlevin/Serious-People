@@ -163,6 +163,22 @@
       font-style: italic;
     }
 
+    .returning-user {
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    .returning-link {
+      color: #666;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+
+    .returning-link:hover {
+      color: #1a1a1a;
+      text-decoration: underline;
+    }
+
     .section-divider {
       display: flex;
       align-items: center;
@@ -315,11 +331,14 @@
       <p class="hero-text">
         Turn your messy thoughts about work into a clear story with a short interview with our AI coach. Sharpen what you want, see the real trade-offs, and walk into big conversations—with your boss, your partner, and yourself—knowing exactly what you're asking for.
       </p>
-      <button class="cta-button" data-testid="button-start-interview" onclick="window.location.href='/interview.html'">
+      <button class="cta-button" data-testid="button-start-interview" onclick="window.location.href='/login.html'">
         Start the Interview
       </button>
       <p class="pricing-note">
         The interview is free. Scripts and memo are $19.
+      </p>
+      <p class="returning-user">
+        <a href="/login.html" class="returning-link" data-testid="link-returning-user">Already started? Log back in →</a>
       </p>
     </section>
 
