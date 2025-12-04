@@ -1,0 +1,201 @@
+2025-12-04 15:15:51.29
+06f9b6c0
+User
+> rest-express@1.0.0 start
+2025-12-04 15:15:51.29
+06f9b6c0
+User
+> NODE_ENV=production node dist/index.cjs
+2025-12-04 15:15:51.55
+06f9b6c0
+User
+[DB] Production: Using /tmp/replitdb: host=kv.replit.com, path=/v0/v2.public.Q2lRd05tWTVZalpqTUMxbE1tWTNMVFJoTWpjdE9UTmpOaTAxTnpaa1ltRmlOMlppTm1ZU0NrNXZZV2hNWlhacGJqSWFEbE5sY21sdmRYTXRVR1Z2Y0d4bElnbHlaWEJzYVhRdGEzWXlKR1ZsWm1GbFpESmlMV0UwTlRRdE5EVTRPUzA1TkRaaUxUaG1ZMkV5WmpNeFlqRmtOempTME9FRVFsUUtKR1prWkRGaU5XVTBMV0l6TUdNdE5EUTBOUzA1TURrMExUVXdNemc1TWpJNE1qZGlZaG9rTURabU9XSTJZekF0WlRKbU55MDBZVEkzTFRrell6WXROVGMyWkdKaFlqZG1ZalptSWdaamNpMDBMVGhpQUE9PR0uwLbNyOXLyR88CliHzDVahDF0nMQ9y6noIPdp0aJqvpRt2j3SDiqOastfHED_Ae8I34oE4IYZP_JFr8ErMwo.R0FFaUNHaGxhVzFrWVd4c0V2WUhkakl1Y0hWaWJHbGpMbEV5WkROVFZHd3lWVVZvTlZWV2JGSmthM2hGVG5wR1VsTldUa1ZSVjNCSFRtc3dkbE5yU205U1JXUXdXbTVhVjFGWGFIWlJNR1JDVmxkR1Mxb3lPWEpVVlZKaFlsVTVXRk5VU2xwbGEwWXdWMnhTUzJKVk5UVk5SRUphVmtWcmVsUkdVbkpsYkd3MlYxaFNUMVpIVFhsWGEyUkxZVVpzY1ZwSE1WcGhiSEIwVWpKa00xVXdUbkpPV0ZwYVZqSm9UbGRzYUdGalIwcHhVMWRHUTFaSGNGUk5SVGxHVWxWa2JsTldiRVJoUnpsRVZGVkdSbUZWTlZoak0yeE5ZbXRKZUZkWE1UUmpSbXcxVGxoc1dVMXFiRzlXUlUxNFpWVTBkMVpVUW10U1IxSk5Wa2Q0YzJOc1ozcFZiRVphWWtSc1JsVlVTbmROVjBwR1draG9VMUl3TlRSVWJUVnlUVWRTV1ZKc1pHaFNWM2gyVmxjMWMySnRiV3BVT1VWdFRHSk1UUzFPYmtsR1IzaEhZemR6UTBwdWJWbG9Sa3BDTUhaUFVuVXdhR0ZaVFVwQ056RlFZVlJyVDJZeFNuSnhkREEwWTBSTFVFMVhhWEJ4WDI5U2IwMW9SbXgzYjFwVFlrWlhYMDlCWXk1U01FWkdZVlZLZEZSdVdtbGlWRVp2V1cxb1RWbHJSblZYV0d4TlltdEplRmRYTVRSalJtdzFUbFpLVG1KV1NUSldWRVpyVFVkV2RGTnNXbFJpYmtKWFZtMHhORlV4VW5KVmJVWk9WbTVDVjFVeWRFOVdSbHBaWVVWV1ZtVnJTbkpWYWtFeFUxWkdjbE5zV2s1U2JIQlRWbTF3VDFsWFVsZGlNMmhUWWxkb1UxWnFTbTlrVmxaWVpFZDBhV0pGTlZoWmExWlBWbTFLVldKRlZsWmhhMHBJV2tkNGMxWnNTblZTYkVwWFZsaENTbFl5Y0VOak1XUnpVbXhvYUZOR2NGTlVWV1JUVVRGYVIxcEZaRkppVlZwSlYydFZlRlV3TVhSVmEzUlhUVlphVkZWVVNrcGtNVkp5WVVaS1YyRXhjSFpXVmxwcllqSktjMVJ1U21sVFJWcFlXVzEwZDFReGJGZFZiR1JPVFZoQ1NGZHJWakJoYXpGeVYyeHNWMUp0YUZoV1JFWmhaRWRXU1dOR1pGZGlWa3BKVmtaU1MxUXlUWGxUYWxwV1lYcHNXRlJYZUV0aU1WbDVUVlJTVkUxcldrZFVWbFpyVmtkS1JsZHNXbHBXZWtVd1YxWmFjMDVzUmxWU2JYQnBVbGhDTmxaRVJsZFpWMFY1VTJ4c1ZsWkZXbGRaYTFwaFkyeHdTR1ZGV214U2JrSkdWakl4ZDJGSFJYaGpSemxYWVd0YVZGVjZSazVsUmxwelUyeEdWMUpGU2pOV01uUmhWMjFPZEdORk1WQlhSVFI2V2tWV1drNVdjRVZTV0ZKcFlsUldVVlF3WkdGVmJVcFlZVVJLVkZKV2NIaFdhMVp5WkVkU1JXRkZjR2xpVm5CUlYwUkplRlpWTVhSWmVsSnFWMGhDUmxWclpGWk9SbHBGWWtaU2FFMVdTalpYYlhodllsZFdjbUo2UWxoV1ZURTJWMjF6ZDJWc1pGWk9XRXBVVmtkU1dWZFhhM2RPVmtweVZXMDVUMkZVUmt4VWFrazFVa1Y0YzFOWVpGTmhNWEJ2Vm14V2QwMUdXa2hPVjBab1ZqQndWbFZ0TURWWGJVcFlWV3BLVm1GcmNGQlZNVnBQWkZaa2RGSnNUbE5sYldjdw
+2025-12-04 15:15:51.55
+06f9b6c0
+User
+[DB] Initializing database connection (production=true)
+2025-12-04 15:15:51.56
+06f9b6c0
+User
+[Auth] Setting up Google OAuth...
+2025-12-04 15:15:51.56
+06f9b6c0
+User
+[Session] Production: Using /tmp/replitdb for session store
+2025-12-04 15:15:51.59
+06f9b6c0
+User
+[Auth] GOOGLE_CLIENT_SECRET present: true
+2025-12-04 15:15:51.59
+06f9b6c0
+User
+[Auth] GOOGLE_CLIENT_ID present: true
+2025-12-04 15:15:51.59
+06f9b6c0
+User
+[Auth] Registering /api/auth/google/callback route
+2025-12-04 15:15:51.59
+06f9b6c0
+User
+[Auth] Registering /api/login route
+2025-12-04 15:15:51.59
+06f9b6c0
+User
+[Auth] Google OAuth setup complete
+2025-12-04 15:15:51.59
+06f9b6c0
+User
+[Auth] Registering /api/logout route
+2025-12-04 15:15:51.59
+06f9b6c0
+User
+[Static] Serving static files from: /home/runner/workspace/dist/public
+2025-12-04 15:15:51.59
+06f9b6c0
+User
+[Static] Registering catch-all for non-API routes
+2025-12-04 15:15:51.70
+06f9b6c0
+User
+9:15:51 PM [express] serving on port 5000
+2025-12-04 15:16:13.55
+06f9b6c0
+User
+9:16:13 PM [express] GET /api/auth/check 304 in 3ms :: {"authenticated":false}
+2025-12-04 15:16:14.63
+06f9b6c0
+User
+9:16:14 PM [express] GET /api/login 302 in 4ms
+2025-12-04 15:16:15.16
+06f9b6c0
+User
+[Auth] upsertUser called for email=noah@noahlevin.com, id=109520987896533457978
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+[Auth] Error message: Unexpected server response: 404
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+[Auth] Error name: undefined
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+[Auth] upsertUser FAILED for email=noah@noahlevin.com
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at /home/runner/workspace/dist/index.cjs:117:46393
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async TZ (/home/runner/workspace/dist/index.cjs:117:76407)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async Tw.upsertUser (/home/runner/workspace/dist/index.cjs:117:75072)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async yd._verify (/home/runner/workspace/dist/index.cjs:117:77920)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async H0.execute (/home/runner/workspace/dist/index.cjs:117:71301)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+[Auth] Error stack: Error: Unexpected server response: 404
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+9:16:15 PM [express] GET /api/auth/google/callback 500 in 250ms :: {"message":"Unexpected server response: 404"}
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at /home/runner/workspace/dist/index.cjs:117:46393
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async Tw.upsertUser (/home/runner/workspace/dist/index.cjs:117:75072)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async H0.execute (/home/runner/workspace/dist/index.cjs:117:71301)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+Error: Unexpected server response: 404
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async yd._verify (/home/runner/workspace/dist/index.cjs:117:77920)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async TZ (/home/runner/workspace/dist/index.cjs:117:76407)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async TZ (/home/runner/workspace/dist/index.cjs:117:76407)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async yd._verify (/home/runner/workspace/dist/index.cjs:117:77920)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+Error: Unexpected server response: 404
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async H0.execute (/home/runner/workspace/dist/index.cjs:117:71301)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async Tw.upsertUser (/home/runner/workspace/dist/index.cjs:117:75072)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at /home/runner/workspace/dist/index.cjs:117:46393
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async TZ (/home/runner/workspace/dist/index.cjs:117:76407)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async yd._verify (/home/runner/workspace/dist/index.cjs:117:77920)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+Error: Unexpected server response: 404
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async H0.execute (/home/runner/workspace/dist/index.cjs:117:71301)
+
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at async Tw.upsertUser (/home/runner/workspace/dist/index.cjs:117:75072)
+2025-12-04 15:16:15.29
+06f9b6c0
+User
+at /home/runner/workspace/dist/index.cjs:117:46393

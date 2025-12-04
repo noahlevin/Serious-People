@@ -3,26 +3,26 @@ import { Strategy as GoogleStrategy, Profile } from "passport-google-oauth20";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
-import fs from "fs";
 import { storage } from "./storage";
 
 function getDatabaseUrl(): string {
-  const isProduction = process.env.NODE_ENV === 'production';
+  // Try to construct URL from individual PG* environment variables
+  // This works in both development and production
+  const pgHost = process.env.PGHOST;
+  const pgUser = process.env.PGUSER;
+  const pgPassword = process.env.PGPASSWORD;
+  const pgDatabase = process.env.PGDATABASE;
+  const pgPort = process.env.PGPORT || "5432";
   
-  // In PRODUCTION: Use /tmp/replitdb first (contains real Neon URL)
-  // The development DATABASE_URL uses "helium" proxy which doesn't work in production
-  if (isProduction) {
-    const replitDbPath = "/tmp/replitdb";
-    if (fs.existsSync(replitDbPath)) {
-      const dbUrl = fs.readFileSync(replitDbPath, "utf-8").trim();
-      if (dbUrl) {
-        console.log("[Session] Production: Using /tmp/replitdb for session store");
-        return dbUrl;
-      }
-    }
+  if (pgHost && pgUser && pgPassword && pgDatabase) {
+    const isNeon = pgHost.includes('neon.tech') || pgHost.includes('aws.neon.tech');
+    const sslParam = isNeon ? '?sslmode=require' : '';
+    const constructedUrl = `postgresql://${pgUser}:${pgPassword}@${pgHost}:${pgPort}/${pgDatabase}${sslParam}`;
+    console.log(`[Session] Using constructed URL from PG* vars: host=${pgHost}`);
+    return constructedUrl;
   }
   
-  // In DEVELOPMENT or as fallback: Use DATABASE_URL environment variable
+  // Fallback to DATABASE_URL environment variable
   if (process.env.DATABASE_URL) {
     console.log("[Session] Using DATABASE_URL env for session store");
     return process.env.DATABASE_URL;
