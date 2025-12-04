@@ -7,20 +7,25 @@ import fs from "fs";
 import { storage } from "./storage";
 
 function getDatabaseUrl(): string {
-  // Try DATABASE_URL environment variable first (works in both dev and production)
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // In PRODUCTION: Use /tmp/replitdb first (contains real Neon URL)
+  // The development DATABASE_URL uses "helium" proxy which doesn't work in production
+  if (isProduction) {
+    const replitDbPath = "/tmp/replitdb";
+    if (fs.existsSync(replitDbPath)) {
+      const dbUrl = fs.readFileSync(replitDbPath, "utf-8").trim();
+      if (dbUrl) {
+        console.log("[Session] Production: Using /tmp/replitdb for session store");
+        return dbUrl;
+      }
+    }
+  }
+  
+  // In DEVELOPMENT or as fallback: Use DATABASE_URL environment variable
   if (process.env.DATABASE_URL) {
     console.log("[Session] Using DATABASE_URL env for session store");
     return process.env.DATABASE_URL;
-  }
-  
-  // For published apps, check /tmp/replitdb as fallback
-  const replitDbPath = "/tmp/replitdb";
-  if (fs.existsSync(replitDbPath)) {
-    const dbUrl = fs.readFileSync(replitDbPath, "utf-8").trim();
-    if (dbUrl) {
-      console.log("[Session] Using /tmp/replitdb for session store");
-      return dbUrl;
-    }
   }
   
   console.warn("[Session] No database URL found for session store");

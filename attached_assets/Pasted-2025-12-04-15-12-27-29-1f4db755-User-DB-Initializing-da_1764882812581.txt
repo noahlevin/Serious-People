@@ -1,0 +1,200 @@
+2025-12-04 15:12:27.29
+1f4db755
+User
+[DB] Initializing database connection (production=true)
+2025-12-04 15:12:27.29
+1f4db755
+User
+[DB] Using DATABASE_URL env: host=helium, path=/heliumdb
+2025-12-04 15:12:27.29
+1f4db755
+User
+[Auth] Setting up Google OAuth...
+2025-12-04 15:12:27.30
+1f4db755
+User
+[Session] Using DATABASE_URL env for session store
+2025-12-04 15:12:27.33
+1f4db755
+User
+[Auth] GOOGLE_CLIENT_SECRET present: true
+2025-12-04 15:12:27.33
+1f4db755
+User
+[Auth] GOOGLE_CLIENT_ID present: true
+2025-12-04 15:12:27.33
+1f4db755
+User
+[Auth] Registering /api/logout route
+2025-12-04 15:12:27.33
+1f4db755
+User
+[Auth] Registering /api/auth/google/callback route
+2025-12-04 15:12:27.33
+1f4db755
+User
+[Auth] Google OAuth setup complete
+2025-12-04 15:12:27.33
+1f4db755
+User
+[Auth] Registering /api/login route
+2025-12-04 15:12:27.33
+1f4db755
+User
+[Static] Serving static files from: /home/runner/workspace/dist/public
+2025-12-04 15:12:27.33
+1f4db755
+User
+[Static] Registering catch-all for non-API routes
+2025-12-04 15:12:27.44
+1f4db755
+User
+9:12:27 PM [express] serving on port 5000
+2025-12-04 15:12:59.13
+1f4db755
+User
+9:12:59 PM [express] GET /api/auth/check 304 in 4ms :: {"authenticated":false}
+2025-12-04 15:13:00.11
+1f4db755
+User
+9:13:00 PM [express] GET /api/login 302 in 3ms
+2025-12-04 15:13:00.59
+1f4db755
+User
+[Auth] upsertUser called for email=noah@noahlevin.com, id=109520987896533457978
+2025-12-04 15:13:00.61
+1f4db755
+User
+[Auth] Error stack: Error: getaddrinfo EAI_AGAIN helium
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async H0.execute (/home/runner/workspace/dist/index.cjs:117:71301)
+2025-12-04 15:13:00.61
+1f4db755
+User
+[Auth] Error name: undefined
+2025-12-04 15:13:00.61
+1f4db755
+User
+at /home/runner/workspace/dist/index.cjs:117:46393
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async Tw.upsertUser (/home/runner/workspace/dist/index.cjs:117:75023)
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async TZ (/home/runner/workspace/dist/index.cjs:117:76350)
+2025-12-04 15:13:00.61
+1f4db755
+User
+[Auth] upsertUser FAILED for email=noah@noahlevin.com
+2025-12-04 15:13:00.61
+1f4db755
+User
+[Auth] Error message: getaddrinfo EAI_AGAIN helium
+2025-12-04 15:13:00.61
+1f4db755
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async yd._verify (/home/runner/workspace/dist/index.cjs:117:77863)
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async TZ (/home/runner/workspace/dist/index.cjs:117:76350)
+2025-12-04 15:13:00.61
+1f4db755
+User
+at /home/runner/workspace/dist/index.cjs:117:46393
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async Tw.upsertUser (/home/runner/workspace/dist/index.cjs:117:75023)
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async yd._verify (/home/runner/workspace/dist/index.cjs:117:77863)
+2025-12-04 15:13:00.61
+1f4db755
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-12-04 15:13:00.61
+1f4db755
+User
+9:13:00 PM [express] GET /api/auth/google/callback 500 in 148ms :: {"message":"getaddrinfo EAI_AGAIN helium"}
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async H0.execute (/home/runner/workspace/dist/index.cjs:117:71301)
+2025-12-04 15:13:00.61
+1f4db755
+User
+Error: getaddrinfo EAI_AGAIN helium
+2025-12-04 15:13:00.61
+1f4db755
+User
+Error: getaddrinfo EAI_AGAIN helium
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async H0.execute (/home/runner/workspace/dist/index.cjs:117:71301)
+2025-12-04 15:13:00.61
+1f4db755
+User
+9:13:00 PM [express] GET /api/auth/google/callback 500 in 148ms :: {"message":"getaddrinfo EAI_AGAIN helium"}
+2025-12-04 15:13:00.61
+1f4db755
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async yd._verify (/home/runner/workspace/dist/index.cjs:117:77863)
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async Tw.upsertUser (/home/runner/workspace/dist/index.cjs:117:75023)
+2025-12-04 15:13:00.61
+1f4db755
+User
+at /home/runner/workspace/dist/index.cjs:117:46393
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async TZ (/home/runner/workspace/dist/index.cjs:117:76350)
+2025-12-04 15:13:00.61
+1f4db755
+User
+Error: getaddrinfo EAI_AGAIN helium
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async H0.execute (/home/runner/workspace/dist/index.cjs:117:71301)
+2025-12-04 15:13:00.61
+1f4db755
+User
+9:13:00 PM [express] GET /api/auth/google/callback 500 in 148ms :: {"message":"getaddrinfo EAI_AGAIN helium"}
+2025-12-04 15:13:00.61
+1f4db755
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async yd._verify (/home/runner/workspace/dist/index.cjs:117:77863)
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async Tw.upsertUser (/home/runner/workspace/dist/index.cjs:117:75023)
+2025-12-04 15:13:00.61
+1f4db755
+User
+at /home/runner/workspace/dist/index.cjs:117:46393
+2025-12-04 15:13:00.61
+1f4db755
+User
+at async TZ (/home/runner/workspace/dist/index.cjs:117:76350)
