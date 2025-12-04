@@ -262,26 +262,34 @@
     }
 
     .plan-career-brief {
-      margin-top: 1.25rem;
-      padding: 1.25rem;
+      margin-top: 0.5rem;
+      padding: 1rem;
       background: #f5f4f0;
-      border-left: 3px solid #1a1a1a;
+      border-top: 1px solid #e5e5e5;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .plan-career-brief-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .plan-career-brief-header::before,
+    .plan-career-brief-header::after {
+      content: '';
+      flex: 0 0 30px;
+      height: 1px;
+      background: #1a1a1a;
     }
 
     .plan-career-brief-title {
       font-family: 'Playfair Display', Georgia, serif;
-      font-size: 1rem;
+      font-size: 1.1rem;
       font-weight: 600;
       color: #1a1a1a;
-      margin-bottom: 0.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .plan-career-brief-title::before {
-      content: '📄';
-      font-size: 1.1rem;
     }
 
     .plan-career-brief-desc {
@@ -837,7 +845,9 @@
         <div class="plan-card-content">
           ${modulesHtml}
           <div class="plan-career-brief">
-            <div class="plan-career-brief-title">Your Career Brief</div>
+            <div class="plan-career-brief-header">
+              <span class="plan-career-brief-title">Your Career Brief</span>
+            </div>
             <div class="plan-career-brief-desc">${planCard.careerBrief}</div>
           </div>
         </div>
