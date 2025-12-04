@@ -367,8 +367,8 @@ export async function registerRoutes(
             quantity: 1,
           },
         ],
-        success_url: `${baseUrl}/success.html?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/interview.html`,
+        success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/interview`,
         allow_promotion_codes: true,
       });
 
