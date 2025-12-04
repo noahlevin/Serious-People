@@ -1,5 +1,9 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import { UserMenu } from "@/components/UserMenu";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import "@/styles/serious-people.css";
 
 interface Message {
@@ -279,6 +283,9 @@ function Paywall({
 }
 
 export default function Interview() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  
   const [transcript, setTranscript] = useState<Message[]>([]);
   const [interviewComplete, setInterviewComplete] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -294,11 +301,49 @@ export default function Interview() {
   const [socialProof, setSocialProof] = useState<string>("");
   const [animatingMessageIndex, setAnimatingMessageIndex] = useState<number | null>(null);
   const [titleCards, setTitleCards] = useState<{ index: number; name: string; time: string }[]>([]);
+  const [paymentVerified, setPaymentVerified] = useState(false);
 
   const chatWindowRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasInitialized = useRef(false);
   const moduleJustChanged = useRef(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSaveRef = useRef<{
+    messages: Message[];
+    extraData?: {
+      currentModule?: string;
+      progress?: number;
+      interviewComplete?: boolean;
+      paymentVerified?: boolean;
+      valueBullets?: string;
+      socialProof?: string;
+      planCard?: PlanCard | null;
+    };
+  } | null>(null);
+  
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setLocation("/login");
+    }
+  }, [authLoading, isAuthenticated, setLocation]);
+  
+  // Save transcript to server mutation
+  const saveTranscriptMutation = useMutation({
+    mutationFn: async (data: {
+      transcript: Message[];
+      currentModule: string;
+      progress: number;
+      interviewComplete: boolean;
+      paymentVerified: boolean;
+      valueBullets?: string;
+      socialProof?: string;
+      planCard?: PlanCard | null;
+    }) => {
+      const response = await apiRequest("POST", "/api/transcript", data);
+      return response.json();
+    },
+  });
 
   const scrollToBottom = useCallback(() => {
     if (chatWindowRef.current) {
@@ -310,13 +355,52 @@ export default function Interview() {
     scrollToBottom();
   }, [transcript, isTyping, options, planCard, interviewComplete, scrollToBottom]);
 
-  const saveTranscript = useCallback((messages: Message[]) => {
+  const saveTranscript = useCallback((messages: Message[], extraData?: {
+    currentModule?: string;
+    progress?: number;
+    interviewComplete?: boolean;
+    paymentVerified?: boolean;
+    valueBullets?: string;
+    socialProof?: string;
+    planCard?: PlanCard | null;
+  }) => {
+    // Always save to sessionStorage immediately
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     } catch (e) {
       console.error("Failed to save transcript:", e);
     }
-  }, []);
+    
+    // Throttle server saves to prevent excessive API calls (debounce 1 second)
+    if (isAuthenticated) {
+      pendingSaveRef.current = { messages, extraData };
+      
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      
+      saveTimeoutRef.current = setTimeout(() => {
+        const pending = pendingSaveRef.current;
+        if (pending) {
+          saveTranscriptMutation.mutate({
+            transcript: pending.messages,
+            currentModule: pending.extraData?.currentModule || currentModule,
+            progress: pending.extraData?.progress ?? progress,
+            interviewComplete: pending.extraData?.interviewComplete ?? interviewComplete,
+            paymentVerified: pending.extraData?.paymentVerified ?? paymentVerified,
+            valueBullets: pending.extraData?.valueBullets || valueBullets || undefined,
+            socialProof: pending.extraData?.socialProof || socialProof || undefined,
+            planCard: pending.extraData?.planCard !== undefined ? pending.extraData.planCard : (planCard?.card || null),
+          }, {
+            onError: (error) => {
+              console.error("Failed to save transcript to server:", error);
+            },
+          });
+          pendingSaveRef.current = null;
+        }
+      }, 1000);
+    }
+  }, [isAuthenticated, currentModule, progress, interviewComplete, paymentVerified, valueBullets, socialProof, planCard, saveTranscriptMutation]);
 
   const saveProgress = useCallback((value: number) => {
     try {
@@ -512,52 +596,104 @@ export default function Interview() {
     sendMessage(option);
   };
 
+  // Load transcript from server or sessionStorage on initialization
   useEffect(() => {
-    if (hasInitialized.current) return;
+    if (hasInitialized.current || authLoading) return;
+    if (!isAuthenticated) return; // Wait for auth check
+    
     hasInitialized.current = true;
 
-    try {
-      const savedProgress = sessionStorage.getItem(PROGRESS_KEY);
-      if (savedProgress) {
-        const value = parseInt(savedProgress, 10);
-        if (!isNaN(value) && value >= 0 && value <= 100) {
-          setProgress(value);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to load progress:", e);
-    }
-
-    try {
-      const saved = sessionStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed: Message[] = JSON.parse(saved);
-        setTranscript(parsed);
-
-        const cards: { index: number; name: string; time: string }[] = [];
-        parsed.forEach((msg, idx) => {
-          if (msg.role === "assistant") {
-            detectAndUpdateModule(msg.content);
-            const titleCard = extractTitleCard(msg.content);
-            if (titleCard) {
-              cards.push({ index: idx, ...titleCard });
+    const loadTranscript = async () => {
+      try {
+        // Try to load from server first
+        const response = await fetch("/api/transcript", { credentials: "include" });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.transcript && Array.isArray(data.transcript) && data.transcript.length > 0) {
+            // Restore from server
+            setTranscript(data.transcript);
+            setProgress(data.progress || 0);
+            setCurrentModule(data.currentModule || "Interview");
+            setInterviewComplete(data.interviewComplete || false);
+            setPaymentVerified(data.paymentVerified || false);
+            if (data.valueBullets) setValueBullets(data.valueBullets);
+            if (data.socialProof) setSocialProof(data.socialProof);
+            if (data.planCard) {
+              // Find the last assistant message index for the plan card
+              const lastAssistantIdx = data.transcript.reduce((acc: number, msg: Message, idx: number) => 
+                msg.role === "assistant" ? idx : acc, -1);
+              setPlanCard({ card: data.planCard, index: lastAssistantIdx });
             }
+            
+            // Extract title cards from transcript
+            const cards: { index: number; name: string; time: string }[] = [];
+            data.transcript.forEach((msg: Message, idx: number) => {
+              if (msg.role === "assistant") {
+                detectAndUpdateModule(msg.content);
+                const titleCard = extractTitleCard(msg.content);
+                if (titleCard) {
+                  cards.push({ index: idx, ...titleCard });
+                }
+              }
+            });
+            setTitleCards(cards);
+            
+            // Also sync to sessionStorage
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data.transcript));
+            sessionStorage.setItem(PROGRESS_KEY, (data.progress || 0).toString());
+            return;
           }
-        });
-        setTitleCards(cards);
-
-        const lastResponse = parsed.filter(t => t.role === "assistant").pop();
-        if (lastResponse && lastResponse.content.includes("I think I have enough")) {
-          setInterviewComplete(true);
         }
-      } else {
+      } catch (e) {
+        console.error("Failed to load transcript from server:", e);
+      }
+      
+      // Fallback to sessionStorage
+      try {
+        const savedProgress = sessionStorage.getItem(PROGRESS_KEY);
+        if (savedProgress) {
+          const value = parseInt(savedProgress, 10);
+          if (!isNaN(value) && value >= 0 && value <= 100) {
+            setProgress(value);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load progress:", e);
+      }
+
+      try {
+        const saved = sessionStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed: Message[] = JSON.parse(saved);
+          setTranscript(parsed);
+
+          const cards: { index: number; name: string; time: string }[] = [];
+          parsed.forEach((msg, idx) => {
+            if (msg.role === "assistant") {
+              detectAndUpdateModule(msg.content);
+              const titleCard = extractTitleCard(msg.content);
+              if (titleCard) {
+                cards.push({ index: idx, ...titleCard });
+              }
+            }
+          });
+          setTitleCards(cards);
+
+          const lastResponse = parsed.filter(t => t.role === "assistant").pop();
+          if (lastResponse && lastResponse.content.includes("I think I have enough")) {
+            setInterviewComplete(true);
+          }
+        } else {
+          sendMessage();
+        }
+      } catch (e) {
+        console.error("Failed to load transcript:", e);
         sendMessage();
       }
-    } catch (e) {
-      console.error("Failed to load transcript:", e);
-      sendMessage();
-    }
-  }, [detectAndUpdateModule, sendMessage]);
+    };
+    
+    loadTranscript();
+  }, [authLoading, isAuthenticated, detectAndUpdateModule, sendMessage]);
 
   const autoResize = () => {
     if (textareaRef.current) {
@@ -567,6 +703,17 @@ export default function Interview() {
     }
   };
 
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="sp-interview-page">
+        <div className="sp-interview-main" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="sp-interview-page">
       <header className="sp-interview-header">
@@ -576,6 +723,7 @@ export default function Interview() {
             <span className="sp-logo">Serious People</span>
             <span className="sp-logo-subtitle"> · {currentModule}</span>
           </Link>
+          <UserMenu />
         </div>
         <div className="sp-progress-bar-container">
           <div className="sp-progress-bar-fill" style={{ width: `${progress}%` }} />

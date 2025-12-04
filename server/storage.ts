@@ -3,11 +3,14 @@ import {
   type InsertUser, 
   type InterviewTranscript, 
   type InsertInterviewTranscript,
+  type MagicLinkToken,
+  type InsertMagicLinkToken,
   users,
-  interviewTranscripts 
+  interviewTranscripts,
+  magicLinkTokens 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull, gt } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -17,8 +20,23 @@ export interface IStorage {
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined>;
   
   getTranscript(sessionToken: string): Promise<InterviewTranscript | undefined>;
+  getTranscriptByUserId(userId: string): Promise<InterviewTranscript | undefined>;
   createTranscript(transcript: InsertInterviewTranscript): Promise<InterviewTranscript>;
   updateTranscript(sessionToken: string, updates: Partial<InsertInterviewTranscript>): Promise<InterviewTranscript | undefined>;
+  upsertTranscriptByUserId(userId: string, data: {
+    transcript: any[];
+    currentModule: string;
+    progress: number;
+    interviewComplete: boolean;
+    paymentVerified: boolean;
+    valueBullets?: string;
+    socialProof?: string;
+    planCard?: any;
+  }): Promise<InterviewTranscript>;
+  
+  createMagicLinkToken(token: InsertMagicLinkToken): Promise<MagicLinkToken>;
+  getMagicLinkToken(tokenHash: string): Promise<MagicLinkToken | undefined>;
+  markMagicLinkTokenUsed(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -73,6 +91,86 @@ export class DatabaseStorage implements IStorage {
       .where(eq(interviewTranscripts.sessionToken, sessionToken))
       .returning();
     return results[0];
+  }
+
+  async getTranscriptByUserId(userId: string): Promise<InterviewTranscript | undefined> {
+    const [transcript] = await db.select().from(interviewTranscripts)
+      .where(eq(interviewTranscripts.userId, userId));
+    return transcript;
+  }
+
+  async upsertTranscriptByUserId(userId: string, data: {
+    transcript: any[];
+    currentModule: string;
+    progress: number;
+    interviewComplete: boolean;
+    paymentVerified: boolean;
+    valueBullets?: string;
+    socialProof?: string;
+    planCard?: any;
+  }): Promise<InterviewTranscript> {
+    // Check if transcript exists for this user
+    const existing = await this.getTranscriptByUserId(userId);
+    
+    if (existing) {
+      // Update existing record
+      const [updated] = await db.update(interviewTranscripts)
+        .set({
+          transcript: data.transcript,
+          currentModule: data.currentModule,
+          progress: data.progress,
+          interviewComplete: data.interviewComplete,
+          paymentVerified: data.paymentVerified,
+          valueBullets: data.valueBullets,
+          socialProof: data.socialProof,
+          planCard: data.planCard,
+          updatedAt: new Date(),
+        } as any)
+        .where(eq(interviewTranscripts.userId, userId))
+        .returning();
+      return updated;
+    } else {
+      // Create new record
+      const sessionToken = `user-${userId}-${Date.now()}`;
+      const [created] = await db.insert(interviewTranscripts)
+        .values({
+          sessionToken,
+          userId,
+          transcript: data.transcript,
+          currentModule: data.currentModule,
+          progress: data.progress,
+          interviewComplete: data.interviewComplete,
+          paymentVerified: data.paymentVerified,
+          valueBullets: data.valueBullets,
+          socialProof: data.socialProof,
+          planCard: data.planCard,
+        } as any)
+        .returning();
+      return created;
+    }
+  }
+
+  async createMagicLinkToken(insertToken: InsertMagicLinkToken): Promise<MagicLinkToken> {
+    const [token] = await db.insert(magicLinkTokens).values(insertToken).returning();
+    return token;
+  }
+
+  async getMagicLinkToken(tokenHash: string): Promise<MagicLinkToken | undefined> {
+    const [token] = await db.select().from(magicLinkTokens)
+      .where(
+        and(
+          eq(magicLinkTokens.tokenHash, tokenHash),
+          isNull(magicLinkTokens.usedAt),
+          gt(magicLinkTokens.expiresAt, new Date())
+        )
+      );
+    return token;
+  }
+
+  async markMagicLinkTokenUsed(id: string): Promise<void> {
+    await db.update(magicLinkTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(magicLinkTokens.id, id));
   }
 }
 

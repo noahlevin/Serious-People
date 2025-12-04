@@ -30,8 +30,20 @@ export const interviewTranscripts = pgTable("interview_transcripts", {
   interviewComplete: boolean("interview_complete").default(false),
   paymentVerified: boolean("payment_verified").default(false),
   stripeSessionId: text("stripe_session_id"),
+  valueBullets: text("value_bullets"),
+  socialProof: text("social_proof"),
+  planCard: json("plan_card").$type<{ name: string; modules: { name: string; desc: string }[]; careerBrief: string } | null>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const magicLinkTokens = pgTable("magic_link_tokens", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -51,3 +63,11 @@ export type User = typeof users.$inferSelect;
 
 export type InsertInterviewTranscript = z.infer<typeof insertInterviewTranscriptSchema>;
 export type InterviewTranscript = typeof interviewTranscripts.$inferSelect;
+
+export const insertMagicLinkTokenSchema = createInsertSchema(magicLinkTokens).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertMagicLinkToken = z.infer<typeof insertMagicLinkTokenSchema>;
+export type MagicLinkToken = typeof magicLinkTokens.$inferSelect;

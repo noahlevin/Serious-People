@@ -3,8 +3,12 @@ import { createServer, type Server } from "http";
 import OpenAI from "openai";
 import path from "path";
 import express from "express";
+import crypto from "crypto";
+import passport from "passport";
 import { getStripeClient } from "./stripeClient";
 import { storage } from "./storage";
+import { setupAuth, requireAuth } from "./auth";
+import { sendMagicLinkEmail } from "./resendClient";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -352,6 +356,228 @@ export async function registerRoutes(
   const publicPath = path.resolve(process.cwd(), "public");
   app.use(express.static(publicPath));
   
+  // Set up authentication (Passport, sessions, strategies)
+  setupAuth(app);
+  
+  // ============== AUTH ROUTES ==============
+  
+  // GET /auth/me - Get current authenticated user
+  app.get("/auth/me", (req, res) => {
+    if (req.isAuthenticated() && req.user) {
+      res.json({ 
+        authenticated: true, 
+        user: { 
+          id: req.user.id, 
+          email: req.user.email, 
+          name: req.user.name 
+        } 
+      });
+    } else {
+      res.json({ authenticated: false, user: null });
+    }
+  });
+  
+  // GET /auth/google - Start Google OAuth flow
+  app.get("/auth/google", passport.authenticate("google", { 
+    scope: ["email", "profile"] 
+  }));
+  
+  // GET /auth/google/callback - Google OAuth callback
+  app.get("/auth/google/callback",
+    passport.authenticate("google", { 
+      failureRedirect: "/login?error=google_auth_failed" 
+    }),
+    (req, res) => {
+      // Successful authentication - redirect to interview or saved location
+      res.redirect("/interview");
+    }
+  );
+  
+  // POST /auth/magic/start - Request magic link email
+  app.post("/auth/magic/start", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email || typeof email !== "string") {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: "Invalid email format" });
+      }
+      
+      // Generate secure token
+      const token = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      
+      // Store token in database
+      await storage.createMagicLinkToken({
+        email: email.toLowerCase(),
+        tokenHash,
+        expiresAt,
+      });
+      
+      // Send email with magic link
+      const baseUrl = getBaseUrl();
+      const magicLinkUrl = `${baseUrl}/auth/magic/verify?token=${token}`;
+      
+      const result = await sendMagicLinkEmail(email, magicLinkUrl);
+      
+      if (result.success) {
+        res.json({ success: true, message: "Check your email for the login link" });
+      } else {
+        console.error("Failed to send magic link:", result.error);
+        res.status(500).json({ error: "Failed to send email. Please try again." });
+      }
+    } catch (error: any) {
+      console.error("Magic link start error:", error);
+      res.status(500).json({ error: "Something went wrong. Please try again." });
+    }
+  });
+  
+  // GET /auth/magic/verify - Verify magic link and log in
+  app.get("/auth/magic/verify", async (req, res) => {
+    try {
+      const { token } = req.query;
+      
+      if (!token || typeof token !== "string") {
+        return res.redirect("/login?error=invalid_token");
+      }
+      
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+      const magicToken = await storage.getMagicLinkToken(tokenHash);
+      
+      if (!magicToken) {
+        return res.redirect("/login?error=expired_token");
+      }
+      
+      // Mark token as used
+      await storage.markMagicLinkTokenUsed(magicToken.id);
+      
+      // Find or create user
+      let user = await storage.getUserByEmail(magicToken.email);
+      
+      if (!user) {
+        user = await storage.createUser({
+          email: magicToken.email,
+          name: null,
+          oauthProvider: "magic_link",
+          oauthId: null,
+        });
+      }
+      
+      // Log user in
+      req.login({ id: user.id, email: user.email, name: user.name }, (err) => {
+        if (err) {
+          console.error("Login error:", err);
+          return res.redirect("/login?error=login_failed");
+        }
+        res.redirect("/interview");
+      });
+    } catch (error: any) {
+      console.error("Magic link verify error:", error);
+      res.redirect("/login?error=verification_failed");
+    }
+  });
+  
+  // POST /auth/logout - Log out
+  app.post("/auth/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ error: "Logout failed" });
+      }
+      res.json({ success: true });
+    });
+  });
+  
+  // ============== TRANSCRIPT API (Protected) ==============
+  
+  // GET /api/transcript - Get user's transcript
+  app.get("/api/transcript", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const transcript = await storage.getTranscriptByUserId(userId);
+      
+      if (transcript) {
+        res.json({
+          transcript: transcript.transcript,
+          currentModule: transcript.currentModule,
+          progress: transcript.progress,
+          interviewComplete: transcript.interviewComplete,
+          paymentVerified: transcript.paymentVerified,
+          valueBullets: transcript.valueBullets,
+          socialProof: transcript.socialProof,
+          planCard: transcript.planCard,
+        });
+      } else {
+        res.json({ transcript: null });
+      }
+    } catch (error: any) {
+      console.error("Get transcript error:", error);
+      res.status(500).json({ error: "Failed to fetch transcript" });
+    }
+  });
+  
+  // POST /api/transcript - Save user's transcript
+  app.post("/api/transcript", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { 
+        transcript, 
+        currentModule, 
+        progress, 
+        interviewComplete, 
+        paymentVerified,
+        valueBullets,
+        socialProof,
+        planCard
+      } = req.body;
+      
+      // Check if user already has a transcript
+      let existingTranscript = await storage.getTranscriptByUserId(userId);
+      
+      if (existingTranscript) {
+        // Update existing transcript
+        await storage.updateTranscript(existingTranscript.sessionToken, {
+          transcript,
+          currentModule,
+          progress,
+          interviewComplete,
+          paymentVerified,
+          valueBullets,
+          socialProof,
+          planCard,
+        });
+      } else {
+        // Create new transcript with a session token
+        const sessionToken = crypto.randomBytes(32).toString("hex");
+        await storage.createTranscript({
+          sessionToken,
+          userId,
+          transcript: transcript || [],
+          currentModule: currentModule || "Interview",
+          progress: progress || 0,
+          interviewComplete: interviewComplete || false,
+          paymentVerified: paymentVerified || false,
+          valueBullets,
+          socialProof,
+          planCard,
+        });
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Save transcript error:", error);
+      res.status(500).json({ error: "Failed to save transcript" });
+    }
+  });
+  
+  // ============== EXISTING ROUTES ==============
+  
   // POST /checkout - Create Stripe Checkout session
   app.post("/checkout", async (req, res) => {
     try {
@@ -621,6 +847,83 @@ FORMAT:
       res.json({ text });
     } catch (error: any) {
       console.error("Generate error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/transcript - Load user's transcript from database
+  app.get("/api/transcript", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const transcript = await storage.getTranscriptByUserId(userId);
+      if (!transcript) {
+        return res.json({ 
+          transcript: [],
+          progress: 0,
+          currentModule: "Interview",
+          interviewComplete: false,
+          paymentVerified: false
+        });
+      }
+
+      res.json({
+        transcript: transcript.transcript,
+        progress: transcript.progress || 0,
+        currentModule: transcript.currentModule || "Interview",
+        interviewComplete: transcript.interviewComplete || false,
+        paymentVerified: transcript.paymentVerified || false,
+        valueBullets: transcript.valueBullets,
+        socialProof: transcript.socialProof,
+        planCard: transcript.planCard,
+      });
+    } catch (error: any) {
+      console.error("Load transcript error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/transcript - Save user's transcript to database
+  app.post("/api/transcript", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { 
+        transcript, 
+        currentModule, 
+        progress, 
+        interviewComplete, 
+        paymentVerified,
+        valueBullets,
+        socialProof,
+        planCard
+      } = req.body;
+
+      if (!transcript || !Array.isArray(transcript)) {
+        return res.status(400).json({ error: "Invalid transcript format" });
+      }
+
+      // Upsert transcript for this user
+      const result = await storage.upsertTranscriptByUserId(userId, {
+        transcript,
+        currentModule: currentModule || "Interview",
+        progress: progress || 0,
+        interviewComplete: interviewComplete || false,
+        paymentVerified: paymentVerified || false,
+        valueBullets,
+        socialProof,
+        planCard,
+      });
+
+      res.json({ success: true, id: result.id });
+    } catch (error: any) {
+      console.error("Save transcript error:", error);
       res.status(500).json({ error: error.message });
     }
   });

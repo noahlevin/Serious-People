@@ -3,14 +3,15 @@
 ## Overview
 
 Serious People is a career coaching service that helps users navigate career transitions. The app provides a **structured coaching session** with:
-1. A free intro phase to understand the big problem and propose a custom 3-module plan
-2. $19 payment via Stripe to unlock the full coaching modules
-3. Three coaching modules: Job Autopsy, Fork in the Road, The Great Escape Plan
-4. A final "Career Brief" deliverable with diagnosis, action plan, and conversation scripts
+1. User authentication (email magic link or Google OAuth)
+2. A free intro phase to understand the big problem and propose a custom 3-module plan
+3. $19 payment via Stripe to unlock the full coaching modules
+4. Three coaching modules: Job Autopsy, Fork in the Road, The Great Escape Plan
+5. A final "Career Brief" deliverable with diagnosis, action plan, and conversation scripts
 
 **Tagline:** "Short scripts for big career conversations."
 
-**User Flow:** Landing page → Free intro & plan proposal → Paywall → $19 Stripe payment → 3 coaching modules → Career Brief generation
+**User Flow:** Landing page → Sign in (magic link/Google) → Free intro & plan proposal → Paywall → $19 Stripe payment → 3 coaching modules → Career Brief generation
 
 ## User Preferences
 
@@ -28,16 +29,22 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 
 **React Pages:**
 - `client/src/pages/landing.tsx` - Landing page with hero section and "Start the interview" CTA (route: `/`)
-- `client/src/pages/interview.tsx` - Chat-style AI interview with conversation UI (route: `/interview`)
+- `client/src/pages/login.tsx` - Authentication page with email magic link and Google OAuth (route: `/login`)
+- `client/src/pages/interview.tsx` - Chat-style AI interview with conversation UI (route: `/interview`, protected)
 - `client/src/pages/success.tsx` - Payment verification and script generation (route: `/success`)
+
+**Auth Components:**
+- `client/src/hooks/useAuth.tsx` - Auth context provider with user state, login, and logout functions
+- `client/src/components/UserMenu.tsx` - User dropdown menu displayed in interview page header
 
 **Styling:**
 - `client/src/styles/serious-people.css` - All WSJ-inspired styles imported into each page
 
 **Interview Page Features:**
 - Chat-style conversation interface with AI coach (no specific name)
-- Transcript stored in sessionStorage (`serious_people_transcript` key) - clears when browser closes
-- Progress bar integrated into header separator line (per-module progress, persisted to sessionStorage `serious_people_progress`)
+- Transcript stored on server for authenticated users (with sessionStorage fallback)
+- User menu dropdown in header showing user name and logout option
+- Progress bar integrated into header separator line (per-module progress)
 - Module name shown in header subtitle (updates when module title cards detected)
 - Auto-scrolling chat container
 - Elegant WSJ-style module title cards with decorative lines and uppercase headings
@@ -73,6 +80,14 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 2. `GET /verify-session?session_id=xxx` - Validates Stripe payment session
 3. `POST /interview` - AI interview endpoint, accepts `{ transcript: [] }`, returns `{ reply, done, valueBullets }`
 4. `POST /generate` - Generates scripts from `{ transcript }`, returns `{ text }`
+5. `GET /api/transcript` - Load user's transcript from database (requires auth)
+6. `POST /api/transcript` - Save user's transcript to database (requires auth)
+7. `GET /auth/me` - Get current authenticated user
+8. `POST /auth/logout` - Log out current user
+9. `POST /auth/magic/send` - Send magic link email
+10. `GET /auth/magic/verify` - Verify magic link token
+11. `GET /auth/google` - Initiate Google OAuth flow
+12. `GET /auth/google/callback` - Google OAuth callback
 
 **AI Integration:**
 - Uses OpenAI API with GPT-4.1-mini model
@@ -90,28 +105,32 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 
 **PostgreSQL Database:** Replit's built-in PostgreSQL database is provisioned and connected.
 
-**Current Usage:**
-- **users** table - Ready for future SSO integration with Passport (fields: id, email, name, password, oauthProvider, oauthId, createdAt, updatedAt)
-- **sessions** table - Ready for express-session integration
-- **interview_transcripts** table - Ready to store conversation history (sessionToken, userId, transcript, progress, interviewComplete, paymentVerified, stripeSessionId)
+**Database Tables:**
+- **users** table - User accounts (id, email, name, password, oauthProvider, oauthId, createdAt, updatedAt)
+- **sessions** table - express-session storage for authenticated sessions
+- **interview_transcripts** table - Conversation history linked to users (sessionToken, userId, transcript, progress, interviewComplete, paymentVerified, stripeSessionId, valueBullets, socialProof, planCard)
+- **magic_link_tokens** table - One-time authentication tokens (email, tokenHash, expiresAt, usedAt)
 
-**Current Storage Pattern:**
-- Interview transcripts stored client-side in sessionStorage (serious_people_transcript key) - clears when browser closes
-- Module progress stored in sessionStorage (serious_people_progress key)
-- Payment verification is session-based via Stripe session_id query param
+**Storage Pattern:**
+- Interview transcripts stored server-side in database for authenticated users
+- sessionStorage used as fallback and for performance
+- Progress and state synced to server on each update
 
 **Test Endpoint:**
 - `GET /api/test-db` - Tests database connectivity (creates and retrieves test record)
-- Works in both development and production environments
-- Reads DATABASE_URL from env or /tmp/replitdb file (production)
 
 ### Authentication & Authorization
 
-**No User Authentication:**
-- No login/registration system
-- Access control is payment-based
-- Stripe Checkout session validates payment
-- Scripts only generated after successful payment verification
+**User Authentication (Passport.js):**
+- Email magic link via Resend (primary method)
+- Google OAuth2 (requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+- Session-based authentication with httpOnly cookies
+- Protected routes redirect unauthenticated users to /login
+
+**Session Management:**
+- express-session with connect-pg-simple PostgreSQL store
+- sameSite=lax for security
+- SESSION_SECRET required for production
 
 ### External Dependencies
 

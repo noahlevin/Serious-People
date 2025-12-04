@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import "@/styles/serious-people.css";
 
 const phrases = [
@@ -12,10 +13,20 @@ const phrases = [
 ];
 
 export default function Landing() {
+  const { isAuthenticated, user, logout } = useAuth();
+  const [, setLocation] = useLocation();
   const [displayText, setDisplayText] = useState("");
   const phraseIndexRef = useRef(0);
   const charIndexRef = useRef(0);
   const isDeletingRef = useRef(false);
+  
+  const handleStartInterview = () => {
+    if (isAuthenticated) {
+      setLocation("/interview");
+    } else {
+      setLocation("/login");
+    }
+  };
 
   useEffect(() => {
     const typeSpeed = 80;
@@ -61,7 +72,25 @@ export default function Landing() {
     <div className="sp-page">
       <main style={{ maxWidth: "680px", margin: "0 auto", padding: "3rem 1.5rem 2rem" }}>
         <div className="sp-masthead">
-          <h2 className="sp-masthead-title">Serious People</h2>
+          <div className="sp-masthead-header">
+            <h2 className="sp-masthead-title">Serious People</h2>
+            {isAuthenticated ? (
+              <div className="sp-auth-links">
+                <span className="sp-welcome-text">Welcome, {user?.name || user?.email?.split("@")[0]}</span>
+                <button 
+                  onClick={() => logout()} 
+                  className="sp-auth-link"
+                  data-testid="button-logout"
+                >
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <Link href="/login" className="sp-auth-link" data-testid="link-login">
+                Sign in
+              </Link>
+            )}
+          </div>
           <p className="sp-masthead-date">Serious Career Coaching</p>
         </div>
 
@@ -83,11 +112,13 @@ export default function Landing() {
           <p className="sp-hero-text">
             Turn your messy thoughts about work into a clear story with a short interview with our AI coach. Sharpen what you want, see the real trade-offs, and walk into big conversations—with your boss, your partner, and yourself—knowing exactly what you're asking for.
           </p>
-          <Link href="/interview">
-            <button className="sp-cta-button" data-testid="button-start-interview">
-              Start the Interview
-            </button>
-          </Link>
+          <button 
+            className="sp-cta-button" 
+            data-testid="button-start-interview"
+            onClick={handleStartInterview}
+          >
+            {isAuthenticated ? "Continue to Interview" : "Start the Interview"}
+          </button>
           <p className="sp-pricing-note">
             The interview is free. Scripts and memo are $19.
           </p>

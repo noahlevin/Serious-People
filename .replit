@@ -59,7 +59,7 @@ args = "npm run dev"
 waitForPort = 5000
 
 [agent]
-integrations = ["javascript_openai:1.0.0", "javascript_stripe:1.0.0", "stripe:1.0.0"]
+integrations = ["javascript_openai:1.0.0", "javascript_stripe:1.0.0", "stripe:1.0.0", "resend:1.0.0"]
 
 [userenv]
 
