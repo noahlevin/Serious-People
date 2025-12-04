@@ -270,6 +270,20 @@
   </footer>
 
   <script>
+    // Show error message if auth failed
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    if (error) {
+      const errorBox = document.createElement('div');
+      errorBox.style.cssText = 'background: #fee; border: 1px solid #c00; color: #900; padding: 1rem; margin-bottom: 1rem; text-align: center; font-size: 0.9rem;';
+      if (error === 'not_configured') {
+        errorBox.textContent = 'Google login is not configured yet. Please try again later.';
+      } else {
+        errorBox.textContent = 'Sign in failed. Please try again.';
+      }
+      document.querySelector('.login-box').prepend(errorBox);
+    }
+
     // Check if already logged in, redirect to interview if so
     fetch('/api/auth/check')
       .then(res => res.json())

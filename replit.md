@@ -68,9 +68,9 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - PostgreSQL session store for auth persistence
 
 **API Endpoints:**
-1. `GET /api/login` - Redirects to Replit Auth (OpenID Connect) login
+1. `GET /api/login` - Redirects directly to Google OAuth login
 2. `GET /api/logout` - Logs out user and redirects to landing page
-3. `GET /api/callback` - Handles OAuth callback from Replit Auth
+3. `GET /api/auth/google/callback` - Handles OAuth callback from Google
 4. `GET /api/auth/user` - Returns authenticated user data (protected)
 5. `GET /api/auth/check` - Returns auth status without requiring login (for optional UI elements)
 6. `GET /api/progress` - Returns user's progress data (protected)
@@ -95,7 +95,7 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 ### Data Storage
 
 **PostgreSQL Database (via Neon):**
-- `users` table: User profiles from Replit Auth (id, email, firstName, lastName, profileImageUrl, timestamps)
+- `users` table: User profiles from Google OAuth (id, email, firstName, lastName, profileImageUrl, timestamps)
 - `sessions` table: Express session storage for auth persistence (auto-created by connect-pg-simple)
 - `user_progress` table: User progress data (userId, transcript JSON, progress int, lastLocation, hasPaid, timestamps)
 
@@ -106,13 +106,15 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 
 ### Authentication & Authorization
 
-**Replit Auth (OpenID Connect):**
-- Supports Google SSO (also extensible to GitHub, X, Apple)
+**Google OAuth 2.0 (via Passport.js):**
+- Direct Google SSO using `passport-google-oauth20`
+- Users go directly to Google's login page (no intermediary)
 - Session stored in PostgreSQL via connect-pg-simple
 - Session cookie `secure` is conditional on production environment
 - 1-week session TTL
 - Auth required for interview page (redirects to login)
 - Optional auth for success page (marks payment if authenticated)
+- Extensible to other OAuth providers (Apple, GitHub, etc.) via Passport strategies
 
 **User Flow:**
 1. User clicks "Start the interview" on landing page
