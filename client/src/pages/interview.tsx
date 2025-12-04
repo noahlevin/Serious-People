@@ -414,6 +414,20 @@ export default function Interview() {
       await new Promise(resolve => setTimeout(resolve, thinkingDelay));
 
       setIsTyping(false);
+
+      // When interview is complete (paywall time), DON'T add AI's response to transcript
+      // The AI often includes Module 1 content in the same response as [[INTERVIEW_COMPLETE]]
+      // We want to show only the paywall after the user's confirmation
+      if (data.done) {
+        setInterviewComplete(true);
+        setValueBullets(data.valueBullets || "");
+        setSocialProof(data.socialProof || "");
+        setStatus("");
+        // Don't append the reply, don't update progress, don't show options
+        // The paywall will render inline after the user's confirmation message
+        return;
+      }
+
       detectAndUpdateModule(data.reply);
 
       if (data.progress !== null && data.progress !== undefined) {
@@ -443,13 +457,6 @@ export default function Interview() {
         setTimeout(() => {
           setOptions(data.options || []);
         }, data.reply.length * 12 + 100);
-      }
-
-      if (data.done) {
-        setInterviewComplete(true);
-        setValueBullets(data.valueBullets || "");
-        setSocialProof(data.socialProof || "");
-        setStatus("");
       }
     } catch (error) {
       console.error("Interview error:", error);
