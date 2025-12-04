@@ -81,6 +81,7 @@ async function upsertUser(profile: Profile): Promise<UserSession> {
 }
 
 export async function setupAuth(app: Express) {
+  console.log("[Auth] Setting up Google OAuth...");
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());
@@ -88,6 +89,8 @@ export async function setupAuth(app: Express) {
 
   const clientID = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  console.log(`[Auth] GOOGLE_CLIENT_ID present: ${!!clientID}`);
+  console.log(`[Auth] GOOGLE_CLIENT_SECRET present: ${!!clientSecret}`);
   
   if (!clientID || !clientSecret) {
     console.warn("⚠️  GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET not set. Google auth will not work.");
@@ -131,10 +134,12 @@ export async function setupAuth(app: Express) {
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
+  console.log("[Auth] Registering /api/login route");
   app.get("/api/login", passport.authenticate("google", {
     scope: ["profile", "email"],
   }));
 
+  console.log("[Auth] Registering /api/auth/google/callback route");
   app.get("/api/auth/google/callback", 
     passport.authenticate("google", {
       successRedirect: "/interview.html",
@@ -142,11 +147,14 @@ export async function setupAuth(app: Express) {
     })
   );
 
+  console.log("[Auth] Registering /api/logout route");
   app.get("/api/logout", (req, res) => {
     req.logout(() => {
       res.redirect("/");
     });
   });
+  
+  console.log("[Auth] Google OAuth setup complete");
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
