@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import path from "path";
 import express from "express";
 import { getStripeClient } from "./stripeClient";
+import { storage } from "./storage";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 

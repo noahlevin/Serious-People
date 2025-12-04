@@ -59,7 +59,7 @@ export class DatabaseStorage implements IStorage {
 
   async createTranscript(insertTranscript: InsertInterviewTranscript): Promise<InterviewTranscript> {
     const results = await db.insert(interviewTranscripts)
-      .values(insertTranscript)
+      .values(insertTranscript as any)
       .returning();
     return results[0];
   }
