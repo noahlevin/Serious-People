@@ -289,7 +289,7 @@ export default function Interview() {
   const [progress, setProgress] = useState(0);
   const [currentModule, setCurrentModule] = useState("Interview");
   const [options, setOptions] = useState<string[]>([]);
-  const [planCard, setPlanCard] = useState<PlanCard | null>(null);
+  const [planCard, setPlanCard] = useState<{ card: PlanCard; index: number } | null>(null);
   const [valueBullets, setValueBullets] = useState<string>("");
   const [socialProof, setSocialProof] = useState<string>("");
   const [animatingMessageIndex, setAnimatingMessageIndex] = useState<number | null>(null);
@@ -450,7 +450,7 @@ export default function Interview() {
       setAnimatingMessageIndex(updatedTranscript.length - 1);
 
       if (data.planCard?.name) {
-        setPlanCard(data.planCard);
+        setPlanCard({ card: data.planCard, index: updatedTranscript.length - 1 });
       }
 
       if (data.options && data.options.length > 0) {
@@ -601,8 +601,8 @@ export default function Interview() {
                     }
                   }}
                 />
-                {index === transcript.length - 1 && planCard && msg.role === "assistant" && animatingMessageIndex === null && (
-                  <PlanCardComponent planCard={planCard} />
+                {planCard && planCard.index === index && msg.role === "assistant" && animatingMessageIndex === null && (
+                  <PlanCardComponent planCard={planCard.card} />
                 )}
               </div>
             );
