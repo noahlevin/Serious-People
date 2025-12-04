@@ -428,6 +428,7 @@ export async function registerRoutes(
         success_url: `${baseUrl}/success.html?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/interview.html`,
         client_reference_id: userId,
+        allow_promotion_codes: true,
       });
 
       res.json({ url: session.url });
