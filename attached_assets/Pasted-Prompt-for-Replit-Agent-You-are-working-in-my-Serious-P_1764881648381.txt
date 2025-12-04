@@ -1,0 +1,114 @@
+Prompt for Replit Agent
+
+You are working in my “Serious People” web app in this Replit project.
+
+Bug to fix
+
+When I use Google OAuth login in production at https://seriouspeople.app, the final redirect from Google goes to:
+
+https://seriouspeople.app/api/auth/google/callback?code=...
+
+and the response body is:
+
+{"message":"Unexpected server response: 404"}
+
+
+So the callback URL is reachable but returns a 404 instead of completing the OAuth flow.
+
+I need you to find and fix the root cause in the codebase.
+
+What to investigate
+
+Identify the auth stack
+
+Find where Google OAuth is configured:
+
+Search for things like Google, google, OAuth2, passport-google, NextAuth, next-auth, @auth/core, etc.
+
+Determine which library we’re using (e.g. Passport.js, NextAuth, custom OAuth, etc.).
+
+Find the expected callback URL in the code
+
+Locate the callback configuration for Google, e.g.:
+
+callbackURL for Passport, or
+
+the path of the API route if we’re using NextAuth (usually /api/auth/callback/google), or
+
+any custom route that processes the code from Google.
+
+Confirm exactly which route the server is listening on:
+
+For Express: something like app.get('/api/auth/google/callback', ...)
+
+For Next.js/NextAuth: a route file like /pages/api/auth/[...nextauth].js which internally expects /api/auth/callback/google, not /api/auth/google/callback.
+
+Check routing vs. what Google is calling
+
+Ensure there is an actual handler matching /api/auth/google/callback.
+
+If the auth library expects /api/auth/callback/google (typical for NextAuth), then the current Google redirect URL is wrong and needs to be /api/auth/callback/google instead of /api/auth/google/callback.
+
+Also check for any route prefix or proxy configuration (e.g. custom basePath, reverse proxy, or Replit routing) that might cause /api/auth/... routes to be missing or mis-routed in production.
+
+Reproduce in the Replit environment
+
+Start the app in the Replit environment.
+
+Hit the callback route directly (without going through Google) with a simple GET request, e.g.:
+
+curl <local or repl URL>/api/auth/google/callback
+
+Confirm whether that returns 404 locally as well.
+
+If the callback path is different (e.g. /api/auth/callback/google), verify that that path returns a non-404 response.
+
+Desired fix
+
+Make the callback URL and route consistent
+
+Option A (if the route in the code is correct):
+
+Keep the server-side route as-is and update the Google OAuth redirect URI (in the Google Cloud Console / OAuth config) to match the actual callback route (e.g. /api/auth/callback/google if using NextAuth).
+
+Option B (if the Google redirect URL is correct and we want to keep it):
+
+Update the server code so there is a real handler at /api/auth/google/callback that:
+
+Receives the code and state params from Google.
+
+Completes the token exchange and login flow according to the auth library being used.
+
+Avoid 404s at the callback route
+
+Ensure that a GET request to /api/auth/google/callback (or the corrected path) never returns a 404:
+
+It should either:
+
+Complete the OAuth exchange and redirect to the appropriate post-login page, or
+
+Return a useful error message if something goes wrong with the token exchange.
+
+If using NextAuth, ensure the redirect URI configured in Google exactly matches NextAuth’s expected callback (/api/auth/callback/google) and that the NextAuth route file is present and correctly exported.
+
+Add minimal logging for debugging
+
+Add console logging around the callback handler so we can see:
+
+When the route is hit.
+
+The presence of key query parameters (code, state, etc.).
+
+Make sure logs are not leaking secrets.
+
+What to deliver
+
+A summary of the root cause you found (e.g. “Google was calling /api/auth/google/callback but NextAuth expects /api/auth/callback/google” or “No route existed at /api/auth/google/callback in Express app”).
+
+The exact code changes you made, with file paths and a brief explanation for each change.
+
+Any manual configuration updates I need to perform outside the codebase (for example, “Update the Google OAuth redirect URI in the Google Cloud Console to https://seriouspeople.app/api/auth/callback/google”).
+
+Quick instructions for how I can test it end-to-end in production once deployed.
+
+That’s the full task. Please proceed step-by-step, keep changes minimal and focused on fixing the OAuth callback path, and explain your reasoning as you go.
