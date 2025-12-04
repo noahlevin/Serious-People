@@ -381,6 +381,23 @@
   scroll-behavior: smooth;
 }
 
+.sp-chat-window::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sp-chat-window::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sp-chat-window::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.sp-chat-window::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
 .sp-message-wrapper {
   display: flex;
   flex-direction: column;
