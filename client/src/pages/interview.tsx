@@ -580,7 +580,7 @@ export default function Interview() {
           {transcript.map((msg, index) => {
             const titleCard = titleCards.find(tc => tc.index === index);
             return (
-              <div key={index}>
+              <div key={index} className={`sp-message-wrapper ${msg.role}`}>
                 {msg.role === "assistant" && titleCard && (
                   <ModuleTitleCard name={titleCard.name} time={titleCard.time} />
                 )}

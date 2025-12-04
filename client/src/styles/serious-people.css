@@ -381,8 +381,22 @@
   scroll-behavior: smooth;
 }
 
+.sp-message-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-message-wrapper.assistant {
+  align-items: flex-start;
+}
+
+.sp-message-wrapper.user {
+  align-items: flex-end;
+}
+
 .sp-message {
   max-width: 85%;
+  width: fit-content;
   padding: 1rem 1.25rem;
   font-size: 1rem;
   line-height: 1.7;
@@ -390,7 +404,6 @@
 }
 
 .sp-message.assistant {
-  align-self: flex-start;
   background: #fff;
   border-left: 3px solid var(--sp-text);
   border-top: 1px solid var(--sp-border-light);
@@ -399,7 +412,6 @@
 }
 
 .sp-message.user {
-  align-self: flex-end;
   background: var(--sp-text);
   color: #fff;
   border-left: 3px solid #666;
