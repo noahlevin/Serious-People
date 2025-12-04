@@ -85,10 +85,22 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 
 ### Data Storage
 
-**No Database:** This app does not use a database.
-- Interview transcripts stored client-side in sessionStorage (clears when browser closes)
-- No user accounts or persistent server-side storage
-- Payment verification is session-based via Stripe
+**PostgreSQL Database:** Replit's built-in PostgreSQL database is provisioned and connected.
+
+**Current Usage:**
+- **users** table - Ready for future SSO integration with Passport (fields: id, email, name, password, oauthProvider, oauthId, createdAt, updatedAt)
+- **sessions** table - Ready for express-session integration
+- **interview_transcripts** table - Ready to store conversation history (sessionToken, userId, transcript, progress, interviewComplete, paymentVerified, stripeSessionId)
+
+**Current Storage Pattern:**
+- Interview transcripts stored client-side in sessionStorage (serious_people_transcript key) - clears when browser closes
+- Module progress stored in sessionStorage (serious_people_progress key)
+- Payment verification is session-based via Stripe session_id query param
+
+**Test Endpoint:**
+- `GET /api/test-db` - Tests database connectivity (creates and retrieves test record)
+- Works in both development and production environments
+- Reads DATABASE_URL from env or /tmp/replitdb file (production)
 
 ### Authentication & Authorization
 
