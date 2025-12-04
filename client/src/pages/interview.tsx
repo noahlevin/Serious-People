@@ -56,21 +56,33 @@ const TEST_VALUE_BULLETS = `- Address the promotion stall with concrete next ste
 const TEST_SOCIAL_PROOF = `At $19, this is a fraction of what a single session with a career coach typically costs ($150–300/hour)—and you'll leave with a structured document, not just a conversation.`;
 
 function formatContent(content: string, skipTitleCard = false): string {
-  let formatted = content
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  let formatted = content;
 
   if (!skipTitleCard) {
     formatted = formatted.replace(/^—\s*(.+?)\s*\(est\.\s*([^)]+)\)\s*—\s*\n?/m, "");
   }
+
+  // Convert markdown bold to placeholder before escaping HTML
+  formatted = formatted.replace(/\*\*(.+?)\*\*/g, "{{BOLD_START}}$1{{BOLD_END}}");
+  
+  // Preserve <b> tags by converting to placeholder
+  formatted = formatted.replace(/<b>(.+?)<\/b>/gi, "{{BOLD_START}}$1{{BOLD_END}}");
+  
+  // Now escape HTML entities
+  formatted = formatted
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // Restore bold tags
+  formatted = formatted.replace(/\{\{BOLD_START\}\}/g, "<b>");
+  formatted = formatted.replace(/\{\{BOLD_END\}\}/g, "</b>");
 
   formatted = formatted.replace(/^- (.+)$/gm, "• $1");
   formatted = formatted.replace(/\n{3,}/g, "\n\n");
   formatted = formatted.replace(/\n/g, "<br>");
   formatted = formatted.replace(/^(<br>)+/, "");
   formatted = formatted.replace(/(<br>){3,}/g, "<br><br>");
-  formatted = formatted.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
 
   return formatted;
 }
