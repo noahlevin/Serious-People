@@ -21,15 +21,18 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 ### Frontend Architecture
 
 **Technology Stack:**
-- Static HTML pages with inline CSS and vanilla JavaScript
-- No React, no build process for frontend
+- React SPA with Vite build system
+- wouter for client-side routing
 - WSJ-inspired typography: Playfair Display (headlines) + Source Serif 4 (body)
 - Design inspired by Wall Street Journal print edition for old-school business credibility
 
-**Static Pages:**
-- `public/index.html` - Landing page with hero section and "Start the interview" CTA
-- `public/interview.html` - Chat-style AI interview with conversation UI
-- `public/success.html` - Payment verification and script generation
+**React Pages:**
+- `client/src/pages/landing.tsx` - Landing page with hero section and "Start the interview" CTA (route: `/`)
+- `client/src/pages/interview.tsx` - Chat-style AI interview with conversation UI (route: `/interview`)
+- `client/src/pages/success.tsx` - Payment verification and script generation (route: `/success`)
+
+**Styling:**
+- `client/src/styles/serious-people.css` - All WSJ-inspired styles imported into each page
 
 **Interview Page Features:**
 - Chat-style conversation interface with AI coach (no specific name)
@@ -116,8 +119,8 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - **Stripe** - One-time $19 payment via Checkout Sessions
 - Uses `STRIPE_SECRET_KEY` (via Replit Stripe connection)
 - Auto-creates product/price if not found
-- Success URL: `{BASE_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`
-- Cancel URL: `{BASE_URL}/interview.html`
+- Success URL: `{BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`
+- Cancel URL: `{BASE_URL}/interview`
 
 **AI Script Generation:**
 - **OpenAI API** - Powers interview and script generation
