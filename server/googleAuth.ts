@@ -7,15 +7,24 @@ import fs from "fs";
 import { storage } from "./storage";
 
 function getDatabaseUrl(): string {
-  // For published apps, check /tmp/replitdb first
+  // Try DATABASE_URL environment variable first (works in both dev and production)
+  if (process.env.DATABASE_URL) {
+    console.log("[Session] Using DATABASE_URL env for session store");
+    return process.env.DATABASE_URL;
+  }
+  
+  // For published apps, check /tmp/replitdb as fallback
   const replitDbPath = "/tmp/replitdb";
   if (fs.existsSync(replitDbPath)) {
     const dbUrl = fs.readFileSync(replitDbPath, "utf-8").trim();
     if (dbUrl) {
+      console.log("[Session] Using /tmp/replitdb for session store");
       return dbUrl;
     }
   }
-  return process.env.DATABASE_URL || "";
+  
+  console.warn("[Session] No database URL found for session store");
+  return "";
 }
 
 export function getSession() {
@@ -59,13 +68,28 @@ async function upsertUser(profile: Profile): Promise<UserSession> {
   const lastName = profile.name?.familyName || "";
   const profileImageUrl = profile.photos?.[0]?.value || null;
   
-  await storage.upsertUser({
-    id: profile.id,
-    email,
-    firstName,
-    lastName,
-    profileImageUrl,
-  });
+  console.log(`[Auth] upsertUser called for email=${email}, id=${profile.id}`);
+  
+  try {
+    await storage.upsertUser({
+      id: profile.id,
+      email,
+      firstName,
+      lastName,
+      profileImageUrl,
+    });
+    console.log(`[Auth] upsertUser succeeded for email=${email}`);
+  } catch (error: any) {
+    console.error(`[Auth] upsertUser FAILED for email=${email}`);
+    console.error(`[Auth] Error name: ${error.name}`);
+    console.error(`[Auth] Error message: ${error.message}`);
+    console.error(`[Auth] Error stack: ${error.stack}`);
+    if (error.response) {
+      console.error(`[Auth] Error response status: ${error.response.status}`);
+      console.error(`[Auth] Error response data: ${JSON.stringify(error.response.data)}`);
+    }
+    throw error;
+  }
   
   return {
     id: profile.id,
