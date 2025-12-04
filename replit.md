@@ -149,8 +149,28 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - `OPENAI_API_KEY` - OpenAI API authentication (required)
 - `STRIPE_SECRET_KEY` - Stripe API secret (via Replit connection)
 - `SESSION_SECRET` - Express session secret
-- `DATABASE_URL` - PostgreSQL connection string (auto-set by Replit)
+- `DATABASE_URL` - PostgreSQL connection string (auto-set by Replit in development)
 - `BASE_URL` - Application base URL (auto-detected from Replit domain)
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID (required for auth)
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret (required for auth)
+- `PRODUCTION_DATABASE_URL` - (Optional) Override for production database URL. Set this secret if production deployment cannot connect to the database.
+
+### Production Database Configuration
+
+**How database connection works:**
+1. In development: Uses `PGHOST`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` environment variables (auto-set by Replit)
+2. In production: Checks `/tmp/replitdb` for the Neon PostgreSQL URL
+
+**If production database fails:**
+The production deployment may receive an incorrect database URL (e.g., KV store URL instead of PostgreSQL). If you see errors like "Unexpected server response: 404" or "kv.replit.com" in production logs:
+
+1. Go to the Database tool in your Replit workspace
+2. Navigate to "Commands" tab → "Environment variables" section
+3. Copy the `DATABASE_URL` value (should look like `postgresql://...@...neon.tech:5432/...`)
+4. Add it as a secret called `PRODUCTION_DATABASE_URL`
+5. Republish the app
+
+The app prioritizes `PRODUCTION_DATABASE_URL` in production to work around platform misconfiguration.
 
 ### Key Implementation Details
 

@@ -3,18 +3,39 @@ import { Strategy as GoogleStrategy, Profile } from "passport-google-oauth20";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
+import fs from "fs";
 import { storage } from "./storage";
 
+function isValidPostgresUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    const isPostgresProtocol = urlObj.protocol === 'postgres:' || urlObj.protocol === 'postgresql:';
+    const isNotKvStore = !urlObj.hostname.includes('kv.replit.com');
+    return isPostgresProtocol && isNotKvStore;
+  } catch {
+    return false;
+  }
+}
+
 function getDatabaseUrl(): string {
-  // Try to construct URL from individual PG* environment variables
-  // This works in both development and production
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Method 0: Check for PRODUCTION_DATABASE_URL override (highest priority for production)
+  if (isProduction && process.env.PRODUCTION_DATABASE_URL) {
+    console.log("[Session] Using PRODUCTION_DATABASE_URL override");
+    return process.env.PRODUCTION_DATABASE_URL;
+  }
+  
+  // Method 1: Try to construct URL from individual PG* environment variables
+  // Skip if PGHOST is 'helium' in production (that's the dev proxy)
   const pgHost = process.env.PGHOST;
   const pgUser = process.env.PGUSER;
   const pgPassword = process.env.PGPASSWORD;
   const pgDatabase = process.env.PGDATABASE;
   const pgPort = process.env.PGPORT || "5432";
   
-  if (pgHost && pgUser && pgPassword && pgDatabase) {
+  const isDevProxy = pgHost === 'helium';
+  if (pgHost && pgUser && pgPassword && pgDatabase && !(isProduction && isDevProxy)) {
     const isNeon = pgHost.includes('neon.tech') || pgHost.includes('aws.neon.tech');
     const sslParam = isNeon ? '?sslmode=require' : '';
     const constructedUrl = `postgresql://${pgUser}:${pgPassword}@${pgHost}:${pgPort}/${pgDatabase}${sslParam}`;
@@ -22,9 +43,27 @@ function getDatabaseUrl(): string {
     return constructedUrl;
   }
   
-  // Fallback to DATABASE_URL environment variable
-  if (process.env.DATABASE_URL) {
+  // Method 2: For production, check /tmp/replitdb
+  if (isProduction) {
+    const replitDbPath = "/tmp/replitdb";
+    if (fs.existsSync(replitDbPath)) {
+      const dbUrl = fs.readFileSync(replitDbPath, "utf-8").trim();
+      if (dbUrl && isValidPostgresUrl(dbUrl)) {
+        console.log("[Session] Using /tmp/replitdb for session store");
+        return dbUrl;
+      }
+    }
+  }
+  
+  // Method 3: Check DATABASE_URL environment variable
+  if (process.env.DATABASE_URL && isValidPostgresUrl(process.env.DATABASE_URL)) {
     console.log("[Session] Using DATABASE_URL env for session store");
+    return process.env.DATABASE_URL;
+  }
+  
+  // Method 4: For development, use DATABASE_URL (internal proxy)
+  if (!isProduction && process.env.DATABASE_URL) {
+    console.log("[Session] Using DATABASE_URL (dev internal proxy)");
     return process.env.DATABASE_URL;
   }
   
