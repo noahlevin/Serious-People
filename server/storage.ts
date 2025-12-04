@@ -58,21 +58,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTranscript(insertTranscript: InsertInterviewTranscript): Promise<InterviewTranscript> {
-    const [transcript] = await db.insert(interviewTranscripts)
+    const results = await db.insert(interviewTranscripts)
       .values(insertTranscript)
       .returning();
-    return transcript;
+    return results[0];
   }
 
   async updateTranscript(
     sessionToken: string, 
     updates: Partial<InsertInterviewTranscript>
   ): Promise<InterviewTranscript | undefined> {
-    const [transcript] = await db.update(interviewTranscripts)
-      .set({ ...updates, updatedAt: new Date() })
+    const results = await db.update(interviewTranscripts)
+      .set(updates as any)
       .where(eq(interviewTranscripts.sessionToken, sessionToken))
       .returning();
-    return transcript;
+    return results[0];
   }
 }
 

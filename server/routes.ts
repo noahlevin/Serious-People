@@ -624,5 +624,50 @@ FORMAT:
     }
   });
 
+  // GET /api/test-db - Test database connectivity
+  app.get("/api/test-db", async (req, res) => {
+    try {
+      const testToken = `test-${Date.now()}`;
+      
+      // Create a test record
+      const created = await storage.createTranscript({
+        sessionToken: testToken,
+        transcript: [{ role: "test", content: "Database test record" }],
+        currentModule: "Test",
+        progress: 100,
+        interviewComplete: false,
+        paymentVerified: false,
+      });
+
+      // Read it back
+      const retrieved = await storage.getTranscript(testToken);
+
+      if (retrieved && retrieved.sessionToken === testToken) {
+        res.json({
+          success: true,
+          message: "Database is working correctly",
+          testRecord: {
+            id: created.id,
+            sessionToken: created.sessionToken,
+            module: created.currentModule,
+            createdAt: created.createdAt,
+          },
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: "Test record was created but could not be retrieved",
+        });
+      }
+    } catch (error: any) {
+      console.error("Database test error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Database test failed",
+        error: error.message,
+      });
+    }
+  });
+
   return httpServer;
 }
