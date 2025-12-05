@@ -4,6 +4,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import "@/styles/serious-people.css";
 
+// Public-facing email address (easily configurable)
+const PUBLIC_EMAIL = "hello@seriouspeople.app";
+
 const phrases = [
   'quitting.',
   'getting promoted.',
@@ -182,7 +185,7 @@ export default function Landing() {
       </main>
 
       <footer className="sp-footer">
-        <p>Questions? Contact <a href="mailto:support@example.com">support@example.com</a></p>
+        <p>Questions? Contact <a href={`mailto:${PUBLIC_EMAIL}`}>{PUBLIC_EMAIL}</a></p>
       </footer>
     </div>
   );
