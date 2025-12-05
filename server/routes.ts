@@ -2166,7 +2166,7 @@ Respond ONLY with what the client would say next. No meta-commentary, no quotes,
     }
   });
 
-  // POST /api/webhook/inbound - Receive inbound emails from Resend and forward to configured email
+  // POST /api/webhook/inbound - Receive inbound emails from Resend and forward to seriouspeople@noahlevin.com
   app.post("/api/webhook/inbound", async (req, res) => {
     try {
       const payload = req.body;
@@ -2213,15 +2213,14 @@ Respond ONLY with what the client would say next. No meta-commentary, no quotes,
       
       // Get the Resend client and send the forwarded email
       const { client, fromEmail } = await getResendClient();
-      const { RESEND_FALLBACK_EMAIL, WEBHOOK_FORWARD_EMAIL } = await import("@shared/emailConfig");
-      const senderEmail = fromEmail || RESEND_FALLBACK_EMAIL;
+      const senderEmail = fromEmail || "onboarding@resend.dev";
       
-      console.log("Forwarding email from:", senderEmail, "to:", WEBHOOK_FORWARD_EMAIL);
+      console.log("Forwarding email from:", senderEmail, "to: seriouspeople@noahlevin.com");
       console.log("Subject:", forwardedSubject);
       
       const result = await client.emails.send({
         from: senderEmail,
-        to: WEBHOOK_FORWARD_EMAIL,
+        to: "seriouspeople@noahlevin.com",
         subject: forwardedSubject,
         html: forwardedHtml,
         text: `Original From: ${originalFrom}\nOriginal To: ${originalTo}\nOriginal Subject: ${originalSubject}\n\n---\n\n${textBody}`,

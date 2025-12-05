@@ -13,12 +13,6 @@ Serious People is a career coaching service that helps users navigate career tra
 
 **User Flow:** Landing page → Sign in (magic link/Google) → Free intro & plan proposal → Paywall (with dynamic pricing) → Stripe payment (discount pre-applied) → 3 coaching modules → Career Brief generation
 
-**Email Configuration:**
-- All email addresses are centralized in `shared/emailConfig.ts` for easy updates:
-  - `SUPPORT_EMAIL`: Displayed to users on landing page and footer (currently `hello@seriouspeople.app`)
-  - `WEBHOOK_FORWARD_EMAIL`: Where inbound webhooks are forwarded (currently `hello@seriouspeople.app`)
-  - `RESEND_FALLBACK_EMAIL`: Fallback email when no verified domain is configured
-
 ## User Preferences
 
 Preferred communication style: Simple, everyday language. Plain, direct, no corporate jargon.

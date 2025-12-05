@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
-import { SUPPORT_EMAIL } from "@shared/emailConfig";
 import "@/styles/serious-people.css";
 
 const phrases = [
@@ -183,7 +182,7 @@ export default function Landing() {
       </main>
 
       <footer className="sp-footer">
-        <p>Questions? Contact <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></p>
+        <p>Questions? Contact <a href="mailto:support@example.com">support@example.com</a></p>
       </footer>
     </div>
   );
