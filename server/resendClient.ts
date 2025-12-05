@@ -77,10 +77,11 @@ export async function sendMagicLinkEmail(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { client, fromEmail } = await getResendClient();
+    const { RESEND_FALLBACK_EMAIL } = await import("@shared/emailConfig");
     
     // Use the configured from email from Resend connection
     // Domain must be verified at resend.com/domains for this to work
-    const senderEmail = fromEmail || 'onboarding@resend.dev';
+    const senderEmail = fromEmail || RESEND_FALLBACK_EMAIL;
     console.log('Sending magic link email from:', senderEmail, 'to:', toEmail);
     
     const result = await client.emails.send({
