@@ -285,22 +285,40 @@ Where NN is 5–100. Progress is **per-module**:
 
 ### Custom 3-module plan (pre-paywall)
 
-Once you understand the user's situation reasonably well (after understanding big problem, desired outcome, and key constraints), propose a custom 3-module plan.
+Once you understand the user's situation reasonably well (after understanding big problem, desired outcome, and key constraints), propose a custom 3-module coaching plan.
+
+**CRITICAL: Create personalized module names that reflect their specific situation.** Don't use generic names like "Job Autopsy" — instead create names tailored to what they're dealing with. Examples:
+- "The Manager Puzzle" (if they have boss issues)
+- "The Startup Question" (if they're considering founding something)
+- "The Promotion Problem" (if they're stuck at their level)
+- "The Money Map" (if salary/finances are central)
+- "The Exit Interview" (if they're clearly leaving)
+
+**The three modules always follow this structure:**
+1. **Module 1: Discovery/Unpacking** — Dig deep into the core issue
+2. **Module 2: Exploring Options** — Map motivations, constraints, and possibilities
+3. **Module 3: Action Planning** — Build a concrete plan with next steps
 
 **Present the plan in this specific order:**
 
-1. Say: "Here's the custom plan I've built for you:"
+1. Say: "Here's the coaching plan I've designed for your situation:"
 
-2. Output the plan card using this EXACT format:
+2. Output the plan card using this EXACT format (all fields required):
 
 [[PLAN_CARD]]
 NAME: [User's first name]
-MODULE1_NAME: Job Autopsy
-MODULE1_DESC: [1-2 sentence personalized description of what you'll cover for THIS user]
-MODULE2_NAME: Fork in the Road
-MODULE2_DESC: [1-2 sentence personalized description of what you'll cover for THIS user]
-MODULE3_NAME: The Great Escape Plan
-MODULE3_DESC: [1-2 sentence personalized description of what you'll cover for THIS user]
+MODULE1_NAME: [Creative, situation-specific name for the discovery module]
+MODULE1_OBJECTIVE: [What we're trying to understand or uncover — 1 sentence]
+MODULE1_APPROACH: [How we'll work through this — 1 sentence]
+MODULE1_OUTCOME: [What they'll have at the end — 1 sentence]
+MODULE2_NAME: [Creative, situation-specific name for the options module]
+MODULE2_OBJECTIVE: [What decisions or trade-offs we're clarifying — 1 sentence]
+MODULE2_APPROACH: [How we'll explore the options — 1 sentence]
+MODULE2_OUTCOME: [What clarity they'll gain — 1 sentence]
+MODULE3_NAME: [Creative, situation-specific name for the action module]
+MODULE3_OBJECTIVE: [What concrete plan we're building — 1 sentence]
+MODULE3_APPROACH: [How we'll build the plan — 1 sentence]
+MODULE3_OUTCOME: [What they'll walk away with — 1 sentence]
 CAREER_BRIEF: [2-3 sentences describing the final deliverable - a structured document with their situation mirror, diagnosis, options map, action plan, and conversation scripts tailored to their specific people and dynamics]
 [[END_PLAN_CARD]]
 
@@ -312,7 +330,7 @@ This looks right, let's get started
 I'd like to change something
 [[END_OPTIONS]]
 
-Adapt the module names if helpful (e.g., "The Boss Problem" instead of "Job Autopsy" if that fits better). The descriptions MUST be personalized to their situation, not generic.
+The module names, objectives, approaches, and outcomes will be "locked in" once they approve — these become THEIR coaching plan and will be referenced throughout their modules and Career Brief.
 
 ### Value explanation (pre-paywall)
 
@@ -366,22 +384,9 @@ CRITICAL: The paywall only appears after [[INTERVIEW_COMPLETE]]. This token shou
 
 ### Post-paywall modules
 
-After paywall, continue the session:
+After paywall, the user will be directed to separate module pages where they'll work through each of the three custom modules you designed for them. The module names, objectives, approaches, and outcomes you defined in the plan card will guide those conversations.
 
-**Module 1: Job Autopsy**
-- Output title card: — Module 1: Job Autopsy (est. 5–7 minutes) —
-- Deep dive on current situation
-- End with a clear Mirror (what they said) + short Diagnosis artifact
-
-**Module 2: Fork in the Road**
-- Output title card: — Module 2: Fork in the Road (est. 5–7 minutes) —
-- Explore options and constraints
-- End with Options & Risk Snapshot artifact
-
-**Module 3: The Great Escape Plan**
-- Output title card: — Module 3: The Great Escape Plan (est. 5–7 minutes) —
-- Build action plan
-- End with action outline + rough talking points artifact
+Do NOT continue the session in this interview — the modules happen on their own dedicated pages.
 
 Continue using [[OPTIONS]] and [[PROGRESS]] throughout. Do NOT emit [[INTERVIEW_COMPLETE]] again.
 
@@ -822,7 +827,7 @@ export async function registerRoutes(
       let socialProof: string | null = null;
       let options: string[] | null = null;
       let progress: number | null = null;
-      let planCard: { name: string; modules: { name: string; desc: string }[]; careerBrief: string } | null = null;
+      let planCard: { name: string; modules: { name: string; objective: string; approach: string; outcome: string }[]; careerBrief: string } | null = null;
 
       // Parse progress token
       const progressMatch = reply.match(/\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/);
@@ -843,26 +848,54 @@ export async function registerRoutes(
           .filter(opt => opt.length > 0);
       }
 
-      // Parse plan card
+      // Parse plan card with expanded format (objectives, approach, outcome)
       const planCardMatch = reply.match(/\[\[PLAN_CARD\]\]([\s\S]*?)\[\[END_PLAN_CARD\]\]/);
       if (planCardMatch) {
         const cardContent = planCardMatch[1].trim();
         const nameMatch = cardContent.match(/NAME:\s*(.+)/);
+        
+        // Module 1
         const module1NameMatch = cardContent.match(/MODULE1_NAME:\s*(.+)/);
-        const module1DescMatch = cardContent.match(/MODULE1_DESC:\s*(.+)/);
+        const module1ObjectiveMatch = cardContent.match(/MODULE1_OBJECTIVE:\s*(.+)/);
+        const module1ApproachMatch = cardContent.match(/MODULE1_APPROACH:\s*(.+)/);
+        const module1OutcomeMatch = cardContent.match(/MODULE1_OUTCOME:\s*(.+)/);
+        
+        // Module 2
         const module2NameMatch = cardContent.match(/MODULE2_NAME:\s*(.+)/);
-        const module2DescMatch = cardContent.match(/MODULE2_DESC:\s*(.+)/);
+        const module2ObjectiveMatch = cardContent.match(/MODULE2_OBJECTIVE:\s*(.+)/);
+        const module2ApproachMatch = cardContent.match(/MODULE2_APPROACH:\s*(.+)/);
+        const module2OutcomeMatch = cardContent.match(/MODULE2_OUTCOME:\s*(.+)/);
+        
+        // Module 3
         const module3NameMatch = cardContent.match(/MODULE3_NAME:\s*(.+)/);
-        const module3DescMatch = cardContent.match(/MODULE3_DESC:\s*(.+)/);
+        const module3ObjectiveMatch = cardContent.match(/MODULE3_OBJECTIVE:\s*(.+)/);
+        const module3ApproachMatch = cardContent.match(/MODULE3_APPROACH:\s*(.+)/);
+        const module3OutcomeMatch = cardContent.match(/MODULE3_OUTCOME:\s*(.+)/);
+        
         const careerBriefMatch = cardContent.match(/CAREER_BRIEF:\s*(.+)/);
 
         if (nameMatch) {
           planCard = {
             name: nameMatch[1].trim(),
             modules: [
-              { name: module1NameMatch?.[1]?.trim() || 'Job Autopsy', desc: module1DescMatch?.[1]?.trim() || '' },
-              { name: module2NameMatch?.[1]?.trim() || 'Fork in the Road', desc: module2DescMatch?.[1]?.trim() || '' },
-              { name: module3NameMatch?.[1]?.trim() || 'The Great Escape Plan', desc: module3DescMatch?.[1]?.trim() || '' }
+              { 
+                name: module1NameMatch?.[1]?.trim() || 'Discovery', 
+                objective: module1ObjectiveMatch?.[1]?.trim() || '',
+                approach: module1ApproachMatch?.[1]?.trim() || '',
+                outcome: module1OutcomeMatch?.[1]?.trim() || ''
+              },
+              { 
+                name: module2NameMatch?.[1]?.trim() || 'Options', 
+                objective: module2ObjectiveMatch?.[1]?.trim() || '',
+                approach: module2ApproachMatch?.[1]?.trim() || '',
+                outcome: module2OutcomeMatch?.[1]?.trim() || ''
+              },
+              { 
+                name: module3NameMatch?.[1]?.trim() || 'Action Plan', 
+                objective: module3ObjectiveMatch?.[1]?.trim() || '',
+                approach: module3ApproachMatch?.[1]?.trim() || '',
+                outcome: module3OutcomeMatch?.[1]?.trim() || ''
+              }
             ],
             careerBrief: careerBriefMatch?.[1]?.trim() || ''
           };
