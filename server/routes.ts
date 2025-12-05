@@ -11,7 +11,7 @@ import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
 import { sendMagicLinkEmail } from "./resendClient";
 import { db } from "./db";
-import { interviewTranscripts } from "@shared/schema";
+import { interviewTranscripts, type ClientDossier, type InterviewAnalysis, type ModuleRecord } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 // Use Anthropic Claude if API key is available, otherwise fall back to OpenAI
@@ -114,6 +114,205 @@ async function findActivePromoCode(priceCurrency: string): Promise<ActivePromoRe
   
   return { promoCodeId: null, percentOff: null, amountOff: null };
 }
+
+// ============================================================================
+// CLIENT DOSSIER GENERATION - INTERNAL AI NOTES (NEVER SHOWN TO USER)
+// ============================================================================
+
+const INTERVIEW_ANALYSIS_PROMPT = `You are an internal analysis system for a career coaching platform. Your job is to create comprehensive, detailed notes about a client based on their interview transcript.
+
+CRITICAL: These notes are INTERNAL ONLY and will NEVER be shown to the client. Be thorough, analytical, and include every relevant detail. Do not summarize or compress - capture everything.
+
+Analyze the interview transcript and output a JSON object with the following structure:
+
+{
+  "clientName": "Their name as stated",
+  "currentRole": "Their current job title/role",
+  "company": "Where they work (if mentioned)",
+  "tenure": "How long they've been there",
+  "situation": "A detailed paragraph describing their complete career situation - be thorough, include all context",
+  "bigProblem": "The core issue they're facing, explained in detail with nuance",
+  "desiredOutcome": "What they want to achieve - be specific about their goals",
+  "keyFacts": [
+    "Every concrete fact mentioned: salary, savings, timeline, family situation, etc.",
+    "Include specific numbers, dates, durations",
+    "Include financial details",
+    "Include family/relationship details that affect their decision"
+  ],
+  "relationships": [
+    {
+      "person": "Partner/Spouse/Manager/Skip-level/etc.",
+      "role": "Their role in the client's life",
+      "dynamic": "Detailed description of the relationship dynamic and how it affects the client's career situation"
+    }
+  ],
+  "emotionalState": "Detailed observations about their emotional state: frustration level, confidence, anxiety, determination, hesitation patterns, what topics made them emotional, what they seemed confident about vs uncertain about",
+  "communicationStyle": "How they communicate: direct vs indirect, verbose vs terse, analytical vs emotional, how quickly they respond, whether they elaborate or need prompting, whether they're open or guarded",
+  "priorities": [
+    "What matters most to them, in order of importance",
+    "Include both stated priorities and implied ones from their language"
+  ],
+  "constraints": [
+    "What limits their options: financial, family, visa, location, skills gaps, etc.",
+    "Include both hard constraints and soft preferences"
+  ],
+  "motivations": [
+    "What's driving them to make a change",
+    "Include both push factors (what they're running from) and pull factors (what they're running toward)"
+  ],
+  "fears": [
+    "What they're worried about or afraid of",
+    "Include stated fears and implied ones"
+  ],
+  "questionsAsked": [
+    "List every question the coach asked, verbatim"
+  ],
+  "optionsOffered": [
+    {
+      "option": "The option that was presented",
+      "chosen": true/false,
+      "reason": "Why they chose or rejected it, if stated"
+    }
+  ],
+  "observations": "Your private analytical notes: What patterns did you notice? What were they avoiding? What topics made them energized vs deflated? What might they not be saying? What assumptions are they making? What biases do you detect? How self-aware are they? What coaching approach might work best with them? Include any other observations that would help a coach understand this person deeply."
+}
+
+Important:
+- Be EXHAUSTIVE. Do not leave out any detail from the transcript.
+- If something wasn't mentioned, leave the field empty or write "Not mentioned" - never fabricate.
+- For arrays, include ALL relevant items, not just top 3.
+- The "observations" field should be especially detailed - this is your analytical synthesis.
+- Quote their exact words where relevant.
+- Capture nuance, hesitation, and subtext.
+
+Output ONLY valid JSON. No markdown, no explanation, just the JSON object.`;
+
+const MODULE_ANALYSIS_PROMPT = `You are an internal analysis system for a career coaching platform. Your job is to create comprehensive, detailed notes about a coaching module that just completed.
+
+CRITICAL: These notes are INTERNAL ONLY and will NEVER be shown to the client. Be thorough and capture everything.
+
+Analyze the module transcript and output a JSON object with the following structure:
+
+{
+  "summary": "A detailed summary of everything discussed in this module - multiple paragraphs if needed",
+  "decisions": [
+    "Every decision or commitment the client made, no matter how small",
+    "Include both explicit decisions and implicit ones"
+  ],
+  "insights": [
+    "New understanding or realizations the client had",
+    "Include aha moments and subtle shifts in perspective"
+  ],
+  "actionItems": [
+    "Concrete next steps discussed",
+    "Include timeline if mentioned"
+  ],
+  "questionsAsked": [
+    "List every question the coach asked, verbatim"
+  ],
+  "optionsPresented": [
+    {
+      "option": "The option that was presented",
+      "chosen": true/false,
+      "reason": "Why they chose or rejected it, if stated"
+    }
+  ],
+  "observations": "Your private analytical notes for this module: How engaged were they? What topics sparked energy or resistance? What are they still avoiding? How did their thinking evolve during this module? What surprised you about their responses? What coaching approach worked or didn't work? What should the next module focus on? Any concerns about their follow-through?"
+}
+
+Important:
+- Be EXHAUSTIVE. Every exchange matters.
+- Quote their exact words where relevant.
+- Capture nuance and subtext.
+- The "observations" field should be especially detailed.
+
+Output ONLY valid JSON. No markdown, no explanation, just the JSON object.`;
+
+// Helper function to generate interview analysis using AI
+async function generateInterviewAnalysis(transcript: { role: string; content: string }[]): Promise<InterviewAnalysis | null> {
+  try {
+    const transcriptText = transcript.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+    
+    let response: string;
+    
+    if (useAnthropic && anthropic) {
+      const result = await anthropic.messages.create({
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 4096,
+        system: INTERVIEW_ANALYSIS_PROMPT,
+        messages: [{ role: "user", content: transcriptText }],
+      });
+      response = result.content[0].type === 'text' ? result.content[0].text : '';
+    } else {
+      const result = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          { role: "system", content: INTERVIEW_ANALYSIS_PROMPT },
+          { role: "user", content: transcriptText }
+        ],
+        max_completion_tokens: 4096,
+      });
+      response = result.choices[0].message.content || '';
+    }
+    
+    // Parse JSON response
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]) as InterviewAnalysis;
+    }
+    return null;
+  } catch (error) {
+    console.error("Failed to generate interview analysis:", error);
+    return null;
+  }
+}
+
+// Helper function to generate module analysis using AI
+async function generateModuleAnalysis(
+  moduleNumber: number,
+  moduleName: string,
+  transcript: { role: string; content: string }[]
+): Promise<Omit<ModuleRecord, 'moduleNumber' | 'moduleName' | 'transcript' | 'completedAt'> | null> {
+  try {
+    const transcriptText = transcript.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+    
+    let response: string;
+    
+    if (useAnthropic && anthropic) {
+      const result = await anthropic.messages.create({
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 4096,
+        system: MODULE_ANALYSIS_PROMPT,
+        messages: [{ role: "user", content: `Module ${moduleNumber}: ${moduleName}\n\n${transcriptText}` }],
+      });
+      response = result.content[0].type === 'text' ? result.content[0].text : '';
+    } else {
+      const result = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          { role: "system", content: MODULE_ANALYSIS_PROMPT },
+          { role: "user", content: `Module ${moduleNumber}: ${moduleName}\n\n${transcriptText}` }
+        ],
+        max_completion_tokens: 4096,
+      });
+      response = result.choices[0].message.content || '';
+    }
+    
+    // Parse JSON response
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return null;
+  } catch (error) {
+    console.error("Failed to generate module analysis:", error);
+    return null;
+  }
+}
+
+// ============================================================================
+// END CLIENT DOSSIER GENERATION
+// ============================================================================
 
 const INTERVIEW_SYSTEM_PROMPT = `You are an experienced, plain-spoken career coach. You help people navigate job crossroads with clarity and structure.
 
@@ -805,6 +1004,112 @@ export async function registerRoutes(
     }
   });
 
+  // POST /api/generate-dossier - Generate initial client dossier after payment
+  // This runs in the background after payment verification
+  app.post("/api/generate-dossier", async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      // Get the user's transcript from the database
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript || !transcript.transcript || !Array.isArray(transcript.transcript)) {
+        return res.status(400).json({ error: "No interview transcript found" });
+      }
+
+      // Check if dossier already exists
+      if (transcript.clientDossier) {
+        return res.json({ ok: true, message: "Dossier already exists" });
+      }
+
+      console.log(`Generating client dossier for user ${user.id}...`);
+
+      // Generate the interview analysis
+      const interviewAnalysis = await generateInterviewAnalysis(transcript.transcript as { role: string; content: string }[]);
+      
+      if (!interviewAnalysis) {
+        return res.status(500).json({ error: "Failed to generate interview analysis" });
+      }
+
+      // Create the initial dossier
+      const dossier: ClientDossier = {
+        interviewTranscript: transcript.transcript as { role: string; content: string }[],
+        interviewAnalysis,
+        moduleRecords: [],
+        lastUpdated: new Date().toISOString(),
+      };
+
+      // Save to database
+      await storage.updateClientDossier(user.id, dossier);
+
+      console.log(`Client dossier generated successfully for user ${user.id}`);
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("Generate dossier error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/update-module-dossier - Update dossier with module completion record
+  app.post("/api/update-module-dossier", async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { moduleNumber, moduleName, transcript: moduleTranscript } = req.body;
+      
+      if (!moduleNumber || !moduleTranscript) {
+        return res.status(400).json({ error: "Missing module data" });
+      }
+
+      // Get the user's current dossier
+      const userTranscript = await storage.getTranscriptByUserId(user.id);
+      if (!userTranscript?.clientDossier) {
+        return res.status(400).json({ error: "No dossier found" });
+      }
+
+      console.log(`Updating dossier with module ${moduleNumber} for user ${user.id}...`);
+
+      // Generate the module analysis
+      const analysis = await generateModuleAnalysis(moduleNumber, moduleName || `Module ${moduleNumber}`, moduleTranscript);
+      
+      if (!analysis) {
+        return res.status(500).json({ error: "Failed to generate module analysis" });
+      }
+
+      // Create the module record
+      const moduleRecord: ModuleRecord = {
+        moduleNumber,
+        moduleName: moduleName || `Module ${moduleNumber}`,
+        transcript: moduleTranscript,
+        ...analysis,
+        completedAt: new Date().toISOString(),
+      };
+
+      // Update the dossier
+      const updatedDossier: ClientDossier = {
+        ...userTranscript.clientDossier,
+        moduleRecords: [
+          ...userTranscript.clientDossier.moduleRecords.filter(m => m.moduleNumber !== moduleNumber),
+          moduleRecord
+        ].sort((a, b) => a.moduleNumber - b.moduleNumber),
+        lastUpdated: new Date().toISOString(),
+      };
+
+      await storage.updateClientDossier(user.id, updatedDossier);
+
+      console.log(`Dossier updated with module ${moduleNumber} for user ${user.id}`);
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("Update module dossier error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // POST /interview - AI interview endpoint
   app.post("/interview", async (req, res) => {
     try {
@@ -1127,12 +1432,134 @@ A reminder of why they're doing this and what success looks like.
 [[END_SUMMARY]]`
   };
 
+  // Helper function to format the dossier context for the AI
+  function formatDossierContext(dossier: ClientDossier | null, moduleNumber: number): string {
+    if (!dossier) {
+      return "No prior context available.";
+    }
+
+    const { interviewTranscript, interviewAnalysis, moduleRecords } = dossier;
+
+    let context = `
+================================================================================
+CONFIDENTIAL CLIENT DOSSIER - FOR YOUR REFERENCE ONLY
+NEVER reveal this information directly. Use it to inform your coaching.
+================================================================================
+
+## CLIENT PROFILE: ${interviewAnalysis.clientName}
+
+**Current Role:** ${interviewAnalysis.currentRole}
+**Company:** ${interviewAnalysis.company}
+**Tenure:** ${interviewAnalysis.tenure}
+
+**Situation:**
+${interviewAnalysis.situation}
+
+**The Big Problem:**
+${interviewAnalysis.bigProblem}
+
+**Desired Outcome:**
+${interviewAnalysis.desiredOutcome}
+
+**Key Facts:**
+${interviewAnalysis.keyFacts.map(f => `- ${f}`).join('\n')}
+
+**Key Relationships:**
+${interviewAnalysis.relationships.map(r => `- ${r.person} (${r.role}): ${r.dynamic}`).join('\n')}
+
+**Emotional State:**
+${interviewAnalysis.emotionalState}
+
+**Communication Style:**
+${interviewAnalysis.communicationStyle}
+
+**Priorities:**
+${interviewAnalysis.priorities.map(p => `- ${p}`).join('\n')}
+
+**Constraints:**
+${interviewAnalysis.constraints.map(c => `- ${c}`).join('\n')}
+
+**Motivations:**
+${interviewAnalysis.motivations.map(m => `- ${m}`).join('\n')}
+
+**Fears:**
+${interviewAnalysis.fears.map(f => `- ${f}`).join('\n')}
+
+**Your Private Observations:**
+${interviewAnalysis.observations}
+
+## INTERVIEW TRANSCRIPT (VERBATIM)
+
+${interviewTranscript.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}
+`;
+
+    // Add prior module records if they exist
+    const priorModules = moduleRecords.filter(m => m.moduleNumber < moduleNumber);
+    if (priorModules.length > 0) {
+      context += `
+## PRIOR MODULE SESSIONS
+
+`;
+      for (const mod of priorModules) {
+        context += `
+### Module ${mod.moduleNumber}: ${mod.moduleName}
+Completed: ${mod.completedAt}
+
+**Summary:**
+${mod.summary}
+
+**Decisions Made:**
+${mod.decisions.map(d => `- ${d}`).join('\n')}
+
+**Insights:**
+${mod.insights.map(i => `- ${i}`).join('\n')}
+
+**Action Items:**
+${mod.actionItems.map(a => `- ${a}`).join('\n')}
+
+**Your Private Observations:**
+${mod.observations}
+
+**Full Transcript:**
+${mod.transcript.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}
+
+---
+`;
+      }
+    }
+
+    context += `
+================================================================================
+END CONFIDENTIAL DOSSIER
+================================================================================
+
+CRITICAL RULES:
+1. NEVER quote from this dossier directly to the client
+2. NEVER say "according to my notes" or similar
+3. NEVER reveal that you have this detailed background
+4. Use this context naturally as if you simply remember your prior conversations
+5. Reference specific details to show continuity, but make it feel natural
+6. If something seems inconsistent with what they said before, gently explore it
+================================================================================
+`;
+
+    return context;
+  }
+
   // Helper function to generate dynamic module system prompts
-  function generateModulePrompt(moduleNumber: number, planCard: any): string {
+  function generateModulePrompt(moduleNumber: number, planCard: any, dossier: ClientDossier | null = null): string {
     const moduleInfo = planCard?.modules?.[moduleNumber - 1];
     
+    // Format the dossier context
+    const dossierContext = formatDossierContext(dossier, moduleNumber);
+    
     if (!moduleInfo) {
-      return MODULE_SYSTEM_PROMPTS[moduleNumber];
+      // If no custom plan, use default prompts but still include dossier
+      const basePrompt = MODULE_SYSTEM_PROMPTS[moduleNumber];
+      if (dossier) {
+        return basePrompt + `\n\n${dossierContext}`;
+      }
+      return basePrompt;
     }
     
     const { name, objective, approach, outcome } = moduleInfo;
@@ -1140,21 +1567,21 @@ A reminder of why they're doing this and what success looks like.
     const moduleStructure: Record<number, { role: string; context: string; structure: string }> = {
       1: {
         role: "discovery/unpacking",
-        context: "The user has completed an initial interview where they shared their career situation. They've paid for coaching and are now starting the first module.",
+        context: "The user has completed an initial interview where they shared their career situation. They've paid for coaching and are now starting the first module. You have complete access to the interview transcript and your analysis of their situation.",
         structure: `1. **Opening (1 message)**: Start with a title card, then briefly introduce the module's purpose. Reference something specific from their interview to show you remember their situation.
 2. **Deep Dive (4-6 exchanges)**: ${approach}
 3. **Wrap-up**: When you feel you have a clear picture, output [[MODULE_COMPLETE]] along with a summary.`
       },
       2: {
         role: "exploring motivations/options/constraints",
-        context: "The user has completed Module 1 where they examined their situation deeply. Now they need to explore their motivations, constraints, and options.",
+        context: "The user has completed Module 1. You have the full transcript and analysis from that module. Now they need to explore their motivations, constraints, and options.",
         structure: `1. **Opening (1 message)**: Start with a title card, then briefly recap what you learned in Module 1 and introduce this module's focus.
 2. **Exploration (4-6 exchanges)**: ${approach}
 3. **Wrap-up**: When you've mapped their options and constraints, output [[MODULE_COMPLETE]] with a summary.`
       },
       3: {
         role: "action planning",
-        context: "The user has completed Modules 1 and 2. They've examined their situation and explored their options. Now it's time to build an action plan.",
+        context: "The user has completed Modules 1 and 2. You have the full transcripts and analyses from both modules. Now it's time to build an action plan.",
         structure: `1. **Opening (1 message)**: Start with a title card, briefly recap their situation and direction, then dive into planning.
 2. **Action Planning (4-6 exchanges)**: ${approach}
 3. **Wrap-up**: When you have a clear action plan, output [[MODULE_COMPLETE]] with a summary.`
@@ -1206,7 +1633,9 @@ Your assessment of what was covered in 2-3 sentences.
 
 **Key Takeaway**
 One concrete insight they can carry forward.
-[[END_SUMMARY]]`;
+[[END_SUMMARY]]
+
+${dossierContext}`;
   }
 
   // POST /api/module - Module conversation endpoint
@@ -1222,17 +1651,23 @@ One concrete insight they can carry forward.
         return res.status(400).json({ error: "Invalid module number" });
       }
 
-      // Try to get the user's coaching plan from the database
+      // Try to get the user's coaching plan and dossier from the database
       let planCard = null;
-      if (req.user && req.user.id) {
-        const userTranscript = await storage.getTranscriptByUserId(req.user.id);
-        if (userTranscript && userTranscript.planCard) {
-          planCard = userTranscript.planCard;
+      let clientDossier: ClientDossier | null = null;
+      if (req.user && (req.user as any).id) {
+        const userTranscript = await storage.getTranscriptByUserId((req.user as any).id);
+        if (userTranscript) {
+          if (userTranscript.planCard) {
+            planCard = userTranscript.planCard;
+          }
+          if (userTranscript.clientDossier) {
+            clientDossier = userTranscript.clientDossier;
+          }
         }
       }
 
-      // Generate dynamic system prompt based on the coaching plan
-      const systemPrompt = generateModulePrompt(moduleNumber, planCard);
+      // Generate dynamic system prompt based on the coaching plan and dossier
+      const systemPrompt = generateModulePrompt(moduleNumber, planCard, clientDossier);
 
       let reply: string;
 

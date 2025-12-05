@@ -87,6 +87,22 @@ export default function Success() {
       if (data.ok) {
         if (loadTranscript()) {
           setState("ready");
+          
+          // Generate client dossier in the background after successful payment
+          // This creates the comprehensive AI notes from the interview
+          fetch("/api/generate-dossier", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          }).then(res => {
+            if (res.ok) {
+              console.log("Client dossier generated successfully");
+            } else {
+              console.error("Failed to generate client dossier");
+            }
+          }).catch(err => {
+            console.error("Error generating client dossier:", err);
+          });
         } else {
           setState("transcript-error");
         }

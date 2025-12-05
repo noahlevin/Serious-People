@@ -252,6 +252,28 @@ export default function ModulePage() {
       sessionStorage.setItem(COMPLETED_MODULES_KEY, JSON.stringify(completedModules));
     }
     
+    // Update the client dossier with this module's completion record
+    // This runs in the background as the user navigates to the next page
+    const moduleName = moduleInfo?.name || `Module ${moduleNumber}`;
+    fetch("/api/update-module-dossier", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        moduleNumber,
+        moduleName,
+        transcript
+      }),
+    }).then(res => {
+      if (res.ok) {
+        console.log(`Dossier updated with module ${moduleNumber}`);
+      } else {
+        console.error(`Failed to update dossier with module ${moduleNumber}`);
+      }
+    }).catch(err => {
+      console.error("Error updating dossier:", err);
+    });
+    
     if (moduleNumber < 3) {
       setLocation("/progress");
     } else {
