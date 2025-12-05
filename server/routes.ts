@@ -10,6 +10,9 @@ import { getStripeClient } from "./stripeClient";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
 import { sendMagicLinkEmail } from "./resendClient";
+import { db } from "./db";
+import { interviewTranscripts } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 // Use Anthropic Claude if API key is available, otherwise fall back to OpenAI
 const useAnthropic = !!process.env.ANTHROPIC_API_KEY;
@@ -624,6 +627,13 @@ export async function registerRoutes(
           oauthProvider: "demo",
           oauthId: null,
         });
+      } else {
+        // Clear any existing transcript for fresh demo session
+        try {
+          await db.delete(interviewTranscripts).where(eq(interviewTranscripts.userId, user.id));
+        } catch (e) {
+          console.error("Failed to clear demo transcript:", e);
+        }
       }
       
       // Log user in
