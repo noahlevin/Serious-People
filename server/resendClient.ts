@@ -11,27 +11,53 @@ async function getCredentials() {
     ? 'depl ' + process.env.WEB_REPL_RENEWAL 
     : null;
 
+  if (!hostname) {
+    console.error('REPLIT_CONNECTORS_HOSTNAME not set');
+    throw new Error('Resend connector hostname not configured');
+  }
+
   if (!xReplitToken) {
+    console.error('X_REPLIT_TOKEN not found - REPL_IDENTITY:', !!process.env.REPL_IDENTITY, 'WEB_REPL_RENEWAL:', !!process.env.WEB_REPL_RENEWAL);
     throw new Error('X_REPLIT_TOKEN not found for repl/depl');
   }
 
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
+  try {
+    const response = await fetch(
+      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
+      {
+        headers: {
+          'Accept': 'application/json',
+          'X_REPLIT_TOKEN': xReplitToken
+        }
       }
+    );
+    
+    if (!response.ok) {
+      console.error('Resend connector fetch failed:', response.status, response.statusText);
+      throw new Error(`Resend connector fetch failed: ${response.status}`);
     }
-  ).then(res => res.json()).then(data => data.items?.[0]);
-
-  if (!connectionSettings || (!connectionSettings.settings.api_key)) {
-    throw new Error('Resend not connected');
+    
+    const data = await response.json();
+    connectionSettings = data.items?.[0];
+    
+    if (!connectionSettings) {
+      console.error('Resend connection not found in response. Available items:', data.items?.length || 0);
+      throw new Error('Resend not connected - no connection found');
+    }
+    
+    if (!connectionSettings.settings?.api_key) {
+      console.error('Resend API key not found in connection settings');
+      throw new Error('Resend not connected - missing API key');
+    }
+    
+    return {
+      apiKey: connectionSettings.settings.api_key, 
+      fromEmail: connectionSettings.settings.from_email
+    };
+  } catch (error: any) {
+    console.error('Failed to get Resend credentials:', error.message);
+    throw error;
   }
-  return {
-    apiKey: connectionSettings.settings.api_key, 
-    fromEmail: connectionSettings.settings.from_email
-  };
 }
 
 // WARNING: Never cache this client.
@@ -52,8 +78,12 @@ export async function sendMagicLinkEmail(
   try {
     const { client, fromEmail } = await getResendClient();
     
-    await client.emails.send({
-      from: fromEmail || 'Serious People <noreply@seriouspeople.com>',
+    // Use the configured from email, with a fallback
+    const senderEmail = fromEmail || 'onboarding@resend.dev';
+    console.log('Sending magic link email from:', senderEmail, 'to:', toEmail);
+    
+    const result = await client.emails.send({
+      from: senderEmail,
       to: toEmail,
       subject: 'Your login link for Serious People',
       html: `
@@ -80,6 +110,14 @@ export async function sendMagicLinkEmail(
         </div>
       `,
     });
+    
+    console.log('Email send result:', result);
+    
+    // Check if there was an error in the response
+    if (result.error) {
+      console.error('Resend API error:', result.error);
+      return { success: false, error: result.error.message || 'Failed to send email' };
+    }
     
     return { success: true };
   } catch (error: any) {
