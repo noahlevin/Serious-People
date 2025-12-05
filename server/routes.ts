@@ -22,46 +22,29 @@ function getBaseUrl(): string {
   return "http://localhost:5000";
 }
 
-let testPriceId: string | null = null;
+// Use specific Stripe product ID
+const STRIPE_PRODUCT_ID = 'prod_TWhB1gfxXvIa9N';
+let cachedPriceId: string | null = null;
 
-async function getOrCreateTestPrice(): Promise<string> {
-  if (testPriceId) return testPriceId;
+async function getProductPrice(): Promise<string> {
+  if (cachedPriceId) return cachedPriceId;
   
   const stripe = await getStripeClient();
   
-  const existingProducts = await stripe.products.list({ limit: 100 });
-  const existingProduct = existingProducts.data.find(
-    p => p.metadata?.app === 'serious-people'
-  );
+  // Get the active price for our specific product
+  const prices = await stripe.prices.list({ 
+    product: STRIPE_PRODUCT_ID, 
+    active: true,
+    limit: 1 
+  });
   
-  if (existingProduct) {
-    const prices = await stripe.prices.list({ 
-      product: existingProduct.id, 
-      active: true,
-      limit: 1 
-    });
-    if (prices.data.length > 0) {
-      testPriceId = prices.data[0].id;
-      console.log(`Using existing price: ${testPriceId}`);
-      return testPriceId;
-    }
+  if (prices.data.length > 0) {
+    cachedPriceId = prices.data[0].id;
+    console.log(`Using price ${cachedPriceId} for product ${STRIPE_PRODUCT_ID}`);
+    return cachedPriceId;
   }
   
-  const product = await stripe.products.create({
-    name: 'Serious People - Career Scripts',
-    description: 'Three personalized scripts: boss script, partner script, and clarity memo',
-    metadata: { app: 'serious-people' }
-  });
-  
-  const price = await stripe.prices.create({
-    product: product.id,
-    unit_amount: 1900,
-    currency: 'usd',
-  });
-  
-  testPriceId = price.id;
-  console.log(`Created new price: ${testPriceId}`);
-  return testPriceId;
+  throw new Error(`No active price found for product ${STRIPE_PRODUCT_ID}`);
 }
 
 const INTERVIEW_SYSTEM_PROMPT = `You are an experienced, plain-spoken career coach. You help people navigate job crossroads with clarity and structure.
@@ -365,7 +348,7 @@ export async function registerRoutes(
   app.get("/api/pricing", async (req, res) => {
     try {
       const stripe = await getStripeClient();
-      const priceId = await getOrCreateTestPrice();
+      const priceId = await getProductPrice();
       
       // Get the price details
       const price = await stripe.prices.retrieve(priceId, {
@@ -678,7 +661,7 @@ export async function registerRoutes(
   app.post("/checkout", async (req, res) => {
     try {
       const stripe = await getStripeClient();
-      const priceId = await getOrCreateTestPrice();
+      const priceId = await getProductPrice();
       const baseUrl = getBaseUrl();
       
       const session = await stripe.checkout.sessions.create({
