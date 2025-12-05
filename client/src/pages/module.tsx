@@ -2,8 +2,6 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { 
   Message, 
   TypingIndicator, 
@@ -11,9 +9,10 @@ import {
   MessageComponent, 
   OptionsContainer,
   ModuleCompleteCard,
-  extractTitleCard
+  extractTitleCard,
+  PlanCard
 } from "@/components/ChatComponents";
-import { COACHING_MODULES } from "@/components/ModulesProgressCard";
+import { DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
 import "@/styles/serious-people.css";
 
 interface ModuleResponse {
@@ -26,11 +25,22 @@ interface ModuleResponse {
 
 const MODULE_STORAGE_PREFIX = "serious_people_module_";
 const COMPLETED_MODULES_KEY = "serious_people_completed_modules";
+const PLAN_CARD_KEY = "serious_people_plan_card";
 
 export default function ModulePage() {
   const params = useParams<{ moduleNumber: string }>();
   const moduleNumber = parseInt(params.moduleNumber || "1", 10);
-  const moduleInfo = COACHING_MODULES[moduleNumber - 1];
+  
+  const [coachingPlan, setCoachingPlan] = useState<PlanCard | null>(null);
+  
+  const defaultModuleInfo = DEFAULT_COACHING_MODULES[moduleNumber - 1];
+  const moduleInfo = coachingPlan?.modules?.[moduleNumber - 1] 
+    ? { 
+        number: moduleNumber, 
+        name: coachingPlan.modules[moduleNumber - 1].name, 
+        description: coachingPlan.modules[moduleNumber - 1].objective 
+      }
+    : defaultModuleInfo;
   
   const { isAuthenticated, isLoading: authLoading, refetch } = useAuth();
   const [, setLocation] = useLocation();
@@ -60,6 +70,33 @@ export default function ModulePage() {
       refetch();
     }
   }, [refetch]);
+
+  useEffect(() => {
+    const fetchCoachingPlan = async () => {
+      try {
+        const savedPlan = sessionStorage.getItem(PLAN_CARD_KEY);
+        if (savedPlan) {
+          setCoachingPlan(JSON.parse(savedPlan));
+          return;
+        }
+        
+        const response = await fetch("/api/transcript");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.planCard) {
+            setCoachingPlan(data.planCard);
+            sessionStorage.setItem(PLAN_CARD_KEY, JSON.stringify(data.planCard));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load coaching plan:", e);
+      }
+    };
+    
+    if (isAuthenticated) {
+      fetchCoachingPlan();
+    }
+  }, [isAuthenticated]);
   
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {

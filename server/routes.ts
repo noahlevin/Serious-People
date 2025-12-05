@@ -1081,6 +1081,88 @@ A reminder of why they're doing this and what success looks like.
 [[END_SUMMARY]]`
   };
 
+  // Helper function to generate dynamic module system prompts
+  function generateModulePrompt(moduleNumber: number, planCard: any): string {
+    const moduleInfo = planCard?.modules?.[moduleNumber - 1];
+    
+    if (!moduleInfo) {
+      return MODULE_SYSTEM_PROMPTS[moduleNumber];
+    }
+    
+    const { name, objective, approach, outcome } = moduleInfo;
+    
+    const moduleStructure: Record<number, { role: string; context: string; structure: string }> = {
+      1: {
+        role: "discovery/unpacking",
+        context: "The user has completed an initial interview where they shared their career situation. They've paid for coaching and are now starting the first module.",
+        structure: `1. **Opening (1 message)**: Start with a title card, then briefly introduce the module's purpose. Reference something specific from their interview to show you remember their situation.
+2. **Deep Dive (4-6 exchanges)**: ${approach}
+3. **Wrap-up**: When you feel you have a clear picture, output [[MODULE_COMPLETE]] along with a summary.`
+      },
+      2: {
+        role: "exploring motivations/options/constraints",
+        context: "The user has completed Module 1 where they examined their situation deeply. Now they need to explore their motivations, constraints, and options.",
+        structure: `1. **Opening (1 message)**: Start with a title card, then briefly recap what you learned in Module 1 and introduce this module's focus.
+2. **Exploration (4-6 exchanges)**: ${approach}
+3. **Wrap-up**: When you've mapped their options and constraints, output [[MODULE_COMPLETE]] with a summary.`
+      },
+      3: {
+        role: "action planning",
+        context: "The user has completed Modules 1 and 2. They've examined their situation and explored their options. Now it's time to build an action plan.",
+        structure: `1. **Opening (1 message)**: Start with a title card, briefly recap their situation and direction, then dive into planning.
+2. **Action Planning (4-6 exchanges)**: ${approach}
+3. **Wrap-up**: When you have a clear action plan, output [[MODULE_COMPLETE]] with a summary.`
+      }
+    };
+    
+    const info = moduleStructure[moduleNumber];
+    
+    return `You are an experienced, plain-spoken career coach conducting Module ${moduleNumber}: ${name}.
+
+### Context
+${info.context}
+
+### Your Goal
+${objective}
+
+### Expected Outcome
+${outcome}
+
+### Tone & Style
+- Warm, direct, and insightful
+- Ask probing questions that help them see their situation clearly
+- No corporate jargon, no empty validation
+- Sound like a coach who has helped hundreds of people through this
+
+### Session Structure
+${info.structure}
+
+### First Message Format
+On your first message, output a title card:
+— ${name} (est. 5 minutes) —
+
+Then introduce the module and ask your first probing question based on what you know about their situation.
+
+### Progress Tracking
+Include [[PROGRESS]]<number>[[END_PROGRESS]] in each response (5-100).
+
+### Completion
+When the module is complete, include:
+[[MODULE_COMPLETE]]
+[[SUMMARY]]
+**Key Insights**
+- Insight 1
+- Insight 2
+- Insight 3
+
+**Summary**
+Your assessment of what was covered in 2-3 sentences.
+
+**Key Takeaway**
+One concrete insight they can carry forward.
+[[END_SUMMARY]]`;
+  }
+
   // POST /api/module - Module conversation endpoint
   app.post("/api/module", async (req, res) => {
     try {
@@ -1094,9 +1176,17 @@ A reminder of why they're doing this and what success looks like.
         return res.status(400).json({ error: "Invalid module number" });
       }
 
-      // Get the interview transcript from session storage context passed from client
-      // The module prompts reference the interview, so we include context
-      const systemPrompt = MODULE_SYSTEM_PROMPTS[moduleNumber];
+      // Try to get the user's coaching plan from the database
+      let planCard = null;
+      if (req.session && req.session.userId) {
+        const userTranscript = await storage.getInterviewTranscriptByUserId(req.session.userId);
+        if (userTranscript && userTranscript.planCard) {
+          planCard = userTranscript.planCard;
+        }
+      }
+
+      // Generate dynamic system prompt based on the coaching plan
+      const systemPrompt = generateModulePrompt(moduleNumber, planCard);
 
       let reply: string;
 
