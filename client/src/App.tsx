@@ -8,6 +8,9 @@ import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Interview from "@/pages/interview";
 import Success from "@/pages/success";
+import ModulePage from "@/pages/module";
+import Progress from "@/pages/progress";
+import CareerBrief from "@/pages/career-brief";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -17,6 +20,9 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/interview" component={Interview} />
       <Route path="/success" component={Success} />
+      <Route path="/module/:moduleNumber" component={ModulePage} />
+      <Route path="/progress" component={Progress} />
+      <Route path="/career-brief" component={CareerBrief} />
       <Route component={NotFound} />
     </Switch>
   );

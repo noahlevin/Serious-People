@@ -27,9 +27,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     retry: false,
   });
   
-  // Debug logging
-  console.log("[useAuth] isLoading:", isLoading, "data:", data);
-  
   const logoutMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/auth/logout");

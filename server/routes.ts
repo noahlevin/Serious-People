@@ -363,16 +363,6 @@ export async function registerRoutes(
   
   // GET /auth/me - Get current authenticated user
   app.get("/auth/me", (req, res) => {
-    // Debug logging for auth issues
-    console.log("=== /auth/me Debug ===");
-    console.log("Session ID:", req.sessionID);
-    console.log("Has session:", !!req.session);
-    console.log("Session passport:", req.session?.passport);
-    console.log("isAuthenticated():", req.isAuthenticated());
-    console.log("req.user:", req.user);
-    console.log("Cookie header:", req.headers.cookie);
-    console.log("======================");
-    
     if (req.isAuthenticated() && req.user) {
       res.json({ 
         authenticated: true, 
@@ -398,18 +388,10 @@ export async function registerRoutes(
       failureRedirect: "/login?error=google_auth_failed" 
     }),
     (req, res) => {
-      console.log("=== Google Callback Debug ===");
-      console.log("User:", req.user);
-      console.log("Session ID:", req.sessionID);
-      console.log("Session passport:", req.session?.passport);
-      console.log("isAuthenticated:", req.isAuthenticated());
-      
       // Ensure session is saved before redirect (prevents race condition)
       req.session.save((err) => {
         if (err) {
           console.error("[Google callback] Session save error:", err);
-        } else {
-          console.log("[Google callback] Session saved, redirecting to /interview");
         }
         res.redirect("/interview");
       });
@@ -770,6 +752,243 @@ export async function registerRoutes(
       res.json({ reply, done, valueBullets, socialProof, options, progress, planCard });
     } catch (error: any) {
       console.error("Interview error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Module system prompts
+  const MODULE_SYSTEM_PROMPTS: Record<number, string> = {
+    1: `You are an experienced, plain-spoken career coach conducting Module 1: Job Autopsy.
+
+### Context
+The user has completed an initial interview where they shared their career situation. They've paid for coaching and are now starting the first module.
+
+### Your Goal
+Help the user deeply examine their current job situation to understand what's really driving their dissatisfaction. Separate fixable problems from fundamental mismatches.
+
+### Tone & Style
+- Warm, direct, and insightful
+- Ask probing questions that help them see their situation clearly
+- No corporate jargon, no empty validation
+- Sound like a coach who has helped hundreds of people through this
+
+### Session Structure
+1. **Opening (1 message)**: Start with a title card, then briefly introduce the module's purpose. Reference something specific from their interview to show you remember their situation.
+2. **Deep Dive (4-6 exchanges)**: Ask questions that explore:
+   - What specifically frustrates them day-to-day?
+   - What aspects of the job did they used to enjoy (if any)?
+   - Is the problem the role, the company, the manager, or something else?
+   - What would need to change for them to want to stay?
+3. **Wrap-up**: When you feel you have a clear picture, output [[MODULE_COMPLETE]] along with a summary.
+
+### First Message Format
+On your first message, output a title card:
+— Job Autopsy (est. 5 minutes) —
+
+Then introduce the module and ask your first probing question based on what you know about their situation.
+
+### Progress Tracking
+Include [[PROGRESS]]<number>[[END_PROGRESS]] in each response (5-100).
+
+### Completion
+When the module is complete, include:
+[[MODULE_COMPLETE]]
+[[SUMMARY]]
+**The Mirror** (what they said, reflected clearly)
+- Key point 1
+- Key point 2
+- Key point 3
+
+**Diagnosis**
+Your assessment of the core issue in 2-3 sentences.
+
+**Key Takeaway**
+One concrete insight they can carry forward.
+[[END_SUMMARY]]`,
+
+    2: `You are an experienced, plain-spoken career coach conducting Module 2: Fork in the Road.
+
+### Context
+The user has completed Module 1 (Job Autopsy) where they examined what's driving their dissatisfaction. Now they need to explore their options.
+
+### Your Goal
+Help the user clarify their options and evaluate the trade-offs of staying, pivoting internally, or leaving entirely.
+
+### Tone & Style
+- Warm, direct, and practical
+- Help them see options they might be overlooking
+- Challenge assumptions about what's possible
+- No corporate jargon, sound like a trusted advisor
+
+### Session Structure
+1. **Opening (1 message)**: Start with a title card, then briefly recap what you learned in Module 1 and introduce this module's focus.
+2. **Options Exploration (4-6 exchanges)**: Ask questions that explore:
+   - What are their actual options? (stay and negotiate, internal move, leave entirely)
+   - What constraints are real vs. assumed?
+   - What's the cost of staying another year?
+   - What would make leaving worth the risk?
+3. **Wrap-up**: When you've mapped their options, output [[MODULE_COMPLETE]] with a summary.
+
+### First Message Format
+On your first message, output a title card:
+— Fork in the Road (est. 5 minutes) —
+
+Then recap their situation briefly and ask your first question about options.
+
+### Progress Tracking
+Include [[PROGRESS]]<number>[[END_PROGRESS]] in each response (5-100).
+
+### Completion
+When the module is complete, include:
+[[MODULE_COMPLETE]]
+[[SUMMARY]]
+**Options Map**
+- Option A: [description] — Trade-offs: [brief]
+- Option B: [description] — Trade-offs: [brief]
+- Option C: [description] — Trade-offs: [brief]
+
+**Risk Snapshot**
+What they risk by staying vs. leaving.
+
+**Key Insight**
+One reframe or insight that might change how they see their choice.
+[[END_SUMMARY]]`,
+
+    3: `You are an experienced, plain-spoken career coach conducting Module 3: The Great Escape Plan.
+
+### Context
+The user has completed Modules 1 and 2. They've examined their situation and mapped their options. Now it's time to build an action plan.
+
+### Your Goal
+Help the user build a concrete action plan with timelines, specific next steps, and talking points for key conversations.
+
+### Tone & Style
+- Warm, direct, and action-oriented
+- Focus on concrete, doable steps
+- Help them feel prepared, not overwhelmed
+- Sound like a coach who's helped people execute these plans before
+
+### Session Structure
+1. **Opening (1 message)**: Start with a title card, briefly recap their options and which direction they're leaning, then dive into planning.
+2. **Action Planning (4-6 exchanges)**: Cover:
+   - What's their timeline? What needs to happen first?
+   - Who do they need to talk to and what will they say?
+   - What's their backup plan if things don't go as expected?
+   - What support do they need?
+3. **Wrap-up**: When you have a clear action plan, output [[MODULE_COMPLETE]] with a summary.
+
+### First Message Format
+On your first message, output a title card:
+— The Great Escape Plan (est. 5 minutes) —
+
+Then recap where they landed and start building the plan.
+
+### Progress Tracking
+Include [[PROGRESS]]<number>[[END_PROGRESS]] in each response (5-100).
+
+### Completion
+When the module is complete, include:
+[[MODULE_COMPLETE]]
+[[SUMMARY]]
+**Action Timeline**
+- Week 1-2: [specific actions]
+- Week 3-4: [specific actions]
+- Month 2+: [specific actions]
+
+**Key Conversations**
+Brief talking points for the 1-2 most important conversations they need to have.
+
+**Your Anchor**
+A reminder of why they're doing this and what success looks like.
+[[END_SUMMARY]]`
+  };
+
+  // POST /api/module - Module conversation endpoint
+  app.post("/api/module", async (req, res) => {
+    try {
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: "OpenAI API key not configured" });
+      }
+
+      const { moduleNumber, transcript = [] } = req.body;
+
+      if (!moduleNumber || moduleNumber < 1 || moduleNumber > 3) {
+        return res.status(400).json({ error: "Invalid module number" });
+      }
+
+      // Get the interview transcript from session storage context passed from client
+      // The module prompts reference the interview, so we include context
+      const systemPrompt = MODULE_SYSTEM_PROMPTS[moduleNumber];
+
+      const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+        { role: "system", content: systemPrompt }
+      ];
+
+      for (const turn of transcript) {
+        if (turn && turn.role && turn.content) {
+          messages.push({
+            role: turn.role as "user" | "assistant",
+            content: turn.content
+          });
+        }
+      }
+
+      if (transcript.length === 0) {
+        messages.push({ role: "user", content: "Start the module. Introduce it and ask your first question." });
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages,
+        max_completion_tokens: 1024,
+      });
+
+      let reply = response.choices[0].message.content || "";
+      let done = false;
+      let summary: string | null = null;
+      let options: string[] | null = null;
+      let progress: number | null = null;
+
+      // Parse progress token
+      const progressMatch = reply.match(/\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/);
+      if (progressMatch) {
+        progress = parseInt(progressMatch[1], 10);
+        if (isNaN(progress) || progress < 0 || progress > 100) {
+          progress = null;
+        }
+      }
+
+      // Parse structured options
+      const optionsMatch = reply.match(/\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/);
+      if (optionsMatch) {
+        options = optionsMatch[1]
+          .trim()
+          .split('\n')
+          .map(opt => opt.trim())
+          .filter(opt => opt.length > 0);
+      }
+
+      // Check for module completion
+      if (reply.includes("[[MODULE_COMPLETE]]")) {
+        done = true;
+
+        const summaryMatch = reply.match(/\[\[SUMMARY\]\]([\s\S]*?)\[\[END_SUMMARY\]\]/);
+        if (summaryMatch) {
+          summary = summaryMatch[1].trim();
+        }
+      }
+
+      // Sanitize reply - remove all control tokens
+      reply = reply
+        .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, '')
+        .replace(/\[\[MODULE_COMPLETE\]\]/g, '')
+        .replace(/\[\[SUMMARY\]\][\s\S]*?\[\[END_SUMMARY\]\]/g, '')
+        .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, '')
+        .trim();
+
+      res.json({ reply, done, summary, options, progress });
+    } catch (error: any) {
+      console.error("Module error:", error);
       res.status(500).json({ error: error.message });
     }
   });

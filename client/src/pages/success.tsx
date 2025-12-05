@@ -24,9 +24,10 @@ export default function Success() {
   const [copied, setCopied] = useState(false);
   
   const handleStartCoaching = () => {
-    // Mark payment as verified in session storage so interview page knows
+    // Mark payment as verified in session storage
     sessionStorage.setItem("payment_verified", "true");
-    setLocation("/interview");
+    // Start with Module 1
+    setLocation("/module/1");
   };
 
   const loadTranscript = useCallback((): boolean => {

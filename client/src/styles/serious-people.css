@@ -1168,6 +1168,65 @@
   padding: 1.25rem 2rem;
 }
 
+/* Module Complete Card */
+.sp-module-complete-card {
+  background: #fff;
+  border: 2px solid var(--sp-text);
+  padding: 2rem;
+  margin-top: 1.5rem;
+  max-width: 100%;
+}
+
+.sp-module-complete-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.sp-module-complete-header h3 {
+  font-family: var(--sp-font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sp-module-complete-summary {
+  font-family: var(--sp-font-body);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--sp-text);
+  margin-bottom: 1.5rem;
+}
+
+.sp-module-complete-summary b {
+  display: block;
+  font-family: var(--sp-font-display);
+  font-size: 1rem;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.sp-module-complete-btn {
+  width: 100%;
+  background: var(--sp-text);
+  color: #fff;
+  font-family: var(--sp-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 1rem 2rem;
+  border: 2px solid var(--sp-text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sp-module-complete-btn:hover {
+  background: #fff;
+  color: var(--sp-text);
+}
+
 .sp-generate-btn {
   background: var(--sp-text);
   color: #fff;
