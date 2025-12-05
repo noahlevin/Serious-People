@@ -689,9 +689,11 @@ export default function Interview() {
     setAutoPilotCount(0);
     
     const maxExchanges = 10;
+    const maxWaitTime = 30000; // 30 second timeout for each exchange
     
     for (let i = 0; i < maxExchanges; i++) {
-      if (autoPilotCancelRef.current || interviewComplete) {
+      // Check cancellation at start of each iteration
+      if (autoPilotCancelRef.current) {
         break;
       }
       
@@ -700,8 +702,8 @@ export default function Interview() {
       // Wait for any ongoing operations to complete
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Check if interview is complete
-      if (interviewComplete) break;
+      // Check cancellation again after wait
+      if (autoPilotCancelRef.current) break;
       
       // Generate and send auto-client response
       try {
@@ -715,21 +717,29 @@ export default function Interview() {
           }),
         });
         
+        if (autoPilotCancelRef.current) break;
+        
         if (!response.ok) throw new Error("Auto-client failed");
         
         const data = await response.json();
         if (data.reply) {
-          // Send the message and wait for response
+          // Send the message and wait for response with timeout
           await new Promise<void>((resolve) => {
             sendMessage(data.reply);
-            // Wait for the response to come back
+            const startTime = Date.now();
             const checkInterval = setInterval(() => {
-              if (!isSending && animatingMessageIndex === null) {
+              // Check for cancellation, timeout, or completion
+              if (autoPilotCancelRef.current || 
+                  Date.now() - startTime > maxWaitTime ||
+                  (!isSending && animatingMessageIndex === null)) {
                 clearInterval(checkInterval);
                 resolve();
               }
             }, 500);
           });
+          
+          // Check cancellation after each exchange
+          if (autoPilotCancelRef.current) break;
           
           // Extra delay to let the UI settle
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -742,7 +752,7 @@ export default function Interview() {
     
     setIsAutoPilot(false);
     setAutoPilotCount(0);
-  }, [isDev, transcript, sendMessage, isSending, animatingMessageIndex, interviewComplete]);
+  }, [isDev, transcript, sendMessage, isSending, animatingMessageIndex]);
 
   const stopAutoPilot = useCallback(() => {
     autoPilotCancelRef.current = true;
