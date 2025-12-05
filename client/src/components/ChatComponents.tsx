@@ -12,29 +12,58 @@ export interface PlanCard {
   careerBrief: string;
 }
 
-export function formatContent(content: string, skipTitleCard = false): string {
-  let formatted = content;
+interface FormatOptions {
+  skipTitleCard?: boolean;
+  skipBulletConversion?: boolean;
+  skipLineBreaks?: boolean;
+}
 
-  if (!skipTitleCard) {
+export function formatContent(content: string, optionsOrSkipTitleCard: FormatOptions | boolean = false): string {
+  let formatted = content;
+  
+  // Handle legacy boolean parameter for backwards compatibility
+  const options: FormatOptions = typeof optionsOrSkipTitleCard === 'boolean' 
+    ? { skipTitleCard: optionsOrSkipTitleCard }
+    : optionsOrSkipTitleCard;
+
+  if (!options.skipTitleCard) {
     formatted = formatted.replace(/^—\s*(.+?)\s*\(est\.\s*([^)]+)\)\s*—\s*\n?/m, "");
   }
 
+  // Convert markdown bold (**text**) to placeholder before escaping HTML
   formatted = formatted.replace(/\*\*(.+?)\*\*/g, "{{BOLD_START}}$1{{BOLD_END}}");
-  formatted = formatted.replace(/<b>(.+?)<\/b>/gi, "{{BOLD_START}}$1{{BOLD_END}}");
   
+  // Convert markdown italics (*text*) to placeholder - must be after bold
+  formatted = formatted.replace(/\*([^*]+?)\*/g, "{{ITALIC_START}}$1{{ITALIC_END}}");
+  
+  // Preserve <b> and <i> tags by converting to placeholder
+  formatted = formatted.replace(/<b>(.+?)<\/b>/gi, "{{BOLD_START}}$1{{BOLD_END}}");
+  formatted = formatted.replace(/<i>(.+?)<\/i>/gi, "{{ITALIC_START}}$1{{ITALIC_END}}");
+  
+  // Now escape HTML entities
   formatted = formatted
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
+  // Restore bold and italic tags
   formatted = formatted.replace(/\{\{BOLD_START\}\}/g, "<b>");
   formatted = formatted.replace(/\{\{BOLD_END\}\}/g, "</b>");
+  formatted = formatted.replace(/\{\{ITALIC_START\}\}/g, "<i>");
+  formatted = formatted.replace(/\{\{ITALIC_END\}\}/g, "</i>");
 
-  formatted = formatted.replace(/^- (.+)$/gm, "• $1");
-  formatted = formatted.replace(/\n{3,}/g, "\n\n");
-  formatted = formatted.replace(/\n/g, "<br>");
-  formatted = formatted.replace(/^(<br>)+/, "");
-  formatted = formatted.replace(/(<br>){3,}/g, "<br><br>");
+  // Skip bullet conversion when content will be wrapped in <li> elements
+  if (!options.skipBulletConversion) {
+    formatted = formatted.replace(/^- (.+)$/gm, "• $1");
+  }
+  
+  // Handle line breaks unless skipped (useful for inline list items)
+  if (!options.skipLineBreaks) {
+    formatted = formatted.replace(/\n{3,}/g, "\n\n");
+    formatted = formatted.replace(/\n/g, "<br>");
+    formatted = formatted.replace(/^(<br>)+/, "");
+    formatted = formatted.replace(/(<br>){3,}/g, "<br><br>");
+  }
 
   return formatted;
 }
@@ -95,12 +124,14 @@ export function MessageComponent({
   role, 
   content, 
   animate = false, 
-  onComplete 
+  onComplete,
+  onTyping
 }: { 
   role: "user" | "assistant"; 
   content: string; 
   animate?: boolean;
   onComplete?: () => void;
+  onTyping?: () => void;
 }) {
   const [displayedContent, setDisplayedContent] = useState(animate ? "" : formatContent(content, role === "user"));
   const indexRef = useRef(0);
@@ -134,6 +165,10 @@ export function MessageComponent({
 
         indexRef.current += increment;
         setDisplayedContent(formattedContent.substring(0, indexRef.current));
+        
+        // Call onTyping for real-time scroll during animation
+        if (onTyping) onTyping();
+        
         setTimeout(type, speed);
       } else {
         if (onComplete) onComplete();
@@ -142,7 +177,7 @@ export function MessageComponent({
 
     const timer = setTimeout(type, speed);
     return () => clearTimeout(timer);
-  }, [animate, formattedContent, onComplete]);
+  }, [animate, formattedContent, onComplete, onTyping]);
 
   return (
     <div 

@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { formatContent } from "@/components/ChatComponents";
 import "@/styles/serious-people.css";
 
 interface Message {
@@ -67,38 +68,6 @@ const TEST_VALUE_BULLETS = `- Address the promotion stall with concrete next ste
 
 const TEST_SOCIAL_PROOF = `This is a fraction of what a single session with a career coach typically costs ($150–300/hour)—and you'll leave with a structured document, not just a conversation.`;
 
-function formatContent(content: string, skipTitleCard = false): string {
-  let formatted = content;
-
-  if (!skipTitleCard) {
-    formatted = formatted.replace(/^—\s*(.+?)\s*\(est\.\s*([^)]+)\)\s*—\s*\n?/m, "");
-  }
-
-  // Convert markdown bold to placeholder before escaping HTML
-  formatted = formatted.replace(/\*\*(.+?)\*\*/g, "{{BOLD_START}}$1{{BOLD_END}}");
-  
-  // Preserve <b> tags by converting to placeholder
-  formatted = formatted.replace(/<b>(.+?)<\/b>/gi, "{{BOLD_START}}$1{{BOLD_END}}");
-  
-  // Now escape HTML entities
-  formatted = formatted
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-
-  // Restore bold tags
-  formatted = formatted.replace(/\{\{BOLD_START\}\}/g, "<b>");
-  formatted = formatted.replace(/\{\{BOLD_END\}\}/g, "</b>");
-
-  formatted = formatted.replace(/^- (.+)$/gm, "• $1");
-  formatted = formatted.replace(/\n{3,}/g, "\n\n");
-  formatted = formatted.replace(/\n/g, "<br>");
-  formatted = formatted.replace(/^(<br>)+/, "");
-  formatted = formatted.replace(/(<br>){3,}/g, "<br><br>");
-
-  return formatted;
-}
-
 function extractTitleCard(content: string): { name: string; time: string } | null {
   const match = content.match(/^—\s*(.+?)\s*\(est\.\s*([^)]+)\)\s*—/m);
   if (match) {
@@ -128,7 +97,7 @@ function ModuleTitleCard({ name, time }: { name: string; time: string }) {
 
 function PlanCardComponent({ planCard }: { planCard: PlanCard }) {
   return (
-    <div className="sp-plan-card" data-testid="plan-card">
+    <div className="sp-plan-card sp-card-animate" data-testid="plan-card">
       <div className="sp-plan-card-header">
         <h3 className="sp-plan-card-title">{planCard.name}'s Coaching Plan</h3>
       </div>
@@ -155,12 +124,14 @@ function MessageComponent({
   role, 
   content, 
   animate = false, 
-  onComplete 
+  onComplete,
+  onTyping
 }: { 
   role: "user" | "assistant"; 
   content: string; 
   animate?: boolean;
   onComplete?: () => void;
+  onTyping?: () => void;
 }) {
   const [displayedContent, setDisplayedContent] = useState(animate ? "" : formatContent(content, role === "user"));
   const indexRef = useRef(0);
@@ -194,6 +165,10 @@ function MessageComponent({
 
         indexRef.current += increment;
         setDisplayedContent(formattedContent.substring(0, indexRef.current));
+        
+        // Call onTyping for real-time scroll during animation
+        if (onTyping) onTyping();
+        
         setTimeout(type, speed);
       } else {
         if (onComplete) onComplete();
@@ -202,7 +177,7 @@ function MessageComponent({
 
     const timer = setTimeout(type, speed);
     return () => clearTimeout(timer);
-  }, [animate, formattedContent, onComplete]);
+  }, [animate, formattedContent, onComplete, onTyping]);
 
   return (
     <div 
@@ -256,21 +231,8 @@ function Paywall({
   const displayPrice = hasDiscount ? pricing.discountedPrice : (pricing?.originalPrice ?? 49);
   const originalPrice = pricing?.originalPrice ?? 49;
 
-  const priceDisplay = hasDiscount ? (
-    <span className="sp-price-display">
-      <span className="sp-price-original">${originalPrice}</span>
-      <span className="sp-price-discounted">${displayPrice}</span>
-    </span>
-  ) : (
-    <span>${displayPrice}</span>
-  );
-
-  const buttonPriceText = hasDiscount 
-    ? `$${originalPrice} $${displayPrice}` 
-    : `$${displayPrice}`;
-
   return (
-    <div className="sp-paywall-inline" data-testid="paywall">
+    <div className="sp-paywall-inline sp-card-animate" data-testid="paywall">
       <div className="sp-paywall-card">
         <h3>Ready to work the plan?</h3>
         <p>
@@ -281,12 +243,12 @@ function Paywall({
             <p className="intro">Why you'll benefit from this program:</p>
             <ul>
               {bullets.map((bullet, i) => (
-                <li key={i}>{bullet}</li>
+                <li key={i} dangerouslySetInnerHTML={{ __html: formatContent(bullet, { skipBulletConversion: true, skipLineBreaks: true }) }} />
               ))}
             </ul>
           </div>
         )}
-        {socialProof && <div className="sp-social-proof">{socialProof}</div>}
+        {socialProof && <div className="sp-social-proof" dangerouslySetInnerHTML={{ __html: formatContent(socialProof, { skipBulletConversion: true }) }} />}
         <button
           className="sp-checkout-button"
           data-testid="button-checkout"
@@ -640,6 +602,10 @@ export default function Interview() {
     const text = inputValue.trim();
     if (text && !isSending) {
       setInputValue("");
+      // Reset textarea height to default
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
       sendMessage(text);
     }
   };
@@ -791,75 +757,78 @@ export default function Interview() {
         </div>
       </header>
 
-      <main className="sp-interview-main">
-        <div className="sp-chat-window" ref={chatWindowRef} data-testid="chat-window">
-          {transcript.map((msg, index) => {
-            const titleCard = titleCards.find(tc => tc.index === index);
-            return (
-              <div key={index} className={`sp-message-wrapper ${msg.role}`}>
-                {msg.role === "assistant" && titleCard && (
-                  <ModuleTitleCard name={titleCard.name} time={titleCard.time} />
-                )}
-                <MessageComponent
-                  role={msg.role}
-                  content={msg.content}
-                  animate={animatingMessageIndex === index}
-                  onComplete={() => {
-                    if (animatingMessageIndex === index) {
-                      setAnimatingMessageIndex(null);
-                    }
-                  }}
-                />
-                {planCard && planCard.index === index && msg.role === "assistant" && animatingMessageIndex === null && (
-                  <PlanCardComponent planCard={planCard.card} />
-                )}
-              </div>
-            );
-          })}
-          {isTyping && <TypingIndicator />}
-          {options.length > 0 && animatingMessageIndex === null && (
-            <OptionsContainer options={options} onSelect={handleOptionSelect} />
-          )}
-          {interviewComplete && (
-            <Paywall
-              valueBullets={valueBullets}
-              socialProof={socialProof}
-              onCheckout={handleCheckout}
-              isLoading={isCheckoutLoading}
-              pricing={pricing}
-            />
-          )}
-        </div>
-      </main>
-
-      {!interviewComplete && (
-        <div className="sp-input-area">
-          <div className="sp-input-row">
-            <textarea
-              ref={textareaRef}
-              className="sp-textarea"
-              data-testid="input-message"
-              placeholder="Type your answer here..."
-              rows={1}
-              value={inputValue}
-              onChange={(e) => {
-                setInputValue(e.target.value);
-                autoResize();
-              }}
-              onKeyDown={handleKeyDown}
-            />
-            <button
-              className="sp-send-button"
-              data-testid="button-send"
-              onClick={handleSend}
-              disabled={isSending}
-            >
-              →
-            </button>
+      <div className="sp-interview-content">
+        <main className="sp-interview-main">
+          <div className="sp-chat-window" ref={chatWindowRef} data-testid="chat-window">
+            {transcript.map((msg, index) => {
+              const titleCard = titleCards.find(tc => tc.index === index);
+              return (
+                <div key={index} className={`sp-message-wrapper ${msg.role}`}>
+                  {msg.role === "assistant" && titleCard && (
+                    <ModuleTitleCard name={titleCard.name} time={titleCard.time} />
+                  )}
+                  <MessageComponent
+                    role={msg.role}
+                    content={msg.content}
+                    animate={animatingMessageIndex === index}
+                    onComplete={() => {
+                      if (animatingMessageIndex === index) {
+                        setAnimatingMessageIndex(null);
+                      }
+                    }}
+                    onTyping={scrollToBottom}
+                  />
+                  {planCard && planCard.index === index && msg.role === "assistant" && animatingMessageIndex === null && (
+                    <PlanCardComponent planCard={planCard.card} />
+                  )}
+                </div>
+              );
+            })}
+            {isTyping && <TypingIndicator />}
+            {options.length > 0 && animatingMessageIndex === null && (
+              <OptionsContainer options={options} onSelect={handleOptionSelect} />
+            )}
+            {interviewComplete && (
+              <Paywall
+                valueBullets={valueBullets}
+                socialProof={socialProof}
+                onCheckout={handleCheckout}
+                isLoading={isCheckoutLoading}
+                pricing={pricing}
+              />
+            )}
           </div>
-          <div className="sp-status-line" data-testid="status-line">{status}</div>
-        </div>
-      )}
+        </main>
+
+        {!interviewComplete && (
+          <div className="sp-input-area">
+            <div className="sp-input-row">
+              <textarea
+                ref={textareaRef}
+                className="sp-textarea"
+                data-testid="input-message"
+                placeholder="Type your answer here..."
+                rows={1}
+                value={inputValue}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  autoResize();
+                }}
+                onKeyDown={handleKeyDown}
+              />
+              <button
+                className="sp-send-button"
+                data-testid="button-send"
+                onClick={handleSend}
+                disabled={isSending}
+              >
+                →
+              </button>
+            </div>
+            <div className="sp-status-line" data-testid="status-line">{status}</div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

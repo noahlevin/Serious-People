@@ -187,6 +187,10 @@ export default function ModulePage() {
     const text = inputValue.trim();
     if (text && !isSending) {
       setInputValue("");
+      // Reset textarea height to default
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
       sendMessage(text);
     }
   };
@@ -285,69 +289,72 @@ export default function ModulePage() {
         </div>
       </header>
 
-      <main className="sp-interview-main">
-        <div className="sp-chat-window" ref={chatWindowRef} data-testid="chat-window">
-          {transcript.map((msg, index) => {
-            const titleCard = titleCards.find(tc => tc.index === index);
-            return (
-              <div key={index} className={`sp-message-wrapper ${msg.role}`}>
-                {msg.role === "assistant" && titleCard && (
-                  <ModuleTitleCard name={titleCard.name} time={titleCard.time} />
-                )}
-                <MessageComponent
-                  role={msg.role}
-                  content={msg.content}
-                  animate={animatingMessageIndex === index}
-                  onComplete={() => {
-                    if (animatingMessageIndex === index) {
-                      setAnimatingMessageIndex(null);
-                    }
-                  }}
-                />
-              </div>
-            );
-          })}
-          {isTyping && <TypingIndicator />}
-          {options.length > 0 && animatingMessageIndex === null && (
-            <OptionsContainer options={options} onSelect={handleOptionSelect} />
-          )}
-          {moduleComplete && animatingMessageIndex === null && (
-            <ModuleCompleteCard
-              summary={moduleSummary}
-              onComplete={handleModuleComplete}
-            />
-          )}
-        </div>
-      </main>
-
-      {!moduleComplete && (
-        <div className="sp-input-area">
-          <div className="sp-input-row">
-            <textarea
-              ref={textareaRef}
-              className="sp-textarea"
-              data-testid="input-message"
-              placeholder="Type your answer here..."
-              rows={1}
-              value={inputValue}
-              onChange={(e) => {
-                setInputValue(e.target.value);
-                autoResize();
-              }}
-              onKeyDown={handleKeyDown}
-            />
-            <button
-              className="sp-send-button"
-              data-testid="button-send"
-              onClick={handleSend}
-              disabled={isSending}
-            >
-              →
-            </button>
+      <div className="sp-interview-content">
+        <main className="sp-interview-main">
+          <div className="sp-chat-window" ref={chatWindowRef} data-testid="chat-window">
+            {transcript.map((msg, index) => {
+              const titleCard = titleCards.find(tc => tc.index === index);
+              return (
+                <div key={index} className={`sp-message-wrapper ${msg.role}`}>
+                  {msg.role === "assistant" && titleCard && (
+                    <ModuleTitleCard name={titleCard.name} time={titleCard.time} />
+                  )}
+                  <MessageComponent
+                    role={msg.role}
+                    content={msg.content}
+                    animate={animatingMessageIndex === index}
+                    onComplete={() => {
+                      if (animatingMessageIndex === index) {
+                        setAnimatingMessageIndex(null);
+                      }
+                    }}
+                    onTyping={scrollToBottom}
+                  />
+                </div>
+              );
+            })}
+            {isTyping && <TypingIndicator />}
+            {options.length > 0 && animatingMessageIndex === null && (
+              <OptionsContainer options={options} onSelect={handleOptionSelect} />
+            )}
+            {moduleComplete && animatingMessageIndex === null && (
+              <ModuleCompleteCard
+                summary={moduleSummary}
+                onComplete={handleModuleComplete}
+              />
+            )}
           </div>
-          <div className="sp-status-line" data-testid="status-line">{status}</div>
-        </div>
-      )}
+        </main>
+
+        {!moduleComplete && (
+          <div className="sp-input-area">
+            <div className="sp-input-row">
+              <textarea
+                ref={textareaRef}
+                className="sp-textarea"
+                data-testid="input-message"
+                placeholder="Type your answer here..."
+                rows={1}
+                value={inputValue}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  autoResize();
+                }}
+                onKeyDown={handleKeyDown}
+              />
+              <button
+                className="sp-send-button"
+                data-testid="button-send"
+                onClick={handleSend}
+                disabled={isSending}
+              >
+                →
+              </button>
+            </div>
+            <div className="sp-status-line" data-testid="status-line">{status}</div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
