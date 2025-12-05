@@ -377,7 +377,7 @@ When the user selects the confirmation option (or types something equivalent lik
 
 5. After the value bullets, append ONE context-relevant piece of social proof:
 [[SOCIAL_PROOF]]
-A single sentence that either: references $19 vs. typical career coach fees ($150-300/hour), OR cites a relevant stat about career transitions/coaching effectiveness, OR provides context about why structured coaching helps in their specific situation. Make it feel natural and relevant to what they shared. Do NOT make up fake testimonials or specific client references.
+A single sentence that either: cites a relevant stat about career transitions/coaching effectiveness, OR provides context about why structured coaching helps in their specific situation. Make it feel natural and relevant to what they shared. Do NOT make up fake testimonials or specific client references. Do NOT reference pricing.
 [[END_SOCIAL_PROOF]]
 
 CRITICAL: The paywall only appears after [[INTERVIEW_COMPLETE]]. This token should ONLY be emitted after the user explicitly confirms the plan.
