@@ -355,14 +355,25 @@ export default function Interview() {
   });
 
   const scrollToBottom = useCallback(() => {
-    if (chatWindowRef.current) {
-      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
-    }
+    // Use requestAnimationFrame to ensure DOM has updated before scrolling
+    requestAnimationFrame(() => {
+      if (chatWindowRef.current) {
+        chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
+      }
+    });
   }, []);
 
+  // Scroll to bottom whenever new content is added
   useEffect(() => {
     scrollToBottom();
   }, [transcript, isTyping, options, planCard, interviewComplete, scrollToBottom]);
+  
+  // Also scroll when message animation completes
+  useEffect(() => {
+    if (animatingMessageIndex === null) {
+      scrollToBottom();
+    }
+  }, [animatingMessageIndex, scrollToBottom]);
 
   const saveTranscript = useCallback((messages: Message[], extraData?: {
     currentModule?: string;
