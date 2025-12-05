@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useSearch, useLocation } from "wouter";
 import "@/styles/serious-people.css";
 import { UserMenu } from "@/components/UserMenu";
-import { ModulesProgressCard, COACHING_MODULES } from "@/components/ModulesProgressCard";
+import { ModulesProgressCard, DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
+import type { PlanCard } from "@/components/ChatComponents";
 
 interface Message {
   role: "user" | "assistant";
@@ -12,6 +13,7 @@ interface Message {
 type PageState = "verifying" | "error" | "transcript-error" | "ready" | "generating" | "results";
 
 const STORAGE_KEY = "serious_people_transcript";
+const PLAN_CARD_KEY = "serious_people_plan_card";
 
 export default function Success() {
   const search = useSearch();
@@ -20,15 +22,25 @@ export default function Success() {
 
   const [state, setState] = useState<PageState>("verifying");
   const [transcript, setTranscript] = useState<Message[] | null>(null);
+  const [coachingPlan, setCoachingPlan] = useState<PlanCard | null>(null);
   const [scriptsContent, setScriptsContent] = useState("");
   const [copied, setCopied] = useState(false);
   
   const handleStartCoaching = () => {
-    // Mark payment as verified in session storage
     sessionStorage.setItem("payment_verified", "true");
-    // Start with Module 1
     setLocation("/module/1");
   };
+
+  useEffect(() => {
+    const savedPlan = sessionStorage.getItem(PLAN_CARD_KEY);
+    if (savedPlan) {
+      try {
+        setCoachingPlan(JSON.parse(savedPlan));
+      } catch (e) {
+        console.error("Failed to load coaching plan:", e);
+      }
+    }
+  }, []);
 
   const loadTranscript = useCallback((): boolean => {
     try {
@@ -158,8 +170,9 @@ export default function Success() {
               badgeText="Payment Confirmed"
               title="Let's Start Your Coaching Program"
               subtitle="Your personalized three-module coaching journey awaits. At the end, you'll receive your Career Brief with diagnosis, action plan, and conversation scripts."
-              ctaText={`Start Module 1: ${COACHING_MODULES[0].name}`}
+              ctaText={`Start Module 1: ${coachingPlan?.modules?.[0]?.name || DEFAULT_COACHING_MODULES[0].name}`}
               onCtaClick={handleStartCoaching}
+              customModules={coachingPlan?.modules}
             />
           </div>
         )}
