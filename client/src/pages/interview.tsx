@@ -65,7 +65,7 @@ const TEST_VALUE_BULLETS = `- Address the promotion stall with concrete next ste
 - Articulate your staff engineer trajectory to command better offers
 - Prepare a diplomatic but firm exit conversation if the job search doesn't pan out`;
 
-const TEST_SOCIAL_PROOF = `At $19, this is a fraction of what a single session with a career coach typically costs ($150–300/hour)—and you'll leave with a structured document, not just a conversation.`;
+const TEST_SOCIAL_PROOF = `This is a fraction of what a single session with a career coach typically costs ($150–300/hour)—and you'll leave with a structured document, not just a conversation.`;
 
 function formatContent(content: string, skipTitleCard = false): string {
   let formatted = content;
