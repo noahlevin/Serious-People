@@ -1058,6 +1058,94 @@
   line-height: 1.6;
 }
 
+/* Coaching Program Ready Card */
+.sp-coaching-ready {
+  max-width: 600px;
+  text-align: left;
+}
+
+.sp-coaching-ready h2 {
+  text-align: center;
+}
+
+.sp-coaching-intro {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.sp-modules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.sp-module-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  background: var(--sp-bg);
+  transition: all 0.2s;
+}
+
+.sp-module-item.sp-module-next {
+  border: 2px solid var(--sp-text);
+  background: #fff;
+}
+
+.sp-module-number {
+  font-family: var(--sp-font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--sp-text);
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sp-module-content {
+  flex: 1;
+}
+
+.sp-module-name {
+  font-family: var(--sp-font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sp-up-next-badge {
+  font-family: var(--sp-font-body);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fff;
+  background: var(--sp-text);
+  padding: 0.2rem 0.5rem;
+}
+
+.sp-module-description {
+  font-family: var(--sp-font-body);
+  font-size: 0.9rem;
+  color: var(--sp-text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sp-start-coaching-btn {
+  width: 100%;
+  font-size: 1.1rem;
+  padding: 1.25rem 2rem;
+}
+
 .sp-generate-btn {
   background: var(--sp-text);
   color: #fff;
