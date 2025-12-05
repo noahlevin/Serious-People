@@ -31,7 +31,10 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - `client/src/pages/landing.tsx` - Landing page with hero section and "Start the interview" CTA (route: `/`)
 - `client/src/pages/login.tsx` - Authentication page with email magic link and Google OAuth (route: `/login`)
 - `client/src/pages/interview.tsx` - Chat-style AI interview with conversation UI (route: `/interview`, protected)
-- `client/src/pages/success.tsx` - Payment verification and script generation (route: `/success`)
+- `client/src/pages/success.tsx` - Payment verification and redirect to modules (route: `/success`)
+- `client/src/pages/module.tsx` - Individual coaching module conversation (route: `/module/:moduleNumber`, protected)
+- `client/src/pages/progress.tsx` - Table of contents showing completed/upcoming modules (route: `/progress`, protected)
+- `client/src/pages/career-brief.tsx` - Final Career Brief generation after all modules (route: `/career-brief`, protected)
 
 **Auth Components:**
 - `client/src/hooks/useAuth.tsx` - Auth context provider with user state, login, and logout functions
@@ -79,15 +82,16 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 1. `POST /checkout` - Creates Stripe Checkout session, returns redirect URL
 2. `GET /verify-session?session_id=xxx` - Validates Stripe payment session
 3. `POST /interview` - AI interview endpoint, accepts `{ transcript: [] }`, returns `{ reply, done, valueBullets }`
-4. `POST /generate` - Generates scripts from `{ transcript }`, returns `{ text }`
-5. `GET /api/transcript` - Load user's transcript from database (requires auth)
-6. `POST /api/transcript` - Save user's transcript to database (requires auth)
-7. `GET /auth/me` - Get current authenticated user
-8. `POST /auth/logout` - Log out current user
-9. `POST /auth/magic/send` - Send magic link email
-10. `GET /auth/magic/verify` - Verify magic link token
-11. `GET /auth/google` - Initiate Google OAuth flow
-12. `GET /auth/google/callback` - Google OAuth callback
+4. `POST /api/module` - Module conversation endpoint, accepts `{ moduleNumber: 1|2|3, transcript: [] }`, returns `{ reply, done, progress, options, summary }`
+5. `POST /generate` - Generates Career Brief from `{ transcript }`, returns `{ text }`
+6. `GET /api/transcript` - Load user's transcript from database (requires auth)
+7. `POST /api/transcript` - Save user's transcript to database (requires auth)
+8. `GET /auth/me` - Get current authenticated user
+9. `POST /auth/logout` - Log out current user
+10. `POST /auth/magic/send` - Send magic link email
+11. `GET /auth/magic/verify` - Verify magic link token
+12. `GET /auth/google` - Initiate Google OAuth flow
+13. `GET /auth/google/callback` - Google OAuth callback
 
 **AI Integration:**
 - Uses OpenAI API with GPT-4.1-mini model
