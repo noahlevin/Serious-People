@@ -96,6 +96,7 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 13. `GET /auth/google` - Initiate Google OAuth flow
 14. `GET /auth/google/callback` - Google OAuth callback
 15. `POST /api/dev/auto-client` - Dev-only: Generates realistic client responses for testing (returns 404 in production)
+16. `POST /api/webhook/inbound` - Receives Resend inbound email webhooks and forwards to seriouspeople@noahlevin.com
 
 **AI Integration:**
 - Uses Anthropic Claude Sonnet 4.5 as primary AI model when ANTHROPIC_API_KEY is set

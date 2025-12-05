@@ -9,7 +9,7 @@ import passport from "passport";
 import { getStripeClient } from "./stripeClient";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
-import { sendMagicLinkEmail } from "./resendClient";
+import { sendMagicLinkEmail, getResendClient } from "./resendClient";
 import { db } from "./db";
 import { interviewTranscripts, type ClientDossier, type InterviewAnalysis, type ModuleRecord } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -2163,6 +2163,91 @@ Respond ONLY with what the client would say next. No meta-commentary, no quotes,
     } catch (error: any) {
       console.error("Auto-client error:", error);
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/webhook/inbound - Receive inbound emails from Resend and forward to seriouspeople@noahlevin.com
+  app.post("/api/webhook/inbound", async (req, res) => {
+    try {
+      const payload = req.body;
+      
+      console.log("Received Resend webhook:", JSON.stringify(payload, null, 2));
+      
+      // Verify this is an email.received event
+      if (payload.type !== "email.received") {
+        console.log("Ignoring non-email.received event:", payload.type);
+        return res.status(200).json({ message: "Event type ignored" });
+      }
+      
+      const emailData = payload.data;
+      
+      if (!emailData) {
+        console.log("No email data in payload");
+        return res.status(200).json({ message: "No email data" });
+      }
+      
+      // Extract email details
+      const originalFrom = emailData.from || "Unknown sender";
+      const originalTo = Array.isArray(emailData.to) ? emailData.to.join(", ") : (emailData.to || "Unknown recipient");
+      const originalSubject = emailData.subject || "(No subject)";
+      const htmlBody = emailData.html || emailData.text || "(No content)";
+      const textBody = emailData.text || "";
+      
+      // Create forwarded subject line
+      const forwardedSubject = `Fwd from ${originalFrom}: ${originalSubject}`;
+      
+      // Create forwarded email body with original recipient info
+      const forwardedHtml = `
+        <div style="font-family: 'Source Serif 4', Georgia, serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+          <div style="background: #f5f5f5; padding: 16px; border-radius: 4px; margin-bottom: 20px; font-size: 14px; color: #555;">
+            <p style="margin: 0 0 8px 0;"><strong>Original From:</strong> ${originalFrom}</p>
+            <p style="margin: 0 0 8px 0;"><strong>Original To:</strong> ${originalTo}</p>
+            <p style="margin: 0;"><strong>Original Subject:</strong> ${originalSubject}</p>
+          </div>
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;" />
+          <div style="line-height: 1.6;">
+            ${htmlBody}
+          </div>
+        </div>
+      `;
+      
+      // Get the Resend client and send the forwarded email
+      const { client, fromEmail } = await getResendClient();
+      const senderEmail = fromEmail || "onboarding@resend.dev";
+      
+      console.log("Forwarding email from:", senderEmail, "to: seriouspeople@noahlevin.com");
+      console.log("Subject:", forwardedSubject);
+      
+      const result = await client.emails.send({
+        from: senderEmail,
+        to: "seriouspeople@noahlevin.com",
+        subject: forwardedSubject,
+        html: forwardedHtml,
+        text: `Original From: ${originalFrom}\nOriginal To: ${originalTo}\nOriginal Subject: ${originalSubject}\n\n---\n\n${textBody}`,
+      });
+      
+      if (result.error) {
+        console.error("Failed to forward email:", result.error);
+        // Still return 200 to acknowledge receipt - we don't want Resend to retry
+        return res.status(200).json({ 
+          message: "Received but failed to forward",
+          error: result.error.message 
+        });
+      }
+      
+      console.log("Email forwarded successfully:", result.data?.id);
+      res.status(200).json({ 
+        message: "Email forwarded successfully",
+        emailId: result.data?.id 
+      });
+      
+    } catch (error: any) {
+      console.error("Webhook processing error:", error);
+      // Still return 200 to acknowledge receipt
+      res.status(200).json({ 
+        message: "Received but processing failed",
+        error: error.message 
+      });
     }
   });
 
