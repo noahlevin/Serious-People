@@ -674,7 +674,12 @@
 }
 
 .sp-plan-module-objective {
+  margin-top: 0.35rem;
   margin-bottom: 0.5rem;
+  font-family: var(--sp-font-body);
+  font-size: 0.9rem;
+  color: #555;
+  line-height: 1.45;
 }
 
 .sp-plan-module-outcome {

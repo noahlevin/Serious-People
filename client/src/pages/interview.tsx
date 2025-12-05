@@ -14,7 +14,7 @@ interface Message {
 
 interface PlanCard {
   name: string;
-  modules: { name: string; desc: string }[];
+  modules: { name: string; objective: string; approach: string; outcome: string }[];
   careerBrief: string;
 }
 
@@ -103,10 +103,17 @@ function PlanCardComponent({ planCard }: { planCard: PlanCard }) {
       </div>
       <div className="sp-plan-card-content">
         {planCard.modules.map((mod, i) => (
-          <div key={i} className="sp-plan-module">
+          <div key={i} className="sp-plan-module" data-testid={`plan-module-${i + 1}`}>
             <div className="sp-plan-module-number">Module {i + 1}</div>
             <div className="sp-plan-module-name">{mod.name}</div>
-            <div className="sp-plan-module-desc">{mod.desc}</div>
+            <div className="sp-plan-module-details">
+              <div className="sp-plan-module-objective">{mod.objective}</div>
+              {mod.outcome && (
+                <div className="sp-plan-module-outcome">
+                  <span className="sp-outcome-label">You'll walk away with:</span> {mod.outcome}
+                </div>
+              )}
+            </div>
           </div>
         ))}
         <div className="sp-plan-career-brief">
