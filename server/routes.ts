@@ -363,6 +363,16 @@ export async function registerRoutes(
   
   // GET /auth/me - Get current authenticated user
   app.get("/auth/me", (req, res) => {
+    // Debug logging for auth issues
+    console.log("=== /auth/me Debug ===");
+    console.log("Session ID:", req.sessionID);
+    console.log("Has session:", !!req.session);
+    console.log("Session passport:", req.session?.passport);
+    console.log("isAuthenticated():", req.isAuthenticated());
+    console.log("req.user:", req.user);
+    console.log("Cookie header:", req.headers.cookie);
+    console.log("======================");
+    
     if (req.isAuthenticated() && req.user) {
       res.json({ 
         authenticated: true, 
@@ -388,12 +398,19 @@ export async function registerRoutes(
       failureRedirect: "/login?error=google_auth_failed" 
     }),
     (req, res) => {
+      console.log("=== Google Callback Debug ===");
+      console.log("User:", req.user);
+      console.log("Session ID:", req.sessionID);
+      console.log("Session passport:", req.session?.passport);
+      console.log("isAuthenticated:", req.isAuthenticated());
+      
       // Ensure session is saved before redirect (prevents race condition)
       req.session.save((err) => {
         if (err) {
           console.error("[Google callback] Session save error:", err);
+        } else {
+          console.log("[Google callback] Session saved, redirecting to /interview");
         }
-        // Successful authentication - redirect to interview
         res.redirect("/interview");
       });
     }

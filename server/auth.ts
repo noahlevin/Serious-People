@@ -51,6 +51,13 @@ export function setupAuth(app: Express): void {
   // Detect production: REPLIT_DEPLOYMENT is set to "1" in published apps
   const isProduction = process.env.REPLIT_DEPLOYMENT === "1" || process.env.NODE_ENV === "production";
 
+  // CRITICAL: Enable trust proxy so Express recognizes it's behind Replit's proxy
+  // Without this, secure cookies won't be set because req.secure is false
+  if (isProduction) {
+    app.set("trust proxy", 1);
+    console.log("[Auth] Trust proxy enabled for production");
+  }
+
   app.use(
     session({
       store: sessionStore,

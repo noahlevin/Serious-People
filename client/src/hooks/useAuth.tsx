@@ -23,9 +23,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   
   const { data, isLoading, refetch } = useQuery<{ authenticated: boolean; user: User | null }>({
     queryKey: ["/auth/me"],
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 0, // Always refetch to ensure fresh data
     retry: false,
   });
+  
+  // Debug logging
+  console.log("[useAuth] isLoading:", isLoading, "data:", data);
   
   const logoutMutation = useMutation({
     mutationFn: async () => {
