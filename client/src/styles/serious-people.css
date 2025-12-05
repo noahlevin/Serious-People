@@ -666,6 +666,29 @@
   margin-bottom: 0.35rem;
 }
 
+.sp-plan-module-details {
+  font-family: var(--sp-font-body);
+  font-size: 0.95rem;
+  color: #555;
+  line-height: 1.5;
+}
+
+.sp-plan-module-objective {
+  margin-bottom: 0.5rem;
+}
+
+.sp-plan-module-outcome {
+  font-size: 0.9rem;
+  color: #666;
+  font-style: italic;
+}
+
+.sp-outcome-label {
+  font-weight: 600;
+  font-style: normal;
+  color: #333;
+}
+
 .sp-plan-module-desc {
   font-family: var(--sp-font-body);
   font-size: 0.95rem;
