@@ -78,7 +78,8 @@ export async function sendMagicLinkEmail(
   try {
     const { client, fromEmail } = await getResendClient();
     
-    // Use the configured from email, with a fallback
+    // Use the configured from email from Resend connection
+    // Domain must be verified at resend.com/domains for this to work
     const senderEmail = fromEmail || 'onboarding@resend.dev';
     console.log('Sending magic link email from:', senderEmail, 'to:', toEmail);
     
