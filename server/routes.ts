@@ -1092,9 +1092,10 @@ A reminder of why they're doing this and what success looks like.
       // Sanitize reply - remove all control tokens
       reply = reply
         .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, '')
-        .replace(/\[\[MODULE_COMPLETE\]\]/g, '')
-        .replace(/\[\[SUMMARY\]\][\s\S]*?\[\[END_SUMMARY\]\]/g, '')
+        .replace(/\[\[MODULE_COMPLETE\]\]\s*/g, '')
+        .replace(/\[\[SUMMARY\]\][\s\S]*?\[\[END_SUMMARY\]\]\s*/g, '')
         .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, '')
+        .replace(/\n\s*\n\s*\n/g, '\n\n') // Clean up excessive blank lines
         .trim();
 
       res.json({ reply, done, summary, options, progress });
