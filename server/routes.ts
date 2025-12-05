@@ -2654,6 +2654,232 @@ Respond ONLY with what the client would say next. No meta-commentary, no quotes,
     }
   });
 
+  // POST /api/dev/skip - Development-only endpoint to skip to different stages
+  // This sets up the database state to simulate having completed earlier stages
+  app.post("/api/dev/skip", requireAuth, async (req, res) => {
+    // Only available in development mode
+    if (process.env.NODE_ENV === "production") {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    try {
+      const { stage } = req.body;
+      const userId = req.user!.id;
+      const userEmail = req.user!.email;
+      const userName = req.user!.name || userEmail?.split('@')[0] || 'Test User';
+
+      const validStages = ['interview', 'paywall', 'module1', 'module2', 'module3', 'serious_plan', 'coach_chat'];
+      if (!stage || !validStages.includes(stage)) {
+        return res.status(400).json({ 
+          error: `Invalid stage. Must be one of: ${validStages.join(', ')}` 
+        });
+      }
+
+      // Generate a unique session token for this skip
+      const sessionToken = `skip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Sample plan card data
+      const samplePlanCard = {
+        name: userName,
+        modules: [
+          {
+            name: "Job Autopsy",
+            description: "Understand what went wrong and what to avoid",
+            objective: "Identify patterns in your work history that led to dissatisfaction",
+            approach: "We'll examine your past roles to find what energized vs. drained you",
+            outcome: "A clear picture of your non-negotiables for future roles"
+          },
+          {
+            name: "Fork in the Road",
+            description: "Clarify your two main options: stay or go",
+            objective: "Weigh the realistic pros and cons of each path",
+            approach: "We'll stress-test each option against your values and constraints",
+            outcome: "A decision framework you can trust"
+          },
+          {
+            name: "The Great Escape Plan",
+            description: "Build your exit strategy",
+            objective: "Create a step-by-step action plan",
+            approach: "We'll map out timeline, conversations, and milestones",
+            outcome: "A concrete 90-day roadmap with conversation scripts"
+          }
+        ],
+        briefDescription: "Your personalized Career Brief with actionable scripts"
+      };
+
+      // Sample value bullets
+      const sampleValueBullets = [
+        "Navigate your relationship with your current manager",
+        "Balance financial security with career growth",
+        "Build confidence for difficult conversations"
+      ];
+
+      // Sample client dossier
+      const sampleClientDossier = {
+        interviewAnalysis: {
+          keyFacts: [
+            "Works in tech industry",
+            "3+ years at current company",
+            "Considering career transition",
+            "Has financial responsibilities"
+          ],
+          emotionalState: "Feeling uncertain but hopeful about change",
+          communicationStyle: "Direct and analytical",
+          priorities: ["Work-life balance", "Career growth", "Financial stability"],
+          constraints: ["Family obligations", "Current income level"],
+          relationships: ["Manager relationship is strained", "Good team dynamics"]
+        },
+        coachingNotes: "Client is ready for change but needs support building confidence for difficult conversations.",
+        actionableInsights: [
+          "Prepare for conversation with manager",
+          "Research alternative roles",
+          "Build emergency fund"
+        ]
+      };
+
+      // Sample planned artifacts
+      const samplePlannedArtifacts = [
+        {
+          type: "decision_snapshot",
+          name: "Career Decision Snapshot",
+          whyImportant: "A clear visual of your options and their trade-offs"
+        },
+        {
+          type: "action_plan",
+          name: "90-Day Career Roadmap",
+          whyImportant: "Step-by-step actions with realistic timelines"
+        },
+        {
+          type: "conversation_script",
+          name: "Manager Conversation Script",
+          whyImportant: "Exact words for the conversation you've been dreading"
+        },
+        {
+          type: "risk_map",
+          name: "Risk & Mitigation Map",
+          whyImportant: "Every concern addressed with a backup plan"
+        }
+      ];
+
+      // Build transcript state based on stage
+      let transcriptData: any = {
+        sessionToken,
+        userId,
+        transcript: [
+          { role: "assistant", content: "Hi! I'm your career coach. Let's figure out what's going on at work and how to move forward. What's the main thing that's been weighing on you?" },
+          { role: "user", content: "I've been at my job for a while and I'm feeling stuck. Not sure if I should stay and try to make things better or start looking elsewhere." }
+        ],
+        progress: 10,
+        interviewComplete: false,
+        paymentVerified: false,
+        currentModule: "interview",
+        valueBullets: null,
+        socialProof: null,
+        planCard: null,
+        clientDossier: null,
+        plannedArtifacts: null
+      };
+
+      let redirectPath = "/interview";
+
+      // Set state based on stage
+      if (stage === 'paywall' || stage === 'module1' || stage === 'module2' || stage === 'module3' || stage === 'serious_plan' || stage === 'coach_chat') {
+        transcriptData.interviewComplete = true;
+        transcriptData.progress = 95;
+        transcriptData.valueBullets = sampleValueBullets;
+        transcriptData.socialProof = "Research shows 78% of professionals who work with a coach report higher job satisfaction.";
+        transcriptData.planCard = samplePlanCard;
+        transcriptData.clientDossier = sampleClientDossier;
+        transcriptData.plannedArtifacts = samplePlannedArtifacts;
+        transcriptData.currentModule = "paywall";
+        redirectPath = "/interview"; // They'll see the paywall
+      }
+
+      if (stage === 'module1' || stage === 'module2' || stage === 'module3' || stage === 'serious_plan' || stage === 'coach_chat') {
+        transcriptData.paymentVerified = true;
+        transcriptData.currentModule = "module1";
+        transcriptData.stripeSessionId = `skip_session_${Date.now()}`;
+        redirectPath = "/module/1";
+      }
+
+      if (stage === 'module2' || stage === 'module3' || stage === 'serious_plan' || stage === 'coach_chat') {
+        transcriptData.currentModule = "module2";
+        redirectPath = "/module/2";
+      }
+
+      if (stage === 'module3' || stage === 'serious_plan' || stage === 'coach_chat') {
+        transcriptData.currentModule = "module3";
+        redirectPath = "/module/3";
+      }
+
+      if (stage === 'serious_plan' || stage === 'coach_chat') {
+        transcriptData.currentModule = "graduation";
+        redirectPath = "/serious-plan";
+
+        // Check if user already has a Serious Plan, if not create one
+        const existingPlan = await storage.getSeriousPlanByUserId(userId);
+        if (!existingPlan) {
+          // Create a sample Serious Plan with artifacts
+          const plan = await storage.createSeriousPlan({
+            userId,
+            coachNoteTitle: `A Note for ${userName}`,
+            coachNoteContent: `${userName}, you came to me at a crossroads, and I want you to know—that took real courage. Through our work together, you've done something most people never manage: you've gotten honest with yourself about what you actually want.\n\nYou've built something valuable here. This isn't just a plan—it's a map you made yourself, with your own insights lighting the way. Trust it.\n\nThe conversations ahead won't be easy. But you're ready. You've already had the hardest conversation—the one with yourself.\n\nI'm proud of the work you've done. Now go do the thing.`,
+            summaryMetadata: {
+              clientName: userName,
+              primaryRecommendation: "Pursue the career transition with a 90-day structured approach",
+              keyInsights: ["You thrive in autonomous environments", "Financial security is a core value", "You need clear communication with leadership"]
+            }
+          });
+
+          // Create sample artifacts
+          const artifactTypes = [
+            { type: 'decision_snapshot', title: 'Your Decision Snapshot', importance: 'must_read', objective: 'See your options clearly laid out' },
+            { type: 'action_plan', title: 'Your 90-Day Roadmap', importance: 'must_read', objective: 'Know exactly what to do and when' },
+            { type: 'conversation_scripts', title: 'Conversation Scripts', importance: 'must_read', objective: 'Have the exact words for difficult talks' },
+            { type: 'risk_map', title: 'Risk & Mitigation Map', importance: 'recommended', objective: 'Feel prepared for any obstacle' },
+            { type: 'module_recap', title: 'Your Coaching Journey', importance: 'recommended', objective: 'Remember key insights from each module' },
+            { type: 'resources', title: 'Curated Resources', importance: 'optional', objective: 'Continue your growth with vetted materials' }
+          ];
+
+          for (const artifact of artifactTypes) {
+            await storage.createArtifact({
+              planId: plan.id,
+              type: artifact.type,
+              title: artifact.title,
+              importance: artifact.importance as 'must_read' | 'recommended' | 'optional',
+              objective: artifact.objective,
+              whyImportant: `This ${artifact.type.replace('_', ' ')} helps you ${artifact.objective.toLowerCase()}`,
+              content: `[Sample content for ${artifact.title}]\n\nThis is placeholder content that would normally be AI-generated based on your coaching sessions.\n\nKey points:\n• First important insight\n• Second important insight\n• Third important insight\n\nNext steps:\n1. Review this document\n2. Apply the insights\n3. Follow up with your coach if needed`,
+              pdfStatus: 'pending'
+            });
+          }
+        }
+      }
+
+      if (stage === 'coach_chat') {
+        redirectPath = "/coach-chat";
+      }
+
+      // Delete any existing transcript for this user and create new one
+      const existingTranscript = await storage.getTranscriptByUserId(userId);
+      if (existingTranscript) {
+        await storage.deleteTranscript(existingTranscript.id);
+      }
+
+      await storage.createTranscript(transcriptData);
+
+      res.json({ 
+        success: true, 
+        stage,
+        redirectPath,
+        message: `Skipped to ${stage}. Database state has been set up.`
+      });
+    } catch (error: any) {
+      console.error("Dev skip error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // POST /api/webhook/inbound - Receive inbound emails from Resend and forward to seriouspeople@noahlevin.com
   app.post("/api/webhook/inbound", async (req, res) => {
     try {

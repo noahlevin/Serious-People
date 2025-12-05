@@ -143,6 +143,11 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 **Test Endpoint:**
 - `GET /api/test-db` - Tests database connectivity (creates and retrieves test record)
 
+**Dev-Only Testing Features:**
+- **Dev Skip Panel**: A floating panel (bottom-right) that appears only in development mode when authenticated. Allows jumping directly to any stage of the app (interview, paywall, module 1/2/3, serious plan, coach chat) by setting up the required database state automatically.
+- **POST /api/dev/skip**: Backend endpoint that sets up database state for the specified stage. Requires authentication and only works in development mode.
+- **testskip command**: In the interview page, type "testskip" to skip directly to the paywall with sample data.
+
 ### Authentication & Authorization
 
 **User Authentication (Passport.js):**
