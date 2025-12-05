@@ -2016,5 +2016,155 @@ FORMAT:
     }
   });
 
+  // POST /api/dev/auto-client - Development-only endpoint for auto-generating client responses
+  // This is a testing helper that generates realistic client responses for roleplay scenarios
+  app.post("/api/dev/auto-client", async (req, res) => {
+    // Only available in development mode
+    if (process.env.NODE_ENV === "production") {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    try {
+      if (!useAnthropic && !process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: "No AI API key configured" });
+      }
+
+      const { stage, moduleNumber, transcript = [], planCard, coachingPlan } = req.body;
+
+      if (!stage || (stage !== "interview" && stage !== "module")) {
+        return res.status(400).json({ error: "Invalid stage. Must be 'interview' or 'module'" });
+      }
+
+      // Try to load dossier and plan from database if user is authenticated
+      let clientDossier: ClientDossier | null = null;
+      let serverPlanCard = planCard;
+      
+      if (req.user && (req.user as any).id) {
+        const userTranscript = await storage.getTranscriptByUserId((req.user as any).id);
+        if (userTranscript) {
+          if (userTranscript.clientDossier) {
+            clientDossier = userTranscript.clientDossier;
+          }
+          if (userTranscript.planCard && !serverPlanCard) {
+            serverPlanCard = userTranscript.planCard;
+          }
+        }
+      }
+
+      // Build context for the auto-client AI
+      let contextInfo = "";
+      
+      if (clientDossier) {
+        contextInfo += `
+=== CLIENT DOSSIER (Use this to stay in character) ===
+${clientDossier.interviewAnalysis ? `
+**Key Facts About You:**
+${clientDossier.interviewAnalysis.keyFacts?.join('\n') || 'Not available'}
+
+**Your Emotional State:**
+${clientDossier.interviewAnalysis.emotionalState || 'Not specified'}
+
+**Your Communication Style:**
+${clientDossier.interviewAnalysis.communicationStyle || 'Not specified'}
+
+**Your Priorities:**
+${clientDossier.interviewAnalysis.priorities?.join(', ') || 'Not specified'}
+
+**Your Constraints:**
+${clientDossier.interviewAnalysis.constraints?.join(', ') || 'Not specified'}
+
+**Key Relationships:**
+${clientDossier.interviewAnalysis.relationships?.join(', ') || 'Not specified'}
+` : ''}
+=== END DOSSIER ===
+`;
+      }
+
+      if (serverPlanCard && stage === "module") {
+        const moduleInfo = serverPlanCard.modules?.[moduleNumber - 1];
+        if (moduleInfo) {
+          contextInfo += `
+=== CURRENT MODULE CONTEXT ===
+Module ${moduleNumber}: ${moduleInfo.name}
+Objective: ${moduleInfo.objective}
+=== END MODULE CONTEXT ===
+`;
+        }
+      }
+
+      // Build the system prompt for the auto-client
+      const systemPrompt = `You are roleplaying as a coaching client in a career coaching session. Your job is to provide realistic, natural responses as if you were the actual client going through this coaching.
+
+${contextInfo}
+
+IMPORTANT GUIDELINES:
+1. Stay consistent with the personality and situation established in the conversation
+2. Respond naturally - 1-3 sentences is usually appropriate
+3. Be cooperative but authentic - don't be overly eager or artificial
+4. If the coach asks a probing question, give a thoughtful response that reveals something useful
+5. Express appropriate emotions (uncertainty, hope, frustration, excitement) based on the topic
+6. If this is the first message and the coach just introduced themselves, respond with a brief greeting and share your situation
+7. Don't be too perfect - real clients sometimes hesitate, need to think, or express ambivalence
+8. Use natural language, not corporate jargon
+
+${stage === "interview" ? "This is the initial interview phase where you're explaining your career situation." : `This is Module ${moduleNumber} of the coaching program.`}
+
+Respond ONLY with what the client would say next. No meta-commentary, no quotes, just the natural response.`;
+
+      // Format the conversation for the AI
+      const conversationMessages = transcript.map((msg: any) => ({
+        role: msg.role === "assistant" ? "assistant" : "user",
+        content: msg.content
+      }));
+
+      // Flip the perspective - assistant messages become what the "coach" said
+      // User messages become what the "client" said
+      const flippedMessages = conversationMessages.map((msg: any) => ({
+        role: msg.role === "assistant" ? "user" : "assistant",
+        content: msg.content
+      }));
+
+      let reply: string;
+
+      if (useAnthropic && anthropic) {
+        // Use Anthropic Claude
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-4-5-20250929",
+          max_tokens: 512,
+          system: systemPrompt,
+          messages: flippedMessages.length > 0 ? flippedMessages : [{ role: "user", content: "The coach just started the session. How would you respond?" }],
+        });
+
+        reply = response.content[0].type === 'text' ? response.content[0].text : '';
+      } else {
+        // Fall back to OpenAI
+        const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+          { role: "system", content: systemPrompt },
+          ...flippedMessages
+        ];
+
+        if (flippedMessages.length === 0) {
+          messages.push({ role: "user", content: "The coach just started the session. How would you respond?" });
+        }
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          messages,
+          max_tokens: 512,
+        });
+
+        reply = response.choices[0]?.message?.content || "";
+      }
+
+      // Clean up the reply - remove any quotes if the AI wrapped it
+      reply = reply.replace(/^["']|["']$/g, '').trim();
+
+      res.json({ reply });
+    } catch (error: any) {
+      console.error("Auto-client error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }
