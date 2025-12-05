@@ -35,6 +35,51 @@ export interface CoachingPlan {
   careerBrief: string;
 }
 
+// Type for interview analysis in the client dossier
+export interface InterviewAnalysis {
+  clientName: string;
+  currentRole: string;
+  company: string;
+  tenure: string;
+  situation: string;  // Summary of their career situation
+  bigProblem: string;  // The core issue they're facing
+  desiredOutcome: string;  // What they want to achieve
+  keyFacts: string[];  // Concrete facts: salary, savings, timeline, etc.
+  relationships: { person: string; role: string; dynamic: string }[];  // Partner, manager, etc.
+  emotionalState: string;  // Frustration level, confidence, hesitation patterns
+  communicationStyle: string;  // Direct vs. indirect, verbose vs. terse, etc.
+  priorities: string[];  // What matters most to them
+  constraints: string[];  // What limits their options
+  motivations: string[];  // What's driving them
+  fears: string[];  // What they're worried about
+  questionsAsked: string[];  // All questions the AI asked
+  optionsOffered: { option: string; chosen: boolean; reason?: string }[];  // Choices presented
+  observations: string;  // AI's private notes about user's responses, hesitations, preferences
+}
+
+// Type for module completion record
+export interface ModuleRecord {
+  moduleNumber: number;
+  moduleName: string;
+  transcript: { role: string; content: string }[];  // Verbatim transcript
+  summary: string;  // What was covered
+  decisions: string[];  // Commitments made
+  insights: string[];  // New understanding gained
+  actionItems: string[];  // Concrete next steps
+  questionsAsked: string[];  // All questions posed by AI
+  optionsPresented: { option: string; chosen: boolean; reason?: string }[];  // Choices offered
+  observations: string;  // AI's private notes about user's responses
+  completedAt: string;  // ISO timestamp
+}
+
+// Type for the complete client dossier (internal AI notes - NEVER shown to user)
+export interface ClientDossier {
+  interviewTranscript: { role: string; content: string }[];  // Full verbatim interview
+  interviewAnalysis: InterviewAnalysis;
+  moduleRecords: ModuleRecord[];
+  lastUpdated: string;  // ISO timestamp
+}
+
 export const interviewTranscripts = pgTable("interview_transcripts", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
   sessionToken: varchar("session_token", { length: 64 }).notNull().unique(),
@@ -48,6 +93,7 @@ export const interviewTranscripts = pgTable("interview_transcripts", {
   valueBullets: text("value_bullets"),
   socialProof: text("social_proof"),
   planCard: json("plan_card").$type<CoachingPlan | null>(),
+  clientDossier: json("client_dossier").$type<ClientDossier | null>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

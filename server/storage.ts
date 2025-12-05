@@ -5,6 +5,7 @@ import {
   type InsertInterviewTranscript,
   type MagicLinkToken,
   type InsertMagicLinkToken,
+  type ClientDossier,
   users,
   interviewTranscripts,
   magicLinkTokens 
@@ -32,7 +33,10 @@ export interface IStorage {
     valueBullets?: string;
     socialProof?: string;
     planCard?: any;
+    clientDossier?: ClientDossier | null;
   }): Promise<InterviewTranscript>;
+  
+  updateClientDossier(userId: string, dossier: ClientDossier): Promise<InterviewTranscript | undefined>;
   
   createMagicLinkToken(token: InsertMagicLinkToken): Promise<MagicLinkToken>;
   getMagicLinkToken(tokenHash: string): Promise<MagicLinkToken | undefined>;
@@ -108,24 +112,30 @@ export class DatabaseStorage implements IStorage {
     valueBullets?: string;
     socialProof?: string;
     planCard?: any;
+    clientDossier?: ClientDossier | null;
   }): Promise<InterviewTranscript> {
     // Check if transcript exists for this user
     const existing = await this.getTranscriptByUserId(userId);
     
     if (existing) {
       // Update existing record
+      const updateData: any = {
+        transcript: data.transcript,
+        currentModule: data.currentModule,
+        progress: data.progress,
+        interviewComplete: data.interviewComplete,
+        paymentVerified: data.paymentVerified,
+        valueBullets: data.valueBullets,
+        socialProof: data.socialProof,
+        planCard: data.planCard,
+        updatedAt: new Date(),
+      };
+      // Only update clientDossier if explicitly provided
+      if (data.clientDossier !== undefined) {
+        updateData.clientDossier = data.clientDossier;
+      }
       const [updated] = await db.update(interviewTranscripts)
-        .set({
-          transcript: data.transcript,
-          currentModule: data.currentModule,
-          progress: data.progress,
-          interviewComplete: data.interviewComplete,
-          paymentVerified: data.paymentVerified,
-          valueBullets: data.valueBullets,
-          socialProof: data.socialProof,
-          planCard: data.planCard,
-          updatedAt: new Date(),
-        } as any)
+        .set(updateData)
         .where(eq(interviewTranscripts.userId, userId))
         .returning();
       return updated;
@@ -144,10 +154,22 @@ export class DatabaseStorage implements IStorage {
           valueBullets: data.valueBullets,
           socialProof: data.socialProof,
           planCard: data.planCard,
+          clientDossier: data.clientDossier || null,
         } as any)
         .returning();
       return created;
     }
+  }
+
+  async updateClientDossier(userId: string, dossier: ClientDossier): Promise<InterviewTranscript | undefined> {
+    const [updated] = await db.update(interviewTranscripts)
+      .set({
+        clientDossier: dossier,
+        updatedAt: new Date(),
+      } as any)
+      .where(eq(interviewTranscripts.userId, userId))
+      .returning();
+    return updated;
   }
 
   async createMagicLinkToken(insertToken: InsertMagicLinkToken): Promise<MagicLinkToken> {
