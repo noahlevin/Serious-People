@@ -608,6 +608,42 @@ export async function registerRoutes(
       res.json({ success: true });
     });
   });
+
+  // POST /auth/demo - Demo login for testing (development only)
+  app.post("/auth/demo", async (req, res) => {
+    try {
+      const demoEmail = "demo@test.local";
+      
+      // Find or create demo user
+      let user = await storage.getUserByEmail(demoEmail);
+      
+      if (!user) {
+        user = await storage.createUser({
+          email: demoEmail,
+          name: "Demo User",
+          oauthProvider: "demo",
+          oauthId: null,
+        });
+      }
+      
+      // Log user in
+      req.login({ id: user.id, email: user.email, name: user.name }, (err) => {
+        if (err) {
+          console.error("Demo login error:", err);
+          return res.status(500).json({ error: "Login failed" });
+        }
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Session save error:", saveErr);
+          }
+          res.json({ success: true });
+        });
+      });
+    } catch (error: any) {
+      console.error("Demo login error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
   
   // ============== TRANSCRIPT API (Protected) ==============
   
@@ -1178,8 +1214,8 @@ One concrete insight they can carry forward.
 
       // Try to get the user's coaching plan from the database
       let planCard = null;
-      if (req.session && req.session.userId) {
-        const userTranscript = await storage.getInterviewTranscriptByUserId(req.session.userId);
+      if (req.user && req.user.id) {
+        const userTranscript = await storage.getTranscriptByUserId(req.user.id);
         if (userTranscript && userTranscript.planCard) {
           planCard = userTranscript.planCard;
         }

@@ -59,6 +59,22 @@ export default function Login() {
   const handleGoogleLogin = () => {
     window.location.href = "/auth/google";
   };
+
+  const demoLoginMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/auth/demo", {});
+      return response.json();
+    },
+    onSuccess: () => {
+      sessionStorage.clear();
+      refetch();
+      setLocation("/interview");
+    },
+  });
+
+  const handleDemoLogin = () => {
+    demoLoginMutation.mutate();
+  };
   
   // Check for error in URL
   const urlParams = new URLSearchParams(window.location.search);
@@ -176,6 +192,19 @@ export default function Login() {
           <p className="sp-login-note">
             Logging in allows us to save your progress so you can pick up where you left off.
           </p>
+          
+          <div className="sp-login-divider" style={{ marginTop: '1.5rem' }}>
+            <span>testing</span>
+          </div>
+          
+          <button 
+            className="sp-login-demo-button"
+            data-testid="button-demo-login"
+            onClick={handleDemoLogin}
+            disabled={demoLoginMutation.isPending}
+          >
+            {demoLoginMutation.isPending ? "Logging in..." : "Demo Login (Fresh Account)"}
+          </button>
         </div>
       </main>
     </div>

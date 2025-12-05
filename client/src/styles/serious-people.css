@@ -1536,6 +1536,29 @@
   line-height: 1.5;
 }
 
+.sp-login-demo-button {
+  width: 100%;
+  background: transparent;
+  color: var(--sp-text-secondary);
+  border: 1px dashed var(--sp-border-light);
+  padding: 0.75rem 1rem;
+  font-family: var(--sp-font-body);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 0.5rem;
+}
+
+.sp-login-demo-button:hover:not(:disabled) {
+  border-color: var(--sp-text);
+  color: var(--sp-text);
+}
+
+.sp-login-demo-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .sp-login-email-sent {
   text-align: center;
   padding: 1rem 0;
