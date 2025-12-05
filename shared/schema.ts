@@ -20,6 +20,21 @@ export const sessions = pgTable("sessions", {
   expire: timestamp("expire", { precision: 6 }).notNull(),
 });
 
+// Type for a single module in the coaching plan
+export interface CoachingModule {
+  name: string;
+  objective: string;
+  approach: string;
+  outcome: string;
+}
+
+// Type for the full coaching plan
+export interface CoachingPlan {
+  name: string;  // Client's name
+  modules: CoachingModule[];
+  careerBrief: string;
+}
+
 export const interviewTranscripts = pgTable("interview_transcripts", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
   sessionToken: varchar("session_token", { length: 64 }).notNull().unique(),
@@ -32,7 +47,7 @@ export const interviewTranscripts = pgTable("interview_transcripts", {
   stripeSessionId: text("stripe_session_id"),
   valueBullets: text("value_bullets"),
   socialProof: text("social_proof"),
-  planCard: json("plan_card").$type<{ name: string; modules: { name: string; desc: string }[]; careerBrief: string } | null>(),
+  planCard: json("plan_card").$type<CoachingPlan | null>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
