@@ -6,20 +6,34 @@ import {
   type MagicLinkToken,
   type InsertMagicLinkToken,
   type ClientDossier,
+  type SeriousPlan,
+  type InsertSeriousPlan,
+  type SeriousPlanArtifact,
+  type InsertSeriousPlanArtifact,
+  type CoachChatMessage,
+  type InsertCoachChatMessage,
+  type JourneyState,
+  type PdfStatus,
+  type SeriousPlanStatus,
   users,
   interviewTranscripts,
-  magicLinkTokens 
+  magicLinkTokens,
+  seriousPlans,
+  seriousPlanArtifacts,
+  coachChatMessages 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, isNull, gt } from "drizzle-orm";
+import { eq, and, isNull, gt, desc, asc } from "drizzle-orm";
 
 export interface IStorage {
+  // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByOAuth(provider: string, oauthId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined>;
   
+  // Transcript operations
   getTranscript(sessionToken: string): Promise<InterviewTranscript | undefined>;
   getTranscriptByUserId(userId: string): Promise<InterviewTranscript | undefined>;
   createTranscript(transcript: InsertInterviewTranscript): Promise<InterviewTranscript>;
@@ -35,12 +49,37 @@ export interface IStorage {
     planCard?: any;
     clientDossier?: ClientDossier | null;
   }): Promise<InterviewTranscript>;
-  
   updateClientDossier(userId: string, dossier: ClientDossier): Promise<InterviewTranscript | undefined>;
+  updateModuleComplete(userId: string, moduleNumber: 1 | 2 | 3, complete: boolean): Promise<InterviewTranscript | undefined>;
   
+  // Magic link operations
   createMagicLinkToken(token: InsertMagicLinkToken): Promise<MagicLinkToken>;
   getMagicLinkToken(tokenHash: string): Promise<MagicLinkToken | undefined>;
   markMagicLinkTokenUsed(id: string): Promise<void>;
+  
+  // Journey state
+  getJourneyState(userId: string): Promise<JourneyState | null>;
+  
+  // Serious Plan operations
+  createSeriousPlan(plan: InsertSeriousPlan): Promise<SeriousPlan>;
+  getSeriousPlan(id: string): Promise<SeriousPlan | undefined>;
+  getSeriousPlanByUserId(userId: string): Promise<SeriousPlan | undefined>;
+  updateSeriousPlan(id: string, updates: Partial<InsertSeriousPlan>): Promise<SeriousPlan | undefined>;
+  updateSeriousPlanStatus(id: string, status: SeriousPlanStatus): Promise<SeriousPlan | undefined>;
+  updateSeriousPlanBundlePdf(id: string, status: PdfStatus, url?: string): Promise<SeriousPlan | undefined>;
+  
+  // Artifact operations
+  createArtifact(artifact: InsertSeriousPlanArtifact): Promise<SeriousPlanArtifact>;
+  createArtifacts(artifacts: InsertSeriousPlanArtifact[]): Promise<SeriousPlanArtifact[]>;
+  getArtifact(id: string): Promise<SeriousPlanArtifact | undefined>;
+  getArtifactByKey(planId: string, artifactKey: string): Promise<SeriousPlanArtifact | undefined>;
+  getArtifactsByPlanId(planId: string): Promise<SeriousPlanArtifact[]>;
+  updateArtifact(id: string, updates: Partial<InsertSeriousPlanArtifact>): Promise<SeriousPlanArtifact | undefined>;
+  updateArtifactPdf(id: string, status: PdfStatus, url?: string): Promise<SeriousPlanArtifact | undefined>;
+  
+  // Coach chat operations
+  createCoachChatMessage(message: InsertCoachChatMessage): Promise<CoachChatMessage>;
+  getCoachChatMessages(planId: string): Promise<CoachChatMessage[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -193,6 +232,148 @@ export class DatabaseStorage implements IStorage {
     await db.update(magicLinkTokens)
       .set({ usedAt: new Date() })
       .where(eq(magicLinkTokens.id, id));
+  }
+
+  // Module completion tracking
+  async updateModuleComplete(userId: string, moduleNumber: 1 | 2 | 3, complete: boolean): Promise<InterviewTranscript | undefined> {
+    const field = moduleNumber === 1 ? 'module1Complete' 
+      : moduleNumber === 2 ? 'module2Complete' 
+      : 'module3Complete';
+    
+    const updateData: any = { updatedAt: new Date() };
+    updateData[field] = complete;
+    
+    const [updated] = await db.update(interviewTranscripts)
+      .set(updateData)
+      .where(eq(interviewTranscripts.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  // Journey state
+  async getJourneyState(userId: string): Promise<JourneyState | null> {
+    const transcript = await this.getTranscriptByUserId(userId);
+    if (!transcript) return null;
+    
+    const plan = await this.getSeriousPlanByUserId(userId);
+    
+    return {
+      interviewComplete: transcript.interviewComplete || false,
+      paymentVerified: transcript.paymentVerified || false,
+      module1Complete: transcript.module1Complete || false,
+      module2Complete: transcript.module2Complete || false,
+      module3Complete: transcript.module3Complete || false,
+      hasSeriousPlan: !!plan && plan.status === 'ready',
+    };
+  }
+
+  // Serious Plan operations
+  async createSeriousPlan(plan: InsertSeriousPlan): Promise<SeriousPlan> {
+    const [created] = await db.insert(seriousPlans).values(plan as any).returning();
+    return created;
+  }
+
+  async getSeriousPlan(id: string): Promise<SeriousPlan | undefined> {
+    const [plan] = await db.select().from(seriousPlans).where(eq(seriousPlans.id, id));
+    return plan;
+  }
+
+  async getSeriousPlanByUserId(userId: string): Promise<SeriousPlan | undefined> {
+    const [plan] = await db.select().from(seriousPlans)
+      .where(eq(seriousPlans.userId, userId))
+      .orderBy(desc(seriousPlans.createdAt))
+      .limit(1);
+    return plan;
+  }
+
+  async updateSeriousPlan(id: string, updates: Partial<InsertSeriousPlan>): Promise<SeriousPlan | undefined> {
+    const [updated] = await db.update(seriousPlans)
+      .set({ ...updates, updatedAt: new Date() } as any)
+      .where(eq(seriousPlans.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateSeriousPlanStatus(id: string, status: SeriousPlanStatus): Promise<SeriousPlan | undefined> {
+    const [updated] = await db.update(seriousPlans)
+      .set({ status, updatedAt: new Date() } as any)
+      .where(eq(seriousPlans.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateSeriousPlanBundlePdf(id: string, status: PdfStatus, url?: string): Promise<SeriousPlan | undefined> {
+    const updateData: any = { bundlePdfStatus: status, updatedAt: new Date() };
+    if (url) updateData.bundlePdfUrl = url;
+    
+    const [updated] = await db.update(seriousPlans)
+      .set(updateData)
+      .where(eq(seriousPlans.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Artifact operations
+  async createArtifact(artifact: InsertSeriousPlanArtifact): Promise<SeriousPlanArtifact> {
+    const [created] = await db.insert(seriousPlanArtifacts).values(artifact as any).returning();
+    return created;
+  }
+
+  async createArtifacts(artifacts: InsertSeriousPlanArtifact[]): Promise<SeriousPlanArtifact[]> {
+    if (artifacts.length === 0) return [];
+    const created = await db.insert(seriousPlanArtifacts).values(artifacts as any).returning();
+    return created;
+  }
+
+  async getArtifact(id: string): Promise<SeriousPlanArtifact | undefined> {
+    const [artifact] = await db.select().from(seriousPlanArtifacts).where(eq(seriousPlanArtifacts.id, id));
+    return artifact;
+  }
+
+  async getArtifactByKey(planId: string, artifactKey: string): Promise<SeriousPlanArtifact | undefined> {
+    const [artifact] = await db.select().from(seriousPlanArtifacts)
+      .where(and(
+        eq(seriousPlanArtifacts.planId, planId),
+        eq(seriousPlanArtifacts.artifactKey, artifactKey)
+      ));
+    return artifact;
+  }
+
+  async getArtifactsByPlanId(planId: string): Promise<SeriousPlanArtifact[]> {
+    return db.select().from(seriousPlanArtifacts)
+      .where(eq(seriousPlanArtifacts.planId, planId))
+      .orderBy(asc(seriousPlanArtifacts.displayOrder));
+  }
+
+  async updateArtifact(id: string, updates: Partial<InsertSeriousPlanArtifact>): Promise<SeriousPlanArtifact | undefined> {
+    const [updated] = await db.update(seriousPlanArtifacts)
+      .set({ ...updates, updatedAt: new Date() } as any)
+      .where(eq(seriousPlanArtifacts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateArtifactPdf(id: string, status: PdfStatus, url?: string): Promise<SeriousPlanArtifact | undefined> {
+    const updateData: any = { pdfStatus: status, updatedAt: new Date() };
+    if (url) updateData.pdfUrl = url;
+    
+    const [updated] = await db.update(seriousPlanArtifacts)
+      .set(updateData)
+      .where(eq(seriousPlanArtifacts.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Coach chat operations
+  async createCoachChatMessage(message: InsertCoachChatMessage): Promise<CoachChatMessage> {
+    const [created] = await db.insert(coachChatMessages).values(message as any).returning();
+    return created;
+  }
+
+  async getCoachChatMessages(planId: string): Promise<CoachChatMessage[]> {
+    return db.select().from(coachChatMessages)
+      .where(eq(coachChatMessages.planId, planId))
+      .orderBy(asc(coachChatMessages.createdAt));
   }
 }
 

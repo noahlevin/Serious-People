@@ -77,3 +77,6 @@ TESTING_STRIPE_SECRET_KEY = "sk_test_51SZcEWPKmDBEAJW1XseMc6JbSAQZ5kSYG8b5o8Xt2q
 
 [userenv.production]
 BASE_URL = "https://seriouspeople.app"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-1cf631b7-e083-4f04-a1c0-6eeb29c17328"

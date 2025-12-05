@@ -71,7 +71,7 @@ export default function Progress() {
 
   const handleContinue = () => {
     if (allComplete) {
-      setLocation("/career-brief");
+      setLocation("/serious-plan");
     } else {
       setLocation(`/module/${nextModule}`);
     }
@@ -89,17 +89,17 @@ export default function Progress() {
 
   const getSubtitle = () => {
     if (completedModules.length === 0) {
-      return "Your personalized three-module coaching journey awaits. At the end, you'll receive your Career Brief with diagnosis, action plan, and conversation scripts.";
+      return "Your personalized three-module coaching journey awaits. At the end, you'll receive your Serious Plan with decision snapshot, action plan, and conversation scripts.";
     } else if (allComplete) {
-      return "You've completed all three coaching modules. Now it's time to generate your personalized Career Brief.";
+      return "You've completed all three coaching modules. Now it's time to receive your personalized Serious Plan.";
     } else {
-      return `You've completed ${completedModules.length} of 3 modules. Keep going to unlock your Career Brief.`;
+      return `You've completed ${completedModules.length} of 3 modules. Keep going to unlock your Serious Plan.`;
     }
   };
 
   const getCtaText = () => {
     if (allComplete) {
-      return "Generate My Career Brief";
+      return "Get My Serious Plan";
     } else {
       const modules = coachingPlan?.modules || DEFAULT_COACHING_MODULES.map(m => ({ name: m.name, objective: m.description, approach: '', outcome: '' }));
       const nextModuleInfo = modules[nextModule - 1];

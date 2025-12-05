@@ -1941,3 +1941,374 @@
     font-size: 0.95rem;
   }
 }
+
+/* ========================================
+   Serious Plan Page Styles
+   ======================================== */
+
+.sp-graduation-note {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  background: #fff;
+  border: 1px solid var(--sp-border);
+}
+
+.sp-graduation-header {
+  text-align: center;
+  padding-bottom: 2rem;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--sp-text);
+}
+
+.sp-coach-note-content {
+  margin-bottom: 2rem;
+}
+
+.sp-coach-note-content p {
+  margin-bottom: 1rem;
+}
+
+.sp-plan-summary {
+  display: flex;
+  gap: 2rem;
+  padding: 1.5rem;
+  background: var(--sp-bg);
+  margin-bottom: 2rem;
+  border: 1px solid var(--sp-border-light);
+}
+
+.sp-summary-item {
+  flex: 1;
+}
+
+.sp-summary-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--sp-text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.sp-summary-value {
+  display: block;
+  font-family: var(--sp-font-display);
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.sp-graduation-actions {
+  text-align: center;
+  padding-top: 1rem;
+}
+
+.sp-generating-indicator {
+  text-align: center;
+  padding: 2rem;
+}
+
+.sp-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--sp-border);
+  border-top-color: var(--sp-text);
+  border-radius: 50%;
+  margin: 0 auto;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.sp-plan-overview {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.sp-plan-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--sp-text);
+}
+
+.sp-plan-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 3rem;
+}
+
+.sp-artifact-section {
+  margin-bottom: 3rem;
+}
+
+.sp-section-title {
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--sp-border);
+}
+
+.sp-artifact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.sp-artifact-card {
+  padding: 1.5rem;
+  background: #fff;
+  border: 1px solid var(--sp-border);
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.sp-artifact-card:hover {
+  box-shadow: 4px 4px 0 var(--sp-text);
+  transform: translate(-2px, -2px);
+}
+
+.sp-artifact-must-read {
+  border-color: var(--sp-text);
+  border-width: 2px;
+}
+
+.sp-artifact-title {
+  font-family: var(--sp-font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.sp-artifact-preview {
+  font-size: 0.9rem;
+  color: var(--sp-text-secondary);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.sp-importance-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.sp-importance-must_read {
+  background: var(--sp-text);
+  color: #fff;
+}
+
+.sp-importance-recommended {
+  background: var(--sp-bg);
+  border: 1px solid var(--sp-border);
+}
+
+.sp-importance-optional,
+.sp-importance-bonus {
+  background: #fff;
+  border: 1px solid var(--sp-border-light);
+  color: var(--sp-text-secondary);
+}
+
+.sp-artifact-view {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.sp-back-button {
+  background: none;
+  border: none;
+  font-family: var(--sp-font-body);
+  font-size: 0.9rem;
+  color: var(--sp-text-secondary);
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 2rem;
+}
+
+.sp-back-button:hover {
+  color: var(--sp-text);
+}
+
+.sp-artifact-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--sp-text);
+}
+
+.sp-why-important {
+  background: var(--sp-bg);
+  border-left: 3px solid var(--sp-text);
+  padding: 1rem 1.25rem;
+  margin-bottom: 2rem;
+  font-style: italic;
+}
+
+.sp-artifact-content {
+  margin-bottom: 2rem;
+}
+
+.sp-artifact-content h1,
+.sp-artifact-content h2,
+.sp-artifact-content h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.sp-artifact-content p {
+  margin-bottom: 0.75rem;
+}
+
+.sp-artifact-content li {
+  margin-bottom: 0.5rem;
+  margin-left: 1rem;
+}
+
+.sp-artifact-actions {
+  display: flex;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--sp-border);
+}
+
+.sp-chat-cta {
+  text-align: center;
+  padding: 2rem;
+  margin-top: 2rem;
+  background: var(--sp-bg);
+  border: 1px solid var(--sp-border);
+}
+
+.sp-chat-cta h3 {
+  margin-bottom: 0.5rem;
+}
+
+.sp-chat-cta p {
+  margin-bottom: 1.5rem;
+  color: var(--sp-text-secondary);
+}
+
+/* Mobile responsive for Serious Plan */
+@media (max-width: 768px) {
+  .sp-graduation-note {
+    padding: 2rem 1.5rem;
+  }
+  
+  .sp-plan-summary {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .sp-plan-actions {
+    flex-direction: column;
+  }
+  
+  .sp-artifact-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .sp-artifact-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ========================================
+   Coach Chat Page Styles
+   ======================================== */
+
+.sp-chat-sidebar {
+  width: 280px;
+  background: #fff;
+  border-left: 1px solid var(--sp-border);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sp-sidebar-section {
+  border-bottom: 1px solid var(--sp-border-light);
+  padding-bottom: 1.5rem;
+}
+
+.sp-sidebar-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.sp-sidebar-title {
+  font-family: var(--sp-font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+.sp-sidebar-link {
+  display: block;
+  color: var(--sp-text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.sp-sidebar-link:hover {
+  border-color: var(--sp-text);
+}
+
+.sp-sidebar-text {
+  font-size: 0.9rem;
+  color: var(--sp-text-secondary);
+  line-height: 1.5;
+}
+
+.sp-error-toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #c41e3a;
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  z-index: 1000;
+}
+
+/* Update interview content to support sidebar */
+.sp-interview-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sp-interview-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Mobile responsive for coach chat */
+@media (max-width: 768px) {
+  .sp-chat-sidebar {
+    display: none;
+  }
+  
+  .sp-interview-content {
+    flex-direction: column;
+  }
+}

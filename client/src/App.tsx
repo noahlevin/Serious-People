@@ -11,6 +11,8 @@ import Success from "@/pages/success";
 import ModulePage from "@/pages/module";
 import Progress from "@/pages/progress";
 import CareerBrief from "@/pages/career-brief";
+import SeriousPlan from "@/pages/serious-plan";
+import CoachChat from "@/pages/coach-chat";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -23,6 +25,8 @@ function Router() {
       <Route path="/module/:moduleNumber" component={ModulePage} />
       <Route path="/progress" component={Progress} />
       <Route path="/career-brief" component={CareerBrief} />
+      <Route path="/serious-plan" component={SeriousPlan} />
+      <Route path="/coach-chat" component={CoachChat} />
       <Route component={NotFound} />
     </Switch>
   );

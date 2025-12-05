@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useJourney, canAccessModule } from "@/hooks/useJourney";
 import { UserMenu } from "@/components/UserMenu";
 import { 
   Message, 
@@ -29,7 +30,7 @@ const PLAN_CARD_KEY = "serious_people_plan_card";
 
 export default function ModulePage() {
   const params = useParams<{ moduleNumber: string }>();
-  const moduleNumber = parseInt(params.moduleNumber || "1", 10);
+  const moduleNumber = parseInt(params.moduleNumber || "1", 10) as 1 | 2 | 3;
   
   const [coachingPlan, setCoachingPlan] = useState<PlanCard | null>(null);
   
@@ -43,7 +44,16 @@ export default function ModulePage() {
     : defaultModuleInfo;
   
   const { isAuthenticated, isLoading: authLoading, refetch } = useAuth();
+  const { journeyState, isLoading: journeyLoading, currentPath } = useJourney();
   const [, setLocation] = useLocation();
+  
+  useEffect(() => {
+    if (journeyLoading || !journeyState) return;
+    
+    if (!canAccessModule(journeyState, moduleNumber)) {
+      setLocation(currentPath || '/interview');
+    }
+  }, [journeyLoading, journeyState, moduleNumber, currentPath, setLocation]);
   
   const [transcript, setTranscript] = useState<Message[]>([]);
   const [moduleComplete, setModuleComplete] = useState(false);
@@ -403,7 +413,7 @@ export default function ModulePage() {
     if (moduleNumber < 3) {
       setLocation("/progress");
     } else {
-      setLocation("/career-brief");
+      setLocation("/serious-plan");
     }
   };
 

@@ -126,3 +126,100 @@ export async function sendMagicLinkEmail(
     return { success: false, error: error.message };
   }
 }
+
+export interface SeriousPlanEmailOptions {
+  toEmail: string;
+  clientName: string;
+  coachNote: string;
+  artifactCount: number;
+  viewPlanUrl: string;
+  bundlePdfUrl?: string;
+}
+
+export async function sendSeriousPlanEmail(
+  options: SeriousPlanEmailOptions
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    const senderEmail = fromEmail || 'onboarding@resend.dev';
+    
+    console.log('Sending Serious Plan email to:', options.toEmail);
+    
+    const result = await client.emails.send({
+      from: senderEmail,
+      to: options.toEmail,
+      subject: `${options.clientName}, your Serious Plan is ready`,
+      html: `
+        <div style="font-family: 'Source Serif 4', Georgia, serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background: #fff;">
+          <div style="text-align: center; border-bottom: 2px solid #1a1a1a; padding-bottom: 24px; margin-bottom: 32px;">
+            <h1 style="font-family: 'Playfair Display', Georgia, serif; font-size: 28px; color: #1a1a1a; margin: 0;">
+              Your Serious Plan
+            </h1>
+            <p style="font-size: 14px; color: #666; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.1em;">
+              Serious People Career Coaching
+            </p>
+          </div>
+          
+          <p style="font-size: 18px; color: #1a1a1a; line-height: 1.6; margin-bottom: 24px;">
+            Dear ${options.clientName},
+          </p>
+          
+          <div style="background: #faf7f2; border-left: 3px solid #1a1a1a; padding: 20px; margin-bottom: 24px;">
+            <p style="font-size: 16px; color: #333; line-height: 1.6; margin: 0; font-style: italic;">
+              ${options.coachNote.substring(0, 300)}${options.coachNote.length > 300 ? '...' : ''}
+            </p>
+          </div>
+          
+          <p style="font-size: 16px; color: #333; line-height: 1.6; margin-bottom: 24px;">
+            Your complete Serious Plan includes <strong>${options.artifactCount} personalized artifacts</strong> 
+            designed specifically for your situation. These include your decision snapshot, action plan, 
+            conversation scripts, and more.
+          </p>
+          
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${options.viewPlanUrl}" 
+               style="display: inline-block; background-color: #1a1a1a; color: #fff; 
+                      padding: 16px 32px; text-decoration: none; font-size: 16px;
+                      border-radius: 4px; font-weight: 500;">
+              View Your Serious Plan
+            </a>
+          </div>
+          
+          ${options.bundlePdfUrl ? `
+            <p style="font-size: 14px; color: #666; text-align: center; margin-bottom: 32px;">
+              Or <a href="${options.bundlePdfUrl}" style="color: #1a1a1a;">download the complete PDF bundle</a>
+            </p>
+          ` : ''}
+          
+          <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
+          
+          <p style="font-size: 14px; color: #666; line-height: 1.6;">
+            This email and your Serious Plan are confidential. If you have any questions, 
+            use the chat feature in your plan to connect with your coach.
+          </p>
+          
+          <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #eee;">
+            <p style="font-size: 12px; color: #999; margin: 0;">
+              Short scripts for big career conversations.
+            </p>
+            <p style="font-size: 12px; color: #999; margin-top: 8px;">
+              © Serious People Career Coaching
+            </p>
+          </div>
+        </div>
+      `,
+    });
+    
+    console.log('Serious Plan email result:', result);
+    
+    if (result.error) {
+      console.error('Resend API error:', result.error);
+      return { success: false, error: result.error.message || 'Failed to send email' };
+    }
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to send Serious Plan email:', error);
+    return { success: false, error: error.message };
+  }
+}

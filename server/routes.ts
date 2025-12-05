@@ -9,10 +9,12 @@ import passport from "passport";
 import { getStripeClient } from "./stripeClient";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
-import { sendMagicLinkEmail, getResendClient } from "./resendClient";
+import { sendMagicLinkEmail, getResendClient, sendSeriousPlanEmail } from "./resendClient";
 import { db } from "./db";
-import { interviewTranscripts, type ClientDossier, type InterviewAnalysis, type ModuleRecord } from "@shared/schema";
+import { interviewTranscripts, type ClientDossier, type InterviewAnalysis, type ModuleRecord, type CoachingPlan, getCurrentJourneyStep, getStepPath, type JourneyState } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { generateSeriousPlan, getSeriousPlanWithArtifacts, getLatestSeriousPlan } from "./seriousPlanService";
+import { generateArtifactPdf, generateBundlePdf, generateAllArtifactPdfs } from "./pdfService";
 
 // Use Anthropic Claude if API key is available, otherwise fall back to OpenAI
 const useAnthropic = !!process.env.ANTHROPIC_API_KEY;
@@ -522,6 +524,8 @@ MODULE3_OBJECTIVE: [What concrete plan we're building — 1 sentence]
 MODULE3_APPROACH: [How we'll build the plan — 1 sentence]
 MODULE3_OUTCOME: [What they'll walk away with — 1 sentence]
 CAREER_BRIEF: [2-3 sentences describing the final deliverable - a structured document with their situation mirror, diagnosis, options map, action plan, and conversation scripts tailored to their specific people and dynamics]
+SERIOUS_PLAN_SUMMARY: [One sentence describing their personalized Serious Plan - the comprehensive coaching packet they'll receive after completing all modules]
+PLANNED_ARTIFACTS: [Comma-separated list of artifact types planned for this client. Always include: decision_snapshot, action_plan, module_recap, resources. Include boss_conversation if they have manager issues. Include partner_conversation if they mentioned a spouse/partner. Include self_narrative if identity/values are central. Add other custom artifacts if uniquely helpful for their situation.]
 [[END_PLAN_CARD]]
 
 3. Then ask: "Does this look right to you, or is there something you'd like to change?"
@@ -680,6 +684,447 @@ export async function registerRoutes(
       });
     } else {
       res.json({ authenticated: false, user: null });
+    }
+  });
+  
+  // GET /api/journey - Get user's journey state and current step
+  app.get("/api/journey", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const journeyState = await storage.getJourneyState(userId);
+      
+      if (!journeyState) {
+        // User has no transcript yet - they're at the start
+        const defaultState: JourneyState = {
+          interviewComplete: false,
+          paymentVerified: false,
+          module1Complete: false,
+          module2Complete: false,
+          module3Complete: false,
+          hasSeriousPlan: false,
+        };
+        return res.json({
+          state: defaultState,
+          currentStep: 'interview',
+          currentPath: '/interview',
+        });
+      }
+      
+      const currentStep = getCurrentJourneyStep(journeyState);
+      const currentPath = getStepPath(currentStep);
+      
+      res.json({
+        state: journeyState,
+        currentStep,
+        currentPath,
+      });
+    } catch (error: any) {
+      console.error("Journey state error:", error);
+      res.status(500).json({ error: "Failed to get journey state" });
+    }
+  });
+  
+  // ============== SERIOUS PLAN ROUTES ==============
+  
+  // POST /api/serious-plan - Generate a new Serious Plan
+  app.post("/api/serious-plan", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Get user's transcript
+      const transcript = await storage.getTranscriptByUserId(userId);
+      if (!transcript) {
+        return res.status(400).json({ error: "No transcript found for user" });
+      }
+      
+      // Check if all modules are complete
+      if (!transcript.module1Complete || !transcript.module2Complete || !transcript.module3Complete) {
+        return res.status(400).json({ error: "All modules must be completed before generating Serious Plan" });
+      }
+      
+      // Check if already has a plan
+      const existingPlan = await storage.getSeriousPlanByUserId(userId);
+      if (existingPlan) {
+        return res.json({ 
+          success: true, 
+          planId: existingPlan.id,
+          message: "Plan already exists",
+          alreadyExists: true
+        });
+      }
+      
+      // Get dossier and coaching plan from transcript
+      const dossier = transcript.dossier as ClientDossier | null;
+      const planCard = transcript.planCard as CoachingPlan | null;
+      
+      if (!planCard) {
+        return res.status(400).json({ error: "No coaching plan found in transcript" });
+      }
+      
+      // Generate the plan
+      const result = await generateSeriousPlan(userId, transcript.id, planCard, dossier);
+      
+      if (result.success) {
+        // Update transcript to indicate has serious plan
+        await storage.updateTranscript(transcript.id, { hasSeriousPlan: true });
+        res.json({ success: true, planId: result.planId });
+      } else {
+        res.status(500).json({ error: result.error || "Failed to generate Serious Plan" });
+      }
+    } catch (error: any) {
+      console.error("Serious Plan generation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // GET /api/serious-plan/latest - Get user's latest Serious Plan with artifacts
+  app.get("/api/serious-plan/latest", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const plan = await getLatestSeriousPlan(userId);
+      
+      if (!plan) {
+        return res.status(404).json({ error: "No Serious Plan found" });
+      }
+      
+      res.json(plan);
+    } catch (error: any) {
+      console.error("Get Serious Plan error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // GET /api/serious-plan/:id - Get a specific Serious Plan by ID
+  app.get("/api/serious-plan/:id", requireAuth, async (req, res) => {
+    try {
+      const planId = req.params.id;
+      const plan = await getSeriousPlanWithArtifacts(planId);
+      
+      if (!plan) {
+        return res.status(404).json({ error: "Serious Plan not found" });
+      }
+      
+      // Verify the plan belongs to the user
+      if (plan.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      res.json(plan);
+    } catch (error: any) {
+      console.error("Get Serious Plan error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // GET /api/serious-plan/:planId/artifacts/:artifactKey - Get a specific artifact
+  app.get("/api/serious-plan/:planId/artifacts/:artifactKey", requireAuth, async (req, res) => {
+    try {
+      const { planId, artifactKey } = req.params;
+      
+      // Verify plan ownership
+      const plan = await storage.getSeriousPlan(planId);
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      if (plan.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const artifact = await storage.getArtifactByKey(planId, artifactKey);
+      if (!artifact) {
+        return res.status(404).json({ error: "Artifact not found" });
+      }
+      
+      res.json(artifact);
+    } catch (error: any) {
+      console.error("Get artifact error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // POST /api/serious-plan/:planId/artifacts/:artifactId/pdf - Generate PDF for an artifact
+  app.post("/api/serious-plan/:planId/artifacts/:artifactId/pdf", requireAuth, async (req, res) => {
+    try {
+      const { planId, artifactId } = req.params;
+      
+      const plan = await storage.getSeriousPlan(planId);
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      if (plan.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const clientName = (plan.summaryMetadata as any)?.clientName || 'Client';
+      const result = await generateArtifactPdf(artifactId, clientName);
+      
+      if (result.success) {
+        res.json({ success: true, url: result.url });
+      } else {
+        res.status(500).json({ error: result.error });
+      }
+    } catch (error: any) {
+      console.error("Artifact PDF generation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // POST /api/serious-plan/:planId/bundle-pdf - Generate bundle PDF with all artifacts
+  app.post("/api/serious-plan/:planId/bundle-pdf", requireAuth, async (req, res) => {
+    try {
+      const { planId } = req.params;
+      
+      const plan = await storage.getSeriousPlan(planId);
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      if (plan.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const result = await generateBundlePdf(planId);
+      
+      if (result.success) {
+        res.json({ success: true, url: result.url });
+      } else {
+        res.status(500).json({ error: result.error });
+      }
+    } catch (error: any) {
+      console.error("Bundle PDF generation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // POST /api/serious-plan/:planId/generate-all-pdfs - Generate PDFs for all artifacts
+  app.post("/api/serious-plan/:planId/generate-all-pdfs", requireAuth, async (req, res) => {
+    try {
+      const { planId } = req.params;
+      
+      const plan = await storage.getSeriousPlan(planId);
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      if (plan.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const result = await generateAllArtifactPdfs(planId);
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Generate all PDFs error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // POST /api/serious-plan/:planId/send-email - Send the Serious Plan to user's email
+  app.post("/api/serious-plan/:planId/send-email", requireAuth, async (req, res) => {
+    try {
+      const { planId } = req.params;
+      const userId = req.user!.id;
+      const userEmail = req.user!.email;
+      
+      if (!userEmail) {
+        return res.status(400).json({ error: "No email address associated with your account" });
+      }
+      
+      const plan = await storage.getSeriousPlan(planId);
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      if (plan.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      if (plan.status !== 'ready') {
+        return res.status(400).json({ error: "Plan is not ready yet" });
+      }
+      
+      const artifacts = await storage.getArtifactsByPlanId(planId);
+      const clientName = (plan.summaryMetadata as any)?.clientName || 'Client';
+      const coachNote = plan.coachNoteContent || 'Your Serious Plan is ready for review.';
+      
+      const baseUrl = getBaseUrl();
+      const viewPlanUrl = `${baseUrl}/serious-plan`;
+      const bundlePdfUrl = plan.bundlePdfUrl || undefined;
+      
+      const result = await sendSeriousPlanEmail({
+        toEmail: userEmail,
+        clientName,
+        coachNote,
+        artifactCount: artifacts.length,
+        viewPlanUrl,
+        bundlePdfUrl,
+      });
+      
+      if (result.success) {
+        await storage.updateSeriousPlan(planId, { emailSentAt: new Date() });
+        res.json({ success: true, message: "Email sent successfully" });
+      } else {
+        res.status(500).json({ error: result.error || "Failed to send email" });
+      }
+    } catch (error: any) {
+      console.error("Send Serious Plan email error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================
+  // COACH CHAT ENDPOINTS
+  // ========================================
+  
+  // GET /api/coach-chat/:planId/messages - Get chat history for a plan
+  app.get("/api/coach-chat/:planId/messages", requireAuth, async (req, res) => {
+    try {
+      const { planId } = req.params;
+      const userId = req.user!.id;
+      
+      // Verify user owns this plan
+      const plan = await storage.getSeriousPlan(planId);
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      if (plan.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const messages = await storage.getCoachChatMessages(planId);
+      res.json(messages);
+    } catch (error: any) {
+      console.error("Get coach chat messages error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // POST /api/coach-chat/:planId/message - Send a message and get AI response
+  app.post("/api/coach-chat/:planId/message", requireAuth, async (req, res) => {
+    try {
+      const { planId } = req.params;
+      const { message } = req.body;
+      const userId = req.user!.id;
+      
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ error: "Message is required" });
+      }
+      
+      // Verify user owns this plan
+      const plan = await storage.getSeriousPlan(planId);
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      if (plan.userId !== userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Get existing chat history
+      const existingMessages = await storage.getCoachChatMessages(planId);
+      
+      // Get user's coaching context from the interview transcript
+      const transcript = await storage.getTranscriptByUserId(userId);
+      const clientDossier = transcript?.clientDossier || null;
+      const coachingPlan = transcript?.planCard || null;
+      
+      // Get the artifacts for context
+      const artifacts = await storage.getArtifactsByPlanId(planId);
+      
+      // Build the chat context for the AI
+      const clientName = (plan.summaryMetadata as any)?.clientName || 'Client';
+      const primaryRecommendation = (plan.summaryMetadata as any)?.primaryRecommendation || '';
+      
+      // Save the user's message
+      await storage.createCoachChatMessage({
+        planId,
+        role: 'user',
+        content: message,
+      });
+      
+      // Build system prompt with context
+      const systemPrompt = `You are a supportive career coach continuing a conversation with ${clientName} who has completed a 3-module coaching program and received their Serious Plan.
+
+CONTEXT FROM COACHING:
+${clientDossier ? `Client Background: ${JSON.stringify(clientDossier)}` : ''}
+${coachingPlan ? `Coaching Plan: ${JSON.stringify(coachingPlan)}` : ''}
+Primary Recommendation: ${primaryRecommendation}
+Coach's Note: ${plan.coachNoteContent || 'Completed coaching successfully.'}
+
+ARTIFACTS IN THEIR PLAN:
+${artifacts.map(a => `- ${a.title} (${a.type}): ${a.whyImportant || ''}`).join('\n')}
+
+YOUR ROLE:
+- Answer questions about their Serious Plan and artifacts
+- Provide encouragement and practical advice
+- Help them prepare for difficult conversations
+- Remind them of key insights from their coaching
+- Keep responses concise but warm (2-4 short paragraphs max)
+- You can reference specific artifacts if relevant
+- If they ask about something outside the scope of career coaching, gently redirect
+
+COMMUNICATION STYLE:
+- Warm but direct
+- No corporate jargon
+- Practical and actionable
+- Empathetic but not saccharine`;
+
+      // Build conversation history for AI
+      const chatHistory = existingMessages.map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+      
+      // Add the new user message
+      chatHistory.push({ role: 'user', content: message });
+      
+      // Use Anthropic if available, otherwise OpenAI
+      let aiReply: string;
+      
+      if (process.env.ANTHROPIC_API_KEY) {
+        const Anthropic = (await import("@anthropic-ai/sdk")).default;
+        const anthropic = new Anthropic();
+        
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: chatHistory.map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
+        });
+        
+        aiReply = response.content
+          .filter(block => block.type === 'text')
+          .map(block => (block as { type: 'text'; text: string }).text)
+          .join('\n');
+      } else {
+        const OpenAI = (await import("openai")).default;
+        const openai = new OpenAI();
+        
+        const response = await openai.chat.completions.create({
+          model: "gpt-4-1106-preview",
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...chatHistory,
+          ],
+          max_tokens: 1024,
+        });
+        
+        aiReply = response.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response. Please try again.";
+      }
+      
+      // Save the assistant's reply
+      const assistantMessage = await storage.createCoachChatMessage({
+        planId,
+        role: 'assistant',
+        content: aiReply,
+      });
+      
+      res.json({ 
+        reply: aiReply,
+        message: assistantMessage,
+      });
+    } catch (error: any) {
+      console.error("Coach chat message error:", error);
+      res.status(500).json({ error: error.message });
     }
   });
   
@@ -1178,7 +1623,13 @@ export async function registerRoutes(
       let socialProof: string | null = null;
       let options: string[] | null = null;
       let progress: number | null = null;
-      let planCard: { name: string; modules: { name: string; objective: string; approach: string; outcome: string }[]; careerBrief: string } | null = null;
+      let planCard: { 
+        name: string; 
+        modules: { name: string; objective: string; approach: string; outcome: string }[]; 
+        careerBrief: string;
+        seriousPlanSummary: string;
+        plannedArtifacts: { key: string; title: string; type: string; description: string; importance: string }[];
+      } | null = null;
 
       // Parse progress token
       const progressMatch = reply.match(/\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/);
@@ -1224,8 +1675,33 @@ export async function registerRoutes(
         const module3OutcomeMatch = cardContent.match(/MODULE3_OUTCOME:\s*(.+)/);
         
         const careerBriefMatch = cardContent.match(/CAREER_BRIEF:\s*(.+)/);
+        const seriousPlanSummaryMatch = cardContent.match(/SERIOUS_PLAN_SUMMARY:\s*(.+)/);
+        const plannedArtifactsMatch = cardContent.match(/PLANNED_ARTIFACTS:\s*(.+)/);
+
+        // Parse planned artifacts into structured format
+        const parseArtifacts = (artifactList: string): { key: string; title: string; type: string; description: string; importance: string }[] => {
+          const artifactKeys = artifactList.split(',').map(a => a.trim().toLowerCase().replace(/\s+/g, '_'));
+          const artifactDefinitions: Record<string, { title: string; type: string; description: string; importance: string }> = {
+            'decision_snapshot': { title: 'Decision Snapshot', type: 'snapshot', description: 'A concise summary of your situation, options, and recommended path forward', importance: 'must_read' },
+            'action_plan': { title: 'Action Plan', type: 'plan', description: 'A time-boxed plan with concrete steps and decision checkpoints', importance: 'must_read' },
+            'boss_conversation': { title: 'Boss Conversation Plan', type: 'conversation', description: 'Scripts and strategies for navigating your manager conversation', importance: 'must_read' },
+            'partner_conversation': { title: 'Partner Conversation Plan', type: 'conversation', description: 'Talking points for discussing this transition with your partner', importance: 'recommended' },
+            'self_narrative': { title: 'Clarity Memo', type: 'narrative', description: 'The story you tell yourself about this transition and what you want', importance: 'recommended' },
+            'module_recap': { title: 'Module Recap', type: 'recap', description: 'Key insights and decisions from each coaching session', importance: 'recommended' },
+            'resources': { title: 'Curated Resources', type: 'resources', description: 'Articles, books, and tools specifically chosen for your situation', importance: 'optional' },
+            'risk_map': { title: 'Risk & Fallback Map', type: 'plan', description: 'Identified risks with mitigation strategies and backup plans', importance: 'recommended' },
+            'negotiation_toolkit': { title: 'Negotiation Toolkit', type: 'conversation', description: 'Strategies and scripts for salary or terms negotiation', importance: 'recommended' },
+            'networking_plan': { title: 'Networking Plan', type: 'plan', description: 'A targeted approach to building connections for your next move', importance: 'optional' },
+          };
+          
+          return artifactKeys.map(key => {
+            const def = artifactDefinitions[key] || { title: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), type: 'custom', description: 'Custom artifact for your situation', importance: 'recommended' };
+            return { key, ...def };
+          });
+        };
 
         if (nameMatch) {
+          const artifactList = plannedArtifactsMatch?.[1]?.trim() || 'decision_snapshot, action_plan, module_recap, resources';
           planCard = {
             name: nameMatch[1].trim(),
             modules: [
@@ -1248,7 +1724,9 @@ export async function registerRoutes(
                 outcome: module3OutcomeMatch?.[1]?.trim() || ''
               }
             ],
-            careerBrief: careerBriefMatch?.[1]?.trim() || ''
+            careerBrief: careerBriefMatch?.[1]?.trim() || '',
+            seriousPlanSummary: seriousPlanSummaryMatch?.[1]?.trim() || 'Your personalized Serious Plan with tailored coaching artifacts',
+            plannedArtifacts: parseArtifacts(artifactList)
           };
         }
       }
@@ -1754,6 +2232,16 @@ ${dossierContext}`;
         const summaryMatch = reply.match(/\[\[SUMMARY\]\]([\s\S]*?)\[\[END_SUMMARY\]\]/);
         if (summaryMatch) {
           summary = summaryMatch[1].trim();
+        }
+        
+        // Mark module as complete in database if user is authenticated
+        if (req.user && (req.user as any).id) {
+          try {
+            await storage.updateModuleComplete((req.user as any).id, moduleNumber as 1 | 2 | 3, true);
+            console.log(`Module ${moduleNumber} marked complete for user ${(req.user as any).id}`);
+          } catch (err) {
+            console.error("Failed to mark module complete:", err);
+          }
         }
       }
 
