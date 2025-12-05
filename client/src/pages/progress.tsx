@@ -2,15 +2,18 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
-import { ModulesProgressCard, COACHING_MODULES } from "@/components/ModulesProgressCard";
+import { ModulesProgressCard, DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
+import type { CoachingModule, PlanCard } from "@/components/ChatComponents";
 import "@/styles/serious-people.css";
 
 const COMPLETED_MODULES_KEY = "serious_people_completed_modules";
+const PLAN_CARD_KEY = "serious_people_plan_card";
 
 export default function Progress() {
   const { isAuthenticated, isLoading: authLoading, refetch } = useAuth();
   const [, setLocation] = useLocation();
   const [completedModules, setCompletedModules] = useState<number[]>([]);
+  const [coachingPlan, setCoachingPlan] = useState<PlanCard | null>(null);
   
   useEffect(() => {
     refetch();
@@ -32,6 +35,33 @@ export default function Progress() {
       console.error("Failed to load completed modules:", e);
     }
   }, []);
+
+  useEffect(() => {
+    const fetchCoachingPlan = async () => {
+      try {
+        const savedPlan = sessionStorage.getItem(PLAN_CARD_KEY);
+        if (savedPlan) {
+          setCoachingPlan(JSON.parse(savedPlan));
+          return;
+        }
+        
+        const response = await fetch("/api/transcript");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.planCard) {
+            setCoachingPlan(data.planCard);
+            sessionStorage.setItem(PLAN_CARD_KEY, JSON.stringify(data.planCard));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load coaching plan:", e);
+      }
+    };
+    
+    if (isAuthenticated) {
+      fetchCoachingPlan();
+    }
+  }, [isAuthenticated]);
 
   const nextModule = completedModules.length < 3 
     ? completedModules.length + 1 
@@ -71,8 +101,9 @@ export default function Progress() {
     if (allComplete) {
       return "Generate My Career Brief";
     } else {
-      const nextModuleInfo = COACHING_MODULES[nextModule - 1];
-      return `Start Module ${nextModule}: ${nextModuleInfo.name}`;
+      const modules = coachingPlan?.modules || DEFAULT_COACHING_MODULES.map(m => ({ name: m.name, objective: m.description, approach: '', outcome: '' }));
+      const nextModuleInfo = modules[nextModule - 1];
+      return `Start Module ${nextModule}: ${nextModuleInfo?.name || 'Next'}`;
     }
   };
 
@@ -109,6 +140,7 @@ export default function Progress() {
             subtitle={getSubtitle()}
             ctaText={getCtaText()}
             onCtaClick={handleContinue}
+            customModules={coachingPlan?.modules}
           />
         </div>
       </div>

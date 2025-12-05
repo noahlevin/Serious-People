@@ -1,4 +1,5 @@
 import "@/styles/serious-people.css";
+import type { CoachingModule } from "./ChatComponents";
 
 export interface Module {
   number: number;
@@ -6,21 +7,21 @@ export interface Module {
   description: string;
 }
 
-export const COACHING_MODULES: Module[] = [
+export const DEFAULT_COACHING_MODULES: Module[] = [
   {
     number: 1,
-    name: "Job Autopsy",
-    description: "Understand what's really driving your dissatisfaction and separate fixable problems from fundamental mismatches."
+    name: "Discovery",
+    description: "Dig deep into your current situation to understand what's really driving the issue."
   },
   {
     number: 2,
-    name: "Fork in the Road",
-    description: "Clarify your options and evaluate the trade-offs of staying, pivoting, or leaving entirely."
+    name: "Options",
+    description: "Map out your motivations, constraints, and possibilities to see the full picture."
   },
   {
     number: 3,
-    name: "The Great Escape Plan",
-    description: "Build a concrete action plan with timelines, scripts, and strategies for your next move."
+    name: "Action Plan",
+    description: "Build a concrete plan with next steps and key conversation scripts."
   }
 ];
 
@@ -33,6 +34,7 @@ interface ModulesProgressCardProps {
   subtitle?: string;
   ctaText?: string;
   onCtaClick?: () => void;
+  customModules?: CoachingModule[];
 }
 
 export function ModulesProgressCard({
@@ -43,8 +45,17 @@ export function ModulesProgressCard({
   title,
   subtitle,
   ctaText,
-  onCtaClick
+  onCtaClick,
+  customModules
 }: ModulesProgressCardProps) {
+  const modules: Module[] = customModules 
+    ? customModules.map((mod, i) => ({
+        number: i + 1,
+        name: mod.name,
+        description: mod.objective
+      }))
+    : DEFAULT_COACHING_MODULES;
+
   return (
     <div className="sp-ready-card sp-coaching-ready">
       {showBadge && <div className="sp-success-badge">{badgeText}</div>}
@@ -52,7 +63,7 @@ export function ModulesProgressCard({
       {subtitle && <p className="sp-coaching-intro">{subtitle}</p>}
       
       <div className="sp-modules-list" data-testid="modules-list">
-        {COACHING_MODULES.map((module) => {
+        {modules.map((module) => {
           const isNext = module.number === currentModule;
           const isCompleted = completedModules.includes(module.number);
           
