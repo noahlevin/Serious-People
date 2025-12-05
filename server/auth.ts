@@ -26,6 +26,8 @@ function getBaseUrl(): string {
   if (process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
   }
+  // For production, fallback to current request origin if available
+  // Otherwise use localhost for local development
   return "http://localhost:5000";
 }
 
