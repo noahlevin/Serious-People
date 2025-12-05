@@ -62,10 +62,8 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - Two-step paywall: user must confirm plan via structured option before paywall appears
 - Checkout button that creates Stripe session
 - Test bypass: Type "testskip" to skip to paywall with sample data
-- Dev-only auto-client buttons (hidden in production):
+- Dev-only auto-client button (hidden in production):
   - Robot button (🤖): Generates a single realistic client response using AI
-  - Auto-pilot button (▶▶): Runs up to 10 automatic exchanges between coach and client
-  - Stop button (⏹): Appears during auto-pilot to cancel the loop
 
 **Success Page Features:**
 - Payment verification via session_id query param

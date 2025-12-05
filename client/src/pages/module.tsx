@@ -536,37 +536,15 @@ export default function ModulePage() {
                 →
               </button>
               {isDev && (
-                <>
-                  <button
-                    className="sp-dev-button"
-                    data-testid="button-auto-client"
-                    onClick={handleAutoClient}
-                    disabled={isAutoClientLoading || isSending || isAutoPilot}
-                    title="Auto-generate client response (Dev only)"
-                  >
-                    {isAutoClientLoading ? "..." : "🤖"}
-                  </button>
-                  {!isAutoPilot ? (
-                    <button
-                      className="sp-dev-button sp-autopilot-button"
-                      data-testid="button-auto-pilot"
-                      onClick={runAutoPilot}
-                      disabled={isAutoClientLoading || isSending}
-                      title="Run auto-pilot mode (Dev only)"
-                    >
-                      ▶▶
-                    </button>
-                  ) : (
-                    <button
-                      className="sp-dev-button sp-autopilot-button sp-autopilot-active"
-                      data-testid="button-stop-autopilot"
-                      onClick={stopAutoPilot}
-                      title="Stop auto-pilot"
-                    >
-                      ⏹ {autoPilotCount}
-                    </button>
-                  )}
-                </>
+                <button
+                  className="sp-dev-button"
+                  data-testid="button-auto-client"
+                  onClick={handleAutoClient}
+                  disabled={isAutoClientLoading || isSending}
+                  title="Auto-generate client response (Dev only)"
+                >
+                  {isAutoClientLoading ? "..." : "🤖"}
+                </button>
               )}
             </div>
             <div className="sp-status-line" data-testid="status-line">{status}</div>
