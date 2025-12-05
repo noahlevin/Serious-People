@@ -72,25 +72,7 @@ export default function Landing() {
     <div className="sp-page">
       <main style={{ maxWidth: "680px", margin: "0 auto", padding: "3rem 1.5rem 2rem" }}>
         <div className="sp-masthead">
-          <div className="sp-masthead-header">
-            <h2 className="sp-masthead-title">Serious People</h2>
-            {isAuthenticated ? (
-              <div className="sp-auth-links">
-                <span className="sp-welcome-text">Welcome, {user?.name || user?.email?.split("@")[0]}</span>
-                <button 
-                  onClick={() => logout()} 
-                  className="sp-auth-link"
-                  data-testid="button-logout"
-                >
-                  Sign out
-                </button>
-              </div>
-            ) : (
-              <Link href="/login" className="sp-auth-link" data-testid="link-login">
-                Sign in
-              </Link>
-            )}
-          </div>
+          <h2 className="sp-masthead-title">Serious People</h2>
           <p className="sp-masthead-date">Serious Career Coaching</p>
         </div>
 
@@ -122,6 +104,16 @@ export default function Landing() {
           <p className="sp-pricing-note">
             The interview is free. Scripts and memo are $19.
           </p>
+          {isAuthenticated && (
+            <Link href="/interview" className="sp-resume-link" data-testid="link-resume-session">
+              Or continue your session
+            </Link>
+          )}
+          {!isAuthenticated && (
+            <Link href="/login" className="sp-resume-link" data-testid="link-sign-in-resume">
+              Sign in to resume your session
+            </Link>
+          )}
         </section>
 
         <div className="sp-section-divider">
