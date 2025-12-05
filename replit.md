@@ -62,6 +62,10 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - Two-step paywall: user must confirm plan via structured option before paywall appears
 - Checkout button that creates Stripe session
 - Test bypass: Type "testskip" to skip to paywall with sample data
+- Dev-only auto-client buttons (hidden in production):
+  - Robot button (🤖): Generates a single realistic client response using AI
+  - Auto-pilot button (▶▶): Runs up to 10 automatic exchanges between coach and client
+  - Stop button (⏹): Appears during auto-pilot to cancel the loop
 
 **Success Page Features:**
 - Payment verification via session_id query param
@@ -93,6 +97,7 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 12. `GET /auth/magic/verify` - Verify magic link token
 13. `GET /auth/google` - Initiate Google OAuth flow
 14. `GET /auth/google/callback` - Google OAuth callback
+15. `POST /api/dev/auto-client` - Dev-only: Generates realistic client responses for testing (returns 404 in production)
 
 **AI Integration:**
 - Uses Anthropic Claude Sonnet 4.5 as primary AI model when ANTHROPIC_API_KEY is set
