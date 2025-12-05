@@ -391,9 +391,9 @@ export async function registerRoutes(
       // Ensure session is saved before redirect (prevents race condition)
       req.session.save((err) => {
         if (err) {
-          console.error("Session save error:", err);
+          console.error("[Google callback] Session save error:", err);
         }
-        // Successful authentication - redirect to interview or saved location
+        // Successful authentication - redirect to interview
         res.redirect("/interview");
       });
     }

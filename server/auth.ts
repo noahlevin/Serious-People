@@ -19,6 +19,7 @@ declare global {
 
 const PgSession = connectPgSimple(session);
 
+
 function getBaseUrl(): string {
   if (process.env.BASE_URL) {
     return process.env.BASE_URL;
@@ -36,18 +37,28 @@ export function setupAuth(app: Express): void {
     connectionString: process.env.DATABASE_URL,
   });
 
+  const sessionStore = new PgSession({
+    pool,
+    tableName: "sessions",
+    createTableIfMissing: false,
+  });
+  
+  // Log session store errors
+  sessionStore.on('error', (error) => {
+    console.error('[Session Store] Error:', error);
+  });
+
+  // Detect production: REPLIT_DEPLOYMENT is set to "1" in published apps
+  const isProduction = process.env.REPLIT_DEPLOYMENT === "1" || process.env.NODE_ENV === "production";
+
   app.use(
     session({
-      store: new PgSession({
-        pool,
-        tableName: "sessions",
-        createTableIfMissing: false,
-      }),
+      store: sessionStore,
       secret: process.env.SESSION_SECRET || "serious-people-dev-secret",
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: process.env.NODE_ENV === "production",
+        secure: isProduction,
         httpOnly: true,
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         sameSite: "lax",
@@ -71,6 +82,7 @@ export function setupAuth(app: Express): void {
         done(null, false);
       }
     } catch (err) {
+      console.error("[deserializeUser] Error:", err);
       done(err);
     }
   });
