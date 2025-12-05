@@ -388,8 +388,14 @@ export async function registerRoutes(
       failureRedirect: "/login?error=google_auth_failed" 
     }),
     (req, res) => {
-      // Successful authentication - redirect to interview or saved location
-      res.redirect("/interview");
+      // Ensure session is saved before redirect (prevents race condition)
+      req.session.save((err) => {
+        if (err) {
+          console.error("Session save error:", err);
+        }
+        // Successful authentication - redirect to interview or saved location
+        res.redirect("/interview");
+      });
     }
   );
   
@@ -475,7 +481,13 @@ export async function registerRoutes(
           console.error("Login error:", err);
           return res.redirect("/login?error=login_failed");
         }
-        res.redirect("/interview");
+        // Ensure session is saved before redirect (prevents race condition)
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Session save error:", saveErr);
+          }
+          res.redirect("/interview");
+        });
       });
     } catch (error: any) {
       console.error("Magic link verify error:", error);

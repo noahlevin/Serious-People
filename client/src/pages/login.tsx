@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,9 +16,18 @@ type EmailFormData = z.infer<typeof emailSchema>;
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, refetch } = useAuth();
   const [emailSent, setEmailSent] = useState(false);
   const [sentEmail, setSentEmail] = useState("");
+  const hasRefetched = useRef(false);
+  
+  // Force refetch auth status on mount (in case of stale cache after OAuth redirect)
+  useEffect(() => {
+    if (!hasRefetched.current) {
+      hasRefetched.current = true;
+      refetch();
+    }
+  }, [refetch]);
   
   // Redirect if already logged in (using useEffect to avoid render-time side effects)
   useEffect(() => {

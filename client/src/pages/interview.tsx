@@ -283,7 +283,7 @@ function Paywall({
 }
 
 export default function Interview() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, refetch } = useAuth();
   const [, setLocation] = useLocation();
   
   const [transcript, setTranscript] = useState<Message[]>([]);
@@ -307,6 +307,7 @@ export default function Interview() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasInitialized = useRef(false);
   const moduleJustChanged = useRef(false);
+  const hasRefetched = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<{
     messages: Message[];
@@ -320,6 +321,14 @@ export default function Interview() {
       planCard?: PlanCard | null;
     };
   } | null>(null);
+  
+  // Force refetch auth status on mount (in case of stale cache after OAuth redirect)
+  useEffect(() => {
+    if (!hasRefetched.current) {
+      hasRefetched.current = true;
+      refetch();
+    }
+  }, [refetch]);
   
   // Redirect to login if not authenticated
   useEffect(() => {
