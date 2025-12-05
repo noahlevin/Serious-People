@@ -1,0 +1,893 @@
+You are Replit Agent working on the Serious People AI career coaching app.
+
+Your goal in this task:
+Build a premium, dynamic “post-graduation” experience that appears after the user completes the three core modules and pays. This experience should:
+
+Generate a set of tailored coaching artifacts (not a fixed list) from the user’s full context and agreed coaching plan.
+
+Allow the system to add new artifacts or omit irrelevant ones so it never feels one-size-fits-all.
+
+Let the user view artifacts in-app, download each as a well-formatted PDF, email them via the existing Resend integration, and download/email a combined bundle of all PDFs.
+
+Show a coach “graduation note” before the artifacts screen and include that note as the cover letter of the bundle.
+
+Provide chat with your coach on the post-graduation screen, with full context, using the existing chat storage pattern.
+
+Handle asynchronous artifact generation (including “not yet ready” states).
+
+Use the existing app storage for file storage (e.g., PDFs).
+
+Use the existing Resend integration for email.
+
+Work with maximum autonomy and adapt to the existing codebase. Where current code contradicts or constrains these instructions, follow the spirit of these requirements while fitting into the actual architecture.
+
+1. Context & Assumptions
+
+App basics
+
+Serious People is a web app where:
+
+The user completes a multi-step intake / interview across three modules.
+
+The app already captures rich details: current role, pain points, options, risk tolerance, runway, partner dynamics, etc.
+
+Payment is already integrated.
+
+Tech assumptions (adapt to actual repo):
+
+Frontend: React (prefer TypeScript) with some routing.
+
+Backend: Node/Express (or similar) with DB and LLM access.
+
+Persistence: existing DB/ORM (e.g., Prisma/SQL/etc.).
+
+Email: Resend is already integrated — reuse it, do not introduce a new email provider.
+
+File storage: an existing app storage solution (e.g., S3 or equivalent) is already in use — reuse it for PDFs.
+
+Existing chat
+
+There are existing patterns/models/endpoints for interview/module chats.
+
+The new coach chat should conform to the existing chat storage and API patterns wherever possible (same tables/collections, similar API shape, additional linkage to the Serious Plan).
+
+2. High-Level Goals
+
+Dynamic artifact system
+
+Not a hardcoded set of fields; instead, a flexible set of n artifacts tailored to the user.
+
+Certain canonical artifact types should normally appear (see Section 4), but:
+
+The LLM is allowed to add new artifacts that are uniquely helpful.
+
+The LLM may omit artifacts if they’re not relevant.
+
+This should clearly feel like the product is custom-assembled for the client.
+
+Consistent artifact formatting
+Every artifact must:
+
+Include:
+
+The Serious People name/brand.
+
+The client’s name.
+
+A consistent header layout (title, client, date).
+
+Start with 1–2 sentences:
+
+“Why this artifact is important” — specific to that artifact and that client.
+
+Use similar heading levels, spacing, and typography across artifacts to feel like a cohesive packet.
+
+Separation of concerns
+
+First: generate and store the raw content and structured metadata for each artifact.
+
+Second: format each artifact into a PDF using whichever AI/document model is best at layout (based on the existing setup).
+
+The combined bundle PDF should be created by bundling the individual PDFs, not regenerating content.
+
+3. User Journey
+
+Implement / refine this flow:
+
+Complete final module
+
+User answers final module questions; frontend posts answers to backend as currently done.
+
+Payment success
+
+After payment success (existing Stripe or similar callback):
+
+Route user to a “Graduating you from this program…” interstitial.
+
+The frontend calls a backend endpoint to:
+
+Aggregate context.
+
+Decide which artifacts to create.
+
+Generate raw content for each artifact.
+
+Persist artifacts.
+
+Trigger (or schedule) PDF generation for each artifact.
+
+UI should show that artifacts are being prepared and handle “not yet ready” states.
+
+Coach Graduation Note
+
+Once core artifacts exist (even if PDFs are still generating), user sees a Coach Graduation Note screen:
+
+A note from their coach (LLM-generated) that:
+
+Reflects their situation.
+
+Expresses empathy and confidence in their next steps.
+
+Briefly explains what artifacts have been created and how they’re meant to help.
+
+States that the coach is available to chat as needed.
+
+Button: “Continue to Your Serious Plan” leading to the post-graduation artifact screen.
+
+This Coach Graduation Note should also be stored as an artifact and serve as the cover letter in the bundle PDF.
+
+Post-Graduation Screen (Serious Plan page)
+
+After the note, user lands on a Serious Plan page that:
+
+Lists all generated artifacts (dynamic list, not hardcoded).
+
+Allows viewing, downloading PDFs, emailing artifacts, and downloading/emailing the full bundle.
+
+Includes a “Chat with your coach” area with full context.
+
+Returning users
+
+Returning users can access a “My Serious Plan” or equivalent page:
+
+Shows the saved artifacts for their latest (or selected) coaching session.
+
+Allows re-downloading and re-emailing PDFs and bundles.
+
+Allows continuing the coach chat thread.
+
+4. Artifact System & Canonical Artifacts
+
+Implement a flexible artifact system driven by the LLM, with canonical types that are usually included, but not mandatory.
+
+4.1 Artifact Principles
+
+All artifacts:
+
+Include:
+
+Serious People brand.
+
+Client name.
+
+Date.
+
+Start with 1–2 sentences: “Why this artifact is important”.
+
+Are individualized: references to their role, context, runway, values, etc.
+
+The LLM:
+
+Receives instructions about canonical artifacts (below).
+
+Is allowed to:
+
+Add additional artifacts uniquely helpful to this client.
+
+Omit artifacts that are clearly irrelevant.
+
+Must output a structured list of artifacts with:
+
+artifact_key (stable identifier).
+
+title.
+
+type (e.g., decision_snapshot, conversation_plan, narrative, module_recap, resources, plan, etc.).
+
+importance_level or similar (for ordering, e.g., must_read, recommended).
+
+content (rich text / markdown or HTML).
+
+metadata (JSON) for artifact-specific details (e.g., plan_horizon_type for a plan).
+
+4.2 Canonical Artifact Types
+
+These should normally be present unless irrelevant:
+
+Coach Graduation Note (Cover Letter)
+
+A note from the coach generated at graduation.
+
+Tone: empathetic, confident, warm, professional.
+
+Content:
+
+Gratitude for working with the client.
+
+Recognition of their situation and emotional state.
+
+High-level summary of where they are and what’s next.
+
+Brief explanation of the artifacts they’re receiving.
+
+Invitation to use the chat for follow-up.
+
+Used both:
+
+On the graduation screen.
+
+As the first artifact in the bundle PDF (cover letter).
+
+Decision Snapshot
+
+A concise 1-pager summarizing:
+
+Situation in one sentence.
+
+Their 2–4 real options.
+
+A clear recommendation given their constraints and values.
+
+Key constraints (runway, family needs, etc.).
+
+A “If you only do one thing this week/month” line.
+
+Includes “Why this artifact is important” at the top.
+
+Conversation Toolkit (Boss / Partner)
+
+One artifact per conversation type:
+
+Boss Conversation Plan
+
+Partner Conversation Plan
+
+Each includes:
+
+Goal of the conversation.
+
+Opening lines (multiple tone variants).
+
+Core script/flow.
+
+Likely pushbacks & suggested responses.
+
+Red lines & tells.
+
+De-escalation & closing.
+
+Optional one-page “cheat sheet” section.
+
+Self/Clarity is not in this toolkit (see next).
+
+Self Narrative / Clarity Memo (Separate Artifact)
+
+Separate artifact, not a conversation plan.
+
+This is the narrative they are creating for themselves:
+
+How they describe this moment in their life.
+
+What they are moving away from and toward.
+
+The kind of person they want to be in this transition.
+
+Structured like a personal memo or letter to future self.
+
+Includes “Why this artifact is important” and anchors back to their values.
+
+Action Plan (Dynamic Horizon)
+
+A time-boxed plan whose horizon is derived from the client’s situation:
+
+E.g., 30/60/90 days or 6 months depending on runway, urgency, and stated intentions.
+
+Divided into intervals (weeks or months depending on horizon).
+
+For each interval:
+
+2–4 clearly defined tasks.
+
+Outcome/definition of done.
+
+Includes at least one decision checkpoint with real calendar dates.
+
+metadata should include plan_horizon_type and any key dates.
+
+Risk & Fallback Map
+
+List of:
+
+Big risks they mentioned explicitly.
+
+Hidden risks the coach sees.
+
+For each risk:
+
+Short name.
+
+Likelihood/impact label.
+
+Mitigation steps.
+
+Fallback plan.
+
+Module Recap Artifact
+
+“Really good notes” from a thoughtful notetaker.
+
+Includes:
+
+Names and objectives of each module.
+
+Topics covered.
+
+Key answers the client gave (paraphrased, not raw dump).
+
+Major takeaways and “so what” for each module.
+
+Designed so they could hand this to someone else to quickly understand what they went through.
+
+Additional Resources Artifact
+
+A list of 5–10 credible, safe-for-work resources:
+
+Articles, books, and videos.
+
+For each resource:
+
+Title.
+
+Link.
+
+Short explanation:
+
+What it is.
+
+Why it’s recommended for this client in particular.
+
+Flag 1–3 as “must read” or “must watch”.
+
+The LLM must be instructed to select resources that:
+
+Are credible and safe-for-work.
+
+Have direct relevance to the client’s context (e.g., mid-career pivot, executive conflict, burnout, etc.).
+
+Optional Additional Artifacts
+
+The LLM is allowed to add more artifacts if they would materially help this client (e.g., negotiation checklist, networking script pack, values card sort summary, etc.).
+
+5. Data Model & Storage
+5.1 Serious Plan Model
+
+Create or extend a generic SeriousPlan (or equivalent) model, not tightly bound to specific artifacts. It should support arbitrary artifacts with shared metadata.
+
+Suggested fields (adapt names/ORM to repo):
+
+id
+
+user_id
+
+coaching_session_id
+
+created_at
+
+updated_at
+
+summary_metadata (JSON):
+
+e.g., selected recommendation, chosen horizon type, key constraints, etc.
+
+status (e.g., generating, ready, error)
+
+5.2 Artifact Model
+
+Create a SeriousPlanArtifact (or equivalent):
+
+id
+
+serious_plan_id
+
+artifact_key (e.g., decision_snapshot, boss_conversation, self_narrative, module_recap, resources, coach_note, etc.)
+
+title
+
+type (string enum like plan, conversation, narrative, recap, resources, etc.)
+
+importance_level (e.g., must_read, recommended, optional)
+
+content_raw (original structured text/markdown/HTML from LLM)
+
+content_rendered_html (if you pre-render)
+
+metadata (JSON, e.g., plan_horizon_type, list of resources, risk levels, etc.)
+
+pdf_url (nullable; URL to stored PDF once generated)
+
+pdf_status (not_started, generating, ready, error)
+
+created_at, updated_at
+
+5.3 Coach Chat Integration
+
+Reuse the same models/collections used for interview and module chats (whatever they are called). For coach chat:
+
+Link each chat thread to a serious_plan_id (and user_id).
+
+If there’s a thread model, add a context_type or similar field to distinguish coach chat vs interview/module chat.
+
+Messages should follow the same schema as existing chats.
+
+6. Backend: Generation & APIs
+6.1 Generation Endpoint
+
+Create an endpoint, e.g.:
+
+POST /api/serious-plan/generate
+
+Steps:
+
+Aggregate context
+
+Load:
+
+Intake data.
+
+Module responses.
+
+Any relevant prior chat/interview summary.
+
+Payment status and session info.
+
+Derive coaching metadata
+
+Determine:
+
+Current role/seniority/industry.
+
+Stated intentions (e.g., 90% leaning to quit vs. trying to reshape role).
+
+Runway / time horizon.
+
+Partner/family constraints.
+
+Risk appetite.
+
+Determine recommended horizon
+
+Implement a small function that suggests a plan_horizon_type (e.g., 30_days, 60_days, 90_days, 6_months) based on runway and urgency.
+
+Pass this and the rationale into the LLM.
+
+LLM call for content
+
+Construct a system+user prompt that:
+
+Describes the dynamic artifact system and canonical artifacts.
+
+Explicitly allows adding new artifacts / omitting irrelevant ones.
+
+Enforces the consistent header format and “why this artifact is important” intros.
+
+Requires output as a single JSON object representing an array of artifacts with fields:
+
+artifact_key
+
+title
+
+type
+
+importance_level
+
+content
+
+metadata
+
+Call the LLM, parse JSON, handle errors robustly.
+
+Persist
+
+Create a SeriousPlan record with status generating or ready depending on PDF strategy.
+
+Create one SeriousPlanArtifact per artifact from the LLM.
+
+Mark pdf_status as not_started initially.
+
+Trigger PDF generation
+
+Either:
+
+Synchronously start PDF generation for each artifact (if not too slow).
+
+Or enqueue a background job for PDF generation (if such mechanism exists).
+
+Return:
+
+The SeriousPlan ID.
+
+A preliminary list of artifacts (without PDFs yet).
+
+A status for the frontend to poll.
+
+Coach Graduation Note
+
+Either:
+
+Have the LLM include the coach note as a specific artifact (artifact_key = "coach_note").
+
+Or generate it as a separate LLM call.
+
+Ensure it is stored as an artifact and used as:
+
+The content of the graduation screen.
+
+The cover letter in the bundle PDF.
+
+6.2 Status & Retrieval Endpoints
+
+GET /api/serious-plan/:id
+
+Returns:
+
+Plan metadata.
+
+List of artifacts with their pdf_status and pdf_url if ready.
+
+GET /api/serious-plan/latest (optional)
+
+Returns the latest plan for the authenticated user.
+
+7. PDF Generation & Bundling
+7.1 Individual PDFs
+
+Use the existing stack and whichever AI model is best at formatting documents in this app to convert content_raw into PDFs.
+
+Steps per artifact:
+
+Build an HTML or structured representation that:
+
+Includes:
+
+Serious People branding.
+
+Client name.
+
+Date.
+
+Title.
+
+“Why this artifact is important” text.
+
+Uses consistent styling across artifacts.
+
+Call the chosen model or library to:
+
+Render to a PDF.
+
+Store the PDF in the existing file storage.
+
+Save the pdf_url and set pdf_status = "ready".
+
+Backend endpoint or worker:
+
+POST /api/serious-plan/:id/generate-pdfs
+
+Can be called by the generation endpoint or a background runner.
+
+7.2 Bundle PDF
+
+Implement:
+
+GET /api/serious-plan/:id/pdf/bundle
+
+Behavior:
+
+Fetch all artifacts where pdf_status = "ready", ordered by:
+
+Coach note (cover letter) first.
+
+Then importance level.
+
+Then a sensible default order (e.g., decision snapshot, action plan, conversations, module recap, resources, others).
+
+Bundle the existing PDFs:
+
+Download/read the individual PDFs using their pdf_url.
+
+Concatenate them in order into a single PDF file. Do not regenerate content.
+
+Store the resulting bundle in the existing storage.
+
+Return it as a downloadable response and/or store bundle_pdf_url in SeriousPlan.summary_metadata.
+
+8. Email Delivery (Resend)
+
+Use the existing Resend integration. Do not create a new email client.
+
+Endpoints:
+
+POST /api/serious-plan/:id/email/artifact
+
+Body: { artifactKey: string, to?: string } (use user email if to omitted).
+
+Behavior:
+
+Look up the artifact, ensure content_raw and ideally pdf_url are available.
+
+Send email via Resend:
+
+Subject: e.g., Your Serious People – [Artifact Title]
+
+HTML body:
+
+Brief intro.
+
+“Why this artifact is important” text.
+
+Artifact content inline (HTML).
+
+Link to download the PDF.
+
+Optionally attach the PDF if that’s already supported lazily in the Resend integration.
+
+POST /api/serious-plan/:id/email/bundle
+
+Body: { to?: string }.
+
+Behavior:
+
+Ensure bundle PDF exists (trigger generation if needed).
+
+Send email via Resend:
+
+Subject: Your Serious Plan – Career Coaching Packet
+
+HTML body:
+
+Short explanation of what’s inside.
+
+Inline copy of the Coach Graduation Note (cover letter).
+
+List of included artifacts (titles).
+
+Link to download the bundle PDF.
+
+Optionally attach the bundle PDF.
+
+9. Frontend UX: Graduation & Serious Plan Page
+9.1 Graduation Note Screen
+
+Fetch the generated plan and artifacts (or a dedicated endpoint for the coach note).
+
+Display the coach note artifact in a simple layout:
+
+Title.
+
+Body text.
+
+Button: “Continue to Your Serious Plan” → navigates to /serious-plan/:id.
+
+9.2 Serious Plan Page
+
+Implement a page component, e.g., SeriousPlanPage.tsx, that:
+
+Handles loading & “not ready” states
+
+On mount, fetch the plan and artifacts.
+
+If generation is still in progress or PDFs are not yet ready:
+
+Show skeletons/spinners.
+
+Make download/email buttons disabled until ready.
+
+Allow reading text content as soon as it’s available, even before PDFs.
+
+Dynamic artifact list
+
+Render artifacts as a list of cards or accordions based on the SeriousPlanArtifact list:
+
+Title.
+
+“Why this artifact is important” excerpt (from content).
+
+Main content preview/expand.
+
+Badges (e.g., “Must Read” based on importance_level).
+
+Actions:
+
+Download PDF (once pdf_status is ready).
+
+Email Me This.
+
+No hardcoding of specific artifact names in layout logic; use generic rendering, but you may special-case sorting (coach_note first, then decision_snapshot, etc.).
+
+Bundle section
+
+Separate card:
+
+“Full Serious Plan Packet”.
+
+Shows which artifacts it includes.
+
+Actions:
+
+Download Full PDF Packet.
+
+Email Me the Full Packet.
+
+Show disabled or “preparing” state if bundle isn’t ready.
+
+Chat with your coach
+
+Integrate a chat UI consistent with existing chats:
+
+Conversation history.
+
+Input box + send button.
+
+Do not label the coach persona explicitly in the UI (no “Coach GPT” or similar labels).
+
+The UI should just feel like “Chat” with a helpful, context-aware counterpart.
+
+10. Coach Chat Backend
+
+Use existing chat storage and patterns, but add linkage to Serious Plan.
+
+Endpoints (names can be adapted to existing ones):
+
+GET /api/coach-chat/thread/:seriousPlanId
+
+Returns messages for that plan’s thread.
+
+POST /api/coach-chat/thread/:seriousPlanId/message
+
+Body: { content: string }.
+
+Behavior:
+
+Store user message like other chats.
+
+Build an LLM request with:
+
+System prompt describing coach behavior and access to plan context (not shown to user).
+
+Context:
+
+Summaries from SeriousPlan.summary_metadata.
+
+Selected artifacts (e.g., decision snapshot, action plan).
+
+Recent chat history (truncated).
+
+Generate a reply, store it using the same message schema as existing chats.
+
+Return the updated list of messages or new message.
+
+The UI should not display a special label for the coach persona; it should simply render messages.
+
+11. Async / “Not Yet Ready” Handling
+
+Immediately after the generation endpoint is called, frontend should:
+
+Poll GET /api/serious-plan/:id until:
+
+status becomes ready (or similar), or
+
+A timeout/error occurs.
+
+For each artifact:
+
+Reflect pdf_status:
+
+not_started → show “Preparing…”.
+
+generating → show spinner.
+
+ready → enable download/email.
+
+error → show a retry or fallback message.
+
+PDFs are always generated after content is stored; content should be readable even if PDFs are delayed.
+
+12. Testing & Acceptance
+
+Add/update tests to cover:
+
+Generation:
+
+Plan and artifact creation.
+
+Ability to handle variable artifact sets.
+
+Proper metadata storage.
+
+PDFs:
+
+PDF generation for individual artifacts.
+
+Bundling logic concatenating PDFs in correct order.
+
+Emails:
+
+Using Resend integration with appropriate payloads.
+
+Inline content and links correct.
+
+Frontend:
+
+Graduation note screen loads and transitions correctly.
+
+Serious Plan page renders dynamic artifact list.
+
+States for “generating” vs “ready” vs “error”.
+
+Coach chat:
+
+Thread creation/reuse tied to serious_plan_id.
+
+Messages stored using same schema as existing chats.
+
+LLM replies reference plan context appropriately.
+
+Manual acceptance criteria:
+
+After completing modules and payment:
+
+I see a “preparing your plan” interstitial.
+
+Then I see a Coach Graduation Note that feels specific to my situation.
+
+After continuing, I see a Serious Plan page with:
+
+A dynamic list of artifacts, including at least:
+
+Coach note.
+
+Decision snapshot.
+
+Boss and partner conversation plans.
+
+Self narrative / clarity memo.
+
+Action plan with an appropriate horizon.
+
+Risk & fallback map.
+
+Module recap.
+
+Additional resources.
+
+Each artifact:
+
+Starts with why it’s important.
+
+Includes my name and Serious People branding.
+
+Is viewable in-app.
+
+Can be emailed and downloaded as a PDF once ready.
+
+A bundle PDF that:
+
+Starts with the coach note as cover letter.
+
+Contains all artifacts in a coherent order.
+
+Can be downloaded/emailed.
+
+A chat area where I can ask follow-up questions and get context-aware answers, stored using the same chat patterns as the rest of the app.
+
+Implement all of the above in a way that is idiomatic for this codebase, reusing the existing Resend integration, storage solution, and chat infrastructure.
