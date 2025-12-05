@@ -32,14 +32,30 @@ export default function Success() {
   };
 
   useEffect(() => {
-    const savedPlan = sessionStorage.getItem(PLAN_CARD_KEY);
-    if (savedPlan) {
+    const loadPlan = async () => {
       try {
-        setCoachingPlan(JSON.parse(savedPlan));
+        // Try sessionStorage first
+        const savedPlan = sessionStorage.getItem(PLAN_CARD_KEY);
+        if (savedPlan) {
+          setCoachingPlan(JSON.parse(savedPlan));
+          return;
+        }
+        
+        // Try loading from server
+        const response = await fetch("/api/transcript", { credentials: "include" });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.planCard) {
+            setCoachingPlan(data.planCard);
+            sessionStorage.setItem(PLAN_CARD_KEY, JSON.stringify(data.planCard));
+          }
+        }
       } catch (e) {
         console.error("Failed to load coaching plan:", e);
       }
-    }
+    };
+    
+    loadPlan();
   }, []);
 
   const loadTranscript = useCallback((): boolean => {

@@ -565,6 +565,12 @@ export default function Interview() {
 
       if (data.planCard?.name) {
         setPlanCard({ card: data.planCard, index: updatedTranscript.length - 1 });
+        // Save plan card to sessionStorage for success page
+        try {
+          sessionStorage.setItem("serious_people_plan_card", JSON.stringify(data.planCard));
+        } catch (e) {
+          console.error("Failed to save plan card to sessionStorage:", e);
+        }
       }
 
       if (data.options && data.options.length > 0) {
