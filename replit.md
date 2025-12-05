@@ -7,11 +7,12 @@ Serious People is a career coaching service that helps users navigate career tra
 2. A free intro phase to understand the big problem and propose a custom 3-module plan
 3. Dynamic Stripe pricing with automatic discount code pre-application
 4. Three coaching modules: Job Autopsy, Fork in the Road, The Great Escape Plan
-5. A final "Career Brief" deliverable with diagnosis, action plan, and conversation scripts
+5. A final "Serious Plan" with AI-generated dynamic artifacts: coach graduation note, decision snapshot, conversation scripts, action plan, risk map, module recap, and resources
+6. PDF generation (Puppeteer with WSJ-styled template), email delivery (Resend), and persistent coach chat
 
 **Tagline:** "Short scripts for big career conversations."
 
-**User Flow:** Landing page → Sign in (magic link/Google) → Free intro & plan proposal → Paywall (with dynamic pricing) → Stripe payment (discount pre-applied) → 3 coaching modules → Career Brief generation
+**User Flow:** Landing page → Sign in (magic link/Google) → Free intro & plan proposal → Paywall (with dynamic pricing) → Stripe payment (discount pre-applied) → 3 coaching modules → Serious Plan generation → Coach Chat
 
 ## User Preferences
 
@@ -34,7 +35,9 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - `client/src/pages/success.tsx` - Payment verification and redirect to modules (route: `/success`)
 - `client/src/pages/module.tsx` - Individual coaching module conversation (route: `/module/:moduleNumber`, protected)
 - `client/src/pages/progress.tsx` - Table of contents showing completed/upcoming modules (route: `/progress`, protected)
-- `client/src/pages/career-brief.tsx` - Final Career Brief generation after all modules (route: `/career-brief`, protected)
+- `client/src/pages/career-brief.tsx` - Legacy Career Brief page (route: `/career-brief`, protected) - being replaced by Serious Plan
+- `client/src/pages/serious-plan.tsx` - Serious Plan with graduation note and artifacts (route: `/serious-plan`, protected)
+- `client/src/pages/coach-chat.tsx` - Persistent coach chat with plan context (route: `/coach-chat`, protected)
 
 **Auth Components:**
 - `client/src/hooks/useAuth.tsx` - Auth context provider with user state, login, and logout functions
@@ -97,6 +100,14 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 14. `GET /auth/google/callback` - Google OAuth callback
 15. `POST /api/dev/auto-client` - Dev-only: Generates realistic client responses for testing (returns 404 in production)
 16. `POST /api/webhook/inbound` - Receives Resend inbound email webhooks and forwards to seriouspeople@noahlevin.com
+17. `POST /api/serious-plan` - Generate a new Serious Plan with artifacts (requires auth)
+18. `GET /api/serious-plan/latest` - Get user's latest Serious Plan with all artifacts (requires auth)
+19. `GET /api/serious-plan/:id` - Get a specific Serious Plan by ID (requires auth)
+20. `POST /api/serious-plan/:planId/artifacts/:artifactId/pdf` - Generate PDF for an artifact (requires auth)
+21. `POST /api/serious-plan/:planId/bundle-pdf` - Generate bundle PDF with all artifacts (requires auth)
+22. `POST /api/serious-plan/:planId/send-email` - Send the Serious Plan to user's email (requires auth)
+23. `GET /api/coach-chat/:planId/messages` - Get chat history for a plan (requires auth)
+24. `POST /api/coach-chat/:planId/message` - Send a message and get AI response (requires auth)
 
 **AI Integration:**
 - Uses Anthropic Claude Sonnet 4.5 as primary AI model when ANTHROPIC_API_KEY is set
@@ -118,8 +129,11 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 **Database Tables:**
 - **users** table - User accounts (id, email, name, password, oauthProvider, oauthId, createdAt, updatedAt)
 - **sessions** table - express-session storage for authenticated sessions
-- **interview_transcripts** table - Conversation history linked to users (sessionToken, userId, transcript, progress, interviewComplete, paymentVerified, stripeSessionId, valueBullets, socialProof, planCard)
+- **interview_transcripts** table - Conversation history linked to users (sessionToken, userId, transcript, progress, interviewComplete, paymentVerified, stripeSessionId, valueBullets, socialProof, planCard, clientDossier, plannedArtifacts)
 - **magic_link_tokens** table - One-time authentication tokens (email, tokenHash, expiresAt, usedAt)
+- **serious_plans** table - Serious Plan records with graduation note and summary metadata
+- **serious_plan_artifacts** table - Individual artifacts (decision snapshot, action plan, scripts, etc.) linked to plans
+- **coach_chat_messages** table - Persistent chat messages linked to plans
 
 **Storage Pattern:**
 - Interview transcripts stored server-side in database for authenticated users
