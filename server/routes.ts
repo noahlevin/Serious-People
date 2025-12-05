@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import path from "path";
 import express from "express";
 import crypto from "crypto";
@@ -10,6 +11,9 @@ import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
 import { sendMagicLinkEmail } from "./resendClient";
 
+// Use Anthropic Claude if API key is available, otherwise fall back to OpenAI
+const useAnthropic = !!process.env.ANTHROPIC_API_KEY;
+const anthropic = useAnthropic ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 function getBaseUrl(): string {
@@ -753,36 +757,66 @@ export async function registerRoutes(
   // POST /interview - AI interview endpoint
   app.post("/interview", async (req, res) => {
     try {
-      if (!process.env.OPENAI_API_KEY) {
-        return res.status(500).json({ error: "OpenAI API key not configured" });
+      if (!useAnthropic && !process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: "No AI API key configured" });
       }
 
       const { transcript = [] } = req.body;
 
-      const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-        { role: "system", content: INTERVIEW_SYSTEM_PROMPT }
-      ];
+      let reply: string;
 
-      for (const turn of transcript) {
-        if (turn && turn.role && turn.content) {
-          messages.push({
-            role: turn.role as "user" | "assistant",
-            content: turn.content
-          });
+      if (useAnthropic && anthropic) {
+        // Use Anthropic Claude
+        const claudeMessages: { role: "user" | "assistant"; content: string }[] = [];
+
+        for (const turn of transcript) {
+          if (turn && turn.role && turn.content) {
+            claudeMessages.push({
+              role: turn.role as "user" | "assistant",
+              content: turn.content
+            });
+          }
         }
+
+        if (transcript.length === 0) {
+          claudeMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
+        }
+
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          system: INTERVIEW_SYSTEM_PROMPT,
+          messages: claudeMessages,
+        });
+
+        reply = response.content[0].type === 'text' ? response.content[0].text : '';
+      } else {
+        // Fall back to OpenAI
+        const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+          { role: "system", content: INTERVIEW_SYSTEM_PROMPT }
+        ];
+
+        for (const turn of transcript) {
+          if (turn && turn.role && turn.content) {
+            messages.push({
+              role: turn.role as "user" | "assistant",
+              content: turn.content
+            });
+          }
+        }
+
+        if (transcript.length === 0) {
+          messages.push({ role: "user", content: "Start the interview. Ask your first question." });
+        }
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          messages,
+          max_completion_tokens: 1024,
+        });
+
+        reply = response.choices[0].message.content || "";
       }
-
-      if (transcript.length === 0) {
-        messages.push({ role: "user", content: "Start the interview. Ask your first question." });
-      }
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
-        messages,
-        max_completion_tokens: 1024,
-      });
-
-      let reply = response.choices[0].message.content || "";
       let done = false;
       let valueBullets: string | null = null;
       let socialProof: string | null = null;
@@ -1017,8 +1051,8 @@ A reminder of why they're doing this and what success looks like.
   // POST /api/module - Module conversation endpoint
   app.post("/api/module", async (req, res) => {
     try {
-      if (!process.env.OPENAI_API_KEY) {
-        return res.status(500).json({ error: "OpenAI API key not configured" });
+      if (!useAnthropic && !process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: "No AI API key configured" });
       }
 
       const { moduleNumber, transcript = [] } = req.body;
@@ -1031,30 +1065,60 @@ A reminder of why they're doing this and what success looks like.
       // The module prompts reference the interview, so we include context
       const systemPrompt = MODULE_SYSTEM_PROMPTS[moduleNumber];
 
-      const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-        { role: "system", content: systemPrompt }
-      ];
+      let reply: string;
 
-      for (const turn of transcript) {
-        if (turn && turn.role && turn.content) {
-          messages.push({
-            role: turn.role as "user" | "assistant",
-            content: turn.content
-          });
+      if (useAnthropic && anthropic) {
+        // Use Anthropic Claude
+        const claudeMessages: { role: "user" | "assistant"; content: string }[] = [];
+
+        for (const turn of transcript) {
+          if (turn && turn.role && turn.content) {
+            claudeMessages.push({
+              role: turn.role as "user" | "assistant",
+              content: turn.content
+            });
+          }
         }
+
+        if (transcript.length === 0) {
+          claudeMessages.push({ role: "user", content: "Start the module. Introduce it and ask your first question." });
+        }
+
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: claudeMessages,
+        });
+
+        reply = response.content[0].type === 'text' ? response.content[0].text : '';
+      } else {
+        // Fall back to OpenAI
+        const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+          { role: "system", content: systemPrompt }
+        ];
+
+        for (const turn of transcript) {
+          if (turn && turn.role && turn.content) {
+            messages.push({
+              role: turn.role as "user" | "assistant",
+              content: turn.content
+            });
+          }
+        }
+
+        if (transcript.length === 0) {
+          messages.push({ role: "user", content: "Start the module. Introduce it and ask your first question." });
+        }
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          messages,
+          max_completion_tokens: 1024,
+        });
+
+        reply = response.choices[0].message.content || "";
       }
-
-      if (transcript.length === 0) {
-        messages.push({ role: "user", content: "Start the module. Introduce it and ask your first question." });
-      }
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
-        messages,
-        max_completion_tokens: 1024,
-      });
-
-      let reply = response.choices[0].message.content || "";
       let done = false;
       let summary: string | null = null;
       let options: string[] | null = null;
@@ -1108,8 +1172,8 @@ A reminder of why they're doing this and what success looks like.
   // POST /generate - Generate career coaching scripts from transcript
   app.post("/generate", async (req, res) => {
     try {
-      if (!process.env.OPENAI_API_KEY) {
-        return res.status(500).json({ error: "OpenAI API key not configured" });
+      if (!useAnthropic && !process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: "No AI API key configured" });
       }
 
       const { transcript } = req.body;
@@ -1197,13 +1261,28 @@ FORMAT:
 - No mention of being an AI or a coach
 - Write as if the user drafted this themselves after talking it through with a trusted advisor`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
-        messages: [{ role: "user", content: prompt }],
-        max_completion_tokens: 4096,
-      });
+      let text: string | null;
 
-      const text = response.choices[0].message.content;
+      if (useAnthropic && anthropic) {
+        // Use Anthropic Claude
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 4096,
+          messages: [{ role: "user", content: prompt }],
+        });
+
+        text = response.content[0].type === 'text' ? response.content[0].text : null;
+      } else {
+        // Fall back to OpenAI
+        const response = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          messages: [{ role: "user", content: prompt }],
+          max_completion_tokens: 4096,
+        });
+
+        text = response.choices[0].message.content;
+      }
+
       res.json({ text });
     } catch (error: any) {
       console.error("Generate error:", error);

@@ -95,7 +95,8 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 14. `GET /auth/google/callback` - Google OAuth callback
 
 **AI Integration:**
-- Uses OpenAI API with GPT-4.1-mini model
+- Uses Anthropic Claude (claude-sonnet-4) as primary AI model when ANTHROPIC_API_KEY is set
+- Falls back to OpenAI GPT-4.1-mini if no Anthropic key is available
 - Interview conducted by plain-spoken career coach (no name)
 - Interview system prompt conducts structured coaching session with modules
 - Uses `[[PROGRESS]]...[[END_PROGRESS]]` token to track per-module progress (5-100)
