@@ -783,7 +783,7 @@ export async function registerRoutes(
         }
 
         const response = await anthropic.messages.create({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-opus-4-20250514",
           max_tokens: 1024,
           system: INTERVIEW_SYSTEM_PROMPT,
           messages: claudeMessages,
@@ -1085,7 +1085,7 @@ A reminder of why they're doing this and what success looks like.
         }
 
         const response = await anthropic.messages.create({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-opus-4-20250514",
           max_tokens: 1024,
           system: systemPrompt,
           messages: claudeMessages,
@@ -1266,7 +1266,7 @@ FORMAT:
       if (useAnthropic && anthropic) {
         // Use Anthropic Claude
         const response = await anthropic.messages.create({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-opus-4-20250514",
           max_tokens: 4096,
           messages: [{ role: "user", content: prompt }],
         });
