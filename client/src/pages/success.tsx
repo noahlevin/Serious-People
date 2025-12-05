@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useSearch, useLocation } from "wouter";
 import "@/styles/serious-people.css";
 import { UserMenu } from "@/components/UserMenu";
+import { ModulesProgressCard, COACHING_MODULES } from "@/components/ModulesProgressCard";
 
 interface Message {
   role: "user" | "assistant";
@@ -11,24 +12,6 @@ interface Message {
 type PageState = "verifying" | "error" | "transcript-error" | "ready" | "generating" | "results";
 
 const STORAGE_KEY = "serious_people_transcript";
-
-const MODULES = [
-  {
-    number: 1,
-    name: "Job Autopsy",
-    description: "Understand what's really driving your dissatisfaction and separate fixable problems from fundamental mismatches."
-  },
-  {
-    number: 2,
-    name: "Fork in the Road",
-    description: "Clarify your options and evaluate the trade-offs of staying, pivoting, or leaving entirely."
-  },
-  {
-    number: 3,
-    name: "The Great Escape Plan",
-    description: "Build a concrete action plan with timelines, scripts, and strategies for your next move."
-  }
-];
 
 export default function Success() {
   const search = useSearch();
@@ -168,38 +151,15 @@ export default function Success() {
 
         {state === "ready" && (
           <div className="sp-state-container">
-            <div className="sp-ready-card sp-coaching-ready">
-              <div className="sp-success-badge">Payment Confirmed</div>
-              <h2>Let's Start Your Coaching Program</h2>
-              <p className="sp-coaching-intro">Your personalized three-module coaching journey awaits. At the end, you'll receive your Career Brief with diagnosis, action plan, and conversation scripts.</p>
-              
-              <div className="sp-modules-list" data-testid="modules-list">
-                {MODULES.map((module, index) => (
-                  <div 
-                    key={module.number} 
-                    className={`sp-module-item ${index === 0 ? 'sp-module-next' : ''}`}
-                    data-testid={`module-item-${module.number}`}
-                  >
-                    <div className="sp-module-number">{module.number}</div>
-                    <div className="sp-module-content">
-                      <h3 className="sp-module-name">
-                        {module.name}
-                        {index === 0 && <span className="sp-up-next-badge">Up Next</span>}
-                      </h3>
-                      <p className="sp-module-description">{module.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <button
-                className="sp-generate-btn sp-start-coaching-btn"
-                data-testid="button-start-coaching"
-                onClick={handleStartCoaching}
-              >
-                Start Module 1: Job Autopsy
-              </button>
-            </div>
+            <ModulesProgressCard
+              currentModule={1}
+              showBadge={true}
+              badgeText="Payment Confirmed"
+              title="Let's Start Your Coaching Program"
+              subtitle="Your personalized three-module coaching journey awaits. At the end, you'll receive your Career Brief with diagnosis, action plan, and conversation scripts."
+              ctaText={`Start Module 1: ${COACHING_MODULES[0].name}`}
+              onCtaClick={handleStartCoaching}
+            />
           </div>
         )}
 
