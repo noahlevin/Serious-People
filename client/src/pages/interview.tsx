@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import "@/styles/serious-people.css";
 
@@ -25,6 +25,14 @@ interface InterviewResponse {
   progress?: number;
   options?: string[];
   planCard?: PlanCard;
+}
+
+interface PricingData {
+  originalPrice: number;
+  discountedPrice: number | null;
+  percentOff: number | null;
+  amountOff: number | null;
+  currency: string;
 }
 
 const STORAGE_KEY = "serious_people_transcript";
@@ -231,16 +239,35 @@ function Paywall({
   valueBullets, 
   socialProof, 
   onCheckout, 
-  isLoading 
+  isLoading,
+  pricing
 }: { 
   valueBullets?: string; 
   socialProof?: string;
   onCheckout: () => void;
   isLoading: boolean;
+  pricing?: PricingData;
 }) {
   const bullets = valueBullets
     ? valueBullets.trim().split("\n").filter(line => line.trim().startsWith("-")).map(line => line.replace(/^-\s*/, "").trim())
     : [];
+
+  const hasDiscount = pricing && pricing.discountedPrice !== null && pricing.discountedPrice < pricing.originalPrice;
+  const displayPrice = hasDiscount ? pricing.discountedPrice : (pricing?.originalPrice ?? 49);
+  const originalPrice = pricing?.originalPrice ?? 49;
+
+  const priceDisplay = hasDiscount ? (
+    <span className="sp-price-display">
+      <span className="sp-price-original">${originalPrice}</span>
+      <span className="sp-price-discounted">${displayPrice}</span>
+    </span>
+  ) : (
+    <span>${displayPrice}</span>
+  );
+
+  const buttonPriceText = hasDiscount 
+    ? `$${originalPrice} $${displayPrice}` 
+    : `$${displayPrice}`;
 
   return (
     <div className="sp-paywall-inline" data-testid="paywall">
@@ -271,11 +298,20 @@ function Paywall({
               <span className="sp-spinner"></span>Redirecting...
             </>
           ) : (
-            "Let's Work the Plan – $19"
+            <>
+              Let's Work the Plan – {hasDiscount ? (
+                <>
+                  <span className="sp-button-price-original">${originalPrice}</span>
+                  <span className="sp-button-price-discounted">${displayPrice}</span>
+                </>
+              ) : (
+                `$${displayPrice}`
+              )}
+            </>
           )}
         </button>
         <div className="sp-price-note">
-          Payment handled securely via Stripe.
+          Payment handled securely via Stripe.{hasDiscount && " Discount pre-applied."}
         </div>
       </div>
     </div>
@@ -285,6 +321,11 @@ function Paywall({
 export default function Interview() {
   const { isAuthenticated, isLoading: authLoading, refetch } = useAuth();
   const [, setLocation] = useLocation();
+  
+  const { data: pricing } = useQuery<PricingData>({
+    queryKey: ["/api/pricing"],
+    staleTime: 60000,
+  });
   
   const [transcript, setTranscript] = useState<Message[]>([]);
   const [interviewComplete, setInterviewComplete] = useState(false);
@@ -785,6 +826,7 @@ export default function Interview() {
               socialProof={socialProof}
               onCheckout={handleCheckout}
               isLoading={isCheckoutLoading}
+              pricing={pricing}
             />
           )}
         </div>

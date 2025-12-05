@@ -959,6 +959,16 @@
   font-style: italic;
 }
 
+.sp-button-price-original {
+  text-decoration: line-through;
+  opacity: 0.7;
+  margin-right: 0.35em;
+}
+
+.sp-button-price-discounted {
+  font-weight: 700;
+}
+
 .sp-spinner {
   display: inline-block;
   width: 16px;

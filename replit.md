@@ -5,13 +5,13 @@
 Serious People is a career coaching service that helps users navigate career transitions. The app provides a **structured coaching session** with:
 1. User authentication (email magic link or Google OAuth)
 2. A free intro phase to understand the big problem and propose a custom 3-module plan
-3. $19 payment via Stripe to unlock the full coaching modules
+3. Dynamic Stripe pricing with automatic discount code pre-application
 4. Three coaching modules: Job Autopsy, Fork in the Road, The Great Escape Plan
 5. A final "Career Brief" deliverable with diagnosis, action plan, and conversation scripts
 
 **Tagline:** "Short scripts for big career conversations."
 
-**User Flow:** Landing page → Sign in (magic link/Google) → Free intro & plan proposal → Paywall → $19 Stripe payment → 3 coaching modules → Career Brief generation
+**User Flow:** Landing page → Sign in (magic link/Google) → Free intro & plan proposal → Paywall (with dynamic pricing) → Stripe payment (discount pre-applied) → 3 coaching modules → Career Brief generation
 
 ## User Preferences
 
@@ -79,19 +79,20 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - Development mode uses Vite middleware for HMR
 
 **API Endpoints:**
-1. `POST /checkout` - Creates Stripe Checkout session, returns redirect URL
+1. `POST /checkout` - Creates Stripe Checkout session with pre-applied discount code, returns redirect URL
 2. `GET /verify-session?session_id=xxx` - Validates Stripe payment session
-3. `POST /interview` - AI interview endpoint, accepts `{ transcript: [] }`, returns `{ reply, done, valueBullets }`
-4. `POST /api/module` - Module conversation endpoint, accepts `{ moduleNumber: 1|2|3, transcript: [] }`, returns `{ reply, done, progress, options, summary }`
-5. `POST /generate` - Generates Career Brief from `{ transcript }`, returns `{ text }`
-6. `GET /api/transcript` - Load user's transcript from database (requires auth)
-7. `POST /api/transcript` - Save user's transcript to database (requires auth)
-8. `GET /auth/me` - Get current authenticated user
-9. `POST /auth/logout` - Log out current user
-10. `POST /auth/magic/send` - Send magic link email
-11. `GET /auth/magic/verify` - Verify magic link token
-12. `GET /auth/google` - Initiate Google OAuth flow
-13. `GET /auth/google/callback` - Google OAuth callback
+3. `GET /api/pricing` - Returns current price and active discount from Stripe (originalPrice, discountedPrice, percentOff, amountOff, currency)
+4. `POST /interview` - AI interview endpoint, accepts `{ transcript: [] }`, returns `{ reply, done, valueBullets }`
+5. `POST /api/module` - Module conversation endpoint, accepts `{ moduleNumber: 1|2|3, transcript: [] }`, returns `{ reply, done, progress, options, summary }`
+6. `POST /generate` - Generates Career Brief from `{ transcript }`, returns `{ text }`
+7. `GET /api/transcript` - Load user's transcript from database (requires auth)
+8. `POST /api/transcript` - Save user's transcript to database (requires auth)
+9. `GET /auth/me` - Get current authenticated user
+10. `POST /auth/logout` - Log out current user
+11. `POST /auth/magic/send` - Send magic link email
+12. `GET /auth/magic/verify` - Verify magic link token
+13. `GET /auth/google` - Initiate Google OAuth flow
+14. `GET /auth/google/callback` - Google OAuth callback
 
 **AI Integration:**
 - Uses OpenAI API with GPT-4.1-mini model
@@ -139,9 +140,12 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 ### External Dependencies
 
 **Payment Processing:**
-- **Stripe** - One-time $19 payment via Checkout Sessions
+- **Stripe** - Dynamic pricing via Checkout Sessions
+- Uses specific product ID: `prod_TWhB1gfxXvIa9N`
 - Uses `STRIPE_SECRET_KEY` (via Replit Stripe connection)
-- Auto-creates product/price if not found
+- Dynamic pricing: Fetches current price and active promotion codes from Stripe
+- Pre-applies active promotion codes at checkout (discount automatically applied)
+- Displays strikethrough pricing on landing page and paywall when discount is active
 - Success URL: `{BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`
 - Cancel URL: `{BASE_URL}/interview`
 

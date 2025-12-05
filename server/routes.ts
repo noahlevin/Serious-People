@@ -47,6 +47,67 @@ async function getProductPrice(): Promise<string> {
   throw new Error(`No active price found for product ${STRIPE_PRODUCT_ID}`);
 }
 
+// Helper to find the first valid active promotion code for our product
+interface ActivePromoResult {
+  promoCodeId: string | null;
+  percentOff: number | null;
+  amountOff: number | null;
+}
+
+async function findActivePromoCode(priceCurrency: string): Promise<ActivePromoResult> {
+  const stripe = await getStripeClient();
+  
+  try {
+    const promoCodes = await stripe.promotionCodes.list({
+      active: true,
+      expand: ['data.coupon'],
+      limit: 10
+    });
+    
+    for (const promo of promoCodes.data) {
+      const coupon = promo.coupon;
+      
+      // Check if coupon is still valid
+      if (!coupon.valid) continue;
+      
+      // Check expiration
+      if (coupon.redeem_by && coupon.redeem_by * 1000 < Date.now()) continue;
+      
+      // Check max redemptions
+      if (coupon.max_redemptions && coupon.times_redeemed >= coupon.max_redemptions) continue;
+      
+      // Check if coupon is restricted to specific products (skip if it doesn't include our product)
+      if (coupon.applies_to && coupon.applies_to.products && coupon.applies_to.products.length > 0) {
+        if (!coupon.applies_to.products.includes(STRIPE_PRODUCT_ID)) {
+          continue; // Skip coupons that don't apply to our product
+        }
+      }
+      
+      // Percent off coupons work for any currency
+      if (coupon.percent_off) {
+        return {
+          promoCodeId: promo.id,
+          percentOff: coupon.percent_off,
+          amountOff: null
+        };
+      } else if (coupon.amount_off && coupon.currency) {
+        // Amount off coupons must match the price currency
+        if (coupon.currency.toLowerCase() === priceCurrency.toLowerCase()) {
+          return {
+            promoCodeId: promo.id,
+            percentOff: null,
+            amountOff: coupon.amount_off / 100
+          };
+        }
+      }
+    }
+  } catch (promoError) {
+    console.log("Error fetching promotion codes:", promoError);
+  }
+  
+  return { promoCodeId: null, percentOff: null, amountOff: null };
+}
+
 const INTERVIEW_SYSTEM_PROMPT = `You are an experienced, plain-spoken career coach. You help people navigate job crossroads with clarity and structure.
 
 Do NOT introduce yourself with a name. Just say something warm and welcoming, like "Hi there! I'm excited to get to know you and start working with you on your career goals."
@@ -358,60 +419,26 @@ export async function registerRoutes(
       const originalAmount = price.unit_amount ? price.unit_amount / 100 : 19;
       const priceCurrency = price.currency || 'usd';
       
-      // Check for active promotion codes
-      let discountedAmount: number | null = null;
-      let percentOff: number | null = null;
-      let amountOff: number | null = null;
+      // Find active promotion code using shared helper
+      const promo = await findActivePromoCode(priceCurrency);
       
-      try {
-        const promoCodes = await stripe.promotionCodes.list({
-          active: true,
-          expand: ['data.coupon'],
-          limit: 10
-        });
-        
-        // Find the first valid active promo code
-        for (const promo of promoCodes.data) {
-          const coupon = promo.coupon;
-          
-          // Check if coupon is still valid
-          if (!coupon.valid) continue;
-          
-          // Check expiration
-          if (coupon.redeem_by && coupon.redeem_by * 1000 < Date.now()) continue;
-          
-          // Check max redemptions
-          if (coupon.max_redemptions && coupon.times_redeemed >= coupon.max_redemptions) continue;
-          
-          // Percent off coupons work for any currency
-          if (coupon.percent_off) {
-            percentOff = coupon.percent_off;
-            discountedAmount = originalAmount * (1 - coupon.percent_off / 100);
-          } else if (coupon.amount_off && coupon.currency) {
-            // Amount off coupons must match the price currency
-            if (coupon.currency.toLowerCase() !== priceCurrency.toLowerCase()) {
-              continue; // Skip coupons with incompatible currency
-            }
-            amountOff = coupon.amount_off / 100;
-            discountedAmount = Math.max(0, originalAmount - amountOff);
-          }
-          
-          // Round to 2 decimal places
-          if (discountedAmount !== null) {
-            discountedAmount = Math.round(discountedAmount * 100) / 100;
-          }
-          
-          break; // Use the first valid promo code
-        }
-      } catch (promoError) {
-        console.log("No active promotion codes found or error fetching:", promoError);
+      let discountedAmount: number | null = null;
+      if (promo.percentOff) {
+        discountedAmount = originalAmount * (1 - promo.percentOff / 100);
+      } else if (promo.amountOff) {
+        discountedAmount = Math.max(0, originalAmount - promo.amountOff);
+      }
+      
+      // Round to 2 decimal places
+      if (discountedAmount !== null) {
+        discountedAmount = Math.round(discountedAmount * 100) / 100;
       }
       
       res.json({
         originalPrice: originalAmount,
         discountedPrice: discountedAmount,
-        percentOff,
-        amountOff,
+        percentOff: promo.percentOff,
+        amountOff: promo.amountOff,
         currency: priceCurrency
       });
     } catch (error: any) {
@@ -664,7 +691,15 @@ export async function registerRoutes(
       const priceId = await getProductPrice();
       const baseUrl = getBaseUrl();
       
-      const session = await stripe.checkout.sessions.create({
+      // Get the price to check currency
+      const price = await stripe.prices.retrieve(priceId);
+      const priceCurrency = price.currency || 'usd';
+      
+      // Find an active promotion code using shared helper (ensures consistency with pricing display)
+      const promo = await findActivePromoCode(priceCurrency);
+      
+      // Build checkout session options
+      const sessionOptions: any = {
         mode: "payment",
         line_items: [
           {
@@ -674,8 +709,16 @@ export async function registerRoutes(
         ],
         success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/interview`,
-        allow_promotion_codes: true,
-      });
+      };
+      
+      // If we have an active promo code, pre-apply it; otherwise allow manual entry
+      if (promo.promoCodeId) {
+        sessionOptions.discounts = [{ promotion_code: promo.promoCodeId }];
+      } else {
+        sessionOptions.allow_promotion_codes = true;
+      }
+      
+      const session = await stripe.checkout.sessions.create(sessionOptions);
 
       res.json({ url: session.url });
     } catch (error: any) {
