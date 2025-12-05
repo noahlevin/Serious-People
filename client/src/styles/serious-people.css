@@ -837,6 +837,58 @@
   cursor: not-allowed;
 }
 
+/* Dev-only auto-client buttons */
+.sp-dev-button {
+  background: #f0e68c;
+  color: #333;
+  border: 1px solid #ccc;
+  width: 46px;
+  min-height: 46px;
+  font-family: var(--sp-font-body);
+  font-weight: 500;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sp-dev-button:hover {
+  background: #e6dc82;
+}
+
+.sp-dev-button:disabled {
+  background: #e5e5e5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.sp-autopilot-button {
+  background: #98fb98;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sp-autopilot-button:hover {
+  background: #7cfc00;
+}
+
+.sp-autopilot-active {
+  background: #ff6b6b;
+  color: #fff;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.sp-autopilot-active:hover {
+  background: #ee5a5a;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
 .sp-status-line {
   text-align: center;
   font-size: 0.8rem;
