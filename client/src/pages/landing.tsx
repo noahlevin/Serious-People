@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 import "@/styles/serious-people.css";
 
 const phrases = [
@@ -12,6 +13,33 @@ const phrases = [
   'finding balance.'
 ];
 
+interface PricingData {
+  originalPrice: number;
+  discountedPrice: number | null;
+  percentOff: number | null;
+  amountOff: number | null;
+  currency: string;
+}
+
+function PriceDisplay({ pricing, showLabel = false }: { pricing: PricingData | undefined, showLabel?: boolean }) {
+  if (!pricing) {
+    return showLabel ? <span>$19</span> : <span>$19</span>;
+  }
+  
+  const hasDiscount = pricing.discountedPrice !== null && pricing.discountedPrice < pricing.originalPrice;
+  
+  if (hasDiscount) {
+    return (
+      <span className="sp-price-display">
+        <span className="sp-price-original">${pricing.originalPrice}</span>
+        <span className="sp-price-discounted">${pricing.discountedPrice}</span>
+      </span>
+    );
+  }
+  
+  return <span>${pricing.originalPrice}</span>;
+}
+
 export default function Landing() {
   const { isAuthenticated, user, logout } = useAuth();
   const [, setLocation] = useLocation();
@@ -19,6 +47,11 @@ export default function Landing() {
   const phraseIndexRef = useRef(0);
   const charIndexRef = useRef(0);
   const isDeletingRef = useRef(false);
+  
+  const { data: pricing } = useQuery<PricingData>({
+    queryKey: ["/api/pricing"],
+    staleTime: 60000, // Cache for 1 minute
+  });
   
   const handleStartInterview = () => {
     if (isAuthenticated) {
@@ -102,7 +135,7 @@ export default function Landing() {
             {isAuthenticated ? "Continue to Interview" : "Start the Interview"}
           </button>
           <p className="sp-pricing-note">
-            The interview is free. Scripts and memo are $19.
+            The interview is free. Scripts and memo are <PriceDisplay pricing={pricing} />.
           </p>
           {isAuthenticated && (
             <Link href="/interview" className="sp-resume-link" data-testid="link-resume-session">
@@ -121,7 +154,7 @@ export default function Landing() {
         </div>
 
         <section className="sp-features-section">
-          <h2>What You Get for $19</h2>
+          <h2>What You Get for <PriceDisplay pricing={pricing} /></h2>
           <ul className="sp-features-list">
             <li>
               <span className="sp-feature-number">1.</span>

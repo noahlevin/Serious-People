@@ -359,6 +359,91 @@ export async function registerRoutes(
   // Set up authentication (Passport, sessions, strategies)
   setupAuth(app);
   
+  // ============== PRICING API ==============
+  
+  // GET /api/pricing - Get current price and active coupon from Stripe
+  app.get("/api/pricing", async (req, res) => {
+    try {
+      const stripe = await getStripeClient();
+      const priceId = await getOrCreateTestPrice();
+      
+      // Get the price details
+      const price = await stripe.prices.retrieve(priceId, {
+        expand: ['product']
+      });
+      
+      const originalAmount = price.unit_amount ? price.unit_amount / 100 : 19;
+      const priceCurrency = price.currency || 'usd';
+      
+      // Check for active promotion codes
+      let discountedAmount: number | null = null;
+      let percentOff: number | null = null;
+      let amountOff: number | null = null;
+      
+      try {
+        const promoCodes = await stripe.promotionCodes.list({
+          active: true,
+          expand: ['data.coupon'],
+          limit: 10
+        });
+        
+        // Find the first valid active promo code
+        for (const promo of promoCodes.data) {
+          const coupon = promo.coupon;
+          
+          // Check if coupon is still valid
+          if (!coupon.valid) continue;
+          
+          // Check expiration
+          if (coupon.redeem_by && coupon.redeem_by * 1000 < Date.now()) continue;
+          
+          // Check max redemptions
+          if (coupon.max_redemptions && coupon.times_redeemed >= coupon.max_redemptions) continue;
+          
+          // Percent off coupons work for any currency
+          if (coupon.percent_off) {
+            percentOff = coupon.percent_off;
+            discountedAmount = originalAmount * (1 - coupon.percent_off / 100);
+          } else if (coupon.amount_off && coupon.currency) {
+            // Amount off coupons must match the price currency
+            if (coupon.currency.toLowerCase() !== priceCurrency.toLowerCase()) {
+              continue; // Skip coupons with incompatible currency
+            }
+            amountOff = coupon.amount_off / 100;
+            discountedAmount = Math.max(0, originalAmount - amountOff);
+          }
+          
+          // Round to 2 decimal places
+          if (discountedAmount !== null) {
+            discountedAmount = Math.round(discountedAmount * 100) / 100;
+          }
+          
+          break; // Use the first valid promo code
+        }
+      } catch (promoError) {
+        console.log("No active promotion codes found or error fetching:", promoError);
+      }
+      
+      res.json({
+        originalPrice: originalAmount,
+        discountedPrice: discountedAmount,
+        percentOff,
+        amountOff,
+        currency: priceCurrency
+      });
+    } catch (error: any) {
+      console.error("Pricing API error:", error);
+      res.status(503).json({ 
+        error: "Unable to fetch pricing",
+        originalPrice: 19,
+        discountedPrice: null,
+        percentOff: null,
+        amountOff: null,
+        currency: 'usd'
+      });
+    }
+  });
+  
   // ============== AUTH ROUTES ==============
   
   // GET /auth/me - Get current authenticated user

@@ -11,6 +11,23 @@
   --sp-font-body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
 }
 
+/* Dynamic Pricing Display */
+.sp-price-display {
+  display: inline;
+}
+
+.sp-price-original {
+  text-decoration: line-through;
+  color: var(--sp-text-muted);
+  margin-right: 0.35em;
+  opacity: 0.7;
+}
+
+.sp-price-discounted {
+  font-weight: 600;
+  color: #c41e3a;
+}
+
 .sp-page {
   font-family: var(--sp-font-body);
   background: var(--sp-bg);
