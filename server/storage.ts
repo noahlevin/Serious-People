@@ -51,7 +51,7 @@ export interface IStorage {
   }): Promise<InterviewTranscript>;
   updateClientDossier(userId: string, dossier: ClientDossier): Promise<InterviewTranscript | undefined>;
   updateModuleComplete(userId: string, moduleNumber: 1 | 2 | 3, complete: boolean): Promise<InterviewTranscript | undefined>;
-  deleteTranscript(id: number): Promise<void>;
+  deleteTranscript(id: string): Promise<void>;
   
   // Magic link operations
   createMagicLinkToken(token: InsertMagicLinkToken): Promise<MagicLinkToken>;
@@ -251,7 +251,7 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async deleteTranscript(id: number): Promise<void> {
+  async deleteTranscript(id: string): Promise<void> {
     await db.delete(interviewTranscripts).where(eq(interviewTranscripts.id, id));
   }
 

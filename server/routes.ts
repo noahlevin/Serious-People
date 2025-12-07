@@ -11,7 +11,7 @@ import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
 import { sendMagicLinkEmail, getResendClient, sendSeriousPlanEmail } from "./resendClient";
 import { db } from "./db";
-import { interviewTranscripts, type ClientDossier, type InterviewAnalysis, type ModuleRecord, type CoachingPlan, getCurrentJourneyStep, getStepPath, type JourneyState } from "@shared/schema";
+import { interviewTranscripts, seriousPlans, seriousPlanArtifacts, type ClientDossier, type InterviewAnalysis, type ModuleRecord, type CoachingPlan, getCurrentJourneyStep, getStepPath, type JourneyState } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { generateSeriousPlan, getSeriousPlanWithArtifacts, getLatestSeriousPlan } from "./seriousPlanService";
 import { generateArtifactPdf, generateBundlePdf, generateAllArtifactPdfs } from "./pdfService";
@@ -754,7 +754,7 @@ export async function registerRoutes(
       }
       
       // Get dossier and coaching plan from transcript
-      const dossier = transcript.dossier as ClientDossier | null;
+      const dossier = transcript.clientDossier as ClientDossier | null;
       const planCard = transcript.planCard as CoachingPlan | null;
       
       if (!planCard) {
@@ -765,8 +765,6 @@ export async function registerRoutes(
       const result = await generateSeriousPlan(userId, transcript.id, planCard, dossier);
       
       if (result.success) {
-        // Update transcript to indicate has serious plan
-        await storage.updateTranscript(transcript.id, { hasSeriousPlan: true });
         res.json({ success: true, planId: result.planId });
       } else {
         res.status(500).json({ error: result.error || "Failed to generate Serious Plan" });
@@ -958,7 +956,6 @@ export async function registerRoutes(
       });
       
       if (result.success) {
-        await storage.updateSeriousPlan(planId, { emailSentAt: new Date() });
         res.json({ success: true, message: "Email sent successfully" });
       } else {
         res.status(500).json({ error: result.error || "Failed to send email" });
@@ -2714,27 +2711,46 @@ Respond ONLY with what the client would say next. No meta-commentary, no quotes,
         "Build confidence for difficult conversations"
       ];
 
-      // Sample client dossier
-      const sampleClientDossier = {
+      // Sample client dossier with all required fields for formatDossierContext
+      // Must match ClientDossier interface exactly
+      const sampleClientDossier: ClientDossier = {
+        interviewTranscript: [
+          { role: "assistant", content: "Hi! I'm your career coach. Let's figure out what's going on at work and how to move forward. What's the main thing that's been weighing on you?" },
+          { role: "user", content: "I've been at my job for a while and I'm feeling stuck. Not sure if I should stay and try to make things better or start looking elsewhere." },
+          { role: "assistant", content: "That feeling of being stuck is really common, and it's smart that you're taking time to think it through. Tell me more - what's making you feel stuck?" },
+          { role: "user", content: "I've been doing great work but not getting recognized. My manager is supportive but doesn't have much influence. I'm considering either pushing for a promotion or looking for external opportunities." }
+        ],
         interviewAnalysis: {
+          clientName: userName,
+          currentRole: "Product Manager",
+          company: "Tech Company Inc.",
+          tenure: "3 years",
+          situation: "Mid-level employee feeling stuck and undervalued, considering whether to push for promotion or explore external opportunities.",
+          bigProblem: "Lack of growth opportunities and feeling underappreciated by leadership despite consistent high performance.",
+          desiredOutcome: "Find a path forward that balances financial security with career fulfillment and personal growth.",
           keyFacts: [
-            "Works in tech industry",
+            "Works in tech industry as a product manager",
             "3+ years at current company",
             "Considering career transition",
-            "Has financial responsibilities"
+            "Has financial responsibilities including mortgage"
           ],
-          emotionalState: "Feeling uncertain but hopeful about change",
-          communicationStyle: "Direct and analytical",
-          priorities: ["Work-life balance", "Career growth", "Financial stability"],
-          constraints: ["Family obligations", "Current income level"],
-          relationships: ["Manager relationship is strained", "Good team dynamics"]
+          relationships: [
+            { person: "Sarah", role: "Direct Manager", dynamic: "Supportive but not influential in promotion decisions" },
+            { person: "Mike", role: "VP of Product", dynamic: "Limited interaction, seems unaware of contributions" },
+            { person: "Team", role: "Direct Reports", dynamic: "Strong relationships, would be hard to leave" }
+          ],
+          emotionalState: "Feeling uncertain but hopeful about change. Some frustration with lack of recognition.",
+          communicationStyle: "Direct and analytical. Prefers data-driven conversations.",
+          priorities: ["Work-life balance", "Career growth", "Financial stability", "Meaningful work"],
+          constraints: ["Family obligations", "Current income level", "Geographic location"],
+          motivations: ["Recognition for good work", "Leadership opportunities", "Learning and growth", "Making an impact"],
+          fears: ["Making the wrong decision", "Financial instability", "Burning bridges", "Starting over"],
+          questionsAsked: ["What's weighing on you?", "What's making you feel stuck?"],
+          optionsOffered: [],
+          observations: "Client shows strong analytical skills but may be overthinking the decision. Would benefit from structured framework to evaluate options objectively."
         },
-        coachingNotes: "Client is ready for change but needs support building confidence for difficult conversations.",
-        actionableInsights: [
-          "Prepare for conversation with manager",
-          "Research alternative roles",
-          "Build emergency fund"
-        ]
+        moduleRecords: [],
+        lastUpdated: new Date().toISOString()
       };
 
       // Sample planned artifacts
@@ -2814,45 +2830,61 @@ Respond ONLY with what the client would say next. No meta-commentary, no quotes,
 
       if (stage === 'serious_plan' || stage === 'coach_chat') {
         transcriptData.currentModule = "graduation";
+        transcriptData.module1Complete = true;
+        transcriptData.module2Complete = true;
+        transcriptData.module3Complete = true;
+        transcriptData.hasSeriousPlan = true;
         redirectPath = "/serious-plan";
 
-        // Check if user already has a Serious Plan, if not create one
+        // Delete any existing Serious Plan for this user first
         const existingPlan = await storage.getSeriousPlanByUserId(userId);
-        if (!existingPlan) {
-          // Create a sample Serious Plan with artifacts
-          const plan = await storage.createSeriousPlan({
-            userId,
-            coachNoteTitle: `A Note for ${userName}`,
-            coachNoteContent: `${userName}, you came to me at a crossroads, and I want you to know—that took real courage. Through our work together, you've done something most people never manage: you've gotten honest with yourself about what you actually want.\n\nYou've built something valuable here. This isn't just a plan—it's a map you made yourself, with your own insights lighting the way. Trust it.\n\nThe conversations ahead won't be easy. But you're ready. You've already had the hardest conversation—the one with yourself.\n\nI'm proud of the work you've done. Now go do the thing.`,
-            summaryMetadata: {
-              clientName: userName,
-              primaryRecommendation: "Pursue the career transition with a 90-day structured approach",
-              keyInsights: ["You thrive in autonomous environments", "Financial security is a core value", "You need clear communication with leadership"]
-            }
-          });
-
-          // Create sample artifacts
-          const artifactTypes = [
-            { type: 'decision_snapshot', title: 'Your Decision Snapshot', importance: 'must_read', objective: 'See your options clearly laid out' },
-            { type: 'action_plan', title: 'Your 90-Day Roadmap', importance: 'must_read', objective: 'Know exactly what to do and when' },
-            { type: 'conversation_scripts', title: 'Conversation Scripts', importance: 'must_read', objective: 'Have the exact words for difficult talks' },
-            { type: 'risk_map', title: 'Risk & Mitigation Map', importance: 'recommended', objective: 'Feel prepared for any obstacle' },
-            { type: 'module_recap', title: 'Your Coaching Journey', importance: 'recommended', objective: 'Remember key insights from each module' },
-            { type: 'resources', title: 'Curated Resources', importance: 'optional', objective: 'Continue your growth with vetted materials' }
-          ];
-
-          for (const artifact of artifactTypes) {
-            await storage.createArtifact({
-              planId: plan.id,
-              type: artifact.type,
-              title: artifact.title,
-              importance: artifact.importance as 'must_read' | 'recommended' | 'optional',
-              objective: artifact.objective,
-              whyImportant: `This ${artifact.type.replace('_', ' ')} helps you ${artifact.objective.toLowerCase()}`,
-              content: `[Sample content for ${artifact.title}]\n\nThis is placeholder content that would normally be AI-generated based on your coaching sessions.\n\nKey points:\n• First important insight\n• Second important insight\n• Third important insight\n\nNext steps:\n1. Review this document\n2. Apply the insights\n3. Follow up with your coach if needed`,
-              pdfStatus: 'pending'
-            });
+        if (existingPlan) {
+          // Delete existing artifacts first
+          const existingArtifacts = await storage.getArtifactsByPlanId(existingPlan.id);
+          for (const artifact of existingArtifacts) {
+            await db.delete(seriousPlanArtifacts).where(eq(seriousPlanArtifacts.id, artifact.id));
           }
+          // Delete the plan
+          await db.delete(seriousPlans).where(eq(seriousPlans.id, existingPlan.id));
+        }
+
+        // Create a new Serious Plan with artifacts
+        const plan = await storage.createSeriousPlan({
+          userId,
+          status: 'ready',
+          coachNoteContent: `${userName}, you came to me at a crossroads, and I want you to know—that took real courage. Through our work together, you've done something most people never manage: you've gotten honest with yourself about what you actually want.\n\nYou've built something valuable here. This isn't just a plan—it's a map you made yourself, with your own insights lighting the way. Trust it.\n\nThe conversations ahead won't be easy. But you're ready. You've already had the hardest conversation—the one with yourself.\n\nI'm proud of the work you've done. Now go do the thing.`,
+          summaryMetadata: {
+            clientName: userName,
+            planHorizonType: '90_days',
+            planHorizonRationale: 'A 90-day window provides enough time for meaningful career transition while maintaining urgency.',
+            keyConstraints: ['Family obligations', 'Current income level'],
+            primaryRecommendation: "Pursue the career transition with a 90-day structured approach",
+            emotionalTone: 'supportive and encouraging'
+          }
+        });
+
+        // Create sample artifacts
+        const artifactTypes = [
+          { artifactKey: 'decision_snapshot', type: 'snapshot', title: 'Your Decision Snapshot', importanceLevel: 'must_read', whyImportant: 'See your options clearly laid out', order: 1 },
+          { artifactKey: 'action_plan', type: 'plan', title: 'Your 90-Day Roadmap', importanceLevel: 'must_read', whyImportant: 'Know exactly what to do and when', order: 2 },
+          { artifactKey: 'conversation_scripts', type: 'conversation', title: 'Conversation Scripts', importanceLevel: 'must_read', whyImportant: 'Have the exact words for difficult talks', order: 3 },
+          { artifactKey: 'risk_map', type: 'plan', title: 'Risk & Mitigation Map', importanceLevel: 'recommended', whyImportant: 'Feel prepared for any obstacle', order: 4 },
+          { artifactKey: 'module_recap', type: 'recap', title: 'Your Coaching Journey', importanceLevel: 'recommended', whyImportant: 'Remember key insights from each module', order: 5 },
+          { artifactKey: 'resources', type: 'resources', title: 'Curated Resources', importanceLevel: 'optional', whyImportant: 'Continue your growth with vetted materials', order: 6 }
+        ];
+
+        for (const artifact of artifactTypes) {
+          await storage.createArtifact({
+            planId: plan.id,
+            artifactKey: artifact.artifactKey,
+            type: artifact.type,
+            title: artifact.title,
+            importanceLevel: artifact.importanceLevel as 'must_read' | 'recommended' | 'optional',
+            whyImportant: artifact.whyImportant,
+            contentRaw: `# ${artifact.title}\n\nThis is placeholder content that would normally be AI-generated based on your coaching sessions.\n\n## Key Points\n\n- First important insight from your coaching journey\n- Second important insight about your career transition\n- Third important insight about your next steps\n\n## Next Steps\n\n1. Review this document thoroughly\n2. Apply the insights to your situation\n3. Follow up with your coach if needed`,
+            displayOrder: artifact.order,
+            pdfStatus: 'not_started'
+          });
         }
       }
 
