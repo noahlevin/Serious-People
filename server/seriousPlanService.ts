@@ -110,7 +110,7 @@ You may add 1-2 BONUS artifacts if they would be uniquely helpful for this clien
 ## Output Format
 Return a valid JSON object with this structure:
 {
-  "coach_note": "A warm, empathetic graduation note from the coach (2-3 paragraphs). Reflect on their journey, acknowledge their specific situation, express confidence in their next steps, and briefly explain what they're receiving in their Serious Plan.",
+  "coach_note": "A brief, professional note from the coach (2-3 short paragraphs). Be warm but not effusive. Acknowledge what they worked on without dramatizing it. State clearly what they're receiving in their Serious Plan. End with a simple, grounded statement of confidence - not flowery or grandiose. Write like a trusted advisor, not a motivational speaker.",
   "metadata": {
     "clientName": "${clientName}",
     "planHorizonType": "${planHorizon.type}",

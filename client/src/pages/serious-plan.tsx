@@ -231,26 +231,14 @@ export default function SeriousPlanPage() {
               ))}
             </div>
 
-            {metadata && (
-              <div className="sp-plan-summary">
-                <div className="sp-summary-item">
-                  <span className="sp-summary-label">Your Plan Horizon</span>
-                  <span className="sp-summary-value">{metadata.planHorizonType?.replace('_', ' ')}</span>
-                </div>
-                <div className="sp-summary-item">
-                  <span className="sp-summary-label">Primary Direction</span>
-                  <span className="sp-summary-value">{metadata.primaryRecommendation}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="sp-graduation-actions">
+            <div className="sp-graduation-cta">
               <button 
-                className="sp-button sp-button-primary"
+                className="sp-plan-cta"
                 onClick={handleContinue}
                 data-testid="button-view-plan"
               >
                 View Your Complete Plan
+                <span className="sp-plan-cta-arrow">→</span>
               </button>
             </div>
           </div>
@@ -281,52 +269,60 @@ export default function SeriousPlanPage() {
               ← Back to Plan
             </button>
 
-            <div className="sp-artifact-header">
-              <h1 className="sp-headline">{selectedArtifact.title}</h1>
-              <span className={`sp-importance-badge sp-importance-${selectedArtifact.importanceLevel}`}>
-                {selectedArtifact.importanceLevel === 'must_read' ? 'Must Read' : 
-                 selectedArtifact.importanceLevel === 'recommended' ? 'Recommended' :
-                 selectedArtifact.importanceLevel === 'bonus' ? 'Bonus' : 'Optional'}
-              </span>
-            </div>
+            <article className="sp-artifact-document">
+              <header className="sp-artifact-doc-header">
+                <div className="sp-wsj-header-line"></div>
+                <span className={`sp-importance-tag sp-tag-${selectedArtifact.importanceLevel === 'must_read' ? 'essential' : selectedArtifact.importanceLevel}`}>
+                  {selectedArtifact.importanceLevel === 'must_read' ? 'Essential' : 
+                   selectedArtifact.importanceLevel === 'recommended' ? 'Recommended' :
+                   selectedArtifact.importanceLevel === 'bonus' ? 'Bonus' : 'Reference'}
+                </span>
+                <h1 className="sp-artifact-doc-title">{selectedArtifact.title}</h1>
+                <div className="sp-wsj-header-line"></div>
+              </header>
 
-            {selectedArtifact.whyImportant && (
-              <div className="sp-why-important">
-                <strong>Why this matters for you:</strong> {selectedArtifact.whyImportant}
+              {selectedArtifact.whyImportant && (
+                <div className="sp-artifact-intro">
+                  {selectedArtifact.whyImportant}
+                </div>
+              )}
+
+              <div className="sp-artifact-body" data-testid="text-artifact-content">
+                {selectedArtifact.contentRaw.split('\n').map((line, i) => {
+                  if (line.startsWith('### ')) {
+                    return <h3 key={i} className="sp-artifact-h3">{line.replace('### ', '')}</h3>;
+                  }
+                  if (line.startsWith('## ')) {
+                    return <h2 key={i} className="sp-artifact-h2">{line.replace('## ', '')}</h2>;
+                  }
+                  if (line.startsWith('# ')) {
+                    return <h1 key={i} className="sp-artifact-h1">{line.replace('# ', '')}</h1>;
+                  }
+                  if (line.startsWith('- ')) {
+                    return <li key={i} className="sp-artifact-li">{line.replace('- ', '')}</li>;
+                  }
+                  if (line.startsWith('**') && line.endsWith('**')) {
+                    return <p key={i} className="sp-artifact-bold">{line.replace(/\*\*/g, '')}</p>;
+                  }
+                  if (line.trim() === '') {
+                    return <div key={i} className="sp-artifact-spacer" />;
+                  }
+                  return <p key={i} className="sp-artifact-p">{line}</p>;
+                })}
               </div>
-            )}
-
-            <div className="sp-artifact-content" data-testid="text-artifact-content">
-              {selectedArtifact.contentRaw.split('\n').map((line, i) => {
-                if (line.startsWith('### ')) {
-                  return <h3 key={i} className="sp-subheadline">{line.replace('### ', '')}</h3>;
-                }
-                if (line.startsWith('## ')) {
-                  return <h2 key={i} className="sp-headline" style={{ fontSize: '1.5rem' }}>{line.replace('## ', '')}</h2>;
-                }
-                if (line.startsWith('# ')) {
-                  return <h1 key={i} className="sp-headline">{line.replace('# ', '')}</h1>;
-                }
-                if (line.startsWith('- ')) {
-                  return <li key={i} className="sp-body">{line.replace('- ', '')}</li>;
-                }
-                if (line.trim() === '') {
-                  return <br key={i} />;
-                }
-                return <p key={i} className="sp-body">{line}</p>;
-              })}
-            </div>
+            </article>
 
             <div className="sp-artifact-actions">
               {selectedArtifact.pdfStatus === 'ready' && selectedArtifact.pdfUrl ? (
                 <a 
                   href={selectedArtifact.pdfUrl} 
-                  className="sp-button sp-button-secondary"
+                  className="sp-plan-cta"
                   target="_blank"
                   rel="noopener noreferrer"
                   data-testid="button-download-pdf"
                 >
                   Download PDF
+                  <span className="sp-plan-cta-arrow">↓</span>
                 </a>
               ) : (
                 <button
@@ -365,10 +361,12 @@ export default function SeriousPlanPage() {
       <main className="sp-container">
         <div className="sp-plan-overview" data-testid="plan-overview">
           <div className="sp-plan-header">
+            <div className="sp-wsj-header-line"></div>
             <h1 className="sp-headline">Your Serious Plan</h1>
-            <div className="sp-subheadline">
-              {plan?.artifacts?.length || 0} personalized artifacts
+            <div className="sp-plan-subtitle">
+              {plan?.artifacts?.length || 0} personalized artifacts prepared for you
             </div>
+            <div className="sp-wsj-header-line"></div>
           </div>
 
           <div className="sp-plan-actions">
@@ -410,18 +408,25 @@ export default function SeriousPlanPage() {
 
           {mustReadArtifacts.length > 0 && (
             <div className="sp-artifact-section">
-              <h2 className="sp-subheadline sp-section-title">Must Read</h2>
+              <div className="sp-section-header">
+                <span className="sp-section-label">Essential</span>
+                <h2 className="sp-section-title">Start Here</h2>
+              </div>
               <div className="sp-artifact-grid">
                 {mustReadArtifacts.map((artifact) => (
                   <div 
                     key={artifact.id} 
-                    className="sp-artifact-card sp-artifact-must-read"
+                    className="sp-artifact-card sp-artifact-premium"
                     onClick={() => handleViewArtifact(artifact)}
                     data-testid={`card-artifact-${artifact.artifactKey}`}
                   >
+                    <div className="sp-artifact-card-header">
+                      <span className="sp-artifact-number">{String(mustReadArtifacts.indexOf(artifact) + 1).padStart(2, '0')}</span>
+                      <span className="sp-importance-tag sp-tag-essential">Essential</span>
+                    </div>
                     <h3 className="sp-artifact-title">{artifact.title}</h3>
                     <p className="sp-artifact-preview">{artifact.whyImportant}</p>
-                    <span className="sp-importance-badge sp-importance-must_read">Must Read</span>
+                    <div className="sp-artifact-read-more">Read →</div>
                   </div>
                 ))}
               </div>
@@ -430,7 +435,10 @@ export default function SeriousPlanPage() {
 
           {recommendedArtifacts.length > 0 && (
             <div className="sp-artifact-section">
-              <h2 className="sp-subheadline sp-section-title">Recommended</h2>
+              <div className="sp-section-header">
+                <span className="sp-section-label">Recommended</span>
+                <h2 className="sp-section-title">Your Toolkit</h2>
+              </div>
               <div className="sp-artifact-grid">
                 {recommendedArtifacts.map((artifact) => (
                   <div 
@@ -439,9 +447,13 @@ export default function SeriousPlanPage() {
                     onClick={() => handleViewArtifact(artifact)}
                     data-testid={`card-artifact-${artifact.artifactKey}`}
                   >
+                    <div className="sp-artifact-card-header">
+                      <span className="sp-artifact-number">{String(recommendedArtifacts.indexOf(artifact) + 1).padStart(2, '0')}</span>
+                      <span className="sp-importance-tag sp-tag-recommended">Recommended</span>
+                    </div>
                     <h3 className="sp-artifact-title">{artifact.title}</h3>
                     <p className="sp-artifact-preview">{artifact.whyImportant}</p>
-                    <span className="sp-importance-badge sp-importance-recommended">Recommended</span>
+                    <div className="sp-artifact-read-more">Read →</div>
                   </div>
                 ))}
               </div>
@@ -450,7 +462,10 @@ export default function SeriousPlanPage() {
 
           {optionalArtifacts.length > 0 && (
             <div className="sp-artifact-section">
-              <h2 className="sp-subheadline sp-section-title">Additional Resources</h2>
+              <div className="sp-section-header">
+                <span className="sp-section-label">Additional</span>
+                <h2 className="sp-section-title">Resources</h2>
+              </div>
               <div className="sp-artifact-grid">
                 {optionalArtifacts.map((artifact) => (
                   <div 
@@ -459,11 +474,13 @@ export default function SeriousPlanPage() {
                     onClick={() => handleViewArtifact(artifact)}
                     data-testid={`card-artifact-${artifact.artifactKey}`}
                   >
+                    <div className="sp-artifact-card-header">
+                      <span className="sp-artifact-number">{String(optionalArtifacts.indexOf(artifact) + 1).padStart(2, '0')}</span>
+                      <span className="sp-importance-tag sp-tag-optional">{artifact.importanceLevel === 'bonus' ? 'Bonus' : 'Optional'}</span>
+                    </div>
                     <h3 className="sp-artifact-title">{artifact.title}</h3>
                     <p className="sp-artifact-preview">{artifact.whyImportant}</p>
-                    <span className={`sp-importance-badge sp-importance-${artifact.importanceLevel}`}>
-                      {artifact.importanceLevel === 'bonus' ? 'Bonus' : 'Optional'}
-                    </span>
+                    <div className="sp-artifact-read-more">Read →</div>
                   </div>
                 ))}
               </div>
