@@ -1,10 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import "@/styles/serious-people.css";
 
-const PUBLIC_EMAIL = "noah@seriouspeople.app";
+const PUBLIC_EMAIL = "hello@seriouspeople.app";
+
+const rotatingQuestions = [
+  "should I quit?",
+  "is this fixable?",
+  "what do I even want?",
+  "how do I say this?",
+  "am I overreacting?",
+  "is it worth the risk?",
+  "what's my leverage?",
+  "should I speak up?"
+];
 
 interface PricingData {
   originalPrice: number;
@@ -83,34 +94,42 @@ const comparisons = [
   }
 ];
 
-const faqs = [
-  {
-    question: "Is this really \"just AI\"?",
-    answer: "Serious People is AI-powered, but it's not a generic chatbot. It uses large language models guided by a specific coaching philosophy: ask hard questions, reflect back what it hears, push toward clear decisions. It won't pretend to be human, but it will behave like an experienced, no-nonsense coach—one that knows when to slow you down and when to back your instincts."
-  },
-  {
-    question: "Will my information be private?",
-    answer: "Yes. Your interview and plan are stored securely and used only to generate your Serious Plan. We don't sell or share your stories with anyone."
-  },
-  {
-    question: "How long does this take?",
-    answer: "Most people finish the free interview in 5–10 minutes. The full coaching session takes about 30 minutes. Your Serious Plan is generated within a few minutes after that."
-  },
-  {
-    question: "Does this replace working with a human coach?",
-    answer: "It doesn't have to. Serious People is a great first step—or a complement to human coaching. You can start right now, on your own schedule, without committing to a multi-session package. If you decide to work with a coach later, your Serious Plan becomes a powerful starting brief."
-  }
-];
-
 export default function Landing() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [displayText, setDisplayText] = useState("");
+  const phraseIndexRef = useRef(0);
+  const charIndexRef = useRef(0);
+  const isDeletingRef = useRef(false);
   
   const { data: pricing } = useQuery<PricingData>({
     queryKey: ["/api/pricing"],
     staleTime: 60000,
   });
+
+  const faqs = [
+    {
+      question: "How much does this cost?",
+      answer: <>The interview is completely free. You'll see your personalized coaching plan before paying anything. The full coaching session and Serious Plan cost <PriceDisplay pricing={pricing} />—less than an hour with a human coach.</>
+    },
+    {
+      question: "Is this really \"just AI\"?",
+      answer: "Serious People is AI-powered, but it's not a generic chatbot. It uses large language models guided by a specific coaching philosophy: ask hard questions, reflect back what it hears, push toward clear decisions. It won't pretend to be human, but it will behave like an experienced, no-nonsense coach—one that knows when to slow you down and when to back your instincts."
+    },
+    {
+      question: "Will my information be private?",
+      answer: "Yes. Your interview and plan are stored securely and used only to generate your Serious Plan. We don't sell or share your stories with anyone."
+    },
+    {
+      question: "How long does this take?",
+      answer: "Most people finish the free interview in 5–10 minutes. The full coaching session takes about 30 minutes. Your Serious Plan is generated within a few minutes after that."
+    },
+    {
+      question: "Does this replace working with a human coach?",
+      answer: "It doesn't have to. Serious People is a great first step—or a complement to human coaching. You can start right now, on your own schedule, without committing to a multi-session package. If you decide to work with a coach later, your Serious Plan becomes a powerful starting brief."
+    }
+  ];
   
   const handleStartInterview = () => {
     if (isAuthenticated) {
@@ -119,6 +138,46 @@ export default function Landing() {
       setLocation("/login");
     }
   };
+
+  useEffect(() => {
+    const typeSpeed = 80;
+    const deleteSpeed = 40;
+    const pauseDuration = 2000;
+
+    const type = () => {
+      const currentPhrase = rotatingQuestions[phraseIndexRef.current];
+
+      if (isDeletingRef.current) {
+        charIndexRef.current--;
+        setDisplayText(currentPhrase.substring(0, charIndexRef.current));
+
+        if (charIndexRef.current === 0) {
+          isDeletingRef.current = false;
+          phraseIndexRef.current = (phraseIndexRef.current + 1) % rotatingQuestions.length;
+          return setTimeout(type, 300);
+        }
+
+        return setTimeout(type, deleteSpeed);
+      } else {
+        charIndexRef.current++;
+        setDisplayText(currentPhrase.substring(0, charIndexRef.current));
+
+        if (charIndexRef.current === currentPhrase.length) {
+          return setTimeout(() => {
+            isDeletingRef.current = true;
+            type();
+          }, pauseDuration);
+        }
+
+        return setTimeout(type, typeSpeed);
+      }
+    };
+
+    const timer = type();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
 
   return (
     <div className="sp-landing-page">
@@ -142,7 +201,14 @@ export default function Landing() {
         
         <div className="sp-landing-hero-content">
           <h1 className="sp-landing-headline">
-            Turn "should I quit?" into a decision you trust.
+            <span className="sp-headline-static">Turn "</span>
+            <span className="sp-headline-dynamic">
+              <span className="sp-typewriter-text">{displayText}</span>
+              <span className="sp-typewriter-cursor">|</span>
+            </span>
+            <span className="sp-headline-static">"</span>
+            <br />
+            <span className="sp-headline-static">into a decision you trust.</span>
           </h1>
           <p className="sp-landing-subhead">
             You've drafted the resignation email three times. You've run the numbers. You've had the same circular conversation with your partner. Serious People helps you cut through the noise—in one evening, not six therapy sessions.
@@ -162,7 +228,7 @@ export default function Landing() {
           </div>
           
           <p className="sp-landing-reassurance">
-            No account required. Free interview takes 5–10 minutes.
+            Free interview takes 5–10 minutes. Full coaching session is <PriceDisplay pricing={pricing} />.
           </p>
         </div>
       </header>
@@ -170,10 +236,13 @@ export default function Landing() {
       {/* BRAND QUOTE */}
       <section className="sp-landing-section sp-landing-quote-section">
         <div className="sp-landing-container">
-          <blockquote className="sp-landing-quote">
-            <p>"I love you, but you are not serious people."</p>
-            <cite>— Logan Roy</cite>
-          </blockquote>
+          <div className="sp-landing-quote-box">
+            <img src="/logan-roy.png" alt="Logan Roy" className="sp-landing-quote-image" />
+            <blockquote className="sp-landing-quote">
+              <p>"I love you, but you are not serious people."</p>
+              <cite>— Logan Roy</cite>
+            </blockquote>
+          </div>
         </div>
       </section>
 
@@ -246,34 +315,11 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* SAMPLE SCRIPT PREVIEW */}
+      {/* WHY THIS INSTEAD OF... */}
       <section className="sp-landing-section sp-landing-section-alt">
         <div className="sp-landing-container">
-          <h2 className="sp-landing-section-title">Here's the kind of thing you'll get.</h2>
-          <p className="sp-landing-section-intro">From an actual Serious Plan (details changed):</p>
-          
-          <div className="sp-landing-script-preview">
-            <div className="sp-landing-script-exchange">
-              <p className="sp-landing-script-prompt">
-                <strong>If your manager says:</strong> "We really need you to stay through Q2 for this launch."
-              </p>
-              <p className="sp-landing-script-response">
-                <strong>You say:</strong> "I understand the timing is hard. I want to be straightforward with you: I've decided to move on, and my last day will be [date]. I'm committed to making the transition as smooth as possible—let's talk about what handoff would look like."
-              </p>
-            </div>
-          </div>
-          
-          <p className="sp-landing-script-note">
-            Every script is tuned to your situation, your relationship, and your goals. You're not adapting generic templates—you're getting language that sounds like you on your best day.
-          </p>
-        </div>
-      </section>
-
-      {/* WHY THIS INSTEAD OF... */}
-      <section className="sp-landing-section">
-        <div className="sp-landing-container">
           <h2 className="sp-landing-section-title">
-            Why people pay for this instead of just thinking it through.
+            Why people pay <PriceDisplay pricing={pricing} /> for this instead of just thinking it through.
           </h2>
           
           <div className="sp-landing-comparisons">
@@ -288,7 +334,7 @@ export default function Landing() {
       </section>
 
       {/* WHO THIS IS FOR */}
-      <section className="sp-landing-section sp-landing-section-alt">
+      <section className="sp-landing-section">
         <div className="sp-landing-container sp-landing-centered-text">
           <h2 className="sp-landing-section-title">This is for people who are ready to decide.</h2>
           
@@ -303,7 +349,7 @@ export default function Landing() {
       </section>
 
       {/* FAQ */}
-      <section className="sp-landing-section">
+      <section className="sp-landing-section sp-landing-section-alt">
         <div className="sp-landing-container">
           <h2 className="sp-landing-section-title">Questions people ask before getting serious.</h2>
           

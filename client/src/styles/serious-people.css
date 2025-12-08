@@ -2599,6 +2599,30 @@
   color: var(--sp-text);
 }
 
+.sp-landing-headline .sp-headline-static {
+  display: inline;
+}
+
+.sp-landing-headline .sp-headline-dynamic {
+  display: inline;
+}
+
+.sp-landing-headline .sp-typewriter-text {
+  display: inline;
+}
+
+.sp-landing-headline .sp-typewriter-cursor {
+  display: inline;
+  animation: blink 1s step-end infinite;
+  color: var(--sp-text);
+  font-weight: 400;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 .sp-landing-subhead {
   font-family: var(--sp-font-body);
   font-size: 1.125rem;
@@ -2680,24 +2704,41 @@
   padding: 3rem 0;
 }
 
+.sp-landing-quote-box {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--sp-border);
+  border-bottom: 1px solid var(--sp-border);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.sp-landing-quote-image {
+  width: auto;
+  height: auto;
+  max-width: 100px;
+  flex-shrink: 0;
+}
+
 .sp-landing-quote {
   font-family: var(--sp-font-display);
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-style: italic;
-  text-align: center;
   color: var(--sp-text);
-  padding: 2rem;
-  border-left: 3px solid var(--sp-text);
-  background: rgba(0, 0, 0, 0.02);
   margin: 0;
+  border: none;
+  padding: 0;
+  background: transparent;
 }
 
 .sp-landing-quote p {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .sp-landing-quote cite {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-style: normal;
   color: var(--sp-text-secondary);
   letter-spacing: 0.05em;
