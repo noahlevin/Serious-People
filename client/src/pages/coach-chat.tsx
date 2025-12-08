@@ -96,7 +96,7 @@ export default function CoachChatPage() {
         <header className="sp-success-header">
           <div className="sp-header-content">
             <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/logan-roy.png" alt="Serious People" className="sp-logo-icon" />
+              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
               <span className="sp-logo">Serious People</span>
             </Link>
             <UserMenu />
@@ -125,7 +125,7 @@ export default function CoachChatPage() {
         <div className="sp-header-content">
           <div className="sp-header-left">
             <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/logan-roy.png" alt="Serious People" className="sp-logo-icon" />
+              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
               <span className="sp-logo">Serious People</span>
             </Link>
             <div className="sp-header-separator"></div>

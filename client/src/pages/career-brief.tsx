@@ -118,7 +118,7 @@ export default function CareerBrief() {
       <header className="sp-success-header">
         <div className="sp-header-content">
           <Link href="/" className="sp-logo-link">
-            <img src="/logan-roy.png" alt="Serious People" className="sp-logo-icon" />
+            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
             <span className="sp-logo">Serious People</span>
           </Link>
           <UserMenu />

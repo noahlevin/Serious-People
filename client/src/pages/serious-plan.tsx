@@ -146,7 +146,7 @@ export default function SeriousPlanPage() {
         <header className="sp-success-header">
           <div className="sp-header-content">
             <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/logan-roy.png" alt="Serious People" className="sp-logo-icon" />
+              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
               <span className="sp-logo">Serious People</span>
             </Link>
             <UserMenu />
@@ -166,7 +166,7 @@ export default function SeriousPlanPage() {
         <header className="sp-success-header">
           <div className="sp-header-content">
             <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/logan-roy.png" alt="Serious People" className="sp-logo-icon" />
+              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
               <span className="sp-logo">Serious People</span>
             </Link>
             <UserMenu />
@@ -195,7 +195,7 @@ export default function SeriousPlanPage() {
         <header className="sp-success-header">
           <div className="sp-header-content">
             <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/logan-roy.png" alt="Serious People" className="sp-logo-icon" />
+              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
               <span className="sp-logo">Serious People</span>
             </Link>
             <UserMenu />
@@ -225,7 +225,7 @@ export default function SeriousPlanPage() {
         <header className="sp-success-header">
           <div className="sp-header-content">
             <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/logan-roy.png" alt="Serious People" className="sp-logo-icon" />
+              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
               <span className="sp-logo">Serious People</span>
             </Link>
             <UserMenu />
@@ -265,7 +265,7 @@ export default function SeriousPlanPage() {
         <header className="sp-success-header">
           <div className="sp-header-content">
             <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/logan-roy.png" alt="Serious People" className="sp-logo-icon" />
+              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
               <span className="sp-logo">Serious People</span>
             </Link>
             <UserMenu />
@@ -345,7 +345,7 @@ export default function SeriousPlanPage() {
       <header className="sp-success-header">
         <div className="sp-header-content">
           <Link href="/" className="sp-logo-link" data-testid="link-home">
-            <img src="/logan-roy.png" alt="Serious People" className="sp-logo-icon" />
+            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
             <span className="sp-logo">Serious People</span>
           </Link>
           <UserMenu />

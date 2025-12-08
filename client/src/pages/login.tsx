@@ -95,7 +95,7 @@ export default function Login() {
     <div className="sp-login-page">
       <header className="sp-login-header">
         <Link href="/" className="sp-logo-link">
-          <img src="/logan-roy.png" alt="Serious People" className="sp-logo-icon" />
+          <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
           <span className="sp-logo">Serious People</span>
         </Link>
       </header>
