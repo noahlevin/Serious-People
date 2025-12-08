@@ -1992,12 +1992,12 @@
   align-items: center;
   gap: 0.75rem;
   font-family: var(--sp-font-display);
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--sp-text);
   background: #fff;
   border: 2px solid var(--sp-text);
-  padding: 1rem 2rem;
+  padding: 0.9rem 1.8rem;
   cursor: pointer;
   transition: all 0.2s ease;
   text-decoration: none;
@@ -2061,12 +2061,23 @@
   margin: 1rem auto 0;
 }
 
+.sp-plan-main-title {
+  font-family: var(--sp-font-display);
+  font-size: 2.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0.5rem 0;
+  color: var(--sp-text);
+}
+
 .sp-plan-subtitle {
   font-family: var(--sp-font-body);
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-style: italic;
   color: var(--sp-text-secondary);
   letter-spacing: 0.02em;
+  margin: 0;
 }
 
 .sp-plan-actions {
@@ -2074,6 +2085,20 @@
   gap: 1rem;
   justify-content: center;
   margin-bottom: 3rem;
+  flex-wrap: wrap;
+}
+
+.sp-plan-actions .sp-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sp-plan-actions a.sp-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
 }
 
 .sp-artifact-section {
@@ -2351,6 +2376,13 @@
   padding-top: 2rem;
   margin-top: 1rem;
   justify-content: center;
+  flex-wrap: wrap;
+}
+
+.sp-artifact-actions a.sp-plan-cta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .sp-chat-cta {

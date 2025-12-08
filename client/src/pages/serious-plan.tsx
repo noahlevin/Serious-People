@@ -4,6 +4,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Download, Mail } from "lucide-react";
 import "@/styles/serious-people.css";
 
 interface Artifact {
@@ -40,11 +42,13 @@ interface SeriousPlan {
 type ViewMode = 'graduation' | 'overview' | 'artifact';
 
 export default function SeriousPlanPage() {
-  const { isAuthenticated, isLoading: authLoading, refetch } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, refetch, user } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [viewMode, setViewMode] = useState<ViewMode>('graduation');
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
   const [planGenerated, setPlanGenerated] = useState(false);
+  const [hasSeenNote, setHasSeenNote] = useState(false);
 
   useEffect(() => {
     refetch();
@@ -87,17 +91,21 @@ export default function SeriousPlanPage() {
   });
 
   const handleContinue = () => {
+    setHasSeenNote(true);
     setViewMode('overview');
+    window.scrollTo(0, 0);
   };
 
   const handleViewArtifact = (artifact: Artifact) => {
     setSelectedArtifact(artifact);
     setViewMode('artifact');
+    window.scrollTo(0, 0);
   };
 
   const handleBackToOverview = () => {
     setSelectedArtifact(null);
     setViewMode('overview');
+    window.scrollTo(0, 0);
   };
 
   if (authLoading) {
@@ -203,7 +211,7 @@ export default function SeriousPlanPage() {
     );
   }
 
-  if (viewMode === 'graduation' && plan?.coachNoteContent) {
+  if (viewMode === 'graduation' && plan?.coachNoteContent && !hasSeenNote) {
     const metadata = plan.summaryMetadata;
     return (
       <div className="sp-page">
@@ -318,8 +326,8 @@ export default function SeriousPlanPage() {
                   rel="noopener noreferrer"
                   data-testid="button-download-pdf"
                 >
-                  Download PDF
-                  <span className="sp-plan-cta-arrow">↓</span>
+                  <Download size={18} />
+                  Download {selectedArtifact.title}
                 </a>
               ) : (
                 <button
@@ -330,7 +338,7 @@ export default function SeriousPlanPage() {
                 >
                   {selectedArtifact.pdfStatus === 'generating' || generateArtifactPdfMutation.isPending 
                     ? 'Generating PDF...' 
-                    : 'Generate PDF'}
+                    : `Download ${selectedArtifact.title}`}
                 </button>
               )}
             </div>
@@ -359,10 +367,10 @@ export default function SeriousPlanPage() {
         <div className="sp-plan-overview" data-testid="plan-overview">
           <div className="sp-plan-header">
             <div className="sp-wsj-header-line"></div>
-            <h1 className="sp-headline">Your Serious Plan</h1>
-            <div className="sp-plan-subtitle">
+            <h1 className="sp-plan-main-title">Your Serious Plan</h1>
+            <p className="sp-plan-subtitle">
               {plan?.artifacts?.length || 0} personalized artifacts prepared for you
-            </div>
+            </p>
             <div className="sp-wsj-header-line"></div>
           </div>
 
@@ -375,7 +383,8 @@ export default function SeriousPlanPage() {
                 rel="noopener noreferrer"
                 data-testid="button-download-bundle"
               >
-                Download Complete Bundle
+                <Download size={18} />
+                Download My Plan (PDF)
               </a>
             ) : (
               <button
@@ -385,21 +394,29 @@ export default function SeriousPlanPage() {
                 data-testid="button-generate-bundle"
               >
                 {plan?.bundlePdfStatus === 'generating' || generateBundlePdfMutation.isPending 
-                  ? 'Generating Bundle...' 
-                  : 'Generate PDF Bundle'}
+                  ? 'Generating...' 
+                  : 'Download My Plan (PDF)'}
               </button>
             )}
             <button
               className="sp-button sp-button-secondary"
-              onClick={() => plan && sendEmailMutation.mutate(plan.id)}
+              onClick={() => {
+                plan && sendEmailMutation.mutate(plan.id);
+                toast({
+                  title: `Email sent to ${user?.email}`,
+                  description: "Your plan is on its way to your inbox.",
+                  duration: 3000,
+                });
+              }}
               disabled={sendEmailMutation.isPending || !!plan?.emailSentAt}
               data-testid="button-send-email"
             >
+              <Mail size={18} />
               {plan?.emailSentAt 
                 ? 'Email Sent' 
                 : sendEmailMutation.isPending 
                   ? 'Sending...' 
-                  : 'Send to My Email'}
+                  : 'Email My Plan to Me'}
             </button>
           </div>
 
