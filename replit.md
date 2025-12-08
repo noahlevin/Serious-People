@@ -10,8 +10,6 @@ Serious People is a career coaching service that helps users navigate career tra
 5. A final "Serious Plan" with AI-generated dynamic artifacts: coach graduation note, decision snapshot, conversation scripts, action plan, risk map, module recap, and resources
 6. PDF generation (Puppeteer with WSJ-styled template), email delivery (Resend), and persistent coach chat
 
-**Tagline:** "Short scripts for big career conversations."
-
 **User Flow:** Landing page → Sign in (magic link/Google) → Free intro & plan proposal → Paywall (with dynamic pricing) → Stripe payment (discount pre-applied) → 3 coaching modules → Serious Plan generation → Coach Chat
 
 ## User Preferences

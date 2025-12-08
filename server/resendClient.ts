@@ -106,7 +106,7 @@ export async function sendMagicLinkEmail(
           </p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
           <p style="font-size: 12px; color: #999;">
-            Short scripts for big career conversations.
+            Serious People Career Coaching
           </p>
         </div>
       `,
@@ -200,9 +200,6 @@ export async function sendSeriousPlanEmail(
           
           <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #eee;">
             <p style="font-size: 12px; color: #999; margin: 0;">
-              Short scripts for big career conversations.
-            </p>
-            <p style="font-size: 12px; color: #999; margin-top: 8px;">
               © Serious People Career Coaching
             </p>
           </div>
