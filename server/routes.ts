@@ -2599,24 +2599,20 @@ Objective: ${moduleInfo.objective}
         }
       }
 
-      // Build the system prompt for the auto-client
-      const systemPrompt = `You are roleplaying as a coaching client in a career coaching session. Your job is to provide realistic, natural responses as if you were the actual client going through this coaching.
+      // Build the system prompt for the auto-client - optimized for brevity
+      const systemPrompt = `You are a coaching client. Give SHORT realistic responses (1 word to 1 short paragraph max).
 
 ${contextInfo}
 
-IMPORTANT GUIDELINES:
-1. Stay consistent with the personality and situation established in the conversation
-2. Respond naturally - 1-3 sentences is usually appropriate
-3. Be cooperative but authentic - don't be overly eager or artificial
-4. If the coach asks a probing question, give a thoughtful response that reveals something useful
-5. Express appropriate emotions (uncertainty, hope, frustration, excitement) based on the topic
-6. If this is the first message and the coach just introduced themselves, respond with a brief greeting and share your situation
-7. Don't be too perfect - real clients sometimes hesitate, need to think, or express ambivalence
-8. Use natural language, not corporate jargon
+RULES:
+- Be brief like real people text/chat
+- Stay in character
+- No jargon, be casual
+- Sometimes just say "yeah" or "I guess so" or ask a short question
 
-${stage === "interview" ? "This is the initial interview phase where you're explaining your career situation." : `This is Module ${moduleNumber} of the coaching program.`}
+${stage === "interview" ? "Interview phase - share your situation briefly." : `Module ${moduleNumber}.`}
 
-Respond ONLY with what the client would say next. No meta-commentary, no quotes, just the natural response.`;
+Reply as the client. Be concise.`;
 
       // Format the conversation for the AI
       const conversationMessages = transcript.map((msg: any) => ({
@@ -2634,17 +2630,17 @@ Respond ONLY with what the client would say next. No meta-commentary, no quotes,
       let reply: string;
 
       if (useAnthropic && anthropic) {
-        // Use Anthropic Claude
+        // Use Anthropic Claude Haiku for speed and cost
         const response = await anthropic.messages.create({
-          model: "claude-sonnet-4-5-20250929",
-          max_tokens: 512,
+          model: "claude-3-5-haiku-20241022",
+          max_tokens: 150,
           system: systemPrompt,
           messages: flippedMessages.length > 0 ? flippedMessages : [{ role: "user", content: "The coach just started the session. How would you respond?" }],
         });
 
         reply = response.content[0].type === 'text' ? response.content[0].text : '';
       } else {
-        // Fall back to OpenAI
+        // Fall back to OpenAI GPT-4o-mini for speed and cost
         const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
           { role: "system", content: systemPrompt },
           ...flippedMessages
@@ -2655,9 +2651,9 @@ Respond ONLY with what the client would say next. No meta-commentary, no quotes,
         }
 
         const response = await openai.chat.completions.create({
-          model: "gpt-4.1-mini",
+          model: "gpt-4o-mini",
           messages,
-          max_tokens: 512,
+          max_tokens: 150,
         });
 
         reply = response.choices[0]?.message?.content || "";
