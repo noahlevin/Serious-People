@@ -12,9 +12,7 @@ const rotatingQuestions = [
   "what do I even want?",
   "how do I say this?",
   "am I overreacting?",
-  "is it worth the risk?",
-  "what's my leverage?",
-  "should I speak up?"
+  "is it worth the risk?"
 ];
 
 interface PricingData {
@@ -204,7 +202,6 @@ export default function Landing() {
             <span className="sp-headline-static">Turn "</span>
             <span className="sp-headline-dynamic">
               <span className="sp-typewriter-text">{displayText}</span>
-              <span className="sp-typewriter-cursor">|</span>
             </span>
             <span className="sp-headline-static">"</span>
             <br />

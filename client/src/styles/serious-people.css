@@ -2609,18 +2609,8 @@
 
 .sp-landing-headline .sp-typewriter-text {
   display: inline;
-}
-
-.sp-landing-headline .sp-typewriter-cursor {
-  display: inline;
-  animation: blink 1s step-end infinite;
-  color: var(--sp-text);
-  font-weight: 400;
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+  border-right: 2px solid var(--sp-text);
+  animation: sp-blink 0.7s step-end infinite;
 }
 
 .sp-landing-subhead {
