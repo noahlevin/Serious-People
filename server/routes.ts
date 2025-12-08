@@ -1391,13 +1391,11 @@ COMMUNICATION STYLE:
       const stripe = await getStripeClient();
       const priceId = await getProductPrice();
       const baseUrl = getBaseUrl();
+      const { promoCode } = req.body || {};
       
       // Get the price to check currency
       const price = await stripe.prices.retrieve(priceId);
       const priceCurrency = price.currency || 'usd';
-      
-      // Find an active promotion code using shared helper (ensures consistency with pricing display)
-      const promo = await findActivePromoCode(priceCurrency);
       
       // Build checkout session options
       const sessionOptions: any = {
@@ -1412,11 +1410,46 @@ COMMUNICATION STYLE:
         cancel_url: `${baseUrl}/interview`,
       };
       
-      // If we have an active promo code, pre-apply it; otherwise allow manual entry
-      if (promo.promoCodeId) {
-        sessionOptions.discounts = [{ promotion_code: promo.promoCodeId }];
+      // If a custom promo code was provided via URL, look it up and apply it
+      if (promoCode) {
+        try {
+          const promoCodes = await stripe.promotionCodes.list({
+            code: promoCode,
+            active: true,
+            limit: 1,
+          });
+          
+          if (promoCodes.data.length > 0) {
+            sessionOptions.discounts = [{ promotion_code: promoCodes.data[0].id }];
+            console.log(`Applied custom promo code: ${promoCode}`);
+          } else {
+            console.log(`Promo code not found or inactive: ${promoCode}, falling back to default`);
+            // Fall back to standard promo or allow manual entry
+            const promo = await findActivePromoCode(priceCurrency);
+            if (promo.promoCodeId) {
+              sessionOptions.discounts = [{ promotion_code: promo.promoCodeId }];
+            } else {
+              sessionOptions.allow_promotion_codes = true;
+            }
+          }
+        } catch (promoError) {
+          console.log(`Error looking up promo code: ${promoCode}`, promoError);
+          // Fall back to standard behavior
+          const promo = await findActivePromoCode(priceCurrency);
+          if (promo.promoCodeId) {
+            sessionOptions.discounts = [{ promotion_code: promo.promoCodeId }];
+          } else {
+            sessionOptions.allow_promotion_codes = true;
+          }
+        }
       } else {
-        sessionOptions.allow_promotion_codes = true;
+        // No custom code - use the standard promo code discovery
+        const promo = await findActivePromoCode(priceCurrency);
+        if (promo.promoCodeId) {
+          sessionOptions.discounts = [{ promotion_code: promo.promoCodeId }];
+        } else {
+          sessionOptions.allow_promotion_codes = true;
+        }
       }
       
       const session = await stripe.checkout.sessions.create(sessionOptions);

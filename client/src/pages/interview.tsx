@@ -599,9 +599,14 @@ export default function Interview() {
     setIsCheckoutLoading(true);
 
     try {
+      // Check for promo code in URL (e.g., ?promo=FRIENDS100)
+      const urlParams = new URLSearchParams(window.location.search);
+      const promoCode = urlParams.get('promo');
+      
       const response = await fetch("/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promoCode: promoCode || undefined }),
       });
 
       const data = await response.json();
