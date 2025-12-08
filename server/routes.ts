@@ -92,6 +92,11 @@ async function findActivePromoCode(priceCurrency: string): Promise<ActivePromoRe
         }
       }
       
+      // Skip 100% off coupons from public display (these are private/friends-only codes)
+      if (coupon.percent_off && coupon.percent_off >= 100) {
+        continue;
+      }
+      
       // Percent off coupons work for any currency
       if (coupon.percent_off) {
         return {
