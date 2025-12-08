@@ -107,10 +107,12 @@ Generate the following artifacts: ${plannedArtifactKeys.join(', ')}
 
 You may add 1-2 BONUS artifacts if they would be uniquely helpful for this client (mark them with importance_level: "bonus").
 
+IMPORTANT: When counting artifacts in the coach note, include the coach note itself in the count. For example, if you generate 6 artifacts plus the coach note, say "7 artifacts" (not 6).
+
 ## Output Format
 Return a valid JSON object with this structure:
 {
-  "coach_note": "Write the note starting with '${clientName},' on its own line, then begin the body. A brief, professional note from the coach (2-3 short paragraphs). Be warm but not effusive. Acknowledge what they worked on without dramatizing it. State clearly what they're receiving in their Serious Plan. End with a simple, grounded statement of confidence - not flowery or grandiose. Write like a trusted advisor, not a motivational speaker.",
+  "coach_note": "Write the note starting with '${clientName},' on its own line, then begin the body. A brief, professional note from the coach (2-3 short paragraphs). Be warm but not effusive. Acknowledge what they worked on without dramatizing it. When referencing the number of artifacts in their plan, COUNT THIS NOTE as one of the artifacts (total = artifacts array length + 1). End with a simple, grounded statement of confidence - not flowery or grandiose. Write like a trusted advisor, not a motivational speaker.",
   "metadata": {
     "clientName": "${clientName}",
     "planHorizonType": "${planHorizon.type}",

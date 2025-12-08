@@ -382,7 +382,7 @@ export default function ModulePage() {
     setAutoPilotCount(0);
   }, []);
 
-  const handleModuleComplete = () => {
+  const handleModuleComplete = async () => {
     const completedModules = JSON.parse(sessionStorage.getItem(COMPLETED_MODULES_KEY) || "[]");
     if (!completedModules.includes(moduleNumber)) {
       completedModules.push(moduleNumber);
@@ -393,30 +393,45 @@ export default function ModulePage() {
     queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
     
     // Update the client dossier with this module's completion record
-    // This runs in the background as the user navigates to the next page
     const moduleName = moduleInfo?.name || `Module ${moduleNumber}`;
-    fetch("/api/update-module-dossier", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        moduleNumber,
-        moduleName,
-        transcript
-      }),
-    }).then(res => {
+    try {
+      const res = await fetch("/api/update-module-dossier", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          moduleNumber,
+          moduleName,
+          transcript
+        }),
+      });
       if (res.ok) {
         console.log(`Dossier updated with module ${moduleNumber}`);
       } else {
         console.error(`Failed to update dossier with module ${moduleNumber}`);
       }
-    }).catch(err => {
+    } catch (err) {
       console.error("Error updating dossier:", err);
-    });
+    }
     
     if (moduleNumber < 3) {
       setLocation("/progress");
     } else {
+      // For module 3, trigger plan generation immediately then navigate
+      try {
+        const planRes = await fetch("/api/serious-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+        if (planRes.ok) {
+          console.log("Serious Plan generation started");
+        } else {
+          console.error("Failed to start plan generation");
+        }
+      } catch (err) {
+        console.error("Error starting plan generation:", err);
+      }
       setLocation("/serious-plan");
     }
   };

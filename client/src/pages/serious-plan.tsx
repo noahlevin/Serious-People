@@ -64,6 +64,14 @@ export default function SeriousPlanPage() {
     queryKey: ['/api/serious-plan/latest'],
     enabled: isAuthenticated && !authLoading,
     retry: false,
+    refetchInterval: (query) => {
+      // Poll every 2 seconds while plan is generating or doesn't exist yet
+      const data = query.state.data;
+      if (!data || data.status === 'generating') {
+        return 2000;
+      }
+      return false;
+    },
   });
 
   const generatePlanMutation = useMutation({
@@ -137,6 +145,7 @@ export default function SeriousPlanPage() {
     );
   }
 
+  // If no plan exists yet, show generating state (plan generation is triggered from module 3)
   if (!plan && !planGenerated) {
     return (
       <div className="sp-page">
@@ -150,32 +159,16 @@ export default function SeriousPlanPage() {
           </div>
         </header>
         <main className="sp-container">
-          <div className="sp-graduation-note" data-testid="graduation-container">
+          <div className="sp-graduation-note">
             <h1 className="sp-headline" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-              Congratulations
+              Preparing Your Plan
             </h1>
-            <div className="sp-subheadline" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              You've completed all three coaching modules
-            </div>
-            <p className="sp-body" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              Your coach is now preparing your personalized Serious Plan — a comprehensive 
-              packet with your decision snapshot, action plan, conversation scripts, and more.
-            </p>
-            <div style={{ textAlign: 'center' }}>
-              <button 
-                className="sp-button sp-button-primary" 
-                onClick={() => generatePlanMutation.mutate()}
-                disabled={generatePlanMutation.isPending}
-                data-testid="button-generate-plan"
-              >
-                {generatePlanMutation.isPending ? 'Preparing Your Plan...' : 'Generate My Serious Plan'}
-              </button>
-            </div>
-            {generatePlanMutation.isError && (
-              <p className="sp-body" style={{ color: 'red', textAlign: 'center', marginTop: '1rem' }}>
-                Something went wrong. Please try again.
+            <div className="sp-generating-indicator">
+              <div className="sp-spinner"></div>
+              <p className="sp-body" style={{ marginTop: '1rem' }}>
+                Your coach is crafting personalized artifacts for your situation...
               </p>
-            )}
+            </div>
           </div>
         </main>
       </div>
