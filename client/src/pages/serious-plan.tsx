@@ -41,6 +41,8 @@ interface SeriousPlan {
 
 type ViewMode = 'graduation' | 'overview' | 'artifact';
 
+const SEEN_NOTE_KEY = 'serious_plan_seen_note';
+
 export default function SeriousPlanPage() {
   const { isAuthenticated, isLoading: authLoading, refetch, user } = useAuth();
   const [, setLocation] = useLocation();
@@ -48,7 +50,14 @@ export default function SeriousPlanPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('graduation');
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
   const [planGenerated, setPlanGenerated] = useState(false);
-  const [hasSeenNote, setHasSeenNote] = useState(false);
+  const [hasSeenNote, setHasSeenNote] = useState(() => {
+    // Check localStorage on initial render
+    try {
+      return localStorage.getItem(SEEN_NOTE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     refetch();
@@ -101,6 +110,12 @@ export default function SeriousPlanPage() {
     setHasSeenNote(true);
     setViewMode('overview');
     window.scrollTo(0, 0);
+    // Persist to localStorage so note doesn't show again on reload
+    try {
+      localStorage.setItem(SEEN_NOTE_KEY, 'true');
+    } catch {
+      // Ignore storage errors
+    }
   };
 
   const handleViewArtifact = (artifact: Artifact) => {
