@@ -348,9 +348,14 @@ export default function SeriousPlanPage() {
     );
   }
 
-  const mustReadArtifacts = plan?.artifacts?.filter(a => a.importanceLevel === 'must_read') || [];
+  // Filter artifacts by importance level (handle legacy values 'essential' and 'reference')
+  const mustReadArtifacts = plan?.artifacts?.filter(a => 
+    a.importanceLevel === 'must_read' || (a.importanceLevel as string) === 'essential'
+  ) || [];
   const recommendedArtifacts = plan?.artifacts?.filter(a => a.importanceLevel === 'recommended') || [];
-  const optionalArtifacts = plan?.artifacts?.filter(a => a.importanceLevel === 'optional' || a.importanceLevel === 'bonus') || [];
+  const optionalArtifacts = plan?.artifacts?.filter(a => 
+    a.importanceLevel === 'optional' || a.importanceLevel === 'bonus' || (a.importanceLevel as string) === 'reference'
+  ) || [];
 
   return (
     <div className="sp-page">
