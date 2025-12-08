@@ -1423,7 +1423,7 @@ COMMUNICATION STYLE:
     }
   });
 
-  // GET /verify-session - Verify Stripe payment
+  // GET /verify-session - Verify Stripe payment and mark transcript as payment verified
   app.get("/verify-session", async (req, res) => {
     try {
       const sessionId = req.query.session_id as string;
@@ -1436,6 +1436,17 @@ COMMUNICATION STYLE:
       const session = await stripe.checkout.sessions.retrieve(sessionId);
 
       if (session.payment_status === "paid") {
+        // If user is authenticated, mark their transcript as payment verified
+        const user = (req as any).user;
+        if (user?.id) {
+          const transcript = await storage.getTranscriptByUserId(user.id);
+          if (transcript && transcript.sessionToken) {
+            await storage.updateTranscript(transcript.sessionToken, {
+              paymentVerified: true,
+              stripeSessionId: sessionId,
+            });
+          }
+        }
         return res.json({ ok: true });
       } else {
         return res.status(403).json({ ok: false, error: "Payment not completed" });

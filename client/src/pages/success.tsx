@@ -81,7 +81,9 @@ export default function Success() {
     }
 
     try {
-      const response = await fetch(`/verify-session?session_id=${encodeURIComponent(sessionId)}`);
+      const response = await fetch(`/verify-session?session_id=${encodeURIComponent(sessionId)}`, {
+        credentials: "include",
+      });
       const data = await response.json();
 
       if (data.ok) {
