@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Mail } from "lucide-react";
+// import { Download, Mail } from "lucide-react"; // Temporarily unused
 import "@/styles/serious-people.css";
 
 interface Artifact {
@@ -82,21 +82,20 @@ export default function SeriousPlanPage() {
     },
   });
 
-  const generateBundlePdfMutation = useMutation({
-    mutationFn: (planId: string) => apiRequest('POST', `/api/serious-plan/${planId}/bundle-pdf`),
-    onSuccess: () => refetchPlan(),
-  });
-
-  const sendEmailMutation = useMutation({
-    mutationFn: (planId: string) => apiRequest('POST', `/api/serious-plan/${planId}/send-email`),
-    onSuccess: () => refetchPlan(),
-  });
-
-  const generateArtifactPdfMutation = useMutation({
-    mutationFn: ({ planId, artifactId }: { planId: string; artifactId: string }) => 
-      apiRequest('POST', `/api/serious-plan/${planId}/artifacts/${artifactId}/pdf`),
-    onSuccess: () => refetchPlan(),
-  });
+  // PDF and email mutations temporarily disabled
+  // const generateBundlePdfMutation = useMutation({
+  //   mutationFn: (planId: string) => apiRequest('POST', `/api/serious-plan/${planId}/bundle-pdf`),
+  //   onSuccess: () => refetchPlan(),
+  // });
+  // const sendEmailMutation = useMutation({
+  //   mutationFn: (planId: string) => apiRequest('POST', `/api/serious-plan/${planId}/send-email`),
+  //   onSuccess: () => refetchPlan(),
+  // });
+  // const generateArtifactPdfMutation = useMutation({
+  //   mutationFn: ({ planId, artifactId }: { planId: string; artifactId: string }) => 
+  //     apiRequest('POST', `/api/serious-plan/${planId}/artifacts/${artifactId}/pdf`),
+  //   onSuccess: () => refetchPlan(),
+  // });
 
   const handleContinue = () => {
     setHasSeenNote(true);
@@ -310,31 +309,7 @@ export default function SeriousPlanPage() {
               </div>
             </article>
 
-            <div className="sp-artifact-actions">
-              {selectedArtifact.pdfStatus === 'ready' && selectedArtifact.pdfUrl ? (
-                <a 
-                  href={selectedArtifact.pdfUrl} 
-                  className="sp-plan-cta"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-testid="button-download-pdf"
-                >
-                  <Download size={18} />
-                  Download {selectedArtifact.title}
-                </a>
-              ) : (
-                <button
-                  className="sp-button sp-button-secondary"
-                  onClick={() => plan && generateArtifactPdfMutation.mutate({ planId: plan.id, artifactId: selectedArtifact.id })}
-                  disabled={generateArtifactPdfMutation.isPending || selectedArtifact.pdfStatus === 'generating'}
-                  data-testid="button-generate-pdf"
-                >
-                  {selectedArtifact.pdfStatus === 'generating' || generateArtifactPdfMutation.isPending 
-                    ? 'Generating PDF...' 
-                    : `Download ${selectedArtifact.title}`}
-                </button>
-              )}
-            </div>
+            {/* PDF download functionality temporarily hidden */}
           </div>
         </main>
       </div>
@@ -372,51 +347,7 @@ export default function SeriousPlanPage() {
             <div className="sp-wsj-header-line"></div>
           </div>
 
-          <div className="sp-plan-actions">
-            {plan?.bundlePdfStatus === 'ready' && plan?.bundlePdfUrl ? (
-              <a 
-                href={plan.bundlePdfUrl} 
-                className="sp-button sp-button-primary"
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="button-download-bundle"
-              >
-                <Download size={18} />
-                Download My Plan (PDF)
-              </a>
-            ) : (
-              <button
-                className="sp-button sp-button-primary"
-                onClick={() => plan && generateBundlePdfMutation.mutate(plan.id)}
-                disabled={generateBundlePdfMutation.isPending || plan?.bundlePdfStatus === 'generating'}
-                data-testid="button-generate-bundle"
-              >
-                {plan?.bundlePdfStatus === 'generating' || generateBundlePdfMutation.isPending 
-                  ? 'Generating...' 
-                  : 'Download My Plan (PDF)'}
-              </button>
-            )}
-            <button
-              className="sp-button sp-button-secondary"
-              onClick={() => {
-                plan && sendEmailMutation.mutate(plan.id);
-                toast({
-                  title: `Email sent to ${user?.email}`,
-                  description: "Your plan is on its way to your inbox.",
-                  duration: 3000,
-                });
-              }}
-              disabled={sendEmailMutation.isPending || !!plan?.emailSentAt}
-              data-testid="button-send-email"
-            >
-              <Mail size={18} />
-              {plan?.emailSentAt 
-                ? 'Email Sent' 
-                : sendEmailMutation.isPending 
-                  ? 'Sending...' 
-                  : 'Email My Plan to Me'}
-            </button>
-          </div>
+          {/* PDF and email functionality temporarily hidden */}
 
           {mustReadArtifacts.length > 0 && (
             <div className="sp-artifact-section">
@@ -499,13 +430,7 @@ export default function SeriousPlanPage() {
             </div>
           )}
 
-          <div className="sp-chat-cta">
-            <h3 className="sp-subheadline">Have questions about your plan?</h3>
-            <p className="sp-body">Your coach is still here to help.</p>
-            <Link href="/coach-chat" className="sp-button sp-button-secondary" data-testid="link-coach-chat">
-              Chat with Your Coach
-            </Link>
-          </div>
+          {/* Coach chat functionality temporarily hidden */}
         </div>
       </main>
     </div>
