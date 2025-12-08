@@ -1555,6 +1555,17 @@ COMMUNICATION STYLE:
 
       await storage.updateClientDossier(user.id, updatedDossier);
 
+      // Also mark the module as complete in the transcript for journey state tracking
+      if (userTranscript.sessionToken) {
+        const moduleCompleteUpdate: Record<string, boolean> = {};
+        if (moduleNumber === 1) moduleCompleteUpdate.module1Complete = true;
+        if (moduleNumber === 2) moduleCompleteUpdate.module2Complete = true;
+        if (moduleNumber === 3) moduleCompleteUpdate.module3Complete = true;
+        
+        await storage.updateTranscript(userTranscript.sessionToken, moduleCompleteUpdate);
+        console.log(`Module ${moduleNumber} marked as complete for user ${user.id}`);
+      }
+
       console.log(`Dossier updated with module ${moduleNumber} for user ${user.id}`);
       res.json({ ok: true });
     } catch (error: any) {

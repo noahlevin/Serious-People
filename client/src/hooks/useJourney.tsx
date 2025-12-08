@@ -13,7 +13,7 @@ export function useJourney() {
   const { data, isLoading, error, refetch } = useQuery<JourneyResponse>({
     queryKey: ["/api/journey"],
     retry: false,
-    staleTime: 5000,
+    staleTime: 0, // Always refetch to ensure fresh journey state
   });
 
   return {

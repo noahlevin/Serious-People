@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useSearch, useLocation } from "wouter";
+import { queryClient } from "@/lib/queryClient";
 import "@/styles/serious-people.css";
 import { UserMenu } from "@/components/UserMenu";
 import { ModulesProgressCard, DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
@@ -28,6 +29,8 @@ export default function Success() {
   
   const handleStartCoaching = () => {
     sessionStorage.setItem("payment_verified", "true");
+    // Invalidate journey cache to ensure fresh state when navigating
+    queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
     setLocation("/module/1");
   };
 

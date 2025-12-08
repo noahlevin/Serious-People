@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
+import { queryClient } from "@/lib/queryClient";
 import { ModulesProgressCard, DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
 import type { CoachingModule, PlanCard } from "@/components/ChatComponents";
 import "@/styles/serious-people.css";
@@ -70,6 +71,9 @@ export default function Progress() {
   const allComplete = completedModules.length >= 3;
 
   const handleContinue = () => {
+    // Invalidate journey cache to ensure fresh state
+    queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
+    
     if (allComplete) {
       setLocation("/serious-plan");
     } else {

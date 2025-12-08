@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useJourney, canAccessModule } from "@/hooks/useJourney";
 import { UserMenu } from "@/components/UserMenu";
+import { queryClient } from "@/lib/queryClient";
 import { 
   Message, 
   TypingIndicator, 
@@ -387,6 +388,9 @@ export default function ModulePage() {
       completedModules.push(moduleNumber);
       sessionStorage.setItem(COMPLETED_MODULES_KEY, JSON.stringify(completedModules));
     }
+    
+    // Invalidate journey cache to ensure fresh state on next page
+    queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
     
     // Update the client dossier with this module's completion record
     // This runs in the background as the user navigates to the next page
