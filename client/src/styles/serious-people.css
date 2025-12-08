@@ -1961,6 +1961,16 @@
   border-bottom: 2px solid var(--sp-text);
 }
 
+.sp-coach-header {
+  font-family: var(--sp-font-display);
+  font-size: 1.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+  color: var(--sp-text);
+  margin: 0;
+}
+
 .sp-coach-note-content {
   margin-bottom: 2rem;
 }

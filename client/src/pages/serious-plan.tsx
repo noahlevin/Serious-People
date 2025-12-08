@@ -219,10 +219,7 @@ export default function SeriousPlanPage() {
         <main className="sp-container">
           <div className="sp-graduation-note" data-testid="graduation-note">
             <div className="sp-graduation-header">
-              <h1 className="sp-headline">A Note from Your Coach</h1>
-              {metadata?.clientName && (
-                <div className="sp-subheadline">For {metadata.clientName}</div>
-              )}
+              <h1 className="sp-coach-header">A Note from Your Coach</h1>
             </div>
             
             <div className="sp-coach-note-content" data-testid="text-coach-note">
