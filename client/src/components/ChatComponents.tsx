@@ -72,10 +72,11 @@ export function formatContent(content: string, optionsOrSkipTitleCard: FormatOpt
     formatted = formatted.replace(/(<br>){3,}/g, "<br><br>");
     
     // Remove line breaks immediately before/after bold and italic tags to keep text inline
+    // BUT preserve line breaks when they precede bullet points for proper list formatting
     formatted = formatted.replace(/<br><b>/g, "<b>");
-    formatted = formatted.replace(/<\/b><br>/g, "</b>");
+    formatted = formatted.replace(/<\/b><br>(?!•)/g, "</b> ");  // Add space for inline text, preserve before bullets
     formatted = formatted.replace(/<br><i>/g, "<i>");
-    formatted = formatted.replace(/<\/i><br>/g, "</i>");
+    formatted = formatted.replace(/<\/i><br>(?!•)/g, "</i> ");  // Add space for inline text, preserve before bullets
   }
 
   return formatted;
