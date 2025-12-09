@@ -108,8 +108,18 @@ function ArtifactSkeleton() {
 }
 
 function TranscriptRenderer({ artifact }: { artifact: Artifact }) {
-  const messages = artifact.metadata?.messages || [];
-  const summary = artifact.metadata?.summary || artifact.whyImportant;
+  // Parse contentRaw if it contains transcript data (stored as JSON string)
+  let parsedData: { messages?: { role: string; content: string }[]; summary?: string } = {};
+  if (artifact.contentRaw) {
+    try {
+      parsedData = JSON.parse(artifact.contentRaw);
+    } catch (e) {
+      // Not valid JSON, ignore
+    }
+  }
+  
+  const messages = parsedData.messages || artifact.metadata?.messages || [];
+  const summary = parsedData.summary || artifact.metadata?.summary || artifact.whyImportant;
 
   return (
     <div className="sp-transcript-container">
