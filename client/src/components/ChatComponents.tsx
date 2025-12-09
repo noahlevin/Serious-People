@@ -71,12 +71,13 @@ export function formatContent(content: string, optionsOrSkipTitleCard: FormatOpt
     formatted = formatted.replace(/^(<br>)+/, "");
     formatted = formatted.replace(/(<br>){3,}/g, "<br><br>");
     
-    // Remove line breaks immediately before/after bold and italic tags to keep text inline
-    // BUT preserve line breaks when they precede bullet points for proper list formatting
-    formatted = formatted.replace(/<br><b>/g, "<b>");
-    formatted = formatted.replace(/<\/b><br>(?!•)/g, "</b> ");  // Add space for inline text, preserve before bullets
-    formatted = formatted.replace(/<br><i>/g, "<i>");
-    formatted = formatted.replace(/<\/i><br>(?!•)/g, "</i> ");  // Add space for inline text, preserve before bullets
+    // Remove SINGLE line breaks before/after bold and italic tags to keep inline text together
+    // BUT preserve DOUBLE line breaks (paragraphs) and line breaks before bullet points
+    // Only remove <br><b> when NOT preceded by another <br> (i.e., single line break only)
+    formatted = formatted.replace(/(?<!<br>)<br><b>/g, " <b>");  // Single line break before bold -> space
+    formatted = formatted.replace(/<\/b><br>(?!•|<br>)/g, "</b> ");  // Single line break after bold -> space (preserve before bullets and paragraphs)
+    formatted = formatted.replace(/(?<!<br>)<br><i>/g, " <i>");  // Single line break before italic -> space
+    formatted = formatted.replace(/<\/i><br>(?!•|<br>)/g, "</i> ");  // Single line break after italic -> space
   }
 
   return formatted;
