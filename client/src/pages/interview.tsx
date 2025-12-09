@@ -47,35 +47,6 @@ interface PricingData {
 const STORAGE_KEY = "serious_people_transcript";
 const PROGRESS_KEY = "serious_people_progress";
 
-const TEST_TRANSCRIPT: Message[] = [
-  { role: "assistant", content: "Hello! I'm here to help you prepare for some important career conversations. Before we write your scripts, I'd like to understand your situation better.\n\nWhat's prompting you to think about a career change right now?" },
-  { role: "user", content: "I've been at my company for 3 years and I feel stuck. My manager keeps promising a promotion but it never happens." },
-  { role: "assistant", content: "Three years is significant, and broken promises around promotion are frustrating. That erodes trust.\n\nWhat role are you in currently, and what's the promotion you've been waiting for?" },
-  { role: "user", content: "I'm a senior software engineer. The promotion would be to staff engineer, which comes with a significant pay bump and more autonomy." },
-  { role: "assistant", content: "Staff engineer is a meaningful step up. The autonomy piece is often as important as the money.\n\nHave you had direct conversations with your manager about specific criteria for the promotion?" },
-  { role: "user", content: "Yes, we've had several. Each time they say I'm 'almost there' but the goalposts keep moving. First it was completing a big project, then it was 'demonstrating leadership,' now it's some vague thing about 'executive presence.'" },
-  { role: "assistant", content: "Moving goalposts are a classic stalling tactic. The shift from concrete deliverables to vague qualities like 'executive presence' is particularly telling.\n\nDo you have a sense of whether this is your manager's decision, or if they're getting blocked from above?" },
-  { role: "user", content: "I think my manager wants to promote me but their boss is the blocker. My skip-level seems to have favorites and I'm not one of them." },
-  { role: "assistant", content: "Politics at the skip level is tough because you have less direct influence there. This context is helpful.\n\nWhat's your financial situation? Could you afford to leave without another job lined up, or do you need to line something up first?" },
-  { role: "user", content: "I have about 6 months of expenses saved. I could leave but I'd rather have something lined up. My partner is supportive but nervous about me quitting without a plan." },
-  { role: "assistant", content: "Six months gives you some runway, and your partner's concern is reasonable. Having a plan matters for both practical and relationship reasons.\n\nWhat does your partner do for work? Understanding your household situation helps me write a better script for that conversation." },
-  { role: "user", content: "She's a teacher. Stable income but not enough to cover all our expenses alone. We have a mortgage and a young kid." },
-  { role: "assistant", content: "Stable but not sufficient on its own—that means you need a plan, not an impulse exit. The mortgage and kid add real stakes.\n\nAre you already job searching, or is that something you'd start after we clarify your strategy?" },
-  { role: "user", content: "I've been casually looking for a few months. Had a few interviews but nothing has clicked yet. I think I'm underselling myself." },
-  { role: "assistant", content: "Underselling yourself is common when you've been overlooked internally—it messes with your sense of your own value.\n\nWhat would an ideal next role look like for you? Same type of work at a better company, or something different?" },
-  { role: "user", content: "Same technical work but at a company with clearer growth paths. I want to make staff engineer within a year or two and eventually move toward engineering management." },
-  { role: "assistant", content: "Clear growth path to staff, eventual move to management—that's a solid trajectory. It's also a compelling story for interviews.\n\nLast question: What's your timeline? When do you want to have made a decision or a move by?" },
-  { role: "user", content: "I'd like to have an offer in hand within the next 3 months. If not, I might need to have a harder conversation with my current company about my future there." },
-  { role: "assistant", content: "Three months to secure an offer, with a fallback plan to have a frank conversation if needed. That's actionable.\n\nI think I have enough to write your scripts now. Ready to see them?" }
-];
-
-const TEST_VALUE_BULLETS = `- Address the promotion stall with concrete next steps, not vague promises
-- Give your partner confidence with a clear 3-month timeline and financial safety net
-- Articulate your staff engineer trajectory to command better offers
-- Prepare a diplomatic but firm exit conversation if the job search doesn't pan out`;
-
-const TEST_SOCIAL_PROOF = `This is a fraction of what a single session with a career coach typically costs ($150–300/hour)—and you'll leave with a structured document, not just a conversation.`;
-
 function extractTitleCard(content: string): { name: string; time: string } | null {
   const match = content.match(/^—\s*(.+?)\s*\(est\.\s*([^)]+)\)\s*—/m);
   if (match) {
@@ -482,33 +453,7 @@ export default function Interview() {
     return false;
   }, [updateProgress]);
 
-  const handleTestBypass = useCallback(() => {
-    setTranscript(TEST_TRANSCRIPT);
-    saveTranscript(TEST_TRANSCRIPT);
-    updateProgress(100);
-    setInterviewComplete(true);
-    setValueBullets(TEST_VALUE_BULLETS);
-    setSocialProof(TEST_SOCIAL_PROOF);
-    setStatus("");
-    
-    const cards: { index: number; name: string; time: string }[] = [];
-    TEST_TRANSCRIPT.forEach((msg, idx) => {
-      if (msg.role === "assistant") {
-        const titleCard = extractTitleCard(msg.content);
-        if (titleCard) {
-          cards.push({ index: idx, ...titleCard });
-        }
-      }
-    });
-    setTitleCards(cards);
-  }, [saveTranscript, updateProgress]);
-
   const sendMessage = useCallback(async (userMessage?: string) => {
-    if (userMessage?.toLowerCase() === "testskip") {
-      handleTestBypass();
-      return;
-    }
-
     setIsSending(true);
     setOptions([]);
     
@@ -602,7 +547,7 @@ export default function Interview() {
         textareaRef.current?.focus();
       }
     }
-  }, [transcript, saveTranscript, detectAndUpdateModule, updateProgress, handleTestBypass]);
+  }, [transcript, saveTranscript, detectAndUpdateModule, updateProgress]);
 
   const handleCheckout = async () => {
     setIsCheckoutLoading(true);
