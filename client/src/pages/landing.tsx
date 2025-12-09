@@ -101,6 +101,11 @@ export default function Landing() {
   const charIndexRef = useRef(0);
   const isDeletingRef = useRef(false);
   
+  // Set page title
+  useEffect(() => {
+    document.title = "Serious People - Career Coaching";
+  }, []);
+  
   const { data: pricing } = useQuery<PricingData>({
     queryKey: ["/api/pricing"],
     staleTime: 60000,

@@ -21,6 +21,11 @@ export default function Login() {
   const [sentEmail, setSentEmail] = useState("");
   const hasRefetched = useRef(false);
   
+  // Set page title
+  useEffect(() => {
+    document.title = "Sign In - Serious People";
+  }, []);
+  
   // Force refetch auth status on mount (in case of stale cache after OAuth redirect)
   useEffect(() => {
     if (!hasRefetched.current) {

@@ -16,6 +16,11 @@ export default function Progress() {
   const [completedModules, setCompletedModules] = useState<number[]>([]);
   const [coachingPlan, setCoachingPlan] = useState<PlanCard | null>(null);
   
+  // Set page title
+  useEffect(() => {
+    document.title = "Your Progress - Serious People";
+  }, []);
+  
   useEffect(() => {
     refetch();
   }, [refetch]);

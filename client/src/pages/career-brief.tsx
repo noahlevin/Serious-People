@@ -22,6 +22,11 @@ export default function CareerBrief() {
   const [careerBrief, setCareerBrief] = useState("");
   const [copied, setCopied] = useState(false);
 
+  // Set page title
+  useEffect(() => {
+    document.title = "Career Brief - Serious People";
+  }, []);
+
   useEffect(() => {
     refetch();
   }, [refetch]);

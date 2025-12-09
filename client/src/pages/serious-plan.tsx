@@ -102,6 +102,11 @@ export default function SeriousPlanPage() {
     }
   });
 
+  // Set page title
+  useEffect(() => {
+    document.title = "Your Serious Plan - Serious People";
+  }, []);
+
   useEffect(() => {
     refetch();
   }, [refetch]);

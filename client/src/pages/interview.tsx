@@ -291,6 +291,11 @@ export default function Interview() {
   const { isAuthenticated, isLoading: authLoading, refetch } = useAuth();
   const [, setLocation] = useLocation();
   
+  // Set page title
+  useEffect(() => {
+    document.title = "Career Interview - Serious People";
+  }, []);
+  
   const { data: pricing } = useQuery<PricingData>({
     queryKey: ["/api/pricing"],
     staleTime: 60000,

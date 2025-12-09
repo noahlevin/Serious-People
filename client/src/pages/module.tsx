@@ -48,6 +48,11 @@ export default function ModulePage() {
   const { journeyState, isLoading: journeyLoading, currentPath } = useJourney();
   const [, setLocation] = useLocation();
   
+  // Set page title
+  useEffect(() => {
+    document.title = `Module ${moduleNumber}: ${moduleInfo.name} - Serious People`;
+  }, [moduleNumber, moduleInfo.name]);
+  
   useEffect(() => {
     if (journeyLoading || !journeyState) return;
     

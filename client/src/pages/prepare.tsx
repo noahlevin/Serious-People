@@ -12,6 +12,11 @@ export default function Prepare() {
   const [, setLocation] = useLocation();
   const [itemsVisible, setItemsVisible] = useState(false);
 
+  // Set page title
+  useEffect(() => {
+    document.title = "Get Ready - Serious People";
+  }, []);
+
   // Animate items in on mount
   useEffect(() => {
     const timer = setTimeout(() => setItemsVisible(true), 200);

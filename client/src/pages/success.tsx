@@ -27,6 +27,11 @@ export default function Success() {
   const [scriptsContent, setScriptsContent] = useState("");
   const [copied, setCopied] = useState(false);
   
+  // Set page title
+  useEffect(() => {
+    document.title = "Payment Confirmed - Serious People";
+  }, []);
+  
   const handleStartCoaching = () => {
     sessionStorage.setItem("payment_verified", "true");
     // Invalidate journey cache to ensure fresh state when navigating

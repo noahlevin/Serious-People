@@ -29,6 +29,11 @@ export default function CoachChatPage() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Set page title
+  useEffect(() => {
+    document.title = "Coach Chat - Serious People";
+  }, []);
+
   useEffect(() => {
     refetch();
   }, [refetch]);
