@@ -29,7 +29,7 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - **Core Pages:** Landing, Login, AI Interview, Payment Success, Coaching Modules, Progress, Coach Letter, Serious Plan, and Coach Chat.
 - **Components:** Auth context provider (`useAuth.tsx`), UserMenu.
 - **Styling:** Centralized `serious-people.css` for WSJ-inspired styles.
-- **Interview Features:** Chat interface, server-side transcript storage, user menu, progress bar, module title cards, personalized paywall with AI-generated value bullets, two-step plan confirmation, Stripe checkout integration, and a developer-only auto-client response button.
+- **Interview Features:** Chat interface, server-side transcript storage, user menu, progress bar, module title cards, personalized paywall with AI-generated value bullets, two-step plan confirmation, Stripe checkout integration.
 
 ### Backend
 - **Framework:** Express.js with TypeScript.
@@ -40,8 +40,8 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
     - Serious Plan initialization, artifact generation, PDF creation, and email delivery.
     - Coach chat message handling.
     - Transcript and module data persistence.
-    - Developer-only endpoints for testing (`/api/dev/auto-client`, `/api/dev/skip`).
 - **AI Integration:** Primarily uses Anthropic Claude Sonnet 4.5, with fallback to OpenAI GPT-4.1-mini. Utilizes specific tokens (e.g., `[[INTERVIEW_COMPLETE]]`, `[[VALUE_BULLETS]]`, `[[PLAN_CARD]]`) for structured AI responses and system control.
+- **Testing Feature ("testskip"):** Typing "testskip" in the interview or any module causes the coach to fabricate plausible context, list the fabricated details, and complete the module normally. This allows rapid testing without manually completing conversations.
 - **Data Storage:** PostgreSQL database.
     - **Tables:** `users`, `sessions`, `interview_transcripts`, `magic_link_tokens`, `serious_plans`, `serious_plan_artifacts`, `coach_chat_messages`.
     - **Storage Pattern:** Server-side persistence for all user and coaching data, ensuring cross-device and cross-session continuity.
