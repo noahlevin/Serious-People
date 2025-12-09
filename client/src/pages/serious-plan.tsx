@@ -9,7 +9,8 @@ import "@/styles/serious-people.css";
 function parseMarkdownInline(text: string) {
   const parts = [];
   let lastIndex = 0;
-  const regex = /\[(.+?)\]\((.+?)\)|\*\*(.+?)\*\*|\*(.+?)\*/g;
+  // Match markdown links, bold, italic, and also bare URLs
+  const regex = /\[(.+?)\]\((.+?)\)|\*\*(.+?)\*\*|\*(.+?)\*|(https?:\/\/[^\s)]+)/g;
   let match;
   let keyCounter = 0;
   
@@ -19,6 +20,7 @@ function parseMarkdownInline(text: string) {
     }
     
     if (match[1] && match[2]) {
+      // Markdown link [text](url)
       parts.push(
         <a key={`link-${keyCounter++}`} href={match[2]} target="_blank" rel="noopener noreferrer" className="sp-artifact-link">
           {match[1]}
@@ -28,6 +30,13 @@ function parseMarkdownInline(text: string) {
       parts.push(<strong key={`bold-${keyCounter++}`}>{match[3]}</strong>);
     } else if (match[4]) {
       parts.push(<em key={`italic-${keyCounter++}`}>{match[4]}</em>);
+    } else if (match[5]) {
+      // Bare URL - make it clickable
+      parts.push(
+        <a key={`url-${keyCounter++}`} href={match[5]} target="_blank" rel="noopener noreferrer" className="sp-artifact-link">
+          {match[5]}
+        </a>
+      );
     }
     
     lastIndex = regex.lastIndex;
@@ -38,6 +47,12 @@ function parseMarkdownInline(text: string) {
   }
   
   return parts.length > 0 ? parts : text;
+}
+
+// Preprocess content to fix broken markdown links (where ] and ( are on separate lines)
+function preprocessMarkdownContent(content: string): string {
+  // Join lines where a link title ends with ] on one line and ( starts on the next
+  return content.replace(/\]\s*\n\s*\(/g, '](');
 }
 
 interface Artifact {
@@ -329,7 +344,7 @@ export default function SeriousPlanPage() {
                 <TranscriptRenderer artifact={selectedArtifact} />
               ) : (
                 <div className="sp-artifact-body" data-testid="text-artifact-content">
-                  {selectedArtifact.contentRaw.split('\n').map((line, i) => {
+                  {preprocessMarkdownContent(selectedArtifact.contentRaw).split('\n').map((line, i) => {
                     if (line.startsWith('### ')) {
                       return <h3 key={i} className="sp-artifact-h3">{parseMarkdownInline(line.replace('### ', ''))}</h3>;
                     }
