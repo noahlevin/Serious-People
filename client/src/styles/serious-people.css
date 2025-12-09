@@ -2777,9 +2777,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--sp-font-display);
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-family: var(--sp-font-body);
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1;
   border: 2px solid var(--sp-text);
   border-radius: 50%;
 }
