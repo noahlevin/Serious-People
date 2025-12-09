@@ -128,6 +128,14 @@ export const interviewTranscripts = pgTable("interview_transcripts", {
   module1Complete: boolean("module_1_complete").default(false),
   module2Complete: boolean("module_2_complete").default(false),
   module3Complete: boolean("module_3_complete").default(false),
+  // Module transcripts (conversation history for each module)
+  module1Transcript: json("module_1_transcript").$type<{ role: string; content: string }[]>(),
+  module2Transcript: json("module_2_transcript").$type<{ role: string; content: string }[]>(),
+  module3Transcript: json("module_3_transcript").$type<{ role: string; content: string }[]>(),
+  // Module summaries (shown in completion card)
+  module1Summary: text("module_1_summary"),
+  module2Summary: text("module_2_summary"),
+  module3Summary: text("module_3_summary"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
