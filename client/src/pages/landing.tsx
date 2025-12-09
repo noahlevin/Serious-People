@@ -210,7 +210,9 @@ export default function Landing() {
             <span className="sp-headline-static">into a decision you trust.</span>
           </h1>
           <p className="sp-landing-subhead">
-            You've drafted the resignation email three times. You've run the numbers. You've had the same circular conversation with your partner. Serious People helps you cut through the noise—in one evening, not six therapy sessions.
+            You've drafted the resignation email three times. You've run the numbers. You've had the same circular conversation with your partner.
+            <br />
+            Serious People helps you cut through the noise— in one thoughtful evening.
           </p>
           
           <div className="sp-landing-cta-group">
