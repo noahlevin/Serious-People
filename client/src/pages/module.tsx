@@ -403,57 +403,53 @@ export default function ModulePage() {
   }, []);
 
   const handleModuleComplete = async () => {
+    console.log("[handleModuleComplete] Starting, moduleNumber:", moduleNumber);
+    
     const completedModules = JSON.parse(sessionStorage.getItem(COMPLETED_MODULES_KEY) || "[]");
     if (!completedModules.includes(moduleNumber)) {
       completedModules.push(moduleNumber);
       sessionStorage.setItem(COMPLETED_MODULES_KEY, JSON.stringify(completedModules));
     }
     
-    // Invalidate journey cache to ensure fresh state on next page
-    queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
+    // Navigate immediately - don't wait for API calls
+    console.log("[handleModuleComplete] Navigating immediately, moduleNumber:", moduleNumber);
     
-    // Update the client dossier with this module's completion record
-    const moduleName = moduleInfo?.name || `Module ${moduleNumber}`;
-    try {
-      const res = await fetch("/api/update-module-dossier", {
+    if (moduleNumber < 3) {
+      setLocation("/progress");
+    } else {
+      // For module 3, start plan generation in background and navigate
+      fetch("/api/serious-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          moduleNumber,
-          moduleName,
-          transcript
-        }),
-      });
+      }).catch(err => console.error("Error starting plan generation:", err));
+      
+      setLocation("/serious-plan");
+    }
+    
+    // Update dossier in background (fire-and-forget)
+    const moduleName = moduleInfo?.name || `Module ${moduleNumber}`;
+    fetch("/api/update-module-dossier", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        moduleNumber,
+        moduleName,
+        transcript
+      }),
+    }).then(res => {
       if (res.ok) {
         console.log(`Dossier updated with module ${moduleNumber}`);
       } else {
         console.error(`Failed to update dossier with module ${moduleNumber}`);
       }
-    } catch (err) {
+    }).catch(err => {
       console.error("Error updating dossier:", err);
-    }
+    });
     
-    if (moduleNumber < 3) {
-      setLocation("/progress");
-    } else {
-      // For module 3, trigger plan generation immediately then navigate
-      try {
-        const planRes = await fetch("/api/serious-plan", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        });
-        if (planRes.ok) {
-          console.log("Serious Plan generation started");
-        } else {
-          console.error("Failed to start plan generation");
-        }
-      } catch (err) {
-        console.error("Error starting plan generation:", err);
-      }
-      setLocation("/serious-plan");
-    }
+    // Invalidate journey cache after navigation started
+    queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
   };
 
   useEffect(() => {

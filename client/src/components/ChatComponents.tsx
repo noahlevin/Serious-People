@@ -235,8 +235,19 @@ export function ModuleCompleteCard({
   onComplete
 }: {
   summary: string;
-  onComplete: () => void;
+  onComplete: () => void | Promise<void>;
 }) {
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const handleClick = async () => {
+    setIsLoading(true);
+    try {
+      await onComplete();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   return (
     <div className="sp-module-complete-card" data-testid="module-complete-card">
       <div className="sp-module-complete-header">
@@ -246,9 +257,10 @@ export function ModuleCompleteCard({
       <button
         className="sp-module-complete-btn"
         data-testid="button-complete-module"
-        onClick={onComplete}
+        onClick={handleClick}
+        disabled={isLoading}
       >
-        Continue to Next Step
+        {isLoading ? "Loading..." : "Continue to Next Step"}
       </button>
     </div>
   );
