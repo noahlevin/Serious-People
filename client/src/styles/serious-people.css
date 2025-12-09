@@ -2693,25 +2693,25 @@
 .sp-landing-quote-box {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  padding: 2rem;
+  gap: 1rem;
+  padding: 1.25rem;
   border: 1px solid var(--sp-border);
   border-radius: 4px;
   background: #ffffff;
-  max-width: 500px;
+  max-width: 450px;
   margin: 0 auto;
 }
 
 .sp-landing-quote-image {
   width: auto;
   height: auto;
-  max-width: 100px;
+  max-width: 75px;
   flex-shrink: 0;
 }
 
 .sp-landing-quote {
   font-family: var(--sp-font-display);
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-style: italic;
   color: var(--sp-text);
   margin: 0;
@@ -2721,7 +2721,7 @@
 }
 
 .sp-landing-quote p {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .sp-landing-quote cite {
