@@ -82,7 +82,7 @@ export default function ModulePage() {
 
   const chatWindowRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const hasInitialized = useRef(false);
+  const initializedModuleRef = useRef<number | null>(null);
   const hasRefetched = useRef(false);
 
   const storageKey = `${MODULE_STORAGE_PREFIX}${moduleNumber}`;
@@ -440,8 +440,8 @@ export default function ModulePage() {
   };
 
   useEffect(() => {
-    if (hasInitialized.current || authLoading || !isAuthenticated) return;
-    hasInitialized.current = true;
+    if (authLoading || !isAuthenticated || initializedModuleRef.current === moduleNumber) return;
+    initializedModuleRef.current = moduleNumber;
 
     try {
       const saved = sessionStorage.getItem(storageKey);
@@ -467,8 +467,9 @@ export default function ModulePage() {
       console.error("Failed to load module transcript:", e);
     }
 
+    // Only start fresh if no transcript exists
     sendMessage();
-  }, [authLoading, isAuthenticated, storageKey, sendMessage]);
+  }, [authLoading, isAuthenticated, moduleNumber, storageKey, sendMessage]);
 
   if (authLoading) {
     return (
