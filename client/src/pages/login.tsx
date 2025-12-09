@@ -32,7 +32,7 @@ export default function Login() {
   // Redirect if already logged in (using useEffect to avoid render-time side effects)
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      setLocation("/interview");
+      setLocation("/prepare");
     }
   }, [authLoading, isAuthenticated, setLocation]);
   
@@ -68,7 +68,7 @@ export default function Login() {
     onSuccess: () => {
       sessionStorage.clear();
       refetch();
-      setLocation("/interview");
+      setLocation("/prepare");
     },
   });
 

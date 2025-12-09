@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { DevSkipPanel } from "@/components/DevSkipPanel";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
+import Prepare from "@/pages/prepare";
 import Interview from "@/pages/interview";
 import Success from "@/pages/success";
 import ModulePage from "@/pages/module";
@@ -21,6 +22,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/login" component={Login} />
+      <Route path="/prepare" component={Prepare} />
       <Route path="/interview" component={Interview} />
       <Route path="/success" component={Success} />
       <Route path="/module/:moduleNumber" component={ModulePage} />

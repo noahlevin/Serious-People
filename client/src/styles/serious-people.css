@@ -3013,3 +3013,176 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* Prepare Page */
+.sp-prepare-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: #fff;
+}
+
+.sp-prepare-container {
+  width: 100%;
+  max-width: 600px;
+}
+
+.sp-prepare-card {
+  background: #fff;
+  border: 1px solid var(--sp-border);
+  border-radius: 8px;
+  padding: 3rem 2.5rem;
+}
+
+.sp-prepare-title {
+  font-family: var(--sp-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--sp-text);
+  margin-bottom: 1.5rem;
+  line-height: 1.2;
+}
+
+.sp-prepare-body {
+  margin-bottom: 2rem;
+}
+
+.sp-prepare-intro {
+  font-family: var(--sp-font-body);
+  font-size: 1.05rem;
+  color: var(--sp-text-secondary);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.sp-prepare-subtitle {
+  font-family: var(--sp-font-body);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--sp-text);
+  margin-bottom: 1.5rem;
+}
+
+.sp-prepare-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+@keyframes sp-prepare-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sp-prepare-item {
+  display: flex;
+  gap: 1rem;
+  opacity: 0;
+}
+
+.sp-prepare-item-visible {
+  animation: sp-prepare-item-in 0.5s ease-out forwards;
+  animation-delay: var(--item-delay, 0ms);
+}
+
+.sp-prepare-number {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  min-width: 1.75rem;
+  background: var(--sp-text);
+  color: #fff;
+  border-radius: 50%;
+  font-family: var(--sp-font-body);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sp-prepare-text {
+  font-family: var(--sp-font-body);
+  font-size: 1rem;
+  color: var(--sp-text-secondary);
+  line-height: 1.6;
+  padding-top: 0.25rem;
+}
+
+.sp-prepare-closing {
+  font-family: var(--sp-font-body);
+  font-size: 1rem;
+  color: var(--sp-text-secondary);
+  line-height: 1.6;
+  margin-top: 1.5rem;
+}
+
+.sp-prepare-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sp-prepare-cta-primary {
+  background: var(--sp-text);
+  color: #fff;
+  font-family: var(--sp-font-body);
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.875rem 2rem;
+  border: 2px solid var(--sp-text);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+}
+
+.sp-prepare-cta-primary:hover {
+  background: #fff;
+  color: var(--sp-text);
+}
+
+.sp-prepare-cta-secondary {
+  background: transparent;
+  color: var(--sp-text-secondary);
+  font-family: var(--sp-font-body);
+  font-size: 0.95rem;
+  padding: 0.75rem 0;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: underline;
+}
+
+.sp-prepare-cta-secondary:hover {
+  color: var(--sp-text);
+}
+
+@media (max-width: 768px) {
+  .sp-prepare-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .sp-prepare-title {
+    font-size: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .sp-prepare-intro {
+    font-size: 1rem;
+  }
+
+  .sp-prepare-items {
+    gap: 1rem;
+  }
+}
