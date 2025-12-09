@@ -1851,14 +1851,16 @@ After listing the fabricated details, immediately output [[INTERVIEW_COMPLETE]] 
         }
       }
 
-      // Parse structured options
+      // Parse structured options (handles both newline and pipe-separated)
       const optionsMatch = reply.match(/\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/);
       if (optionsMatch) {
-        options = optionsMatch[1]
-          .trim()
-          .split('\n')
-          .map(opt => opt.trim())
-          .filter(opt => opt.length > 0);
+        const rawOptions = optionsMatch[1].trim();
+        // Split on newlines first, then on pipes if we only got one option
+        let parsedOptions = rawOptions.split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
+        if (parsedOptions.length === 1 && parsedOptions[0].includes('|')) {
+          parsedOptions = parsedOptions[0].split('|').map(opt => opt.trim()).filter(opt => opt.length > 0);
+        }
+        options = parsedOptions;
       }
 
       // Parse plan card with expanded format (objectives, approach, outcome)
@@ -2525,14 +2527,16 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
         }
       }
 
-      // Parse structured options
+      // Parse structured options (handles both newline and pipe-separated)
       const optionsMatch = reply.match(/\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/);
       if (optionsMatch) {
-        options = optionsMatch[1]
-          .trim()
-          .split('\n')
-          .map(opt => opt.trim())
-          .filter(opt => opt.length > 0);
+        const rawOptions = optionsMatch[1].trim();
+        // Split on newlines first, then on pipes if we only got one option
+        let parsedOptions = rawOptions.split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
+        if (parsedOptions.length === 1 && parsedOptions[0].includes('|')) {
+          parsedOptions = parsedOptions[0].split('|').map(opt => opt.trim()).filter(opt => opt.length > 0);
+        }
+        options = parsedOptions;
       }
 
       // Check for module completion
