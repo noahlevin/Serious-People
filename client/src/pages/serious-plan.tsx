@@ -8,6 +8,41 @@ import { useToast } from "@/hooks/use-toast";
 // import { Download, Mail } from "lucide-react"; // Temporarily unused
 import "@/styles/serious-people.css";
 
+// Helper function to parse inline markdown (bold, italic)
+function parseMarkdownInline(text: string) {
+  const parts = [];
+  let lastIndex = 0;
+  
+  // Match **bold** and *italic* patterns
+  const regex = /\*\*(.+?)\*\*|\*(.+?)\*/g;
+  let match;
+  
+  while ((match = regex.exec(text)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    
+    // Add the matched element
+    if (match[1]) {
+      // Bold match
+      parts.push(<strong key={`bold-${match.index}`}>{match[1]}</strong>);
+    } else if (match[2]) {
+      // Italic match
+      parts.push(<em key={`italic-${match.index}`}>{match[2]}</em>);
+    }
+    
+    lastIndex = regex.lastIndex;
+  }
+  
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+  
+  return parts.length > 0 ? parts : text;
+}
+
 interface Artifact {
   id: string;
   artifactKey: string;
@@ -302,16 +337,16 @@ export default function SeriousPlanPage() {
               <div className="sp-artifact-body" data-testid="text-artifact-content">
                 {selectedArtifact.contentRaw.split('\n').map((line, i) => {
                   if (line.startsWith('### ')) {
-                    return <h3 key={i} className="sp-artifact-h3">{line.replace('### ', '')}</h3>;
+                    return <h3 key={i} className="sp-artifact-h3">{parseMarkdownInline(line.replace('### ', ''))}</h3>;
                   }
                   if (line.startsWith('## ')) {
-                    return <h2 key={i} className="sp-artifact-h2">{line.replace('## ', '')}</h2>;
+                    return <h2 key={i} className="sp-artifact-h2">{parseMarkdownInline(line.replace('## ', ''))}</h2>;
                   }
                   if (line.startsWith('# ')) {
-                    return <h1 key={i} className="sp-artifact-h1">{line.replace('# ', '')}</h1>;
+                    return <h1 key={i} className="sp-artifact-h1">{parseMarkdownInline(line.replace('# ', ''))}</h1>;
                   }
                   if (line.startsWith('- ')) {
-                    return <li key={i} className="sp-artifact-li">{line.replace('- ', '')}</li>;
+                    return <li key={i} className="sp-artifact-li">{parseMarkdownInline(line.replace('- ', ''))}</li>;
                   }
                   if (line.startsWith('**') && line.endsWith('**')) {
                     return <p key={i} className="sp-artifact-bold">{line.replace(/\*\*/g, '')}</p>;
@@ -319,7 +354,7 @@ export default function SeriousPlanPage() {
                   if (line.trim() === '') {
                     return <div key={i} className="sp-artifact-spacer" />;
                   }
-                  return <p key={i} className="sp-artifact-p">{line}</p>;
+                  return <p key={i} className="sp-artifact-p">{parseMarkdownInline(line)}</p>;
                 })}
               </div>
             </article>
