@@ -7,6 +7,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { formatContent } from "@/components/ChatComponents";
 import "@/styles/serious-people.css";
 
+// Detect if user is on a mobile device (for keyboard behavior)
+const isMobileDevice = () => {
+  return window.matchMedia('(max-width: 768px)').matches || 
+    ('ontouchstart' in window) || 
+    (navigator.maxTouchPoints > 0);
+};
+
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -594,7 +601,10 @@ export default function Interview() {
       setStatus("Something went wrong. Please try again.");
     } finally {
       setIsSending(false);
-      textareaRef.current?.focus();
+      // Only auto-focus on desktop - mobile users don't want keyboard popping up
+      if (!isMobileDevice()) {
+        textareaRef.current?.focus();
+      }
     }
   }, [transcript, saveTranscript, detectAndUpdateModule, updateProgress, handleTestBypass]);
 
@@ -633,6 +643,10 @@ export default function Interview() {
       // Reset textarea height to default
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
+        // On mobile, blur to dismiss keyboard after sending
+        if (isMobileDevice()) {
+          textareaRef.current.blur();
+        }
       }
       sendMessage(text);
     }
@@ -960,6 +974,14 @@ export default function Interview() {
                   autoResize();
                 }}
                 onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  // On mobile, scroll input into view after keyboard appears
+                  if (isMobileDevice()) {
+                    setTimeout(() => {
+                      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                  }
+                }}
               />
               <button
                 className="sp-send-button"

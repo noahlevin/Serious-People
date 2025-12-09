@@ -17,6 +17,13 @@ import {
 import { DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
 import "@/styles/serious-people.css";
 
+// Detect if user is on a mobile device (for keyboard behavior)
+const isMobileDevice = () => {
+  return window.matchMedia('(max-width: 768px)').matches || 
+    ('ontouchstart' in window) || 
+    (navigator.maxTouchPoints > 0);
+};
+
 interface ModuleResponse {
   reply: string;
   done: boolean;
@@ -237,7 +244,10 @@ export default function ModulePage() {
       setStatus("Something went wrong. Please try again.");
     } finally {
       setIsSending(false);
-      textareaRef.current?.focus();
+      // Only auto-focus on desktop - mobile users don't want keyboard popping up
+      if (!isMobileDevice()) {
+        textareaRef.current?.focus();
+      }
     }
   }, [transcript, saveTranscript, moduleNumber]);
 
@@ -248,6 +258,10 @@ export default function ModulePage() {
       // Reset textarea height to default
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
+        // On mobile, blur to dismiss keyboard after sending
+        if (isMobileDevice()) {
+          textareaRef.current.blur();
+        }
       }
       sendMessage(text);
     }
@@ -559,6 +573,14 @@ export default function ModulePage() {
                   autoResize();
                 }}
                 onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  // On mobile, scroll input into view after keyboard appears
+                  if (isMobileDevice()) {
+                    setTimeout(() => {
+                      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                  }
+                }}
               />
               <button
                 className="sp-send-button"

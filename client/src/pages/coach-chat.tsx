@@ -6,6 +6,13 @@ import { UserMenu } from "@/components/UserMenu";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import "@/styles/serious-people.css";
 
+// Detect if user is on a mobile device (for keyboard behavior)
+const isMobileDevice = () => {
+  return window.matchMedia('(max-width: 768px)').matches || 
+    ('ontouchstart' in window) || 
+    (navigator.maxTouchPoints > 0);
+};
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -75,6 +82,10 @@ export default function CoachChatPage() {
 
   const handleSend = () => {
     if (!inputValue.trim() || sendMessageMutation.isPending) return;
+    // On mobile, blur to dismiss keyboard after sending
+    if (isMobileDevice()) {
+      inputRef.current?.blur();
+    }
     sendMessageMutation.mutate(inputValue.trim());
   };
 
@@ -195,6 +206,14 @@ export default function CoachChatPage() {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  // On mobile, scroll input into view after keyboard appears
+                  if (isMobileDevice()) {
+                    setTimeout(() => {
+                      inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                  }
+                }}
                 placeholder="Ask your coach a question..."
                 rows={1}
                 disabled={sendMessageMutation.isPending}
