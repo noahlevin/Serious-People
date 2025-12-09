@@ -6,11 +6,12 @@ import { UserMenu } from "@/components/UserMenu";
 import { FileText, MessageCircle } from "lucide-react";
 import "@/styles/serious-people.css";
 
-function parseMarkdownInline(text: string) {
-  const parts = [];
+function parseMarkdownInline(text: string): (string | JSX.Element)[] | string {
+  const parts: (string | JSX.Element)[] = [];
   let lastIndex = 0;
-  // Match markdown links, bold, italic, and also bare URLs
-  const regex = /\[(.+?)\]\((.+?)\)|\*\*(.+?)\*\*|\*(.+?)\*|(https?:\/\/[^\s)]+)/g;
+  // Match bold-wrapped links first, then regular links, then bold, italic, and bare URLs
+  // Order matters: more specific patterns first
+  const regex = /\*\*\[(.+?)\]\((.+?)\)\*\*|\[(.+?)\]\((.+?)\)|\*\*(.+?)\*\*|\*(.+?)\*|(https?:\/\/[^\s)]+)/g;
   let match;
   let keyCounter = 0;
   
@@ -20,21 +21,30 @@ function parseMarkdownInline(text: string) {
     }
     
     if (match[1] && match[2]) {
-      // Markdown link [text](url)
+      // Bold-wrapped markdown link **[text](url)**
       parts.push(
         <a key={`link-${keyCounter++}`} href={match[2]} target="_blank" rel="noopener noreferrer" className="sp-artifact-link">
-          {match[1]}
+          <strong>{match[1]}</strong>
         </a>
       );
-    } else if (match[3]) {
-      parts.push(<strong key={`bold-${keyCounter++}`}>{match[3]}</strong>);
-    } else if (match[4]) {
-      parts.push(<em key={`italic-${keyCounter++}`}>{match[4]}</em>);
+    } else if (match[3] && match[4]) {
+      // Regular markdown link [text](url)
+      parts.push(
+        <a key={`link-${keyCounter++}`} href={match[4]} target="_blank" rel="noopener noreferrer" className="sp-artifact-link">
+          {match[3]}
+        </a>
+      );
     } else if (match[5]) {
+      // Bold text **text**
+      parts.push(<strong key={`bold-${keyCounter++}`}>{match[5]}</strong>);
+    } else if (match[6]) {
+      // Italic text *text*
+      parts.push(<em key={`italic-${keyCounter++}`}>{match[6]}</em>);
+    } else if (match[7]) {
       // Bare URL - make it clickable
       parts.push(
-        <a key={`url-${keyCounter++}`} href={match[5]} target="_blank" rel="noopener noreferrer" className="sp-artifact-link">
-          {match[5]}
+        <a key={`url-${keyCounter++}`} href={match[7]} target="_blank" rel="noopener noreferrer" className="sp-artifact-link">
+          {match[7]}
         </a>
       );
     }
