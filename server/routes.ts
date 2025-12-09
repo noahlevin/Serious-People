@@ -350,7 +350,7 @@ async function generateInterviewAnalysis(transcript: { role: string; content: st
     
     if (useAnthropic && anthropic) {
       const result = await anthropic.messages.create({
-        model: "claude-sonnet-4-5-20250929",
+        model: "claude-sonnet-4-20250514",
         max_tokens: 4096,
         system: INTERVIEW_ANALYSIS_PROMPT,
         messages: [{ role: "user", content: transcriptText }],
@@ -393,7 +393,7 @@ async function generateModuleAnalysis(
     
     if (useAnthropic && anthropic) {
       const result = await anthropic.messages.create({
-        model: "claude-sonnet-4-5-20250929",
+        model: "claude-sonnet-4-20250514",
         max_tokens: 4096,
         system: MODULE_ANALYSIS_PROMPT,
         messages: [{ role: "user", content: `Module ${moduleNumber}: ${moduleName}\n\n${transcriptText}` }],
@@ -2006,7 +2006,7 @@ Studies show that professionals who work through career decisions with structure
         }
 
         const response = await anthropic.messages.create({
-          model: "claude-sonnet-4-5-20250929",
+          model: "claude-sonnet-4-20250514",
           max_tokens: 2048,
           system: systemPromptToUse,
           messages: claudeMessages,
@@ -2709,7 +2709,7 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
         }
 
         const response = await anthropic.messages.create({
-          model: "claude-sonnet-4-5-20250929",
+          model: "claude-sonnet-4-20250514",
           max_tokens: isTestSkip ? 2048 : 1024,
           system: systemPrompt,
           messages: claudeMessages,
@@ -2900,7 +2900,7 @@ FORMAT:
       if (useAnthropic && anthropic) {
         // Use Anthropic Claude
         const response = await anthropic.messages.create({
-          model: "claude-sonnet-4-5-20250929",
+          model: "claude-sonnet-4-20250514",
           max_tokens: 4096,
           messages: [{ role: "user", content: prompt }],
         });
