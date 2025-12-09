@@ -12,7 +12,7 @@ interface Message {
   content: string;
 }
 
-type PageState = "verifying" | "error" | "transcript-error" | "ready" | "generating" | "results";
+type PageState = "verifying" | "error" | "transcript-error" | "preparing-coaching" | "ready" | "generating" | "results";
 
 const STORAGE_KEY = "serious_people_transcript";
 const PLAN_CARD_KEY = "serious_people_plan_card";
@@ -98,23 +98,31 @@ export default function Success() {
       if (data.ok) {
         analytics.paymentCompleted();
         if (loadTranscript()) {
-          setState("ready");
+          // Show preparing state while generating dossier
+          setState("preparing-coaching");
           
-          // Generate client dossier in the background after successful payment
-          // This creates the comprehensive AI notes from the interview
-          fetch("/api/generate-dossier", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-          }).then(res => {
-            if (res.ok) {
+          // Generate client dossier - MUST complete before user can start modules
+          // This creates the comprehensive AI notes from the interview that modules need
+          try {
+            const dossierRes = await fetch("/api/generate-dossier", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+            });
+            
+            if (dossierRes.ok) {
               console.log("Client dossier generated successfully");
+              setState("ready");
             } else {
               console.error("Failed to generate client dossier");
+              // Still allow proceeding but with a warning - the module retry logic will handle it
+              setState("ready");
             }
-          }).catch(err => {
+          } catch (err) {
             console.error("Error generating client dossier:", err);
-          });
+            // Still allow proceeding - the module retry logic will handle missing dossier
+            setState("ready");
+          }
         } else {
           setState("transcript-error");
         }
@@ -203,6 +211,14 @@ export default function Success() {
               <p>Looks like I can't find your interview on this device. For now this tool assumes you complete the interview and payment on the same device/browser.</p>
               <p style={{ marginTop: "1rem" }}><Link href="/interview">Start a new interview</Link></p>
             </div>
+          </div>
+        )}
+
+        {state === "preparing-coaching" && (
+          <div className="sp-state-container">
+            <div className="sp-spinner-large"></div>
+            <p className="sp-state-text">Preparing your coaching experience...</p>
+            <p className="sp-state-subtext" style={{ marginTop: "0.5rem", opacity: 0.7 }}>Reviewing your interview and creating a personalized plan</p>
           </div>
         )}
 
