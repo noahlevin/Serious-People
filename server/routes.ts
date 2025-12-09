@@ -341,10 +341,12 @@ When you write longer responses:
 - Use **bold text** to highlight key phrases and important takeaways
 - Example: "The real issue here is **your manager doesn't see your growth potential**, which means..."
 
-IMPORTANT: Do NOT use bullet points (- or *) or numbered lists (1. 2. 3.) in your responses. The chat interface cannot render these properly. Instead:
-- Use line breaks and **bold headers** to separate sections
-- Write in flowing paragraphs with bold emphasis for key points
-- For lists of items, use inline formatting like: "There are three main issues: **first**, the timeline; **second**, the money; **third**, the relationship."
+IMPORTANT FORMATTING RULES:
+- Do NOT use bullet points, dashes, or numbered lists
+- Do NOT start multiple consecutive paragraphs with bold phrases (this creates a visual list)
+- Write in flowing, natural prose like a conversation
+- Use **bold** sparingly for emphasis within sentences, not as headers
+- Keep responses concise - 2-3 short paragraphs maximum for most responses
 
 ### Session structure
 
@@ -1906,7 +1908,11 @@ Help the user deeply examine their current job situation to understand what's re
 - Keep acknowledgments simple and move to substance quickly
 
 ### Formatting (CRITICAL)
-Do NOT use bullet points (- or *) or numbered lists (1. 2. 3.) in your responses. The chat interface cannot render these properly. Use flowing prose with **bold text** for emphasis. For multiple points, use inline formatting like: "There are three issues: **first**, X; **second**, Y; **third**, Z."
+- Do NOT use bullet points, dashes, or numbered lists
+- Do NOT start multiple consecutive paragraphs with bold phrases (this creates a visual list)
+- Write in flowing, natural prose like a conversation
+- Use **bold** sparingly for emphasis within sentences, not as headers
+- Keep responses concise - 2-3 short paragraphs maximum
 
 ### Response Structure (CRITICAL)
 
@@ -2282,7 +2288,11 @@ ${outcome}
 - Sound like a coach who has helped hundreds of people through this
 
 ### Formatting (CRITICAL)
-Do NOT use bullet points or numbered lists in your responses. The chat interface cannot render these. Use flowing prose with **bold text** for emphasis. For multiple points, use inline formatting like: "There are three issues: **first**, X; **second**, Y; **third**, Z."
+- Do NOT use bullet points, dashes, or numbered lists
+- Do NOT start multiple consecutive paragraphs with bold phrases (this creates a visual list)
+- Write in flowing, natural prose like a conversation
+- Use **bold** sparingly for emphasis within sentences, not as headers
+- Keep responses concise - 2-3 short paragraphs maximum
 
 ### Session Structure
 ${info.structure}
