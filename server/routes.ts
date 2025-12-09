@@ -877,8 +877,11 @@ export async function registerRoutes(
         return res.status(404).json({ error: "No Serious Plan found" });
       }
       
+      // If we have content, treat as complete (handles edge cases where status wasn't updated)
+      const effectiveStatus = plan.coachNoteContent ? 'complete' : (plan.coachLetterStatus || 'pending');
+      
       res.json({
-        status: plan.coachLetterStatus || 'pending',
+        status: effectiveStatus,
         content: plan.coachNoteContent,
         seenAt: plan.coachLetterSeenAt,
       });
