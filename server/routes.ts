@@ -366,13 +366,13 @@ This is a structured coaching session with distinct phases:
 
 At the START of each phase, output an inline title card on its own line like:
 
-— Interview (est. 3–5 minutes) —
+— Interview (est. 5–10 minutes) —
 
-— Module 1: Job Autopsy (est. 5–7 minutes) —
+— Module 1: Job Autopsy (est. 10–20 minutes) —
 
-— Module 2: Fork in the Road (est. 5–7 minutes) —
+— Module 2: Fork in the Road (est. 10–20 minutes) —
 
-— Module 3: The Great Escape Plan (est. 5–7 minutes) —
+— Module 3: The Great Escape Plan (est. 10–20 minutes) —
 
 The frontend will detect these, style them elegantly, and update the header.
 
@@ -380,7 +380,7 @@ The frontend will detect these, style them elegantly, and update the header.
 
 On your **very first reply** (when there is no prior conversation history):
 
-1. Output the intro title card on its own line: — Interview (est. 3–5 minutes) —
+1. Output the intro title card on its own line: — Interview (est. 5–10 minutes) —
 
 2. Be warm and welcoming. Establish rapport. Set context: this is a structured coaching session, not just venting.
 
@@ -1847,7 +1847,7 @@ Help the user deeply examine their current job situation to understand what's re
 
 ### First Message Format
 On your first message, output a title card:
-— Job Autopsy (est. 5 minutes) —
+— Job Autopsy (est. 10–20 minutes) —
 
 Then introduce the module and ask your first probing question based on what you know about their situation.
 
@@ -1895,7 +1895,7 @@ Help the user clarify their options and evaluate the trade-offs of staying, pivo
 
 ### First Message Format
 On your first message, output a title card:
-— Fork in the Road (est. 5 minutes) —
+— Fork in the Road (est. 10–20 minutes) —
 
 Then recap their situation briefly and ask your first question about options.
 
@@ -1943,7 +1943,7 @@ Help the user build a concrete action plan with timelines, specific next steps, 
 
 ### First Message Format
 On your first message, output a title card:
-— The Great Escape Plan (est. 5 minutes) —
+— The Great Escape Plan (est. 10–20 minutes) —
 
 Then recap where they landed and start building the plan.
 
@@ -2147,7 +2147,7 @@ ${info.structure}
 
 ### First Message Format
 On your first message, output a title card:
-— ${name} (est. 5 minutes) —
+— ${name} (est. 10–20 minutes) —
 
 Then introduce the module and ask your first probing question based on what you know about their situation.
 
