@@ -198,18 +198,22 @@ export default function Login() {
             Logging in allows us to save your progress so you can pick up where you left off.
           </p>
           
-          <div className="sp-login-divider" style={{ marginTop: '1.5rem' }}>
-            <span>testing</span>
-          </div>
-          
-          <button 
-            className="sp-login-demo-button"
-            data-testid="button-demo-login"
-            onClick={handleDemoLogin}
-            disabled={demoLoginMutation.isPending}
-          >
-            {demoLoginMutation.isPending ? "Logging in..." : "Demo Login (Fresh Account)"}
-          </button>
+          {import.meta.env.DEV && (
+            <>
+              <div className="sp-login-divider" style={{ marginTop: '1.5rem' }}>
+                <span>testing</span>
+              </div>
+              
+              <button 
+                className="sp-login-demo-button"
+                data-testid="button-demo-login"
+                onClick={handleDemoLogin}
+                disabled={demoLoginMutation.isPending}
+              >
+                {demoLoginMutation.isPending ? "Logging in..." : "Demo Login (Fresh Account)"}
+              </button>
+            </>
+          )}
         </div>
       </main>
     </div>
