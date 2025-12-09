@@ -70,6 +70,12 @@ export function formatContent(content: string, optionsOrSkipTitleCard: FormatOpt
     formatted = formatted.replace(/\n/g, "<br>");
     formatted = formatted.replace(/^(<br>)+/, "");
     formatted = formatted.replace(/(<br>){3,}/g, "<br><br>");
+    
+    // Remove line breaks immediately before/after bold and italic tags to keep text inline
+    formatted = formatted.replace(/<br><b>/g, "<b>");
+    formatted = formatted.replace(/<\/b><br>/g, "</b>");
+    formatted = formatted.replace(/<br><i>/g, "<i>");
+    formatted = formatted.replace(/<\/i><br>/g, "</i>");
   }
 
   return formatted;
