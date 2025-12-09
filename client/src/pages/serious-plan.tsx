@@ -8,14 +8,15 @@ import { useToast } from "@/hooks/use-toast";
 // import { Download, Mail } from "lucide-react"; // Temporarily unused
 import "@/styles/serious-people.css";
 
-// Helper function to parse inline markdown (bold, italic)
+// Helper function to parse inline markdown (bold, italic, links)
 function parseMarkdownInline(text: string) {
   const parts = [];
   let lastIndex = 0;
   
-  // Match **bold** and *italic* patterns
-  const regex = /\*\*(.+?)\*\*|\*(.+?)\*/g;
+  // Match [text](url), **bold**, and *italic* patterns
+  const regex = /\[(.+?)\]\((.+?)\)|\*\*(.+?)\*\*|\*(.+?)\*/g;
   let match;
+  let keyCounter = 0;
   
   while ((match = regex.exec(text)) !== null) {
     // Add text before the match
@@ -24,12 +25,19 @@ function parseMarkdownInline(text: string) {
     }
     
     // Add the matched element
-    if (match[1]) {
+    if (match[1] && match[2]) {
+      // Link match [text](url)
+      parts.push(
+        <a key={`link-${keyCounter++}`} href={match[2]} target="_blank" rel="noopener noreferrer" className="sp-artifact-link">
+          {match[1]}
+        </a>
+      );
+    } else if (match[3]) {
       // Bold match
-      parts.push(<strong key={`bold-${match.index}`}>{match[1]}</strong>);
-    } else if (match[2]) {
+      parts.push(<strong key={`bold-${keyCounter++}`}>{match[3]}</strong>);
+    } else if (match[4]) {
       // Italic match
-      parts.push(<em key={`italic-${match.index}`}>{match[2]}</em>);
+      parts.push(<em key={`italic-${keyCounter++}`}>{match[4]}</em>);
     }
     
     lastIndex = regex.lastIndex;

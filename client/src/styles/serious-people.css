@@ -2356,6 +2356,18 @@
   margin-bottom: 0.75rem;
 }
 
+.sp-artifact-link {
+  color: #0066cc;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.sp-artifact-link:hover {
+  color: #0052a3;
+  text-decoration: underline;
+}
+
 .sp-artifact-li {
   margin-bottom: 0.5rem;
   margin-left: 1.5rem;

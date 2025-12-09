@@ -189,9 +189,10 @@ For each artifact:
 - Major takeaways per module
 
 ### resources (if included)
-- 5-10 credible, relevant resources
-- For each: title, URL (or "search for X"), why it's recommended for THEM
-- Mark 1-3 as "must read"
+- 5-10 credible, relevant resources formatted as clickable markdown links
+- Format each as: [Resource Title](https://exact-url) - Why it's recommended for THEM
+- Use actual URLs when possible, not "search for" instructions
+- Mark 1-3 as "must read" (can emphasize with **bold**)
 - metadata should include: { "resources": [...] }
 
 IMPORTANT: Return ONLY valid JSON. No markdown code blocks, no explanations outside the JSON.`;
