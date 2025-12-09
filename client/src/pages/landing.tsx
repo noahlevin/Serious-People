@@ -212,6 +212,7 @@ export default function Landing() {
           <p className="sp-landing-subhead">
             You've drafted the resignation email three times. You've run the numbers. You've had the same circular conversation with your partner.
             <br />
+            <br />
             Serious People helps you cut through the noise— in one thoughtful evening.
           </p>
           
