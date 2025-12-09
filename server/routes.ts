@@ -355,7 +355,7 @@ async function generateInterviewAnalysis(transcript: { role: string; content: st
     
     if (useAnthropic && anthropic) {
       const result = await anthropic.messages.create({
-        model: "claude-sonnet-4-5",
+        model: "claude-haiku-4-5",
         max_tokens: 4096,
         system: INTERVIEW_ANALYSIS_PROMPT,
         messages: [{ role: "user", content: transcriptText }],
