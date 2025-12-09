@@ -17,6 +17,7 @@ import Progress from "@/pages/progress";
 import CareerBrief from "@/pages/career-brief";
 import SeriousPlan from "@/pages/serious-plan";
 import CoachChat from "@/pages/coach-chat";
+import CoachLetter from "@/pages/coach-letter";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/career-brief" component={CareerBrief} />
       <Route path="/serious-plan" component={SeriousPlan} />
       <Route path="/coach-chat" component={CoachChat} />
+      <Route path="/coach-letter" component={CoachLetter} />
       <Route component={NotFound} />
     </Switch>
   );

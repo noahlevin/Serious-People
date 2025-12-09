@@ -422,14 +422,38 @@ export default function ModulePage() {
     if (moduleNumber < 3) {
       setLocation("/progress");
     } else {
-      // For module 3, start plan generation in background and navigate
-      fetch("/api/serious-plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      }).catch(err => console.error("Error starting plan generation:", err));
-      
-      setLocation("/serious-plan");
+      // For module 3, start plan generation and check if letter has been seen
+      try {
+        // Start plan generation
+        await fetch("/api/serious-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+        
+        // Check if letter has been seen
+        const letterResponse = await fetch("/api/serious-plan/letter", {
+          credentials: "include",
+        });
+        
+        if (letterResponse.ok) {
+          const letterData = await letterResponse.json();
+          if (letterData.seenAt) {
+            // Letter already seen, go directly to plan
+            setLocation("/serious-plan");
+          } else {
+            // Letter not seen yet, show coach letter first
+            setLocation("/coach-letter");
+          }
+        } else {
+          // If letter endpoint fails, default to coach-letter
+          setLocation("/coach-letter");
+        }
+      } catch (err) {
+        console.error("Error in module 3 completion flow:", err);
+        // Default to coach-letter on error
+        setLocation("/coach-letter");
+      }
     }
     
     // Update dossier in background (fire-and-forget)

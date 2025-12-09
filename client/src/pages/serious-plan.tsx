@@ -1,50 +1,38 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { analytics } from "@/lib/posthog";
-// import { Download, Mail } from "lucide-react"; // Temporarily unused
+import { FileText, MessageCircle } from "lucide-react";
 import "@/styles/serious-people.css";
 
-// Helper function to parse inline markdown (bold, italic, links)
 function parseMarkdownInline(text: string) {
   const parts = [];
   let lastIndex = 0;
-  
-  // Match [text](url), **bold**, and *italic* patterns
   const regex = /\[(.+?)\]\((.+?)\)|\*\*(.+?)\*\*|\*(.+?)\*/g;
   let match;
   let keyCounter = 0;
   
   while ((match = regex.exec(text)) !== null) {
-    // Add text before the match
     if (match.index > lastIndex) {
       parts.push(text.substring(lastIndex, match.index));
     }
     
-    // Add the matched element
     if (match[1] && match[2]) {
-      // Link match [text](url)
       parts.push(
         <a key={`link-${keyCounter++}`} href={match[2]} target="_blank" rel="noopener noreferrer" className="sp-artifact-link">
           {match[1]}
         </a>
       );
     } else if (match[3]) {
-      // Bold match
       parts.push(<strong key={`bold-${keyCounter++}`}>{match[3]}</strong>);
     } else if (match[4]) {
-      // Italic match
       parts.push(<em key={`italic-${keyCounter++}`}>{match[4]}</em>);
     }
     
     lastIndex = regex.lastIndex;
   }
   
-  // Add remaining text
   if (lastIndex < text.length) {
     parts.push(text.substring(lastIndex));
   }
@@ -60,9 +48,15 @@ interface Artifact {
   importanceLevel: 'must_read' | 'recommended' | 'optional' | 'bonus';
   whyImportant: string;
   contentRaw: string;
+  generationStatus: 'pending' | 'generating' | 'complete' | 'error';
   pdfStatus: 'not_started' | 'generating' | 'ready' | 'error';
   pdfUrl: string | null;
   displayOrder: number;
+  metadata?: {
+    messages?: { role: string; content: string }[];
+    summary?: string;
+    [key: string]: any;
+  };
 }
 
 interface SeriousPlan {
@@ -83,27 +77,64 @@ interface SeriousPlan {
   artifacts: Artifact[];
 }
 
-type ViewMode = 'graduation' | 'overview' | 'artifact';
+type ViewMode = 'overview' | 'artifact';
 
-const SEEN_NOTE_KEY = 'serious_plan_seen_note';
+function ArtifactSkeleton() {
+  return (
+    <div className="sp-artifact-card sp-artifact-skeleton" data-testid="artifact-skeleton">
+      <div className="sp-artifact-card-header">
+        <div className="sp-skeleton-line sp-skeleton-short"></div>
+      </div>
+      <div className="sp-skeleton-line sp-skeleton-title"></div>
+      <div className="sp-skeleton-line sp-skeleton-text"></div>
+      <div className="sp-skeleton-line sp-skeleton-text-short"></div>
+    </div>
+  );
+}
+
+function TranscriptRenderer({ artifact }: { artifact: Artifact }) {
+  const messages = artifact.metadata?.messages || [];
+  const summary = artifact.metadata?.summary || artifact.whyImportant;
+
+  return (
+    <div className="sp-transcript-container">
+      {summary && (
+        <div className="sp-transcript-summary" data-testid="text-transcript-summary">
+          <h3 className="sp-artifact-h3">Summary</h3>
+          <p className="sp-body">{summary}</p>
+        </div>
+      )}
+      <div className="sp-transcript-messages">
+        <h3 className="sp-artifact-h3">Conversation</h3>
+        {messages.map((msg, idx) => (
+          <div 
+            key={idx} 
+            className={`sp-transcript-message sp-transcript-${msg.role}`}
+            data-testid={`transcript-message-${idx}`}
+          >
+            <div className="sp-transcript-role">
+              {msg.role === 'assistant' ? (
+                <MessageCircle size={16} />
+              ) : (
+                <span className="sp-transcript-user-icon">You</span>
+              )}
+            </div>
+            <div className="sp-transcript-content">
+              {msg.content}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function SeriousPlanPage() {
-  const { isAuthenticated, isLoading: authLoading, refetch, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, refetch } = useAuth();
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
-  const [viewMode, setViewMode] = useState<ViewMode>('graduation');
+  const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
-  const [planGenerated, setPlanGenerated] = useState(false);
-  const [hasSeenNote, setHasSeenNote] = useState(() => {
-    // Check localStorage on initial render
-    try {
-      return localStorage.getItem(SEEN_NOTE_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  });
 
-  // Set page title
   useEffect(() => {
     document.title = "Your Serious Plan - Serious People";
   }, []);
@@ -118,55 +149,24 @@ export default function SeriousPlanPage() {
     }
   }, [authLoading, isAuthenticated, setLocation]);
 
-  const { data: plan, isLoading: planLoading, refetch: refetchPlan } = useQuery<SeriousPlan>({
+  const { data: plan, isLoading: planLoading } = useQuery<SeriousPlan>({
     queryKey: ['/api/serious-plan/latest'],
     enabled: isAuthenticated && !authLoading,
     retry: false,
     refetchInterval: (query) => {
-      // Poll every 2 seconds while plan is generating or doesn't exist yet
       const data = query.state.data;
       if (!data || data.status === 'generating') {
+        return 2000;
+      }
+      const anyArtifactGenerating = data.artifacts?.some(
+        a => a.generationStatus === 'pending' || a.generationStatus === 'generating'
+      );
+      if (anyArtifactGenerating) {
         return 2000;
       }
       return false;
     },
   });
-
-  const generatePlanMutation = useMutation({
-    mutationFn: () => apiRequest('POST', '/api/serious-plan'),
-    onSuccess: () => {
-      setPlanGenerated(true);
-      analytics.seriousPlanGenerated();
-      refetchPlan();
-    },
-  });
-
-  // PDF and email mutations temporarily disabled
-  // const generateBundlePdfMutation = useMutation({
-  //   mutationFn: (planId: string) => apiRequest('POST', `/api/serious-plan/${planId}/bundle-pdf`),
-  //   onSuccess: () => refetchPlan(),
-  // });
-  // const sendEmailMutation = useMutation({
-  //   mutationFn: (planId: string) => apiRequest('POST', `/api/serious-plan/${planId}/send-email`),
-  //   onSuccess: () => refetchPlan(),
-  // });
-  // const generateArtifactPdfMutation = useMutation({
-  //   mutationFn: ({ planId, artifactId }: { planId: string; artifactId: string }) => 
-  //     apiRequest('POST', `/api/serious-plan/${planId}/artifacts/${artifactId}/pdf`),
-  //   onSuccess: () => refetchPlan(),
-  // });
-
-  const handleContinue = () => {
-    setHasSeenNote(true);
-    setViewMode('overview');
-    window.scrollTo(0, 0);
-    // Persist to localStorage so note doesn't show again on reload
-    try {
-      localStorage.setItem(SEEN_NOTE_KEY, 'true');
-    } catch {
-      // Ignore storage errors
-    }
-  };
 
   const handleViewArtifact = (artifact: Artifact) => {
     setSelectedArtifact(artifact);
@@ -209,8 +209,7 @@ export default function SeriousPlanPage() {
     );
   }
 
-  // If no plan exists yet, show generating state (plan generation is triggered from module 3)
-  if (!plan && !planGenerated) {
+  if (!plan) {
     return (
       <div className="sp-page">
         <header className="sp-success-header">
@@ -239,7 +238,7 @@ export default function SeriousPlanPage() {
     );
   }
 
-  if (plan?.status === 'generating' || generatePlanMutation.isPending) {
+  if (plan.status === 'generating') {
     return (
       <div className="sp-page">
         <header className="sp-success-header">
@@ -261,47 +260,6 @@ export default function SeriousPlanPage() {
               <p className="sp-body" style={{ marginTop: '1rem' }}>
                 Your coach is crafting personalized artifacts for your situation...
               </p>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (viewMode === 'graduation' && plan?.coachNoteContent && !hasSeenNote) {
-    const metadata = plan.summaryMetadata;
-    return (
-      <div className="sp-page">
-        <header className="sp-success-header">
-          <div className="sp-header-content">
-            <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-              <span className="sp-logo">Serious People</span>
-            </Link>
-            <UserMenu />
-          </div>
-        </header>
-        <main className="sp-container">
-          <div className="sp-graduation-note" data-testid="graduation-note">
-            <div className="sp-graduation-header">
-              <h1 className="sp-coach-header">A Note from Your Coach</h1>
-            </div>
-            
-            <div className="sp-coach-note-content" data-testid="text-coach-note">
-              {plan.coachNoteContent.split('\n\n').map((paragraph, i) => (
-                <p key={i} className="sp-body">{paragraph}</p>
-              ))}
-            </div>
-
-            <div className="sp-graduation-cta">
-              <button 
-                className="sp-plan-cta"
-                onClick={handleContinue}
-                data-testid="button-view-plan"
-              >
-                View Your Complete Plan
-                <span className="sp-plan-cta-arrow">→</span>
-              </button>
             </div>
           </div>
         </main>
@@ -310,6 +268,8 @@ export default function SeriousPlanPage() {
   }
 
   if (viewMode === 'artifact' && selectedArtifact) {
+    const isTranscript = selectedArtifact.type === 'transcript';
+    
     return (
       <div className="sp-page">
         <header className="sp-success-header">
@@ -343,52 +303,95 @@ export default function SeriousPlanPage() {
                 <div className="sp-wsj-header-line"></div>
               </header>
 
-              {selectedArtifact.whyImportant && (
+              {selectedArtifact.whyImportant && !isTranscript && (
                 <div className="sp-artifact-intro">
                   {selectedArtifact.whyImportant}
                 </div>
               )}
 
-              <div className="sp-artifact-body" data-testid="text-artifact-content">
-                {selectedArtifact.contentRaw.split('\n').map((line, i) => {
-                  if (line.startsWith('### ')) {
-                    return <h3 key={i} className="sp-artifact-h3">{parseMarkdownInline(line.replace('### ', ''))}</h3>;
-                  }
-                  if (line.startsWith('## ')) {
-                    return <h2 key={i} className="sp-artifact-h2">{parseMarkdownInline(line.replace('## ', ''))}</h2>;
-                  }
-                  if (line.startsWith('# ')) {
-                    return <h1 key={i} className="sp-artifact-h1">{parseMarkdownInline(line.replace('# ', ''))}</h1>;
-                  }
-                  if (line.startsWith('- ')) {
-                    return <li key={i} className="sp-artifact-li">{parseMarkdownInline(line.replace('- ', ''))}</li>;
-                  }
-                  if (line.startsWith('**') && line.endsWith('**')) {
-                    return <p key={i} className="sp-artifact-bold">{line.replace(/\*\*/g, '')}</p>;
-                  }
-                  if (line.trim() === '') {
-                    return <div key={i} className="sp-artifact-spacer" />;
-                  }
-                  return <p key={i} className="sp-artifact-p">{parseMarkdownInline(line)}</p>;
-                })}
-              </div>
+              {isTranscript ? (
+                <TranscriptRenderer artifact={selectedArtifact} />
+              ) : (
+                <div className="sp-artifact-body" data-testid="text-artifact-content">
+                  {selectedArtifact.contentRaw.split('\n').map((line, i) => {
+                    if (line.startsWith('### ')) {
+                      return <h3 key={i} className="sp-artifact-h3">{parseMarkdownInline(line.replace('### ', ''))}</h3>;
+                    }
+                    if (line.startsWith('## ')) {
+                      return <h2 key={i} className="sp-artifact-h2">{parseMarkdownInline(line.replace('## ', ''))}</h2>;
+                    }
+                    if (line.startsWith('# ')) {
+                      return <h1 key={i} className="sp-artifact-h1">{parseMarkdownInline(line.replace('# ', ''))}</h1>;
+                    }
+                    if (line.startsWith('- ')) {
+                      return <li key={i} className="sp-artifact-li">{parseMarkdownInline(line.replace('- ', ''))}</li>;
+                    }
+                    if (line.startsWith('**') && line.endsWith('**')) {
+                      return <p key={i} className="sp-artifact-bold">{line.replace(/\*\*/g, '')}</p>;
+                    }
+                    if (line.trim() === '') {
+                      return <div key={i} className="sp-artifact-spacer" />;
+                    }
+                    return <p key={i} className="sp-artifact-p">{parseMarkdownInline(line)}</p>;
+                  })}
+                </div>
+              )}
             </article>
-
-            {/* PDF download functionality temporarily hidden */}
           </div>
         </main>
       </div>
     );
   }
 
-  // Filter artifacts by importance level (handle legacy values 'essential' and 'reference')
-  const mustReadArtifacts = plan?.artifacts?.filter(a => 
+  const essentialArtifacts = plan?.artifacts?.filter(a => 
     a.importanceLevel === 'must_read' || (a.importanceLevel as string) === 'essential'
   ) || [];
-  const recommendedArtifacts = plan?.artifacts?.filter(a => a.importanceLevel === 'recommended') || [];
-  const optionalArtifacts = plan?.artifacts?.filter(a => 
-    a.importanceLevel === 'optional' || a.importanceLevel === 'bonus' || (a.importanceLevel as string) === 'reference'
+  
+  const additionalArtifacts = plan?.artifacts?.filter(a => 
+    a.importanceLevel !== 'must_read' && (a.importanceLevel as string) !== 'essential'
   ) || [];
+
+  const anyGenerating = plan?.artifacts?.some(
+    a => a.generationStatus === 'pending' || a.generationStatus === 'generating'
+  );
+
+  const renderArtifactCard = (artifact: Artifact, index: number, isEssential: boolean) => {
+    const isGenerating = artifact.generationStatus === 'pending' || artifact.generationStatus === 'generating';
+    
+    if (isGenerating) {
+      return <ArtifactSkeleton key={artifact.id} />;
+    }
+
+    const isTranscript = artifact.type === 'transcript';
+    
+    return (
+      <div 
+        key={artifact.id} 
+        className={`sp-artifact-card ${isEssential ? 'sp-artifact-premium' : ''}`}
+        onClick={() => handleViewArtifact(artifact)}
+        data-testid={`card-artifact-${artifact.artifactKey}`}
+      >
+        <div className="sp-artifact-card-header">
+          <span className="sp-artifact-number">{String(index + 1).padStart(2, '0')}</span>
+          {isEssential ? (
+            <span className="sp-importance-tag sp-tag-essential">Essential</span>
+          ) : (
+            <span className="sp-importance-tag sp-tag-recommended">
+              {artifact.importanceLevel === 'bonus' ? 'Bonus' : 'Additional'}
+            </span>
+          )}
+        </div>
+        <h3 className="sp-artifact-title">
+          {isTranscript && <MessageCircle size={16} style={{ marginRight: '0.5rem', display: 'inline' }} />}
+          {artifact.title}
+        </h3>
+        <p className="sp-artifact-preview">{artifact.whyImportant}</p>
+        <div className="sp-artifact-read-more">
+          {isTranscript ? 'View Transcript →' : 'Read →'}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="sp-page">
@@ -408,94 +411,34 @@ export default function SeriousPlanPage() {
             <h1 className="sp-plan-main-title">Your Serious Plan</h1>
             <p className="sp-plan-subtitle">
               {plan?.artifacts?.length || 0} personalized artifacts prepared for you
+              {anyGenerating && ' (some still generating...)'}
             </p>
             <div className="sp-wsj-header-line"></div>
           </div>
 
-          {/* PDF and email functionality temporarily hidden */}
-
-          {mustReadArtifacts.length > 0 && (
-            <div className="sp-artifact-section">
+          {essentialArtifacts.length > 0 && (
+            <div className="sp-artifact-section" data-testid="section-essential">
               <div className="sp-section-header">
                 <span className="sp-section-label">Essential</span>
                 <h2 className="sp-section-title">Start Here</h2>
               </div>
               <div className="sp-artifact-grid">
-                {mustReadArtifacts.map((artifact) => (
-                  <div 
-                    key={artifact.id} 
-                    className="sp-artifact-card sp-artifact-premium"
-                    onClick={() => handleViewArtifact(artifact)}
-                    data-testid={`card-artifact-${artifact.artifactKey}`}
-                  >
-                    <div className="sp-artifact-card-header">
-                      <span className="sp-artifact-number">{String(mustReadArtifacts.indexOf(artifact) + 1).padStart(2, '0')}</span>
-                      <span className="sp-importance-tag sp-tag-essential">Essential</span>
-                    </div>
-                    <h3 className="sp-artifact-title">{artifact.title}</h3>
-                    <p className="sp-artifact-preview">{artifact.whyImportant}</p>
-                    <div className="sp-artifact-read-more">Read →</div>
-                  </div>
-                ))}
+                {essentialArtifacts.map((artifact, idx) => renderArtifactCard(artifact, idx, true))}
               </div>
             </div>
           )}
 
-          {recommendedArtifacts.length > 0 && (
-            <div className="sp-artifact-section">
+          {additionalArtifacts.length > 0 && (
+            <div className="sp-artifact-section" data-testid="section-additional">
               <div className="sp-section-header">
-                <span className="sp-section-label">Recommended</span>
+                <span className="sp-section-label">Additional</span>
                 <h2 className="sp-section-title">Your Toolkit</h2>
               </div>
               <div className="sp-artifact-grid">
-                {recommendedArtifacts.map((artifact) => (
-                  <div 
-                    key={artifact.id} 
-                    className="sp-artifact-card"
-                    onClick={() => handleViewArtifact(artifact)}
-                    data-testid={`card-artifact-${artifact.artifactKey}`}
-                  >
-                    <div className="sp-artifact-card-header">
-                      <span className="sp-artifact-number">{String(recommendedArtifacts.indexOf(artifact) + 1).padStart(2, '0')}</span>
-                      <span className="sp-importance-tag sp-tag-recommended">Recommended</span>
-                    </div>
-                    <h3 className="sp-artifact-title">{artifact.title}</h3>
-                    <p className="sp-artifact-preview">{artifact.whyImportant}</p>
-                    <div className="sp-artifact-read-more">Read →</div>
-                  </div>
-                ))}
+                {additionalArtifacts.map((artifact, idx) => renderArtifactCard(artifact, idx, false))}
               </div>
             </div>
           )}
-
-          {optionalArtifacts.length > 0 && (
-            <div className="sp-artifact-section">
-              <div className="sp-section-header">
-                <span className="sp-section-label">Additional</span>
-                <h2 className="sp-section-title">Resources</h2>
-              </div>
-              <div className="sp-artifact-grid">
-                {optionalArtifacts.map((artifact) => (
-                  <div 
-                    key={artifact.id} 
-                    className="sp-artifact-card"
-                    onClick={() => handleViewArtifact(artifact)}
-                    data-testid={`card-artifact-${artifact.artifactKey}`}
-                  >
-                    <div className="sp-artifact-card-header">
-                      <span className="sp-artifact-number">{String(optionalArtifacts.indexOf(artifact) + 1).padStart(2, '0')}</span>
-                      <span className="sp-importance-tag sp-tag-optional">{artifact.importanceLevel === 'bonus' ? 'Bonus' : 'Optional'}</span>
-                    </div>
-                    <h3 className="sp-artifact-title">{artifact.title}</h3>
-                    <p className="sp-artifact-preview">{artifact.whyImportant}</p>
-                    <div className="sp-artifact-read-more">Read →</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Coach chat functionality temporarily hidden */}
         </div>
       </main>
     </div>
