@@ -48,7 +48,12 @@ export default function Login() {
   
   const magicLinkMutation = useMutation({
     mutationFn: async (email: string) => {
-      const response = await apiRequest("POST", "/auth/magic/start", { email });
+      // Get promo code from sessionStorage (captured from landing page URL)
+      const promoCode = sessionStorage.getItem('sp_promo_code');
+      const response = await apiRequest("POST", "/auth/magic/start", { 
+        email,
+        promoCode: promoCode || undefined,
+      });
       return response.json();
     },
     onSuccess: (data, email) => {
@@ -62,7 +67,10 @@ export default function Login() {
   };
   
   const handleGoogleLogin = () => {
-    window.location.href = "/auth/google";
+    // Pass promo code to Google OAuth flow via query parameter
+    const promoCode = sessionStorage.getItem('sp_promo_code');
+    const url = promoCode ? `/auth/google?promo=${encodeURIComponent(promoCode)}` : '/auth/google';
+    window.location.href = url;
   };
 
   const demoLoginMutation = useMutation({

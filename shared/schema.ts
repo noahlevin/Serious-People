@@ -35,6 +35,7 @@ export const users = pgTable("users", {
   password: text("password"),
   oauthProvider: text("oauth_provider"),
   oauthId: text("oauth_id"),
+  promoCode: text("promo_code"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -150,6 +151,7 @@ export const magicLinkTokens = pgTable("magic_link_tokens", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull(),
   tokenHash: text("token_hash").notNull(),
+  promoCode: text("promo_code"),
   expiresAt: timestamp("expires_at").notNull(),
   usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

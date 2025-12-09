@@ -1261,16 +1261,39 @@ COMMUNICATION STYLE:
   });
   
   // GET /auth/google - Start Google OAuth flow
-  app.get("/auth/google", passport.authenticate("google", { 
-    scope: ["email", "profile"] 
-  }));
+  app.get("/auth/google", (req, res, next) => {
+    // Store promo code in session before OAuth redirect
+    const promoCode = req.query.promo as string | undefined;
+    if (promoCode) {
+      (req.session as any).pendingPromoCode = promoCode;
+      req.session.save((err) => {
+        if (err) console.error("Session save error for promo code:", err);
+        passport.authenticate("google", { scope: ["email", "profile"] })(req, res, next);
+      });
+    } else {
+      passport.authenticate("google", { scope: ["email", "profile"] })(req, res, next);
+    }
+  });
   
   // GET /auth/google/callback - Google OAuth callback
   app.get("/auth/google/callback",
     passport.authenticate("google", { 
       failureRedirect: "/login?error=google_auth_failed" 
     }),
-    (req, res) => {
+    async (req, res) => {
+      // Check if there's a pending promo code to save
+      const promoCode = (req.session as any).pendingPromoCode;
+      if (promoCode && req.user) {
+        const user = req.user as any;
+        // Get full user record to check if they already have a promo code
+        const fullUser = await storage.getUser(user.id);
+        if (fullUser && !fullUser.promoCode) {
+          await storage.updateUser(user.id, { promoCode });
+          console.log(`Saved promo code ${promoCode} for Google user ${user.id}`);
+        }
+        delete (req.session as any).pendingPromoCode;
+      }
+      
       // Ensure session is saved before redirect (prevents race condition)
       req.session.save((err) => {
         if (err) {
@@ -1284,7 +1307,7 @@ COMMUNICATION STYLE:
   // POST /auth/magic/start - Request magic link email
   app.post("/auth/magic/start", async (req, res) => {
     try {
-      const { email } = req.body;
+      const { email, promoCode } = req.body;
       
       if (!email || typeof email !== "string") {
         return res.status(400).json({ error: "Email is required" });
@@ -1301,10 +1324,11 @@ COMMUNICATION STYLE:
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
       
-      // Store token in database
+      // Store token in database with promo code if provided
       await storage.createMagicLinkToken({
         email: email.toLowerCase(),
         tokenHash,
+        promoCode: promoCode || null,
         expiresAt,
       });
       
@@ -1354,7 +1378,12 @@ COMMUNICATION STYLE:
           name: null,
           oauthProvider: "magic_link",
           oauthId: null,
+          promoCode: magicToken.promoCode || null,
         });
+      } else if (magicToken.promoCode && !user.promoCode) {
+        // Update existing user with promo code if they don't have one
+        await storage.updateUser(user.id, { promoCode: magicToken.promoCode });
+        user = { ...user, promoCode: magicToken.promoCode };
       }
       
       // Log user in
@@ -1521,11 +1550,32 @@ COMMUNICATION STYLE:
       const stripe = await getStripeClient();
       const priceId = await getProductPrice();
       const baseUrl = getBaseUrl();
-      const { promoCode } = req.body || {};
+      const { promoCode: sessionPromoCode } = req.body || {};
       
       // Get the price to check currency
       const price = await stripe.prices.retrieve(priceId);
       const priceCurrency = price.currency || 'usd';
+      
+      // Determine promo code priority: DB (user-specific) > session > default
+      let promoCode: string | null = null;
+      let isUserSpecificPromo = false;
+      
+      // Check if user is authenticated and has a promo code stored
+      const user = req.user as any;
+      if (user?.id) {
+        const fullUser = await storage.getUser(user.id);
+        if (fullUser?.promoCode) {
+          promoCode = fullUser.promoCode;
+          isUserSpecificPromo = true;
+          console.log(`Using user's stored promo code: ${promoCode}`);
+        }
+      }
+      
+      // If no DB promo code, use session-provided promo code
+      if (!promoCode && sessionPromoCode) {
+        promoCode = sessionPromoCode;
+        console.log(`Using session promo code: ${promoCode}`);
+      }
       
       // Build checkout session options
       const sessionOptions: any = {
@@ -1540,7 +1590,7 @@ COMMUNICATION STYLE:
         cancel_url: `${baseUrl}/interview`,
       };
       
-      // If a custom promo code was provided via URL, look it up and apply it
+      // If a promo code was found (from DB or session), look it up and apply it
       if (promoCode) {
         try {
           const promoCodes = await stripe.promotionCodes.list({
@@ -1551,7 +1601,7 @@ COMMUNICATION STYLE:
           
           if (promoCodes.data.length > 0) {
             sessionOptions.discounts = [{ promotion_code: promoCodes.data[0].id }];
-            console.log(`Applied custom promo code: ${promoCode}`);
+            console.log(`Applied promo code: ${promoCode} (user-specific: ${isUserSpecificPromo})`);
           } else {
             console.log(`Promo code not found or inactive: ${promoCode}, falling back to default`);
             // Fall back to standard promo or allow manual entry
