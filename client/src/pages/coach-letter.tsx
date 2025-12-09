@@ -88,7 +88,6 @@ export default function CoachLetterPage() {
         <main className="sp-container">
           <div className="sp-graduation-note" data-testid="letter-loading">
             <div className="sp-graduation-header" style={{ textAlign: 'center' }}>
-              <GraduationCap size={48} style={{ marginBottom: '1rem', opacity: 0.8 }} />
               <h1 className="sp-coach-header">Your Coach is Preparing Your Letter</h1>
             </div>
             <div className="sp-generating-indicator">
