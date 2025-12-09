@@ -199,7 +199,9 @@ export default function Landing() {
         
         <div className="sp-landing-hero-content">
           <h1 className="sp-landing-headline">
-            <span className="sp-headline-static">Turn "</span>
+            <span className="sp-headline-static">Turn</span>
+            <br />
+            <span className="sp-headline-static">"</span>
             <span className="sp-headline-dynamic">
               <span className="sp-typewriter-text">{displayText}</span>
             </span>
