@@ -51,6 +51,16 @@ export interface IStorage {
   }): Promise<InterviewTranscript>;
   updateClientDossier(userId: string, dossier: ClientDossier): Promise<InterviewTranscript | undefined>;
   updateModuleComplete(userId: string, moduleNumber: 1 | 2 | 3, complete: boolean): Promise<InterviewTranscript | undefined>;
+  updateModuleData(userId: string, moduleNumber: 1 | 2 | 3, data: {
+    transcript?: { role: string; content: string }[];
+    summary?: string;
+    complete?: boolean;
+  }): Promise<InterviewTranscript | undefined>;
+  getModuleData(userId: string, moduleNumber: 1 | 2 | 3): Promise<{
+    transcript: { role: string; content: string }[] | null;
+    summary: string | null;
+    complete: boolean;
+  } | null>;
   deleteTranscript(id: string): Promise<void>;
   
   // Magic link operations
@@ -249,6 +259,65 @@ export class DatabaseStorage implements IStorage {
       .where(eq(interviewTranscripts.userId, userId))
       .returning();
     return updated;
+  }
+
+  // Update module transcript, summary, and/or completion status
+  async updateModuleData(userId: string, moduleNumber: 1 | 2 | 3, data: {
+    transcript?: { role: string; content: string }[];
+    summary?: string;
+    complete?: boolean;
+  }): Promise<InterviewTranscript | undefined> {
+    const updateData: any = { updatedAt: new Date() };
+    
+    if (moduleNumber === 1) {
+      if (data.transcript !== undefined) updateData.module1Transcript = data.transcript;
+      if (data.summary !== undefined) updateData.module1Summary = data.summary;
+      if (data.complete !== undefined) updateData.module1Complete = data.complete;
+    } else if (moduleNumber === 2) {
+      if (data.transcript !== undefined) updateData.module2Transcript = data.transcript;
+      if (data.summary !== undefined) updateData.module2Summary = data.summary;
+      if (data.complete !== undefined) updateData.module2Complete = data.complete;
+    } else {
+      if (data.transcript !== undefined) updateData.module3Transcript = data.transcript;
+      if (data.summary !== undefined) updateData.module3Summary = data.summary;
+      if (data.complete !== undefined) updateData.module3Complete = data.complete;
+    }
+    
+    const [updated] = await db.update(interviewTranscripts)
+      .set(updateData)
+      .where(eq(interviewTranscripts.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  // Get module data (transcript, summary, completion status)
+  async getModuleData(userId: string, moduleNumber: 1 | 2 | 3): Promise<{
+    transcript: { role: string; content: string }[] | null;
+    summary: string | null;
+    complete: boolean;
+  } | null> {
+    const transcript = await this.getTranscriptByUserId(userId);
+    if (!transcript) return null;
+    
+    if (moduleNumber === 1) {
+      return {
+        transcript: transcript.module1Transcript || null,
+        summary: transcript.module1Summary || null,
+        complete: transcript.module1Complete || false,
+      };
+    } else if (moduleNumber === 2) {
+      return {
+        transcript: transcript.module2Transcript || null,
+        summary: transcript.module2Summary || null,
+        complete: transcript.module2Complete || false,
+      };
+    } else {
+      return {
+        transcript: transcript.module3Transcript || null,
+        summary: transcript.module3Summary || null,
+        complete: transcript.module3Complete || false,
+      };
+    }
   }
 
   async deleteTranscript(id: string): Promise<void> {
