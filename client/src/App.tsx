@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -5,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { DevSkipPanel } from "@/components/DevSkipPanel";
+import { initPostHog } from "@/lib/posthog";
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Prepare from "@/pages/prepare";
@@ -36,6 +38,10 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    initPostHog();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

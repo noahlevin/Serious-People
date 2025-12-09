@@ -5,6 +5,7 @@ import { UserMenu } from "@/components/UserMenu";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { formatContent } from "@/components/ChatComponents";
+import { analytics } from "@/lib/posthog";
 import "@/styles/serious-people.css";
 
 // Detect if user is on a mobile device (for keyboard behavior)
@@ -525,6 +526,7 @@ export default function Interview() {
       currentTranscript = [...transcript, newMessage];
       setTranscript(currentTranscript);
       saveTranscript(currentTranscript);
+      analytics.interviewMessageSent();
     }
 
     setIsTyping(true);
@@ -556,6 +558,7 @@ export default function Interview() {
         setValueBullets(data.valueBullets || "");
         setSocialProof(data.socialProof || "");
         setStatus("");
+        analytics.interviewCompleted();
         // Don't append the reply, don't update progress, don't show options
         // The paywall will render inline after the user's confirmation message
         return;
@@ -610,6 +613,7 @@ export default function Interview() {
 
   const handleCheckout = async () => {
     setIsCheckoutLoading(true);
+    analytics.checkoutStarted();
 
     try {
       // Check for promo code in URL (e.g., ?promo=FRIENDS100)
@@ -870,10 +874,12 @@ export default function Interview() {
             setInterviewComplete(true);
           }
         } else {
+          analytics.interviewStarted();
           sendMessage();
         }
       } catch (e) {
         console.error("Failed to load transcript:", e);
+        analytics.interviewStarted();
         sendMessage();
       }
     };

@@ -15,6 +15,7 @@ import {
   PlanCard
 } from "@/components/ChatComponents";
 import { DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
+import { analytics } from "@/lib/posthog";
 import "@/styles/serious-people.css";
 
 // Detect if user is on a mobile device (for keyboard behavior)
@@ -179,6 +180,7 @@ export default function ModulePage() {
       currentTranscript = [...transcript, newMessage];
       setTranscript(currentTranscript);
       saveTranscript(currentTranscript);
+      analytics.moduleMessageSent(moduleNumber);
     }
 
     setIsTyping(true);
@@ -208,6 +210,7 @@ export default function ModulePage() {
       if (data.done) {
         setModuleComplete(true);
         setModuleSummary(data.summary || "");
+        analytics.moduleCompleted(moduleNumber);
         
         if (data.reply) {
           const assistantMessage: Message = { role: "assistant", content: data.reply };
@@ -456,6 +459,7 @@ export default function ModulePage() {
   useEffect(() => {
     if (authLoading || !isAuthenticated || initializedModuleRef.current === moduleNumber) return;
     initializedModuleRef.current = moduleNumber;
+    analytics.moduleStarted(moduleNumber);
 
     try {
       const saved = sessionStorage.getItem(storageKey);

@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { analytics } from "@/lib/posthog";
 import "@/styles/serious-people.css";
 
 // Detect if user is on a mobile device (for keyboard behavior)
@@ -86,6 +87,7 @@ export default function CoachChatPage() {
     if (isMobileDevice()) {
       inputRef.current?.blur();
     }
+    analytics.coachChatMessageSent();
     sendMessageMutation.mutate(inputValue.trim());
   };
 

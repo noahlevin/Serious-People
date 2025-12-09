@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useSearch, useLocation } from "wouter";
 import { queryClient } from "@/lib/queryClient";
+import { analytics } from "@/lib/posthog";
 import "@/styles/serious-people.css";
 import { UserMenu } from "@/components/UserMenu";
 import { ModulesProgressCard, DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
@@ -95,6 +96,7 @@ export default function Success() {
       const data = await response.json();
 
       if (data.ok) {
+        analytics.paymentCompleted();
         if (loadTranscript()) {
           setState("ready");
           

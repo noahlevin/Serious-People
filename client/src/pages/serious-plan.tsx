@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { analytics } from "@/lib/posthog";
 // import { Download, Mail } from "lucide-react"; // Temporarily unused
 import "@/styles/serious-people.css";
 
@@ -135,6 +136,7 @@ export default function SeriousPlanPage() {
     mutationFn: () => apiRequest('POST', '/api/serious-plan'),
     onSuccess: () => {
       setPlanGenerated(true);
+      analytics.seriousPlanGenerated();
       refetchPlan();
     },
   });

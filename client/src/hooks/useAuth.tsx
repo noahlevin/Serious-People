@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { identifyUser, resetUser } from "@/lib/posthog";
 
 interface User {
   id: string;
@@ -27,11 +28,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     retry: false,
   });
   
+  useEffect(() => {
+    if (data?.authenticated && data?.user?.email) {
+      identifyUser(data.user.email, { name: data.user.name });
+    }
+  }, [data?.authenticated, data?.user?.email, data?.user?.name]);
+  
   const logoutMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/auth/logout");
     },
     onSuccess: () => {
+      resetUser();
       queryClient.setQueryData(["/auth/me"], { authenticated: false, user: null });
       queryClient.invalidateQueries({ queryKey: ["/auth/me"] });
     },

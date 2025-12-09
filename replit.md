@@ -25,6 +25,24 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - wouter for client-side routing
 - WSJ-inspired typography: Playfair Display (headlines) + Source Serif 4 (body)
 - Design inspired by Wall Street Journal print edition for old-school business credibility
+- PostHog analytics for user tracking and funnel analysis
+
+**Analytics (PostHog):**
+- Cloud-hosted PostHog instance with identified users (by email)
+- API key stored in `VITE_POSTHOG_KEY` environment variable
+- User identification/reset handled in `useAuth.tsx`
+- Tracked events:
+  - `interview_started` - When a new interview begins
+  - `interview_message_sent` - Each user message in the interview
+  - `interview_completed` - When interview finishes and paywall appears
+  - `checkout_started` - When user clicks the checkout button
+  - `payment_completed` - After successful Stripe payment verification
+  - `module_started` - When user enters a coaching module
+  - `module_message_sent` - Each user message in a module
+  - `module_completed` - When a module is finished
+  - `serious_plan_generated` - When the final plan is created
+  - `coach_chat_message_sent` - Each message in the coach chat
+- Analytics library: `client/src/lib/posthog.ts`
 
 **React Pages:**
 - `client/src/pages/landing.tsx` - Landing page with hero section and "Start the interview" CTA (route: `/`)
