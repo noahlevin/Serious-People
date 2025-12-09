@@ -34,6 +34,7 @@ interface ModuleResponse {
 }
 
 const MODULE_STORAGE_PREFIX = "serious_people_module_";
+const MODULE_SUMMARY_PREFIX = "serious_people_module_summary_";
 const COMPLETED_MODULES_KEY = "serious_people_completed_modules";
 const PLAN_CARD_KEY = "serious_people_plan_card";
 
@@ -210,6 +211,12 @@ export default function ModulePage() {
       if (data.done) {
         setModuleComplete(true);
         setModuleSummary(data.summary || "");
+        // Save module summary to sessionStorage for persistence
+        try {
+          sessionStorage.setItem(`${MODULE_SUMMARY_PREFIX}${moduleNumber}`, data.summary || "");
+        } catch (e) {
+          console.error("Failed to save module summary:", e);
+        }
         analytics.moduleCompleted(moduleNumber);
         
         if (data.reply) {
@@ -474,6 +481,19 @@ export default function ModulePage() {
             }
           });
           setTitleCards(cards);
+          
+          // Check if this module was already completed and restore state
+          const completedModules = JSON.parse(sessionStorage.getItem(COMPLETED_MODULES_KEY) || "[]");
+          if (completedModules.includes(moduleNumber)) {
+            setModuleComplete(true);
+            setProgress(100);
+            // Restore the saved summary
+            const savedSummary = sessionStorage.getItem(`${MODULE_SUMMARY_PREFIX}${moduleNumber}`);
+            if (savedSummary) {
+              setModuleSummary(savedSummary);
+            }
+          }
+          
           return;
         }
       }
