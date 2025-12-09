@@ -102,6 +102,7 @@ integrations = ["javascript_openai:1.0.0", "javascript_stripe:1.0.0", "stripe:1.
 [userenv.shared]
 TESTING_VITE_STRIPE_PUBLIC_KEY = "pk_test_51SZcEWPKmDBEAJW1dMlkJPfoEBpL5pzTxvmb38nRtvE45GLOUYfidic9G9tnTAnXFevXDSYN4WL9Jo1y5yZudsLc00tgc704Uf"
 TESTING_STRIPE_SECRET_KEY = "sk_test_51SZcEWPKmDBEAJW1XseMc6JbSAQZ5kSYG8b5o8Xt2qMCEqFBsPKhvrgIxLRg7Oy6SwAiHYpDWI4lfRMQiThNHU8Q00fL3SMH7l"
+ADMIN_SECRET = "665903730b547a094bb837b4c49e5106"
 
 [userenv.production]
 BASE_URL = "https://seriouspeople.app"
