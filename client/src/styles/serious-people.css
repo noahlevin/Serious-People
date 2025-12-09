@@ -1340,6 +1340,24 @@
   margin-bottom: 0.5rem;
 }
 
+.sp-module-complete-summary .sp-summary-list,
+.sp-summary-list {
+  margin: 0.75rem 0 1rem 0;
+  padding-left: 1.25rem;
+  list-style-type: disc;
+}
+
+.sp-module-complete-summary .sp-summary-list li,
+.sp-summary-list li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.sp-module-complete-summary .sp-summary-list li:last-child,
+.sp-summary-list li:last-child {
+  margin-bottom: 0;
+}
+
 .sp-module-complete-btn {
   width: 100%;
   background: var(--sp-text);

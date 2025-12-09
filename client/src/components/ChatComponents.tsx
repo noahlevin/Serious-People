@@ -62,11 +62,46 @@ export function formatContent(content: string, optionsOrSkipTitleCard: FormatOpt
   // Convert markdown horizontal rules (--- on their own line) to <hr>
   formatted = formatted.replace(/^---+$/gm, "<hr>");
   
-  // Skip bullet conversion when content will be wrapped in <li> elements
+  // Convert bullet lists to proper HTML lists
+  // This handles both "- " and "• " style bullets
   if (!options.skipBulletConversion) {
+    // First normalize all bullets to use • 
     formatted = formatted.replace(/^- (.+)$/gm, "• $1");
-    // Also convert standalone dashes on their own line to bullets
-    formatted = formatted.replace(/^- ?$/gm, "•");
+    // Remove empty/orphan bullets (bullet with nothing or just whitespace after)
+    formatted = formatted.replace(/^• ?$/gm, "");
+    
+    // Split into lines and process into list blocks
+    const lines = formatted.split('\n');
+    const processedLines: string[] = [];
+    let inList = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const isBullet = line.trim().startsWith('• ');
+      
+      if (isBullet) {
+        if (!inList) {
+          processedLines.push('<ul class="sp-summary-list">');
+          inList = true;
+        }
+        // Extract bullet content (remove the • prefix)
+        const bulletContent = line.trim().substring(2);
+        processedLines.push(`<li>${bulletContent}</li>`);
+      } else {
+        if (inList) {
+          processedLines.push('</ul>');
+          inList = false;
+        }
+        processedLines.push(line);
+      }
+    }
+    
+    // Close list if we ended while still in one
+    if (inList) {
+      processedLines.push('</ul>');
+    }
+    
+    formatted = processedLines.join('\n');
   }
   
   // Handle line breaks unless skipped (useful for inline list items)
@@ -76,18 +111,19 @@ export function formatContent(content: string, optionsOrSkipTitleCard: FormatOpt
     formatted = formatted.replace(/^(<br>)+/, "");
     formatted = formatted.replace(/(<br>){3,}/g, "<br><br>");
     
-    // Fix orphaned bullets: reconnect bullets that are on their own line with following content
-    // This handles cases where LLM outputs "•\n**Bold heading**" format
-    formatted = formatted.replace(/•(<br>)+(<b>)/g, "• $2");  // Bullet followed by line breaks then bold
-    formatted = formatted.replace(/•(<br>)+([^<])/g, "• $2");  // Bullet followed by line breaks then text
+    // Clean up line breaks around list elements
+    formatted = formatted.replace(/<br><ul/g, "<ul");
+    formatted = formatted.replace(/<\/ul><br>/g, "</ul>");
+    formatted = formatted.replace(/<br><li>/g, "<li>");
+    formatted = formatted.replace(/<\/li><br>/g, "</li>");
     
     // Remove SINGLE line breaks before/after bold and italic tags to keep inline text together
     // BUT preserve DOUBLE line breaks (paragraphs), line breaks before bullet points, and numbered lists
     // Only remove <br><b> when NOT preceded by another <br> (i.e., single line break only)
     formatted = formatted.replace(/(?<!<br>)<br><b>/g, " <b>");  // Single line break before bold -> space
-    formatted = formatted.replace(/<\/b><br>(?!•|<br>|\d+\.)/g, "</b> ");  // Preserve before bullets, paragraphs, and numbered lists
+    formatted = formatted.replace(/<\/b><br>(?!<ul|<br>|\d+\.)/g, "</b> ");  // Preserve before lists, paragraphs, and numbered lists
     formatted = formatted.replace(/(?<!<br>)<br><i>/g, " <i>");  // Single line break before italic -> space
-    formatted = formatted.replace(/<\/i><br>(?!•|<br>|\d+\.)/g, "</i> ");  // Preserve before bullets, paragraphs, and numbered lists
+    formatted = formatted.replace(/<\/i><br>(?!<ul|<br>|\d+\.)/g, "</i> ");  // Preserve before lists, paragraphs, and numbered lists
   }
 
   return formatted;
