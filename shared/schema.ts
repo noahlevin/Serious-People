@@ -19,6 +19,12 @@ export type SeriousPlanStatus = 'generating' | 'ready' | 'error';
 // PDF generation status
 export type PdfStatus = 'not_started' | 'generating' | 'ready' | 'error';
 
+// Artifact generation status
+export type ArtifactGenerationStatus = 'pending' | 'generating' | 'complete' | 'error';
+
+// Coach letter status
+export type CoachLetterStatus = 'pending' | 'generating' | 'complete' | 'error';
+
 // Artifact importance levels
 export type ImportanceLevel = 'must_read' | 'recommended' | 'optional' | 'bonus';
 
@@ -195,7 +201,9 @@ export const seriousPlans = pgTable("serious_plans", {
   userId: varchar("user_id", { length: 36 }).references(() => users.id).notNull(),
   transcriptId: varchar("transcript_id", { length: 36 }).references(() => interviewTranscripts.id),
   status: text("status").$type<SeriousPlanStatus>().default('generating').notNull(),
-  coachNoteContent: text("coach_note_content"),  // The graduation note
+  coachNoteContent: text("coach_note_content"),  // The graduation note / coach letter
+  coachLetterStatus: text("coach_letter_status").$type<CoachLetterStatus>().default('pending'),
+  coachLetterSeenAt: timestamp("coach_letter_seen_at"),  // When user viewed the letter interstitial
   bundlePdfStatus: text("bundle_pdf_status").$type<PdfStatus>().default('not_started'),
   bundlePdfUrl: text("bundle_pdf_url"),
   summaryMetadata: json("summary_metadata").$type<SeriousPlanMetadata | null>(),
@@ -219,10 +227,11 @@ export const seriousPlanArtifacts = pgTable("serious_plan_artifacts", {
   planId: varchar("plan_id", { length: 36 }).references(() => seriousPlans.id).notNull(),
   artifactKey: text("artifact_key").notNull(),  // e.g., 'decision_snapshot', 'boss_conversation'
   title: text("title").notNull(),
-  type: text("type").notNull(),  // 'snapshot', 'conversation', 'narrative', 'plan', 'recap', 'resources'
+  type: text("type").notNull(),  // 'snapshot', 'conversation', 'narrative', 'plan', 'recap', 'resources', 'transcript'
   importanceLevel: text("importance_level").$type<ImportanceLevel>().default('recommended'),
   whyImportant: text("why_important"),  // 1-2 sentences on why this artifact matters
   contentRaw: text("content_raw"),  // Markdown/HTML from LLM
+  generationStatus: text("generation_status").$type<ArtifactGenerationStatus>().default('pending'),
   pdfStatus: text("pdf_status").$type<PdfStatus>().default('not_started'),
   pdfUrl: text("pdf_url"),
   displayOrder: integer("display_order").default(0),

@@ -15,6 +15,8 @@ import {
   type JourneyState,
   type PdfStatus,
   type SeriousPlanStatus,
+  type CoachLetterStatus,
+  type ArtifactGenerationStatus,
   users,
   interviewTranscripts,
   magicLinkTokens,
@@ -79,6 +81,10 @@ export interface IStorage {
   updateSeriousPlanStatus(id: string, status: SeriousPlanStatus): Promise<SeriousPlan | undefined>;
   updateSeriousPlanBundlePdf(id: string, status: PdfStatus, url?: string): Promise<SeriousPlan | undefined>;
   
+  // Coach letter operations
+  updateCoachLetter(id: string, status: CoachLetterStatus, content?: string): Promise<SeriousPlan | undefined>;
+  markCoachLetterSeen(id: string): Promise<SeriousPlan | undefined>;
+  
   // Artifact operations
   createArtifact(artifact: InsertSeriousPlanArtifact): Promise<SeriousPlanArtifact>;
   createArtifacts(artifacts: InsertSeriousPlanArtifact[]): Promise<SeriousPlanArtifact[]>;
@@ -87,6 +93,7 @@ export interface IStorage {
   getArtifactsByPlanId(planId: string): Promise<SeriousPlanArtifact[]>;
   updateArtifact(id: string, updates: Partial<InsertSeriousPlanArtifact>): Promise<SeriousPlanArtifact | undefined>;
   updateArtifactPdf(id: string, status: PdfStatus, url?: string): Promise<SeriousPlanArtifact | undefined>;
+  updateArtifactGenerationStatus(id: string, status: ArtifactGenerationStatus, content?: string): Promise<SeriousPlanArtifact | undefined>;
   
   // Coach chat operations
   createCoachChatMessage(message: InsertCoachChatMessage): Promise<CoachChatMessage>;
@@ -387,6 +394,26 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  // Coach letter operations
+  async updateCoachLetter(id: string, status: CoachLetterStatus, content?: string): Promise<SeriousPlan | undefined> {
+    const updateData: any = { coachLetterStatus: status, updatedAt: new Date() };
+    if (content !== undefined) updateData.coachNoteContent = content;
+    
+    const [updated] = await db.update(seriousPlans)
+      .set(updateData)
+      .where(eq(seriousPlans.id, id))
+      .returning();
+    return updated;
+  }
+
+  async markCoachLetterSeen(id: string): Promise<SeriousPlan | undefined> {
+    const [updated] = await db.update(seriousPlans)
+      .set({ coachLetterSeenAt: new Date(), updatedAt: new Date() } as any)
+      .where(eq(seriousPlans.id, id))
+      .returning();
+    return updated;
+  }
+
   // Artifact operations
   async createArtifact(artifact: InsertSeriousPlanArtifact): Promise<SeriousPlanArtifact> {
     const [created] = await db.insert(seriousPlanArtifacts).values(artifact as any).returning();
@@ -430,6 +457,17 @@ export class DatabaseStorage implements IStorage {
   async updateArtifactPdf(id: string, status: PdfStatus, url?: string): Promise<SeriousPlanArtifact | undefined> {
     const updateData: any = { pdfStatus: status, updatedAt: new Date() };
     if (url) updateData.pdfUrl = url;
+    
+    const [updated] = await db.update(seriousPlanArtifacts)
+      .set(updateData)
+      .where(eq(seriousPlanArtifacts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateArtifactGenerationStatus(id: string, status: ArtifactGenerationStatus, content?: string): Promise<SeriousPlanArtifact | undefined> {
+    const updateData: any = { generationStatus: status, updatedAt: new Date() };
+    if (content !== undefined) updateData.contentRaw = content;
     
     const [updated] = await db.update(seriousPlanArtifacts)
       .set(updateData)
