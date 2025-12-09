@@ -90,7 +90,7 @@ export function getNextStep(journeyState: JourneyState): { step: JourneyStep; pa
     return { step: 'module_3', path: '/module/3' };
   }
   if (!journeyState.hasSeriousPlan) {
-    return { step: 'graduation', path: '/graduation' };
+    return { step: 'graduation', path: '/coach-letter' };
   }
   return { step: 'serious_plan', path: '/serious-plan' };
 }
