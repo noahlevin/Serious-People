@@ -172,13 +172,29 @@ export default function SeriousPlanPage() {
     setSelectedArtifact(artifact);
     setViewMode('artifact');
     window.scrollTo(0, 0);
+    // Push state so browser back button returns to overview
+    window.history.pushState({ artifactView: true, artifactId: artifact.id }, '', window.location.pathname);
   };
 
   const handleBackToOverview = () => {
-    setSelectedArtifact(null);
-    setViewMode('overview');
-    window.scrollTo(0, 0);
+    // Use history.back() to properly integrate with browser navigation
+    window.history.back();
   };
+  
+  // Handle browser back button
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      // If we're in artifact view and user hits back, return to overview
+      if (viewMode === 'artifact') {
+        setSelectedArtifact(null);
+        setViewMode('overview');
+        window.scrollTo(0, 0);
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [viewMode]);
 
   if (authLoading) {
     return (
