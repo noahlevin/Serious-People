@@ -2062,8 +2062,10 @@ Use [[OPTIONS]]...[[END_OPTIONS]] liberally — at least every 2-3 turns. When e
 3. **Wrap-up**: When you feel you have a clear picture, output [[MODULE_COMPLETE]] along with a summary.
 
 ### First Message Format
-On your first message, output a title card:
+On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
 — Job Autopsy (est. 10–20 minutes) —
+
+CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, or ASCII box art.
 
 Then introduce the module and ask your first probing question based on what you know about their situation.
 
@@ -2134,8 +2136,10 @@ Use [[OPTIONS]]...[[END_OPTIONS]] liberally — at least every 2-3 turns. When e
 3. **Wrap-up**: When you've mapped their options, output [[MODULE_COMPLETE]] with a summary.
 
 ### First Message Format
-On your first message, output a title card:
+On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
 — Fork in the Road (est. 10–20 minutes) —
+
+CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, or ASCII box art.
 
 Then recap their situation briefly and ask your first question about options.
 
@@ -2206,8 +2210,10 @@ Use [[OPTIONS]]...[[END_OPTIONS]] liberally — at least every 2-3 turns. When e
 3. **Wrap-up**: When you have a clear action plan, output [[MODULE_COMPLETE]] with a summary. **Do NOT write a personalized farewell letter or closing message before [[MODULE_COMPLETE]].** Just transition naturally to the completion — no "let's bring this home" or inspirational send-off paragraphs. The summary inside [[SUMMARY]]...[[END_SUMMARY]] is the only closing content needed.
 
 ### First Message Format
-On your first message, output a title card:
+On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
 — The Great Escape Plan (est. 10–20 minutes) —
+
+CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, or ASCII box art.
 
 Then recap where they landed and start building the plan.
 
@@ -2410,8 +2416,10 @@ ${outcome}
 ${info.structure}
 
 ### First Message Format
-On your first message, output a title card:
+On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
 — ${name} (est. 10–20 minutes) —
+
+CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, or ASCII box art.
 
 Then introduce the module and ask your first probing question based on what you know about their situation.
 
