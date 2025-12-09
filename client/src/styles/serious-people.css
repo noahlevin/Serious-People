@@ -743,12 +743,14 @@
 }
 
 .sp-options-container {
-  align-self: flex-end;
+  align-self: flex-start;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  max-width: 85%;
-  justify-content: flex-end;
+  max-width: 100%;
+  justify-content: flex-start;
+  padding: 0 1rem;
+  box-sizing: border-box;
 }
 
 .sp-option-pill {
@@ -760,7 +762,9 @@
   color: var(--sp-text);
   cursor: pointer;
   transition: all 0.15s ease;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  min-width: fit-content;
 }
 
 .sp-option-pill:hover {
