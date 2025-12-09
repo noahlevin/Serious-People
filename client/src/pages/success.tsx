@@ -98,28 +98,37 @@ export default function Success() {
       if (data.ok) {
         analytics.paymentCompleted();
         if (loadTranscript()) {
-          // Show preparing state while generating dossier
+          // Check if dossier already exists (generated at interview completion)
+          // If not, generate it now as a fallback
           setState("preparing-coaching");
           
-          // Generate client dossier - MUST complete before user can start modules
-          // This creates the comprehensive AI notes from the interview that modules need
           try {
-            const dossierRes = await fetch("/api/generate-dossier", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-            });
+            // First check if dossier already exists
+            const checkRes = await fetch("/api/transcript", { credentials: "include" });
+            const transcriptData = checkRes.ok ? await checkRes.json() : null;
             
-            if (dossierRes.ok) {
-              console.log("Client dossier generated successfully");
+            if (transcriptData?.clientDossier) {
+              // Dossier already exists (generated during interview)
+              console.log("Client dossier already exists");
               setState("ready");
             } else {
-              console.error("Failed to generate client dossier");
-              // Still allow proceeding but with a warning - the module retry logic will handle it
+              // Dossier not found - generate it now as fallback
+              console.log("Dossier not found, generating now...");
+              const dossierRes = await fetch("/api/generate-dossier", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+              });
+              
+              if (dossierRes.ok) {
+                console.log("Client dossier generated successfully (fallback)");
+              } else {
+                console.error("Failed to generate client dossier");
+              }
               setState("ready");
             }
           } catch (err) {
-            console.error("Error generating client dossier:", err);
+            console.error("Error checking/generating client dossier:", err);
             // Still allow proceeding - the module retry logic will handle missing dossier
             setState("ready");
           }

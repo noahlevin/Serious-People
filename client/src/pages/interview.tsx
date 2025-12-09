@@ -497,6 +497,26 @@ export default function Interview() {
         setSocialProof(data.socialProof || "");
         setStatus("");
         analytics.interviewCompleted();
+        
+        // Generate client dossier in the background while user reviews pricing
+        // This creates the comprehensive AI notes from the interview BEFORE payment
+        // so everything is ready when they start Module 1
+        // keepalive: true ensures the request survives navigation to Stripe checkout
+        fetch("/api/generate-dossier", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          keepalive: true,
+        }).then(res => {
+          if (res.ok) {
+            console.log("Client dossier generated successfully (pre-payment)");
+          } else {
+            console.error("Failed to generate client dossier (pre-payment)");
+          }
+        }).catch(err => {
+          console.error("Error generating client dossier:", err);
+        });
+        
         // Don't append the reply, don't update progress, don't show options
         // The paywall will render inline after the user's confirmation message
         return;
