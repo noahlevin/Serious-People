@@ -3277,27 +3277,64 @@ FORMAT:
       
       // Fix 2: Generate dossier if missing
       if (!transcript.clientDossier && transcript.transcript && Array.isArray(transcript.transcript)) {
-        console.log(`[ADMIN] Generating client dossier for ${email}...`);
+        const transcriptMessages = transcript.transcript as { role: string; content: string }[];
+        console.log(`[ADMIN] Generating client dossier for ${email}... (${transcriptMessages.length} messages)`);
         
-        const interviewAnalysis = await generateInterviewAnalysis(transcript.transcript as { role: string; content: string }[]);
+        let interviewAnalysis: InterviewAnalysis | null = null;
+        try {
+          interviewAnalysis = await generateInterviewAnalysis(transcriptMessages);
+        } catch (aiError: any) {
+          console.error(`[ADMIN] AI analysis error:`, aiError.message);
+        }
         
         if (interviewAnalysis) {
           const dossier: ClientDossier = {
-            interviewTranscript: transcript.transcript as { role: string; content: string }[],
+            interviewTranscript: transcriptMessages,
             interviewAnalysis,
             moduleRecords: [],
             lastUpdated: new Date().toISOString(),
           };
           
           await storage.updateClientDossier(user.id, dossier);
-          fixes.push("Generated client dossier");
+          fixes.push("Generated client dossier with AI analysis");
         } else {
-          fixes.push("FAILED to generate dossier - AI error");
+          // Create a minimal dossier without AI analysis so user can proceed
+          console.log(`[ADMIN] Creating minimal dossier without AI analysis for ${email}`);
+          const minimalAnalysis: InterviewAnalysis = {
+            clientName: "Client",
+            currentRole: "See transcript",
+            company: "See transcript",
+            tenure: "See transcript",
+            situation: "Interview completed - see transcript for details",
+            bigProblem: "See transcript for details",
+            desiredOutcome: "See transcript for details",
+            keyFacts: ["See transcript for details"],
+            relationships: [],
+            emotionalState: "engaged",
+            communicationStyle: "direct",
+            priorities: ["Career transition"],
+            constraints: [],
+            motivations: ["Career growth"],
+            fears: [],
+            questionsAsked: [],
+            optionsOffered: [],
+            observations: "Dossier created via admin fix - AI analysis was unavailable. The coach should read the full interview transcript to understand this client's situation."
+          };
+          
+          const dossier: ClientDossier = {
+            interviewTranscript: transcriptMessages,
+            interviewAnalysis: minimalAnalysis,
+            moduleRecords: [],
+            lastUpdated: new Date().toISOString(),
+          };
+          
+          await storage.updateClientDossier(user.id, dossier);
+          fixes.push(`Created minimal dossier (AI unavailable) with ${transcriptMessages.length} transcript messages`);
         }
       } else if (transcript.clientDossier) {
         fixes.push("Dossier already exists (no action needed)");
       } else {
-        fixes.push("No transcript data to generate dossier from");
+        fixes.push(`No transcript data to generate dossier from (transcript: ${typeof transcript.transcript})`);
       }
       
       console.log(`[ADMIN] Fixes applied for ${email}:`, fixes);
