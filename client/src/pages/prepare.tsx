@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useJourney, getNextStep } from "@/hooks/useJourney";
 import "@/styles/serious-people.css";
 
 const PrepareItems = [
@@ -11,6 +12,7 @@ const PrepareItems = [
 export default function Prepare() {
   const [, setLocation] = useLocation();
   const [itemsVisible, setItemsVisible] = useState(false);
+  const { journeyState, isLoading } = useJourney();
 
   // Set page title
   useEffect(() => {
@@ -22,9 +24,26 @@ export default function Prepare() {
     const timer = setTimeout(() => setItemsVisible(true), 200);
     return () => clearTimeout(timer);
   }, []);
+  
+  // If user has already progressed, redirect to their current step
+  useEffect(() => {
+    if (!isLoading && journeyState) {
+      // If they've already started (interview complete or further), send them to their current step
+      if (journeyState.interviewComplete) {
+        const next = getNextStep(journeyState);
+        setLocation(next.path);
+      }
+    }
+  }, [isLoading, journeyState, setLocation]);
 
   const handleStartInterview = () => {
-    setLocation("/interview");
+    // Use journey state to determine where to go
+    if (journeyState) {
+      const next = getNextStep(journeyState);
+      setLocation(next.path);
+    } else {
+      setLocation("/interview");
+    }
   };
 
   const handleSaveLater = () => {
