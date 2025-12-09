@@ -289,35 +289,6 @@ export default function SeriousPlanPage() {
     );
   }
 
-  if (plan.status === 'generating') {
-    return (
-      <div className="sp-page">
-        <header className="sp-success-header">
-          <div className="sp-header-content">
-            <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-              <span className="sp-logo">Serious People</span>
-            </Link>
-            <UserMenu />
-          </div>
-        </header>
-        <main className="sp-container">
-          <div className="sp-graduation-note">
-            <h1 className="sp-headline" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-              Preparing Your Plan
-            </h1>
-            <div className="sp-generating-indicator">
-              <div className="sp-spinner"></div>
-              <p className="sp-body" style={{ marginTop: '1rem' }}>
-                Your coach is crafting personalized artifacts for your situation...
-              </p>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   if (viewMode === 'artifact' && selectedArtifact) {
     const isTranscript = selectedArtifact.type === 'transcript';
     
