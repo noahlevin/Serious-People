@@ -1214,7 +1214,7 @@ COMMUNICATION STYLE:
         if (err) {
           console.error("[Google callback] Session save error:", err);
         }
-        res.redirect("/interview");
+        res.redirect("/prepare");
       });
     }
   );
@@ -1306,7 +1306,7 @@ COMMUNICATION STYLE:
           if (saveErr) {
             console.error("Session save error:", saveErr);
           }
-          res.redirect("/interview");
+          res.redirect("/prepare");
         });
       });
     } catch (error: any) {
