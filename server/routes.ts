@@ -13,7 +13,7 @@ import { sendMagicLinkEmail, getResendClient, sendSeriousPlanEmail } from "./res
 import { db } from "./db";
 import { interviewTranscripts, seriousPlans, seriousPlanArtifacts, type ClientDossier, type InterviewAnalysis, type ModuleRecord, type CoachingPlan, getCurrentJourneyStep, getStepPath, type JourneyState } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { generateSeriousPlan, getSeriousPlanWithArtifacts, getLatestSeriousPlan } from "./seriousPlanService";
+import { generateSeriousPlan, getSeriousPlanWithArtifacts, getLatestSeriousPlan, initializeSeriousPlan } from "./seriousPlanService";
 import { generateArtifactPdf, generateBundlePdf, generateAllArtifactPdfs } from "./pdfService";
 
 // Use Anthropic Claude if API key is available, otherwise fall back to OpenAI
@@ -818,7 +818,7 @@ export async function registerRoutes(
   
   // ============== SERIOUS PLAN ROUTES ==============
   
-  // POST /api/serious-plan - Generate a new Serious Plan
+  // POST /api/serious-plan - Initialize a new Serious Plan with parallel generation
   app.post("/api/serious-plan", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
@@ -853,16 +853,56 @@ export async function registerRoutes(
         return res.status(400).json({ error: "No coaching plan found in transcript" });
       }
       
-      // Generate the plan
-      const result = await generateSeriousPlan(userId, transcript.id, planCard, dossier);
+      // Initialize the plan with parallel generation (returns immediately, generation happens async)
+      const result = await initializeSeriousPlan(userId, transcript.id, planCard, dossier, transcript);
       
       if (result.success) {
         res.json({ success: true, planId: result.planId });
       } else {
-        res.status(500).json({ error: result.error || "Failed to generate Serious Plan" });
+        res.status(500).json({ error: result.error || "Failed to initialize Serious Plan" });
       }
     } catch (error: any) {
-      console.error("Serious Plan generation error:", error);
+      console.error("Serious Plan initialization error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // GET /api/serious-plan/letter - Get coach letter status and content
+  app.get("/api/serious-plan/letter", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const plan = await storage.getSeriousPlanByUserId(userId);
+      
+      if (!plan) {
+        return res.status(404).json({ error: "No Serious Plan found" });
+      }
+      
+      res.json({
+        status: plan.coachLetterStatus || 'pending',
+        content: plan.coachNoteContent,
+        seenAt: plan.coachLetterSeenAt,
+      });
+    } catch (error: any) {
+      console.error("Get coach letter error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // POST /api/serious-plan/letter/seen - Mark coach letter as seen
+  app.post("/api/serious-plan/letter/seen", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const plan = await storage.getSeriousPlanByUserId(userId);
+      
+      if (!plan) {
+        return res.status(404).json({ error: "No Serious Plan found" });
+      }
+      
+      await storage.markCoachLetterSeen(plan.id);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Mark letter seen error:", error);
       res.status(500).json({ error: error.message });
     }
   });

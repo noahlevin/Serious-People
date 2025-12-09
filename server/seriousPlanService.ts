@@ -6,7 +6,8 @@ import type {
   CoachingPlan, 
   SeriousPlanMetadata, 
   InsertSeriousPlanArtifact,
-  ImportanceLevel
+  ImportanceLevel,
+  InterviewTranscript
 } from "@shared/schema";
 
 const useAnthropic = !!process.env.ANTHROPIC_API_KEY;
@@ -326,4 +327,448 @@ export async function getLatestSeriousPlan(userId: string) {
     ...plan,
     artifacts,
   };
+}
+
+// ============================================
+// NEW PARALLEL GENERATION FUNCTIONS
+// ============================================
+
+/**
+ * Initialize a new Serious Plan with transcript artifacts and placeholder artifacts.
+ * This creates the plan record and seeds the artifacts, then kicks off parallel generation.
+ */
+export async function initializeSeriousPlan(
+  userId: string,
+  transcriptId: string,
+  coachingPlan: CoachingPlan,
+  dossier: ClientDossier | null,
+  transcript: InterviewTranscript
+): Promise<{ planId: string; success: boolean; error?: string }> {
+  try {
+    // Check if plan already exists
+    const existingPlan = await storage.getSeriousPlanByUserId(userId);
+    if (existingPlan) {
+      return { planId: existingPlan.id, success: true };
+    }
+
+    // Create the plan with initial status
+    const plan = await storage.createSeriousPlan({
+      userId,
+      transcriptId,
+      status: 'generating',
+      coachLetterStatus: 'pending',
+    });
+
+    const clientName = coachingPlan.name || dossier?.interviewAnalysis?.clientName || 'Client';
+
+    // Create transcript artifacts (immediately marked as complete since they're just data)
+    const transcriptArtifacts = createTranscriptArtifacts(plan.id, transcript, dossier);
+    
+    // Create placeholder artifacts for LLM-generated content
+    const plannedArtifactKeys = coachingPlan.plannedArtifacts?.map(a => a.key) || 
+      ['decision_snapshot', 'action_plan', 'module_recap', 'resources'];
+    
+    const placeholderArtifacts = createPlaceholderArtifacts(plan.id, plannedArtifactKeys, coachingPlan);
+
+    // Combine and create all artifacts
+    await storage.createArtifacts([...transcriptArtifacts, ...placeholderArtifacts]);
+
+    // Start parallel generation (fire and forget - they update status as they complete)
+    generateCoachLetterAsync(plan.id, clientName, coachingPlan, dossier);
+    generateArtifactsAsync(plan.id, clientName, coachingPlan, dossier, plannedArtifactKeys);
+
+    return { planId: plan.id, success: true };
+  } catch (error: any) {
+    console.error('Serious Plan initialization error:', error);
+    return { planId: '', success: false, error: error.message };
+  }
+}
+
+/**
+ * Create transcript artifacts from the interview and module transcripts.
+ * These are marked as complete immediately since they're just formatted data.
+ */
+function createTranscriptArtifacts(
+  planId: string,
+  transcript: InterviewTranscript,
+  dossier: ClientDossier | null
+): InsertSeriousPlanArtifact[] {
+  const artifacts: InsertSeriousPlanArtifact[] = [];
+  let displayOrder = 100; // Start high to put transcripts at the end
+
+  // Interview transcript
+  if (transcript.transcript && Array.isArray(transcript.transcript) && transcript.transcript.length > 0) {
+    artifacts.push({
+      planId,
+      artifactKey: 'transcript_interview',
+      title: 'Interview Transcript',
+      type: 'transcript',
+      importanceLevel: 'optional',
+      whyImportant: 'The full conversation from your initial coaching interview.',
+      contentRaw: JSON.stringify({
+        type: 'transcript',
+        summary: null,
+        messages: transcript.transcript
+      }),
+      generationStatus: 'complete',
+      displayOrder: displayOrder++,
+      pdfStatus: 'not_started',
+    });
+  }
+
+  // Module transcripts
+  const moduleTranscripts = [
+    { num: 1, transcript: transcript.module1Transcript, summary: transcript.module1Summary },
+    { num: 2, transcript: transcript.module2Transcript, summary: transcript.module2Summary },
+    { num: 3, transcript: transcript.module3Transcript, summary: transcript.module3Summary },
+  ];
+
+  const moduleNames = dossier?.moduleRecords?.map(m => m.moduleName) || [
+    'Module 1', 'Module 2', 'Module 3'
+  ];
+
+  moduleTranscripts.forEach((mod, idx) => {
+    if (mod.transcript && Array.isArray(mod.transcript) && mod.transcript.length > 0) {
+      artifacts.push({
+        planId,
+        artifactKey: `transcript_module_${mod.num}`,
+        title: `${moduleNames[idx] || `Module ${mod.num}`} Transcript`,
+        type: 'transcript',
+        importanceLevel: 'optional',
+        whyImportant: `The full conversation from ${moduleNames[idx] || `Module ${mod.num}`}.`,
+        contentRaw: JSON.stringify({
+          type: 'transcript',
+          summary: mod.summary || null,
+          messages: mod.transcript
+        }),
+        generationStatus: 'complete',
+        displayOrder: displayOrder++,
+        pdfStatus: 'not_started',
+      });
+    }
+  });
+
+  return artifacts;
+}
+
+/**
+ * Create placeholder artifacts for LLM-generated content.
+ * These start with status 'pending' and are updated as generation completes.
+ */
+function createPlaceholderArtifacts(
+  planId: string,
+  artifactKeys: string[],
+  coachingPlan: CoachingPlan
+): InsertSeriousPlanArtifact[] {
+  const plannedArtifacts = coachingPlan.plannedArtifacts || [];
+  
+  return artifactKeys.map((key, index) => {
+    const planned = plannedArtifacts.find(a => a.key === key);
+    return {
+      planId,
+      artifactKey: key,
+      title: planned?.title || formatArtifactKeyToTitle(key),
+      type: planned?.type || 'snapshot',
+      importanceLevel: planned?.importance || 'recommended',
+      whyImportant: planned?.description || null,
+      contentRaw: null,
+      generationStatus: 'pending' as const,
+      displayOrder: index + 1,
+      pdfStatus: 'not_started',
+    };
+  });
+}
+
+function formatArtifactKeyToTitle(key: string): string {
+  return key.split('_').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
+}
+
+/**
+ * Generate the coach letter asynchronously.
+ * This is designed to be fast - small prompt, focused output.
+ */
+async function generateCoachLetterAsync(
+  planId: string,
+  clientName: string,
+  coachingPlan: CoachingPlan,
+  dossier: ClientDossier | null
+): Promise<void> {
+  try {
+    // Mark as generating
+    await storage.updateCoachLetter(planId, 'generating');
+
+    const prompt = buildCoachLetterPrompt(clientName, coachingPlan, dossier);
+
+    let letterContent: string;
+
+    if (useAnthropic && anthropic) {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        messages: [{ role: "user", content: prompt }],
+      });
+      letterContent = response.content[0].type === 'text' ? response.content[0].text : '';
+    } else {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [{ role: "user", content: prompt }],
+        max_completion_tokens: 1024,
+      });
+      letterContent = response.choices[0].message.content || '';
+    }
+
+    // Update the plan with the letter content
+    await storage.updateCoachLetter(planId, 'complete', letterContent);
+    console.log(`Coach letter generated for plan ${planId}`);
+  } catch (error: any) {
+    console.error('Coach letter generation error:', error);
+    await storage.updateCoachLetter(planId, 'error');
+  }
+}
+
+function buildCoachLetterPrompt(
+  clientName: string,
+  coachingPlan: CoachingPlan,
+  dossier: ClientDossier | null
+): string {
+  let context = '';
+  if (dossier) {
+    const analysis = dossier.interviewAnalysis;
+    context = `
+Client: ${analysis.clientName}
+Current Role: ${analysis.currentRole} at ${analysis.company}
+Situation: ${analysis.situation}
+Big Problem: ${analysis.bigProblem}
+Desired Outcome: ${analysis.desiredOutcome}
+Emotional State: ${analysis.emotionalState}
+
+Modules Completed:
+${dossier.moduleRecords?.map(m => `- ${m.moduleName}: ${m.summary}`).join('\n') || 'No details available'}
+`;
+  }
+
+  return `You are writing a brief, warm graduation note from a career coach to a client who just completed a 3-module coaching program.
+
+${context}
+
+Write a personal note (2-3 short paragraphs) that:
+1. Starts with "${clientName}," on its own line
+2. Acknowledges what they worked on without dramatizing
+3. References specific insights or decisions from their sessions
+4. Ends with grounded confidence, not flowery motivation
+5. Sounds like a trusted advisor, not a motivational speaker
+
+Write like you're their coach who genuinely cares but keeps it professional. No bullet points, no headers - just a warm, direct letter.
+
+Output ONLY the letter text, nothing else.`;
+}
+
+/**
+ * Generate the plan artifacts asynchronously.
+ * This handles the longer-running artifact generation.
+ */
+async function generateArtifactsAsync(
+  planId: string,
+  clientName: string,
+  coachingPlan: CoachingPlan,
+  dossier: ClientDossier | null,
+  artifactKeys: string[]
+): Promise<void> {
+  try {
+    // Mark all artifacts as generating
+    const existingArtifacts = await storage.getArtifactsByPlanId(planId);
+    const artifactsToGenerate = existingArtifacts.filter(a => 
+      artifactKeys.includes(a.artifactKey) && a.generationStatus === 'pending'
+    );
+
+    for (const artifact of artifactsToGenerate) {
+      await storage.updateArtifactGenerationStatus(artifact.id, 'generating');
+    }
+
+    const planHorizon = determinePlanHorizon(dossier);
+    const prompt = buildArtifactsPrompt(clientName, coachingPlan, dossier, planHorizon, artifactKeys);
+
+    let responseText: string;
+
+    if (useAnthropic && anthropic) {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 8192,
+        messages: [{ role: "user", content: prompt }],
+      });
+      responseText = response.content[0].type === 'text' ? response.content[0].text : '';
+    } else {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [{ role: "user", content: prompt }],
+        max_completion_tokens: 8192,
+      });
+      responseText = response.choices[0].message.content || '';
+    }
+
+    // Parse the response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Failed to parse AI response as JSON');
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const generatedArtifacts: ArtifactGeneration[] = parsed.artifacts || [];
+
+    // Update metadata on the plan
+    if (parsed.metadata) {
+      await storage.updateSeriousPlan(planId, {
+        summaryMetadata: parsed.metadata,
+      });
+    }
+
+    // Update each artifact with its generated content
+    for (const generated of generatedArtifacts) {
+      const existing = artifactsToGenerate.find(a => a.artifactKey === generated.artifact_key);
+      if (existing) {
+        await storage.updateArtifact(existing.id, {
+          title: generated.title,
+          type: generated.type,
+          importanceLevel: generated.importance_level,
+          whyImportant: generated.why_important,
+          contentRaw: generated.content,
+          generationStatus: 'complete',
+          metadata: generated.metadata || null,
+        });
+      }
+    }
+
+    // Mark any remaining artifacts as complete (even if empty)
+    for (const artifact of artifactsToGenerate) {
+      const wasGenerated = generatedArtifacts.some(g => g.artifact_key === artifact.artifactKey);
+      if (!wasGenerated) {
+        await storage.updateArtifactGenerationStatus(artifact.id, 'complete', 
+          `This artifact was not generated. The coach focused on other materials more relevant to your situation.`
+        );
+      }
+    }
+
+    // Mark plan as ready
+    await storage.updateSeriousPlanStatus(planId, 'ready');
+    console.log(`Artifacts generated for plan ${planId}`);
+  } catch (error: any) {
+    console.error('Artifact generation error:', error);
+    // Mark artifacts as error
+    const existingArtifacts = await storage.getArtifactsByPlanId(planId);
+    for (const artifact of existingArtifacts) {
+      if (artifact.generationStatus === 'generating') {
+        await storage.updateArtifactGenerationStatus(artifact.id, 'error');
+      }
+    }
+    await storage.updateSeriousPlanStatus(planId, 'error');
+  }
+}
+
+function buildArtifactsPrompt(
+  clientName: string,
+  coachingPlan: CoachingPlan,
+  dossier: ClientDossier | null,
+  planHorizon: { type: string; rationale: string },
+  artifactKeys: string[]
+): string {
+  let dossierContext = '';
+  if (dossier) {
+    const analysis = dossier.interviewAnalysis;
+    dossierContext = `
+## Client Dossier (INTERNAL - DO NOT QUOTE DIRECTLY)
+
+**Name:** ${analysis.clientName}
+**Current Role:** ${analysis.currentRole} at ${analysis.company}
+**Tenure:** ${analysis.tenure}
+
+**Situation:** ${analysis.situation}
+**Big Problem:** ${analysis.bigProblem}
+**Desired Outcome:** ${analysis.desiredOutcome}
+
+**Key Facts:** ${analysis.keyFacts?.join(', ') || 'Not specified'}
+**Relationships:** ${analysis.relationships?.map(r => `${r.person} (${r.role}): ${r.dynamic}`).join('; ') || 'Not specified'}
+**Emotional State:** ${analysis.emotionalState}
+**Priorities:** ${analysis.priorities?.join(', ') || 'Not specified'}
+**Constraints:** ${analysis.constraints?.join(', ') || 'Not specified'}
+**Motivations:** ${analysis.motivations?.join(', ') || 'Not specified'}
+**Fears:** ${analysis.fears?.join(', ') || 'Not specified'}
+
+**Module Summaries:**
+${dossier.moduleRecords?.map(m => `- Module ${m.moduleNumber} (${m.moduleName}): ${m.summary}\n  Decisions: ${m.decisions?.join(', ') || 'None'}\n  Action Items: ${m.actionItems?.join(', ') || 'None'}`).join('\n') || 'No modules completed'}
+`;
+  }
+
+  return `You are generating personalized artifacts for a client who just completed a 3-module career coaching program.
+
+${dossierContext}
+
+## Coaching Plan Completed
+- Module 1: ${coachingPlan.modules[0]?.name} - ${coachingPlan.modules[0]?.objective}
+- Module 2: ${coachingPlan.modules[1]?.name} - ${coachingPlan.modules[1]?.objective}
+- Module 3: ${coachingPlan.modules[2]?.name} - ${coachingPlan.modules[2]?.objective}
+
+## Plan Horizon
+Type: ${planHorizon.type}
+Rationale: ${planHorizon.rationale}
+
+## Artifacts to Generate
+Generate the following artifacts: ${artifactKeys.join(', ')}
+
+You may add 1-2 BONUS artifacts if uniquely helpful (mark with importance_level: "bonus").
+
+## Output Format
+Return valid JSON:
+{
+  "metadata": {
+    "clientName": "${clientName}",
+    "planHorizonType": "${planHorizon.type}",
+    "planHorizonRationale": "${planHorizon.rationale}",
+    "keyConstraints": ["constraint1"],
+    "primaryRecommendation": "Main path forward",
+    "emotionalTone": "encouraging"
+  },
+  "artifacts": [
+    {
+      "artifact_key": "decision_snapshot",
+      "title": "Your Decision Snapshot",
+      "type": "snapshot",
+      "importance_level": "must_read",
+      "why_important": "Specific reason for THIS client",
+      "content": "Full markdown content...",
+      "metadata": {}
+    }
+  ]
+}
+
+## Artifact Guidelines
+- Each "why_important" must be specific to THIS client
+- Write clear, direct language - no corporate jargon
+- Reference their specific situation, people, constraints
+- Be actionable and concrete
+- Use markdown formatting
+
+### decision_snapshot (must_read)
+One-page summary: situation, 2-4 options with pros/cons, clear recommendation, "if you only do one thing" line
+
+### action_plan (must_read)
+Time-boxed to ${planHorizon.type.replace('_', ' ')}, divided into intervals with 2-4 tasks each
+
+### boss_conversation / partner_conversation (if included)
+Goal, opening lines, core script, likely pushbacks & responses, red lines, closing
+
+### self_narrative (if included)
+Personal memo: how they describe this moment, what they're moving toward, anchored to values
+
+### risk_map (if included)
+List of risks with likelihood, impact, mitigation, fallback
+
+### module_recap (recommended)
+Summary of each module: topics covered, key answers, major takeaways
+
+### resources (if included)
+5-10 credible resources as markdown links with personal relevance explained
+
+Return ONLY valid JSON.`;
 }
