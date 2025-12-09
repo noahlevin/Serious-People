@@ -498,24 +498,9 @@ export default function Interview() {
         setStatus("");
         analytics.interviewCompleted();
         
-        // Generate client dossier in the background while user reviews pricing
-        // This creates the comprehensive AI notes from the interview BEFORE payment
-        // so everything is ready when they start Module 1
-        // keepalive: true ensures the request survives navigation to Stripe checkout
-        fetch("/api/generate-dossier", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          keepalive: true,
-        }).then(res => {
-          if (res.ok) {
-            console.log("Client dossier generated successfully (pre-payment)");
-          } else {
-            console.error("Failed to generate client dossier (pre-payment)");
-          }
-        }).catch(err => {
-          console.error("Error generating client dossier:", err);
-        });
+        // NOTE: Dossier generation is now triggered by /api/interview/complete
+        // which is called in handleCheckout BEFORE Stripe redirect
+        // This avoids the 64KB keepalive body limit that caused silent failures
         
         // Don't append the reply, don't update progress, don't show options
         // The paywall will render inline after the user's confirmation message
@@ -574,6 +559,22 @@ export default function Interview() {
     analytics.checkoutStarted();
 
     try {
+      // CRITICAL: Mark interview complete BEFORE Stripe redirect
+      // This lightweight call updates the database synchronously, avoiding
+      // the 64KB keepalive body limit that caused silent failures
+      const completeRes = await fetch("/api/interview/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      
+      if (!completeRes.ok) {
+        console.error("Failed to mark interview complete:", await completeRes.text());
+        // Continue anyway - the success page has fallback logic
+      } else {
+        console.log("Interview marked complete, dossier generation started");
+      }
+      
       // Check for promo code in URL first, then sessionStorage (captured from landing page)
       const urlParams = new URLSearchParams(window.location.search);
       let promoCode = urlParams.get('promo');

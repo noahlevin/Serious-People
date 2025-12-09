@@ -21,6 +21,11 @@ const useAnthropic = !!process.env.ANTHROPIC_API_KEY;
 const anthropic = useAnthropic ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// In-memory lock to prevent duplicate dossier generation attempts
+// Maps userId to generation start timestamp for stale detection
+const dossierGenerationLocks = new Map<string, number>();
+const DOSSIER_LOCK_TIMEOUT_MS = 60000; // 60 seconds stale timeout
+
 function getBaseUrl(): string {
   if (process.env.BASE_URL) {
     return process.env.BASE_URL;
@@ -1800,6 +1805,71 @@ COMMUNICATION STYLE:
     }
   });
 
+  // POST /api/interview/complete - Lightweight endpoint to mark interview complete
+  // Called BEFORE Stripe redirect to ensure database is updated (no keepalive needed)
+  // Uses server-side transcript data to avoid 64KB keepalive body limit
+  app.post("/api/interview/complete", async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.status(400).json({ error: "No transcript found" });
+      }
+
+      // Already complete - return success
+      if (transcript.interviewComplete) {
+        console.log(`[INTERVIEW COMPLETE] User ${user.id} already marked complete`);
+        return res.json({ ok: true, alreadyComplete: true });
+      }
+
+      // Mark interview as complete in database
+      await storage.updateTranscript(transcript.sessionToken, {
+        interviewComplete: true,
+        progress: 100,
+      });
+
+      console.log(`[INTERVIEW COMPLETE] Marked interview complete for user ${user.id}`);
+
+      // Start dossier generation asynchronously (don't wait for it)
+      // This uses server-side transcript data, avoiding keepalive body size issues
+      if (!transcript.clientDossier && transcript.transcript && Array.isArray(transcript.transcript)) {
+        const transcriptMessages = transcript.transcript as { role: string; content: string }[];
+        
+        // Fire and forget - don't block the response
+        (async () => {
+          try {
+            console.log(`[DOSSIER] Starting async generation for user ${user.id}`);
+            const interviewAnalysis = await generateInterviewAnalysis(transcriptMessages);
+            
+            if (interviewAnalysis) {
+              const dossier: ClientDossier = {
+                interviewTranscript: transcriptMessages,
+                interviewAnalysis,
+                moduleRecords: [],
+                lastUpdated: new Date().toISOString(),
+              };
+              await storage.updateClientDossier(user.id, dossier);
+              console.log(`[DOSSIER] Successfully generated for user ${user.id}`);
+            } else {
+              console.error(`[DOSSIER] Failed to generate analysis for user ${user.id}`);
+            }
+          } catch (err) {
+            console.error(`[DOSSIER] Error generating for user ${user.id}:`, err);
+          }
+        })();
+      }
+
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("Interview complete error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // POST /api/generate-dossier - Generate initial client dossier after payment
   // This runs in the background after payment verification
   app.post("/api/generate-dossier", async (req, res) => {
@@ -2645,12 +2715,68 @@ ${dossierContext}`;
 
       // Load transcript with retry logic - REQUIRE dossier for modules
       // This prevents the AI from fabricating context when data is missing
-      const loadResult = await loadUserTranscriptWithRetry(userId, {
+      let loadResult = await loadUserTranscriptWithRetry(userId, {
         requireDossier: true,
         requirePlanCard: true,
         maxAttempts: 3,
         delayMs: 1500,
       });
+
+      // If dossier is missing but we have a transcript, generate it now (fallback)
+      if (!loadResult.success && loadResult.error?.includes("dossier")) {
+        const userIdStr = String(userId);
+        const existingLock = dossierGenerationLocks.get(userIdStr);
+        const now = Date.now();
+        
+        // Check if there's an active (non-stale) lock
+        if (existingLock && (now - existingLock) < DOSSIER_LOCK_TIMEOUT_MS) {
+          console.log(`[MODULE] Dossier generation already in progress for user ${userId}`);
+          return res.status(409).json({
+            error: "Dossier generation in progress",
+            message: "Your coaching context is being prepared. Please try again in a few seconds.",
+            retryable: true,
+          });
+        }
+        
+        // Acquire lock and generate
+        dossierGenerationLocks.set(userIdStr, now);
+        console.log(`[MODULE] Dossier missing for user ${userId}, generating on-demand...`);
+        
+        const rawTranscript = await storage.getTranscriptByUserId(userId);
+        if (rawTranscript?.transcript && Array.isArray(rawTranscript.transcript)) {
+          const transcriptMessages = rawTranscript.transcript as { role: string; content: string }[];
+          
+          try {
+            const interviewAnalysis = await generateInterviewAnalysis(transcriptMessages);
+            if (interviewAnalysis) {
+              const dossier: ClientDossier = {
+                interviewTranscript: transcriptMessages,
+                interviewAnalysis,
+                moduleRecords: [],
+                lastUpdated: new Date().toISOString(),
+              };
+              await storage.updateClientDossier(userId, dossier);
+              console.log(`[MODULE] On-demand dossier generated for user ${userId}`);
+              
+              // Retry loading after generation
+              loadResult = await loadUserTranscriptWithRetry(userId, {
+                requireDossier: true,
+                requirePlanCard: true,
+                maxAttempts: 1,
+                delayMs: 0,
+              });
+            }
+          } catch (dossierErr) {
+            console.error(`[MODULE] Failed to generate on-demand dossier:`, dossierErr);
+          } finally {
+            // Release lock
+            dossierGenerationLocks.delete(userIdStr);
+          }
+        } else {
+          // No transcript to work with, release lock
+          dossierGenerationLocks.delete(userIdStr);
+        }
+      }
 
       if (!loadResult.success) {
         // Return a specific error code so frontend can handle appropriately
@@ -3236,9 +3362,10 @@ FORMAT:
 
   // ADMIN: Fix user state - generates dossier and fixes flags
   // Usage: POST /api/admin/fix-user with { email: "user@example.com", secret: "admin-secret" }
+  // Or: POST /api/admin/fix-user with { userId: "uuid", secret: "admin-secret" }
   app.post("/api/admin/fix-user", async (req, res) => {
     try {
-      const { email, secret } = req.body;
+      const { email, userId, secret } = req.body;
       
       // Simple secret check - in production, use a proper admin auth system
       const adminSecret = process.env.ADMIN_SECRET || "serious-admin-2024";
@@ -3246,14 +3373,20 @@ FORMAT:
         return res.status(403).json({ error: "Invalid admin secret" });
       }
       
-      if (!email) {
-        return res.status(400).json({ error: "Email required" });
+      if (!email && !userId) {
+        return res.status(400).json({ error: "Email or userId required" });
       }
       
-      console.log(`[ADMIN] Fixing user state for: ${email}`);
+      // Find the user by email or userId
+      let user;
+      if (userId) {
+        user = await storage.getUser(userId);
+        console.log(`[ADMIN] Fixing user state for userId: ${userId}`);
+      } else {
+        user = await storage.getUserByEmail(email);
+        console.log(`[ADMIN] Fixing user state for: ${email}`);
+      }
       
-      // Find the user
-      const user = await storage.getUserByEmail(email);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
