@@ -616,9 +616,12 @@ export default function Interview() {
     analytics.checkoutStarted();
 
     try {
-      // Check for promo code in URL (e.g., ?promo=FRIENDS100)
+      // Check for promo code in URL first, then sessionStorage (captured from landing page)
       const urlParams = new URLSearchParams(window.location.search);
-      const promoCode = urlParams.get('promo');
+      let promoCode = urlParams.get('promo');
+      if (!promoCode) {
+        promoCode = sessionStorage.getItem('sp_promo_code');
+      }
       
       const response = await fetch("/checkout", {
         method: "POST",

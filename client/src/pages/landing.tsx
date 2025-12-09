@@ -101,9 +101,16 @@ export default function Landing() {
   const charIndexRef = useRef(0);
   const isDeletingRef = useRef(false);
   
-  // Set page title
+  // Set page title and capture promo code from URL
   useEffect(() => {
     document.title = "Serious People - Career Coaching";
+    
+    // Capture promo code from URL and store in sessionStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const promoCode = urlParams.get('promo');
+    if (promoCode) {
+      sessionStorage.setItem('sp_promo_code', promoCode);
+    }
   }, []);
   
   const { data: pricing } = useQuery<PricingData>({
