@@ -2008,51 +2008,41 @@ The user has entered "testskip" which is a testing command. You must now:
 1. Review the conversation so far
 2. Fabricate plausible, realistic answers for ALL remaining interview questions
 3. Start your response with: "Skipping ahead for testing purposes..."
-4. List bullet points of fabricated details (name, situation, constraints, etc.)
-5. Immediately complete the interview by outputting the plan card and all required tokens
+4. Present a summary of the fabricated client story in a clear, structured format
+5. Ask the user to confirm if this summary is correct using structured options
 
-Example fabricated details:
-- Name: Sarah Chen
-- Role: Marketing Manager at a mid-size tech company
-- Tenure: 3 years
-- Situation: Feeling stuck, manager is unsupportive, considering leaving
-- Constraints: Lives in Atlanta, cannot relocate, has financial obligations
-- Goals: Wants more strategic responsibility and growth opportunities
+DO NOT output the plan card yet. Wait for the user to confirm first.
 
-After listing the fabricated details, output in EXACT format:
+Your response should follow this format:
 
-[[PLAN_CARD]]
-NAME: Sarah Chen
-MODULE1_NAME: Job Autopsy
-MODULE1_OBJECTIVE: Examine what's really driving your frustration
-MODULE1_APPROACH: Separate fixable problems from fundamental mismatches
-MODULE1_OUTCOME: Clear diagnosis of stay vs. go factors
-MODULE2_NAME: Fork in the Road
-MODULE2_OBJECTIVE: Map out your realistic options
-MODULE2_APPROACH: Evaluate each path against your constraints and goals
-MODULE2_OUTCOME: Decision framework with ranked options
-MODULE3_NAME: The Great Escape Plan
-MODULE3_OBJECTIVE: Build your action plan with timelines
-MODULE3_APPROACH: Create concrete steps with decision checkpoints
-MODULE3_OUTCOME: Ready-to-execute transition plan
-CAREER_BRIEF: Marketing professional navigating a career transition
-SERIOUS_PLAN_SUMMARY: Your personalized roadmap with 6 artifacts
-PLANNED_ARTIFACTS: decision_snapshot, action_plan, boss_conversation, module_recap, risk_map, resources
-[[END_PLAN_CARD]]
+---
 
-[[PROGRESS]]100[[END_PROGRESS]]
+Skipping ahead for testing purposes...
 
-[[INTERVIEW_COMPLETE]]
+Based on our conversation, here's what I understand about your situation:
 
-[[VALUE_BULLETS]]
-- Clarity on what's really driving your frustration
-- A structured plan tailored to your constraints
-- Scripts for the key conversations ahead
-[[END_VALUE_BULLETS]]
+**Your Story:**
+- **Name:** [Fabricated name, e.g., Sarah Chen]
+- **Current Role:** [Fabricated role, e.g., Marketing Manager at a mid-size tech company]
+- **Tenure:** [Fabricated tenure, e.g., 3 years]
+- **The Situation:** [Fabricated situation, e.g., Feeling stuck, manager is unsupportive, considering leaving]
+- **Key Constraints:** [Fabricated constraints, e.g., Lives in Atlanta, cannot relocate, has financial obligations]
+- **What You Want:** [Fabricated goals, e.g., More strategic responsibility and growth opportunities]
 
-[[SOCIAL_PROOF]]
-Studies show that professionals who work through career decisions with structured frameworks are 3x more likely to report satisfaction with their choice 12 months later.
-[[END_SOCIAL_PROOF]]
+[[PROGRESS]]85[[END_PROGRESS]]
+
+---
+
+Does this capture your situation correctly?
+
+[[STRUCTURED_OPTIONS]]
+- Yes, that's right - let's continue
+- Not quite - let me clarify a few things
+[[END_STRUCTURED_OPTIONS]]
+
+---
+
+Remember: Do NOT output [[PLAN_CARD]], [[INTERVIEW_COMPLETE]], [[VALUE_BULLETS]], or [[SOCIAL_PROOF]] in this response. Those come only after the user confirms.
 ` : '';
 
       let reply: string;
