@@ -241,7 +241,7 @@ export default function Landing() {
             <img src="/logan-roy.png" alt="Logan Roy" className="sp-landing-quote-image" />
             <blockquote className="sp-landing-quote">
               <p>"I love you, but you are not serious people."</p>
-              <cite>— Logan Roy</cite>
+              <cite>— Logan Roy, Waystar Royco</cite>
             </blockquote>
           </div>
         </div>

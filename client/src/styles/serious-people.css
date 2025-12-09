@@ -2619,7 +2619,7 @@
   line-height: 1.7;
   color: var(--sp-text-secondary);
   margin-bottom: 2rem;
-  max-width: 600px;
+  max-width: 400px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -2694,7 +2694,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1.25rem;
+  padding: 0.75rem 1.25rem;
   border: 1px solid var(--sp-border);
   border-radius: 4px;
   background: #ffffff;
