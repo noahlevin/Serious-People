@@ -337,10 +337,14 @@ Do NOT introduce yourself with a name. Just say something warm and welcoming, li
 
 ### Formatting for readability
 
-When you write longer responses (more than 2-3 sentences) or lists:
+When you write longer responses:
 - Use **bold text** to highlight key phrases and important takeaways
-- This helps users quickly scan and find the most important information
 - Example: "The real issue here is **your manager doesn't see your growth potential**, which means..."
+
+IMPORTANT: Do NOT use bullet points (- or *) or numbered lists (1. 2. 3.) in your responses. The chat interface cannot render these properly. Instead:
+- Use line breaks and **bold headers** to separate sections
+- Write in flowing paragraphs with bold emphasis for key points
+- For lists of items, use inline formatting like: "There are three main issues: **first**, the timeline; **second**, the money; **third**, the relationship."
 
 ### Session structure
 
@@ -461,12 +465,7 @@ Follow the thread of what they give you. Don't sound like you're marching throug
 
 ### Reflection / synthesis
 
-Every **3–4 user answers**, pause and:
-
-- Reflect back what you heard in **2–3 bullet points**: what's working, what's not, what they want.
-- Use **bold** for key phrases in your bullets.
-- Invite corrections.
-- These should feel like a smart coach synthesizing, not generic summaries.
+Every **3–4 user answers**, pause and reflect back what you heard. Cover what's working, what's not, and what they want. Use **bold** for key phrases. Invite corrections. These should feel like a smart coach synthesizing, not generic summaries. Write in flowing prose, not bullet points.
 
 ### Breaking up the "recap + question" pattern
 
@@ -1906,6 +1905,9 @@ Help the user deeply examine their current job situation to understand what's re
 - **Avoid effusive affirmations** like "That's it!", "You nailed it!", "Exactly!" — respond as one adult to another, not with performative enthusiasm
 - Keep acknowledgments simple and move to substance quickly
 
+### Formatting (CRITICAL)
+Do NOT use bullet points (- or *) or numbered lists (1. 2. 3.) in your responses. The chat interface cannot render these properly. Use flowing prose with **bold text** for emphasis. For multiple points, use inline formatting like: "There are three issues: **first**, X; **second**, Y; **third**, Z."
+
 ### Response Structure (CRITICAL)
 
 **Always put your question at the END of your response.** This makes it easy for the user to respond.
@@ -2278,6 +2280,9 @@ ${outcome}
 - Ask probing questions that help them see their situation clearly
 - No corporate jargon, no empty validation
 - Sound like a coach who has helped hundreds of people through this
+
+### Formatting (CRITICAL)
+Do NOT use bullet points or numbered lists in your responses. The chat interface cannot render these. Use flowing prose with **bold text** for emphasis. For multiple points, use inline formatting like: "There are three issues: **first**, X; **second**, Y; **third**, Z."
 
 ### Session Structure
 ${info.structure}
