@@ -178,17 +178,45 @@ export default function ModulePage() {
     setStatus("");
 
     try {
-      const response = await fetch("/api/module", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          moduleNumber,
-          transcript: currentTranscript 
-        }),
-      });
+      // Retry logic for handling temporary data loading issues
+      let response: Response | null = null;
+      let retryCount = 0;
+      const maxRetries = 3;
+      const retryDelay = 2000;
+      
+      while (retryCount < maxRetries) {
+        response = await fetch("/api/module", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            moduleNumber,
+            transcript: currentTranscript 
+          }),
+        });
 
-      if (!response.ok) {
+        if (response.ok) {
+          break;
+        }
+        
+        // Handle 409 "Context not ready" - retry with delay
+        if (response.status === 409) {
+          const errorData = await response.json().catch(() => ({}));
+          if (errorData.retryable) {
+            retryCount++;
+            if (retryCount < maxRetries) {
+              console.log(`Context not ready, retrying (${retryCount}/${maxRetries})...`);
+              setStatus("Loading your coaching context...");
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+              continue;
+            }
+          }
+        }
+        
         throw new Error("Failed to get response");
+      }
+
+      if (!response || !response.ok) {
+        throw new Error("Failed to get response after retries");
       }
 
       const data: ModuleResponse = await response.json();
