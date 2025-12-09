@@ -3234,5 +3234,86 @@ FORMAT:
     }
   });
 
+  // ADMIN: Fix user state - generates dossier and fixes flags
+  // Usage: POST /api/admin/fix-user with { email: "user@example.com", secret: "admin-secret" }
+  app.post("/api/admin/fix-user", async (req, res) => {
+    try {
+      const { email, secret } = req.body;
+      
+      // Simple secret check - in production, use a proper admin auth system
+      const adminSecret = process.env.ADMIN_SECRET || "serious-admin-2024";
+      if (secret !== adminSecret) {
+        return res.status(403).json({ error: "Invalid admin secret" });
+      }
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email required" });
+      }
+      
+      console.log(`[ADMIN] Fixing user state for: ${email}`);
+      
+      // Find the user
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Get their transcript
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.status(404).json({ error: "No transcript found for user" });
+      }
+      
+      const fixes: string[] = [];
+      
+      // Fix 1: Mark interview as complete if they've paid
+      if (transcript.paymentVerified && !transcript.interviewComplete) {
+        await storage.updateTranscript(transcript.sessionToken, {
+          interviewComplete: true,
+          progress: 100,
+        });
+        fixes.push("Set interview_complete=true, progress=100");
+      }
+      
+      // Fix 2: Generate dossier if missing
+      if (!transcript.clientDossier && transcript.transcript && Array.isArray(transcript.transcript)) {
+        console.log(`[ADMIN] Generating client dossier for ${email}...`);
+        
+        const interviewAnalysis = await generateInterviewAnalysis(transcript.transcript as { role: string; content: string }[]);
+        
+        if (interviewAnalysis) {
+          const dossier: ClientDossier = {
+            interviewTranscript: transcript.transcript as { role: string; content: string }[],
+            interviewAnalysis,
+            moduleRecords: [],
+            lastUpdated: new Date().toISOString(),
+          };
+          
+          await storage.updateClientDossier(user.id, dossier);
+          fixes.push("Generated client dossier");
+        } else {
+          fixes.push("FAILED to generate dossier - AI error");
+        }
+      } else if (transcript.clientDossier) {
+        fixes.push("Dossier already exists (no action needed)");
+      } else {
+        fixes.push("No transcript data to generate dossier from");
+      }
+      
+      console.log(`[ADMIN] Fixes applied for ${email}:`, fixes);
+      
+      res.json({ 
+        ok: true, 
+        email,
+        userId: user.id,
+        fixes 
+      });
+      
+    } catch (error: any) {
+      console.error("[ADMIN] Fix user error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }
