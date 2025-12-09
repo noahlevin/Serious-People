@@ -7,7 +7,6 @@ import { ModulesProgressCard, DEFAULT_COACHING_MODULES } from "@/components/Modu
 import type { CoachingModule, PlanCard } from "@/components/ChatComponents";
 import "@/styles/serious-people.css";
 
-const COMPLETED_MODULES_KEY = "serious_people_completed_modules";
 const PLAN_CARD_KEY = "serious_people_plan_card";
 
 export default function Progress() {
@@ -31,16 +30,29 @@ export default function Progress() {
     }
   }, [authLoading, isAuthenticated, setLocation]);
 
+  // Load completed modules from database
   useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem(COMPLETED_MODULES_KEY);
-      if (saved) {
-        setCompletedModules(JSON.parse(saved));
+    const loadModulesStatus = async () => {
+      try {
+        const response = await fetch("/api/modules/status", {
+          credentials: "include",
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const completed = data.modules
+            .filter((m: { number: number; complete: boolean }) => m.complete)
+            .map((m: { number: number }) => m.number);
+          setCompletedModules(completed);
+        }
+      } catch (e) {
+        console.error("Failed to load completed modules:", e);
       }
-    } catch (e) {
-      console.error("Failed to load completed modules:", e);
+    };
+    
+    if (isAuthenticated) {
+      loadModulesStatus();
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const fetchCoachingPlan = async () => {

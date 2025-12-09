@@ -33,9 +33,6 @@ interface ModuleResponse {
   summary?: string;
 }
 
-const MODULE_STORAGE_PREFIX = "serious_people_module_";
-const MODULE_SUMMARY_PREFIX = "serious_people_module_summary_";
-const COMPLETED_MODULES_KEY = "serious_people_completed_modules";
 const PLAN_CARD_KEY = "serious_people_plan_card";
 
 export default function ModulePage() {
@@ -93,8 +90,6 @@ export default function ModulePage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initializedModuleRef = useRef<number | null>(null);
   const hasRefetched = useRef(false);
-
-  const storageKey = `${MODULE_STORAGE_PREFIX}${moduleNumber}`;
 
   useEffect(() => {
     if (!hasRefetched.current) {
@@ -154,13 +149,15 @@ export default function ModulePage() {
     }
   }, [animatingMessageIndex, scrollToBottom]);
 
+  // Save module transcript to database (fire-and-forget for performance)
   const saveTranscript = useCallback((messages: Message[]) => {
-    try {
-      sessionStorage.setItem(storageKey, JSON.stringify(messages));
-    } catch (e) {
-      console.error("Failed to save module transcript:", e);
-    }
-  }, [storageKey]);
+    fetch(`/api/module/${moduleNumber}/data`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ transcript: messages }),
+    }).catch(e => console.error("Failed to save module transcript:", e));
+  }, [moduleNumber]);
 
   const autoResize = () => {
     if (textareaRef.current) {
@@ -211,12 +208,18 @@ export default function ModulePage() {
       if (data.done) {
         setModuleComplete(true);
         setModuleSummary(data.summary || "");
-        // Save module summary to sessionStorage for persistence
-        try {
-          sessionStorage.setItem(`${MODULE_SUMMARY_PREFIX}${moduleNumber}`, data.summary || "");
-        } catch (e) {
-          console.error("Failed to save module summary:", e);
-        }
+        // Save module completion (summary + complete flag atomically) to database
+        // Also include the full transcript to ensure all data is persisted
+        fetch(`/api/module/${moduleNumber}/data`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ 
+            transcript: currentTranscript,
+            summary: data.summary || "",
+            complete: true 
+          }),
+        }).catch(e => console.error("Failed to save module completion:", e));
         analytics.moduleCompleted(moduleNumber);
         
         if (data.reply) {
@@ -412,12 +415,7 @@ export default function ModulePage() {
   const handleModuleComplete = async () => {
     console.log("[handleModuleComplete] Starting, moduleNumber:", moduleNumber);
     
-    const completedModules = JSON.parse(sessionStorage.getItem(COMPLETED_MODULES_KEY) || "[]");
-    if (!completedModules.includes(moduleNumber)) {
-      completedModules.push(moduleNumber);
-      sessionStorage.setItem(COMPLETED_MODULES_KEY, JSON.stringify(completedModules));
-    }
-    
+    // Completion status already saved when module marked done (in sendMessage)
     // Navigate immediately - don't wait for API calls
     console.log("[handleModuleComplete] Navigating immediately, moduleNumber:", moduleNumber);
     
@@ -464,46 +462,52 @@ export default function ModulePage() {
     initializedModuleRef.current = moduleNumber;
     analytics.moduleStarted(moduleNumber);
 
-    try {
-      const saved = sessionStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.length > 0) {
-          setTranscript(parsed);
+    // Load module data from database
+    const loadModuleData = async () => {
+      try {
+        const response = await fetch(`/api/module/${moduleNumber}/data`, {
+          credentials: "include",
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
           
-          const cards: { index: number; name: string; time: string }[] = [];
-          parsed.forEach((msg: Message, idx: number) => {
-            if (msg.role === "assistant") {
-              const titleCard = extractTitleCard(msg.content);
-              if (titleCard) {
-                cards.push({ index: idx, ...titleCard });
+          if (data.transcript && data.transcript.length > 0) {
+            setTranscript(data.transcript);
+            
+            const cards: { index: number; name: string; time: string }[] = [];
+            data.transcript.forEach((msg: Message, idx: number) => {
+              if (msg.role === "assistant") {
+                const titleCard = extractTitleCard(msg.content);
+                if (titleCard) {
+                  cards.push({ index: idx, ...titleCard });
+                }
+              }
+            });
+            setTitleCards(cards);
+            
+            // Restore completion state from database
+            if (data.complete) {
+              setModuleComplete(true);
+              setProgress(100);
+              if (data.summary) {
+                setModuleSummary(data.summary);
               }
             }
-          });
-          setTitleCards(cards);
-          
-          // Check if this module was already completed and restore state
-          const completedModules = JSON.parse(sessionStorage.getItem(COMPLETED_MODULES_KEY) || "[]");
-          if (completedModules.includes(moduleNumber)) {
-            setModuleComplete(true);
-            setProgress(100);
-            // Restore the saved summary
-            const savedSummary = sessionStorage.getItem(`${MODULE_SUMMARY_PREFIX}${moduleNumber}`);
-            if (savedSummary) {
-              setModuleSummary(savedSummary);
-            }
+            
+            return;
           }
-          
-          return;
         }
+      } catch (e) {
+        console.error("Failed to load module transcript from database:", e);
       }
-    } catch (e) {
-      console.error("Failed to load module transcript:", e);
-    }
-
-    // Only start fresh if no transcript exists
-    sendMessage();
-  }, [authLoading, isAuthenticated, moduleNumber, storageKey, sendMessage]);
+      
+      // Only start fresh if no transcript exists
+      sendMessage();
+    };
+    
+    loadModuleData();
+  }, [authLoading, isAuthenticated, moduleNumber, sendMessage]);
 
   if (authLoading) {
     return (

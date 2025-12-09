@@ -122,8 +122,11 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 20. `POST /api/serious-plan/:planId/artifacts/:artifactId/pdf` - Generate PDF for an artifact (requires auth)
 21. `POST /api/serious-plan/:planId/bundle-pdf` - Generate bundle PDF with all artifacts (requires auth)
 22. `POST /api/serious-plan/:planId/send-email` - Send the Serious Plan to user's email (requires auth)
-23. `GET /api/coach-chat/:planId/messages` - Get chat history for a plan (requires auth)
-24. `POST /api/coach-chat/:planId/message` - Send a message and get AI response (requires auth)
+23. `GET /api/module/:moduleNumber/data` - Load module transcript, summary, and completion status (requires auth)
+24. `POST /api/module/:moduleNumber/data` - Save module transcript, summary, and/or completion status (requires auth)
+25. `GET /api/modules/status` - Get completion status for all modules (requires auth)
+26. `GET /api/coach-chat/:planId/messages` - Get chat history for a plan (requires auth)
+27. `POST /api/coach-chat/:planId/message` - Send a message and get AI response (requires auth)
 
 **AI Integration:**
 - Uses Anthropic Claude Sonnet 4.5 as primary AI model when ANTHROPIC_API_KEY is set
@@ -153,8 +156,9 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 
 **Storage Pattern:**
 - Interview transcripts stored server-side in database for authenticated users
-- sessionStorage used as fallback and for performance
+- Module transcripts, summaries, and completion status stored in database (no sessionStorage)
 - Progress and state synced to server on each update
+- Cross-device and cross-session persistence for all module data
 
 **Test Endpoint:**
 - `GET /api/test-db` - Tests database connectivity (creates and retrieves test record)
