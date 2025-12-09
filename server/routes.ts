@@ -198,10 +198,12 @@ const MODULE_ANALYSIS_PROMPT = `You are an internal analysis system for a career
 
 CRITICAL: These notes are INTERNAL ONLY and will NEVER be shown to the client. Be thorough and capture everything.
 
+IMPORTANT: Write ALL content in SECOND PERSON ("you", "your") - NOT third person. For example, write "You discussed your frustration with..." NOT "Sarah discussed her frustration with...".
+
 Analyze the module transcript and output a JSON object with the following structure:
 
 {
-  "summary": "A detailed summary of everything discussed in this module - multiple paragraphs if needed",
+  "summary": "A detailed summary of everything discussed in this module - written in second person (you/your) - multiple paragraphs if needed",
   "decisions": [
     "Every decision or commitment the client made, no matter how small",
     "Include both explicit decisions and implicit ones"
