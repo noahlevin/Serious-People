@@ -1748,7 +1748,34 @@ COMMUNICATION STYLE:
 
       const { transcript = [] } = req.body;
 
+      // Check if user sent "testskip" command (case-insensitive)
+      const lastUserMessage = [...transcript].reverse().find((t: any) => t.role === 'user');
+      const isTestSkip = lastUserMessage?.content?.toLowerCase().trim() === 'testskip';
+
+      // Build testskip prompt override if needed
+      const testSkipPrompt = isTestSkip ? `
+
+IMPORTANT OVERRIDE - TESTSKIP MODE:
+The user has entered "testskip" which is a testing command. You must now:
+1. Review the conversation so far
+2. Fabricate plausible, realistic answers for ALL remaining interview questions
+3. Start your response with: "Skipping ahead for testing purposes..."
+4. List bullet points of fabricated details (name, situation, constraints, etc.)
+5. Immediately complete the interview by outputting the full plan card and completion tokens
+
+Example fabricated details:
+- Name: Sarah Chen
+- Role: Marketing Manager at a mid-size tech company
+- Tenure: 3 years
+- Situation: Feeling stuck, manager is unsupportive, considering leaving
+- Constraints: Lives in Atlanta, cannot relocate, has financial obligations
+- Goals: Wants more strategic responsibility and growth opportunities
+
+After listing the fabricated details, immediately output [[INTERVIEW_COMPLETE]] and all required tokens (plan card, value bullets, social proof, progress 100).
+` : '';
+
       let reply: string;
+      const systemPromptToUse = INTERVIEW_SYSTEM_PROMPT + testSkipPrompt;
 
       if (useAnthropic && anthropic) {
         // Use Anthropic Claude
@@ -1769,8 +1796,8 @@ COMMUNICATION STYLE:
 
         const response = await anthropic.messages.create({
           model: "claude-sonnet-4-5-20250929",
-          max_tokens: 1024,
-          system: INTERVIEW_SYSTEM_PROMPT,
+          max_tokens: 2048,
+          system: systemPromptToUse,
           messages: claudeMessages,
         });
 
@@ -1778,7 +1805,7 @@ COMMUNICATION STYLE:
       } else {
         // Fall back to OpenAI
         const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-          { role: "system", content: INTERVIEW_SYSTEM_PROMPT }
+          { role: "system", content: systemPromptToUse }
         ];
 
         for (const turn of transcript) {
@@ -1797,7 +1824,7 @@ COMMUNICATION STYLE:
         const response = await openai.chat.completions.create({
           model: "gpt-4.1-mini",
           messages,
-          max_completion_tokens: 1024,
+          max_completion_tokens: isTestSkip ? 2048 : 1024,
         });
 
         reply = response.choices[0].message.content || "";
@@ -2385,6 +2412,10 @@ ${dossierContext}`;
         return res.status(400).json({ error: "Invalid module number" });
       }
 
+      // Check if user sent "testskip" command (case-insensitive)
+      const lastUserMessage = [...transcript].reverse().find((t: any) => t.role === 'user');
+      const isTestSkip = lastUserMessage?.content?.toLowerCase().trim() === 'testskip';
+
       // Try to get the user's coaching plan and dossier from the database
       let planCard = null;
       let clientDossier: ClientDossier | null = null;
@@ -2401,7 +2432,30 @@ ${dossierContext}`;
       }
 
       // Generate dynamic system prompt based on the coaching plan and dossier
-      const systemPrompt = generateModulePrompt(moduleNumber, planCard, clientDossier);
+      let systemPrompt = generateModulePrompt(moduleNumber, planCard, clientDossier);
+
+      // Add testskip override if needed
+      if (isTestSkip) {
+        systemPrompt += `
+
+IMPORTANT OVERRIDE - TESTSKIP MODE:
+The user has entered "testskip" which is a testing command. You must now:
+1. Review the conversation so far and the client dossier
+2. Fabricate plausible, realistic answers for ALL remaining module questions
+3. Start your response with: "Skipping ahead for testing purposes..."
+4. List bullet points of fabricated insights and decisions for this module
+5. Then ask for confirmation: "Does this summary capture your situation correctly? If so, I'll wrap up this module."
+
+After the user confirms (or on the next message), immediately complete the module by outputting [[MODULE_COMPLETE]] and the [[SUMMARY]] with fabricated but realistic key insights.
+
+Example fabricated module insights:
+- Key realization about their work situation
+- Decision or clarity gained during this module
+- Specific action they're considering
+
+Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] with [[SUMMARY]] on confirmation.
+`;
+      }
 
       let reply: string;
 
@@ -2424,7 +2478,7 @@ ${dossierContext}`;
 
         const response = await anthropic.messages.create({
           model: "claude-sonnet-4-5-20250929",
-          max_tokens: 1024,
+          max_tokens: isTestSkip ? 2048 : 1024,
           system: systemPrompt,
           messages: claudeMessages,
         });
@@ -2452,7 +2506,7 @@ ${dossierContext}`;
         const response = await openai.chat.completions.create({
           model: "gpt-4.1-mini",
           messages,
-          max_completion_tokens: 1024,
+          max_completion_tokens: isTestSkip ? 2048 : 1024,
         });
 
         reply = response.choices[0].message.content || "";
@@ -2860,413 +2914,6 @@ FORMAT:
         message: "Database test failed",
         error: error.message,
       });
-    }
-  });
-
-  // POST /api/dev/auto-client - Development-only endpoint for auto-generating client responses
-  // This is a testing helper that generates realistic client responses for roleplay scenarios
-  app.post("/api/dev/auto-client", async (req, res) => {
-    // Only available in development mode
-    if (process.env.NODE_ENV === "production") {
-      return res.status(404).json({ error: "Not found" });
-    }
-
-    try {
-      if (!useAnthropic && !process.env.OPENAI_API_KEY) {
-        return res.status(500).json({ error: "No AI API key configured" });
-      }
-
-      const { stage, moduleNumber, transcript = [], planCard, coachingPlan } = req.body;
-
-      if (!stage || (stage !== "interview" && stage !== "module")) {
-        return res.status(400).json({ error: "Invalid stage. Must be 'interview' or 'module'" });
-      }
-
-      // Try to load dossier and plan from database if user is authenticated
-      let clientDossier: ClientDossier | null = null;
-      let serverPlanCard = planCard;
-      
-      if (req.user && (req.user as any).id) {
-        const userTranscript = await storage.getTranscriptByUserId((req.user as any).id);
-        if (userTranscript) {
-          if (userTranscript.clientDossier) {
-            clientDossier = userTranscript.clientDossier;
-          }
-          if (userTranscript.planCard && !serverPlanCard) {
-            serverPlanCard = userTranscript.planCard;
-          }
-        }
-      }
-
-      // Build context for the auto-client AI
-      let contextInfo = "";
-      
-      if (clientDossier) {
-        contextInfo += `
-=== CLIENT DOSSIER (Use this to stay in character) ===
-${clientDossier.interviewAnalysis ? `
-**Key Facts About You:**
-${clientDossier.interviewAnalysis.keyFacts?.join('\n') || 'Not available'}
-
-**Your Emotional State:**
-${clientDossier.interviewAnalysis.emotionalState || 'Not specified'}
-
-**Your Communication Style:**
-${clientDossier.interviewAnalysis.communicationStyle || 'Not specified'}
-
-**Your Priorities:**
-${clientDossier.interviewAnalysis.priorities?.join(', ') || 'Not specified'}
-
-**Your Constraints:**
-${clientDossier.interviewAnalysis.constraints?.join(', ') || 'Not specified'}
-
-**Key Relationships:**
-${clientDossier.interviewAnalysis.relationships?.join(', ') || 'Not specified'}
-` : ''}
-=== END DOSSIER ===
-`;
-      }
-
-      if (serverPlanCard && stage === "module") {
-        const moduleInfo = serverPlanCard.modules?.[moduleNumber - 1];
-        if (moduleInfo) {
-          contextInfo += `
-=== CURRENT MODULE CONTEXT ===
-Module ${moduleNumber}: ${moduleInfo.name}
-Objective: ${moduleInfo.objective}
-=== END MODULE CONTEXT ===
-`;
-        }
-      }
-
-      // Build the system prompt for the auto-client - optimized for brevity
-      const systemPrompt = `You are a coaching client. Give SHORT realistic responses (1 word to 1 short paragraph max).
-
-${contextInfo}
-
-RULES:
-- Be brief like real people text/chat
-- Stay in character
-- No jargon, be casual
-- Sometimes just say "yeah" or "I guess so" or ask a short question
-
-${stage === "interview" ? "Interview phase - share your situation briefly." : `Module ${moduleNumber}.`}
-
-Reply as the client. Be concise.`;
-
-      // Format the conversation for the AI
-      const conversationMessages = transcript.map((msg: any) => ({
-        role: msg.role === "assistant" ? "assistant" : "user",
-        content: msg.content
-      }));
-
-      // Flip the perspective - assistant messages become what the "coach" said
-      // User messages become what the "client" said
-      const flippedMessages = conversationMessages.map((msg: any) => ({
-        role: msg.role === "assistant" ? "user" : "assistant",
-        content: msg.content
-      }));
-
-      let reply: string;
-
-      if (useAnthropic && anthropic) {
-        // Use Anthropic Claude Haiku for speed and cost
-        const response = await anthropic.messages.create({
-          model: "claude-3-5-haiku-20241022",
-          max_tokens: 150,
-          system: systemPrompt,
-          messages: flippedMessages.length > 0 ? flippedMessages : [{ role: "user", content: "The coach just started the session. How would you respond?" }],
-        });
-
-        reply = response.content[0].type === 'text' ? response.content[0].text : '';
-      } else {
-        // Fall back to OpenAI GPT-4o-mini for speed and cost
-        const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-          { role: "system", content: systemPrompt },
-          ...flippedMessages
-        ];
-
-        if (flippedMessages.length === 0) {
-          messages.push({ role: "user", content: "The coach just started the session. How would you respond?" });
-        }
-
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages,
-          max_tokens: 150,
-        });
-
-        reply = response.choices[0]?.message?.content || "";
-      }
-
-      // Clean up the reply - remove any quotes if the AI wrapped it
-      reply = reply.replace(/^["']|["']$/g, '').trim();
-
-      res.json({ reply });
-    } catch (error: any) {
-      console.error("Auto-client error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // POST /api/dev/skip - Development-only endpoint to skip to different stages
-  // This sets up the database state to simulate having completed earlier stages
-  app.post("/api/dev/skip", requireAuth, async (req, res) => {
-    // Only available in development mode
-    if (process.env.NODE_ENV === "production") {
-      return res.status(404).json({ error: "Not found" });
-    }
-
-    try {
-      const { stage } = req.body;
-      const userId = req.user!.id;
-      const userEmail = req.user!.email;
-      const userName = req.user!.name || userEmail?.split('@')[0] || 'Test User';
-
-      const validStages = ['interview', 'paywall', 'module1', 'module2', 'module3', 'serious_plan', 'coach_chat'];
-      if (!stage || !validStages.includes(stage)) {
-        return res.status(400).json({ 
-          error: `Invalid stage. Must be one of: ${validStages.join(', ')}` 
-        });
-      }
-
-      // Generate a unique session token for this skip
-      const sessionToken = `skip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      // Sample plan card data
-      const samplePlanCard = {
-        name: userName,
-        modules: [
-          {
-            name: "Job Autopsy",
-            description: "Understand what went wrong and what to avoid",
-            objective: "Identify patterns in your work history that led to dissatisfaction",
-            approach: "We'll examine your past roles to find what energized vs. drained you",
-            outcome: "A clear picture of your non-negotiables for future roles"
-          },
-          {
-            name: "Fork in the Road",
-            description: "Clarify your two main options: stay or go",
-            objective: "Weigh the realistic pros and cons of each path",
-            approach: "We'll stress-test each option against your values and constraints",
-            outcome: "A decision framework you can trust"
-          },
-          {
-            name: "The Great Escape Plan",
-            description: "Build your exit strategy",
-            objective: "Create a step-by-step action plan",
-            approach: "We'll map out timeline, conversations, and milestones",
-            outcome: "A concrete 90-day roadmap with conversation scripts"
-          }
-        ],
-        briefDescription: "Your personalized Career Brief with actionable scripts"
-      };
-
-      // Sample value bullets
-      const sampleValueBullets = [
-        "Navigate your relationship with your current manager",
-        "Balance financial security with career growth",
-        "Build confidence for difficult conversations"
-      ];
-
-      // Sample client dossier with all required fields for formatDossierContext
-      // Must match ClientDossier interface exactly
-      const sampleClientDossier: ClientDossier = {
-        interviewTranscript: [
-          { role: "assistant", content: "Hi! I'm your career coach. Let's figure out what's going on at work and how to move forward. What's the main thing that's been weighing on you?" },
-          { role: "user", content: "I've been at my job for a while and I'm feeling stuck. Not sure if I should stay and try to make things better or start looking elsewhere." },
-          { role: "assistant", content: "That feeling of being stuck is really common, and it's smart that you're taking time to think it through. Tell me more - what's making you feel stuck?" },
-          { role: "user", content: "I've been doing great work but not getting recognized. My manager is supportive but doesn't have much influence. I'm considering either pushing for a promotion or looking for external opportunities." }
-        ],
-        interviewAnalysis: {
-          clientName: userName,
-          currentRole: "Product Manager",
-          company: "Tech Company Inc.",
-          tenure: "3 years",
-          situation: "Mid-level employee feeling stuck and undervalued, considering whether to push for promotion or explore external opportunities.",
-          bigProblem: "Lack of growth opportunities and feeling underappreciated by leadership despite consistent high performance.",
-          desiredOutcome: "Find a path forward that balances financial security with career fulfillment and personal growth.",
-          keyFacts: [
-            "Works in tech industry as a product manager",
-            "3+ years at current company",
-            "Considering career transition",
-            "Has financial responsibilities including mortgage"
-          ],
-          relationships: [
-            { person: "Sarah", role: "Direct Manager", dynamic: "Supportive but not influential in promotion decisions" },
-            { person: "Mike", role: "VP of Product", dynamic: "Limited interaction, seems unaware of contributions" },
-            { person: "Team", role: "Direct Reports", dynamic: "Strong relationships, would be hard to leave" }
-          ],
-          emotionalState: "Feeling uncertain but hopeful about change. Some frustration with lack of recognition.",
-          communicationStyle: "Direct and analytical. Prefers data-driven conversations.",
-          priorities: ["Work-life balance", "Career growth", "Financial stability", "Meaningful work"],
-          constraints: ["Family obligations", "Current income level", "Geographic location"],
-          motivations: ["Recognition for good work", "Leadership opportunities", "Learning and growth", "Making an impact"],
-          fears: ["Making the wrong decision", "Financial instability", "Burning bridges", "Starting over"],
-          questionsAsked: ["What's weighing on you?", "What's making you feel stuck?"],
-          optionsOffered: [],
-          observations: "Client shows strong analytical skills but may be overthinking the decision. Would benefit from structured framework to evaluate options objectively."
-        },
-        moduleRecords: [],
-        lastUpdated: new Date().toISOString()
-      };
-
-      // Sample planned artifacts
-      const samplePlannedArtifacts = [
-        {
-          type: "decision_snapshot",
-          name: "Career Decision Snapshot",
-          whyImportant: "A clear visual of your options and their trade-offs"
-        },
-        {
-          type: "action_plan",
-          name: "90-Day Career Roadmap",
-          whyImportant: "Step-by-step actions with realistic timelines"
-        },
-        {
-          type: "conversation_script",
-          name: "Manager Conversation Script",
-          whyImportant: "Exact words for the conversation you've been dreading"
-        },
-        {
-          type: "risk_map",
-          name: "Risk & Mitigation Map",
-          whyImportant: "Every concern addressed with a backup plan"
-        }
-      ];
-
-      // Build transcript state based on stage
-      let transcriptData: any = {
-        sessionToken,
-        userId,
-        transcript: [
-          { role: "assistant", content: "Hi! I'm your career coach. Let's figure out what's going on at work and how to move forward. What's the main thing that's been weighing on you?" },
-          { role: "user", content: "I've been at my job for a while and I'm feeling stuck. Not sure if I should stay and try to make things better or start looking elsewhere." }
-        ],
-        progress: 10,
-        interviewComplete: false,
-        paymentVerified: false,
-        currentModule: "interview",
-        valueBullets: null,
-        socialProof: null,
-        planCard: null,
-        clientDossier: null,
-        plannedArtifacts: null
-      };
-
-      let redirectPath = "/interview";
-
-      // Set state based on stage
-      if (stage === 'paywall' || stage === 'module1' || stage === 'module2' || stage === 'module3' || stage === 'serious_plan' || stage === 'coach_chat') {
-        transcriptData.interviewComplete = true;
-        transcriptData.progress = 95;
-        transcriptData.valueBullets = sampleValueBullets;
-        transcriptData.socialProof = "Research shows 78% of professionals who work with a coach report higher job satisfaction.";
-        transcriptData.planCard = samplePlanCard;
-        transcriptData.clientDossier = sampleClientDossier;
-        transcriptData.plannedArtifacts = samplePlannedArtifacts;
-        transcriptData.currentModule = "paywall";
-        redirectPath = "/interview"; // They'll see the paywall
-      }
-
-      if (stage === 'module1' || stage === 'module2' || stage === 'module3' || stage === 'serious_plan' || stage === 'coach_chat') {
-        transcriptData.paymentVerified = true;
-        transcriptData.currentModule = "module1";
-        transcriptData.stripeSessionId = `skip_session_${Date.now()}`;
-        redirectPath = "/module/1";
-      }
-
-      if (stage === 'module2' || stage === 'module3' || stage === 'serious_plan' || stage === 'coach_chat') {
-        transcriptData.currentModule = "module2";
-        redirectPath = "/module/2";
-      }
-
-      if (stage === 'module3' || stage === 'serious_plan' || stage === 'coach_chat') {
-        transcriptData.currentModule = "module3";
-        redirectPath = "/module/3";
-      }
-
-      if (stage === 'serious_plan' || stage === 'coach_chat') {
-        transcriptData.currentModule = "graduation";
-        transcriptData.module1Complete = true;
-        transcriptData.module2Complete = true;
-        transcriptData.module3Complete = true;
-        transcriptData.hasSeriousPlan = true;
-        redirectPath = "/serious-plan";
-
-        // Delete any existing Serious Plan for this user first
-        const existingPlan = await storage.getSeriousPlanByUserId(userId);
-        if (existingPlan) {
-          // Delete existing artifacts first
-          const existingArtifacts = await storage.getArtifactsByPlanId(existingPlan.id);
-          for (const artifact of existingArtifacts) {
-            await db.delete(seriousPlanArtifacts).where(eq(seriousPlanArtifacts.id, artifact.id));
-          }
-          // Delete the plan
-          await db.delete(seriousPlans).where(eq(seriousPlans.id, existingPlan.id));
-        }
-
-        // Create a new Serious Plan with artifacts
-        const plan = await storage.createSeriousPlan({
-          userId,
-          status: 'ready',
-          coachNoteContent: `${userName}, you came to me at a crossroads, and I want you to know—that took real courage. Through our work together, you've done something most people never manage: you've gotten honest with yourself about what you actually want.\n\nYou've built something valuable here. This isn't just a plan—it's a map you made yourself, with your own insights lighting the way. Trust it.\n\nThe conversations ahead won't be easy. But you're ready. You've already had the hardest conversation—the one with yourself.\n\nI'm proud of the work you've done. Now go do the thing.`,
-          summaryMetadata: {
-            clientName: userName,
-            planHorizonType: '90_days',
-            planHorizonRationale: 'A 90-day window provides enough time for meaningful career transition while maintaining urgency.',
-            keyConstraints: ['Family obligations', 'Current income level'],
-            primaryRecommendation: "Pursue the career transition with a 90-day structured approach",
-            emotionalTone: 'supportive and encouraging'
-          }
-        });
-
-        // Create sample artifacts
-        const artifactTypes = [
-          { artifactKey: 'decision_snapshot', type: 'snapshot', title: 'Your Decision Snapshot', importanceLevel: 'must_read', whyImportant: 'See your options clearly laid out', order: 1 },
-          { artifactKey: 'action_plan', type: 'plan', title: 'Your 90-Day Roadmap', importanceLevel: 'must_read', whyImportant: 'Know exactly what to do and when', order: 2 },
-          { artifactKey: 'conversation_scripts', type: 'conversation', title: 'Conversation Scripts', importanceLevel: 'must_read', whyImportant: 'Have the exact words for difficult talks', order: 3 },
-          { artifactKey: 'risk_map', type: 'plan', title: 'Risk & Mitigation Map', importanceLevel: 'recommended', whyImportant: 'Feel prepared for any obstacle', order: 4 },
-          { artifactKey: 'module_recap', type: 'recap', title: 'Your Coaching Journey', importanceLevel: 'recommended', whyImportant: 'Remember key insights from each module', order: 5 },
-          { artifactKey: 'resources', type: 'resources', title: 'Curated Resources', importanceLevel: 'optional', whyImportant: 'Continue your growth with vetted materials', order: 6 }
-        ];
-
-        for (const artifact of artifactTypes) {
-          await storage.createArtifact({
-            planId: plan.id,
-            artifactKey: artifact.artifactKey,
-            type: artifact.type,
-            title: artifact.title,
-            importanceLevel: artifact.importanceLevel as 'must_read' | 'recommended' | 'optional',
-            whyImportant: artifact.whyImportant,
-            contentRaw: `# ${artifact.title}\n\nThis is placeholder content that would normally be AI-generated based on your coaching sessions.\n\n## Key Points\n\n- First important insight from your coaching journey\n- Second important insight about your career transition\n- Third important insight about your next steps\n\n## Next Steps\n\n1. Review this document thoroughly\n2. Apply the insights to your situation\n3. Follow up with your coach if needed`,
-            displayOrder: artifact.order,
-            pdfStatus: 'not_started'
-          });
-        }
-      }
-
-      if (stage === 'coach_chat') {
-        redirectPath = "/coach-chat";
-      }
-
-      // Delete any existing transcript for this user and create new one
-      const existingTranscript = await storage.getTranscriptByUserId(userId);
-      if (existingTranscript) {
-        await storage.deleteTranscript(existingTranscript.id);
-      }
-
-      await storage.createTranscript(transcriptData);
-
-      res.json({ 
-        success: true, 
-        stage,
-        redirectPath,
-        message: `Skipped to ${stage}. Database state has been set up.`
-      });
-    } catch (error: any) {
-      console.error("Dev skip error:", error);
-      res.status(500).json({ error: error.message });
     }
   });
 

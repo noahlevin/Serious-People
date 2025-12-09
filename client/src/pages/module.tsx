@@ -79,13 +79,6 @@ export default function ModulePage() {
   const [animatingMessageIndex, setAnimatingMessageIndex] = useState<number | null>(null);
   const [titleCards, setTitleCards] = useState<{ index: number; name: string; time: string }[]>([]);
   
-  // Dev-only auto-client state
-  const [isAutoClientLoading, setIsAutoClientLoading] = useState(false);
-  const [isAutoPilot, setIsAutoPilot] = useState(false);
-  const [autoPilotCount, setAutoPilotCount] = useState(0);
-  const autoPilotCancelRef = useRef(false);
-  const isDev = import.meta.env.DEV;
-
   const chatWindowRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initializedModuleRef = useRef<number | null>(null);
@@ -292,125 +285,6 @@ export default function ModulePage() {
     setInputValue("");
     sendMessage(option);
   };
-
-  // Dev-only: Auto-generate client response
-  const handleAutoClient = useCallback(async () => {
-    if (!isDev || isAutoClientLoading || isSending) return;
-    
-    setIsAutoClientLoading(true);
-    try {
-      const response = await fetch("/api/dev/auto-client", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          stage: "module",
-          moduleNumber,
-          transcript,
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to generate auto-client response");
-      }
-      
-      const data = await response.json();
-      if (data.reply) {
-        setInputValue(data.reply);
-        // Auto-submit after a brief delay
-        setTimeout(() => {
-          sendMessage(data.reply);
-          setInputValue("");
-        }, 300);
-      }
-    } catch (error) {
-      console.error("Auto-client error:", error);
-      setStatus("Auto-client failed. Try again.");
-    } finally {
-      setIsAutoClientLoading(false);
-    }
-  }, [isDev, isAutoClientLoading, isSending, moduleNumber, transcript, sendMessage]);
-
-  // Dev-only: Auto-pilot mode - run multiple exchanges
-  const runAutoPilot = useCallback(async () => {
-    if (!isDev) return;
-    
-    autoPilotCancelRef.current = false;
-    setIsAutoPilot(true);
-    setAutoPilotCount(0);
-    
-    const maxExchanges = 10;
-    const maxWaitTime = 30000; // 30 second timeout for each exchange
-    
-    for (let i = 0; i < maxExchanges; i++) {
-      // Check cancellation at start of each iteration
-      if (autoPilotCancelRef.current) {
-        break;
-      }
-      
-      setAutoPilotCount(i + 1);
-      
-      // Wait for any ongoing operations to complete
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Check cancellation again after wait
-      if (autoPilotCancelRef.current) break;
-      
-      // Generate and send auto-client response
-      try {
-        const response = await fetch("/api/dev/auto-client", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            stage: "module",
-            moduleNumber,
-            transcript,
-          }),
-        });
-        
-        if (autoPilotCancelRef.current) break;
-        
-        if (!response.ok) throw new Error("Auto-client failed");
-        
-        const data = await response.json();
-        if (data.reply) {
-          // Send the message and wait for response with timeout
-          await new Promise<void>((resolve) => {
-            sendMessage(data.reply);
-            const startTime = Date.now();
-            const checkInterval = setInterval(() => {
-              // Check for cancellation, timeout, or completion
-              if (autoPilotCancelRef.current || 
-                  Date.now() - startTime > maxWaitTime ||
-                  (!isSending && animatingMessageIndex === null)) {
-                clearInterval(checkInterval);
-                resolve();
-              }
-            }, 500);
-          });
-          
-          // Check cancellation after each exchange
-          if (autoPilotCancelRef.current) break;
-          
-          // Extra delay to let the UI settle
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      } catch (error) {
-        console.error("Auto-pilot error:", error);
-        break;
-      }
-    }
-    
-    setIsAutoPilot(false);
-    setAutoPilotCount(0);
-  }, [isDev, moduleNumber, transcript, sendMessage, isSending, animatingMessageIndex]);
-
-  const stopAutoPilot = useCallback(() => {
-    autoPilotCancelRef.current = true;
-    setIsAutoPilot(false);
-    setAutoPilotCount(0);
-  }, []);
 
   const handleModuleComplete = async () => {
     console.log("[handleModuleComplete] Starting, moduleNumber:", moduleNumber);
@@ -638,17 +512,6 @@ export default function ModulePage() {
               >
                 →
               </button>
-              {isDev && (
-                <button
-                  className="sp-dev-button"
-                  data-testid="button-auto-client"
-                  onClick={handleAutoClient}
-                  disabled={isAutoClientLoading || isSending}
-                  title="Auto-generate client response (Dev only)"
-                >
-                  {isAutoClientLoading ? "..." : "🤖"}
-                </button>
-              )}
             </div>
             <div className="sp-status-line" data-testid="status-line">{status}</div>
           </div>
