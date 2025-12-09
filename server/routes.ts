@@ -2653,6 +2653,109 @@ FORMAT:
     }
   });
 
+  // ============================================
+  // MODULE DATA ENDPOINTS (Database persistence for module state)
+  // ============================================
+  
+  // GET /api/module/:moduleNumber/data - Load module transcript, summary, and completion status
+  app.get("/api/module/:moduleNumber/data", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const moduleNumber = parseInt(req.params.moduleNumber) as 1 | 2 | 3;
+      
+      if (![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "Invalid module number" });
+      }
+      
+      const moduleData = await storage.getModuleData(userId, moduleNumber);
+      
+      if (!moduleData) {
+        // No transcript record exists, return empty state
+        return res.json({
+          transcript: null,
+          summary: null,
+          complete: false,
+        });
+      }
+      
+      res.json(moduleData);
+    } catch (error: any) {
+      console.error("Load module data error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // POST /api/module/:moduleNumber/data - Save module transcript, summary, and/or completion status
+  app.post("/api/module/:moduleNumber/data", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const moduleNumber = parseInt(req.params.moduleNumber) as 1 | 2 | 3;
+      
+      if (![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "Invalid module number" });
+      }
+      
+      const { transcript, summary, complete } = req.body;
+      
+      // Ensure user has a transcript record first
+      let existingTranscript = await storage.getTranscriptByUserId(userId);
+      if (!existingTranscript) {
+        // Create a basic transcript record for this user
+        const sessionToken = crypto.randomBytes(32).toString("hex");
+        await storage.createTranscript({
+          sessionToken,
+          userId,
+          transcript: [],
+          currentModule: `Module ${moduleNumber}`,
+          progress: 0,
+          interviewComplete: false,
+          paymentVerified: false,
+        });
+      }
+      
+      // Update module data
+      await storage.updateModuleData(userId, moduleNumber, {
+        transcript,
+        summary,
+        complete,
+      });
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Save module data error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // GET /api/modules/status - Get completion status for all modules
+  app.get("/api/modules/status", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const transcript = await storage.getTranscriptByUserId(userId);
+      
+      if (!transcript) {
+        return res.json({
+          modules: [
+            { number: 1, complete: false, summary: null },
+            { number: 2, complete: false, summary: null },
+            { number: 3, complete: false, summary: null },
+          ],
+        });
+      }
+      
+      res.json({
+        modules: [
+          { number: 1, complete: transcript.module1Complete || false, summary: transcript.module1Summary || null },
+          { number: 2, complete: transcript.module2Complete || false, summary: transcript.module2Summary || null },
+          { number: 3, complete: transcript.module3Complete || false, summary: transcript.module3Summary || null },
+        ],
+      });
+    } catch (error: any) {
+      console.error("Get modules status error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // GET /api/test-db - Test database connectivity
   app.get("/api/test-db", async (req, res) => {
     try {
