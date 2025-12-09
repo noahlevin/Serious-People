@@ -130,11 +130,18 @@ export function formatContent(content: string, optionsOrSkipTitleCard: FormatOpt
 }
 
 export function extractTitleCard(content: string): { name: string; time: string } | null {
-  // Match title cards with optional markdown heading prefix (# or ##) and optional leading characters
+  // Match title cards with optional markdown heading prefix (# or ##)
   const match = content.match(/^(?:#+ )?—\s*(.+?)\s*\(est\.\s*([^)]+)\)\s*—/m);
   if (match) {
     return { name: match[1].trim(), time: match[2].trim() };
   }
+  
+  // Fallback: Match "MODULE N: Title" + "Estimated Time: X-Y minutes" format (with or without code blocks)
+  const altMatch = content.match(/MODULE\s*\d*:?\s*(.+?)[\n\r]+.*?(?:Estimated\s+Time|est\.?)[:.]?\s*(\d+[-–]\d+\s*minutes)/im);
+  if (altMatch) {
+    return { name: altMatch[1].trim(), time: altMatch[2].trim() };
+  }
+  
   return null;
 }
 
