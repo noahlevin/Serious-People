@@ -65,6 +65,8 @@ export function formatContent(content: string, optionsOrSkipTitleCard: FormatOpt
   // Skip bullet conversion when content will be wrapped in <li> elements
   if (!options.skipBulletConversion) {
     formatted = formatted.replace(/^- (.+)$/gm, "• $1");
+    // Also convert standalone dashes on their own line to bullets
+    formatted = formatted.replace(/^- ?$/gm, "•");
   }
   
   // Handle line breaks unless skipped (useful for inline list items)
@@ -73,6 +75,11 @@ export function formatContent(content: string, optionsOrSkipTitleCard: FormatOpt
     formatted = formatted.replace(/\n/g, "<br>");
     formatted = formatted.replace(/^(<br>)+/, "");
     formatted = formatted.replace(/(<br>){3,}/g, "<br><br>");
+    
+    // Fix orphaned bullets: reconnect bullets that are on their own line with following content
+    // This handles cases where LLM outputs "•\n**Bold heading**" format
+    formatted = formatted.replace(/•(<br>)+(<b>)/g, "• $2");  // Bullet followed by line breaks then bold
+    formatted = formatted.replace(/•(<br>)+([^<])/g, "• $2");  // Bullet followed by line breaks then text
     
     // Remove SINGLE line breaks before/after bold and italic tags to keep inline text together
     // BUT preserve DOUBLE line breaks (paragraphs), line breaks before bullet points, and numbered lists
