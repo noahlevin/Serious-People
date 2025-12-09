@@ -130,7 +130,8 @@ export function formatContent(content: string, optionsOrSkipTitleCard: FormatOpt
 }
 
 export function extractTitleCard(content: string): { name: string; time: string } | null {
-  const match = content.match(/^—\s*(.+?)\s*\(est\.\s*([^)]+)\)\s*—/m);
+  // Match title cards with optional markdown heading prefix (# or ##) and optional leading characters
+  const match = content.match(/^(?:#+ )?—\s*(.+?)\s*\(est\.\s*([^)]+)\)\s*—/m);
   if (match) {
     return { name: match[1].trim(), time: match[2].trim() };
   }

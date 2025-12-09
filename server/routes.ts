@@ -2065,7 +2065,7 @@ Use [[OPTIONS]]...[[END_OPTIONS]] liberally — at least every 2-3 turns. When e
 On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
 — Job Autopsy (est. 10–20 minutes) —
 
-CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, or ASCII box art.
+CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, ASCII box art, or markdown heading prefixes like #.
 
 Then introduce the module and ask your first probing question based on what you know about their situation.
 
@@ -2139,7 +2139,7 @@ Use [[OPTIONS]]...[[END_OPTIONS]] liberally — at least every 2-3 turns. When e
 On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
 — Fork in the Road (est. 10–20 minutes) —
 
-CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, or ASCII box art.
+CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, ASCII box art, or markdown heading prefixes like #.
 
 Then recap their situation briefly and ask your first question about options.
 
@@ -2213,7 +2213,7 @@ Use [[OPTIONS]]...[[END_OPTIONS]] liberally — at least every 2-3 turns. When e
 On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
 — The Great Escape Plan (est. 10–20 minutes) —
 
-CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, or ASCII box art.
+CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, ASCII box art, or markdown heading prefixes like #.
 
 Then recap where they landed and start building the plan.
 
@@ -2419,7 +2419,7 @@ ${info.structure}
 On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
 — ${name} (est. 10–20 minutes) —
 
-CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, or ASCII box art.
+CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, ASCII box art, or markdown heading prefixes like #.
 
 Then introduce the module and ask your first probing question based on what you know about their situation.
 
