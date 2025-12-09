@@ -98,8 +98,8 @@ export default function Success() {
       if (data.ok) {
         analytics.paymentCompleted();
         if (loadTranscript()) {
-          // Check if dossier already exists (generated at interview completion)
-          // If not, generate it now as a fallback
+          // Check if dossier already exists (generated when planCard was saved)
+          // If ready, skip success page and go straight to Module 1
           setState("preparing-coaching");
           
           try {
@@ -108,9 +108,12 @@ export default function Success() {
             const transcriptData = checkRes.ok ? await checkRes.json() : null;
             
             if (transcriptData?.clientDossier) {
-              // Dossier already exists (generated during interview)
-              console.log("Client dossier already exists");
-              setState("ready");
+              // Dossier already exists - skip success page, go straight to Module 1
+              console.log("Client dossier ready, redirecting to Module 1");
+              sessionStorage.setItem("payment_verified", "true");
+              queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
+              setLocation("/module/1");
+              return;
             } else {
               // Dossier not found - generate it now as fallback
               console.log("Dossier not found, generating now...");
@@ -122,14 +125,20 @@ export default function Success() {
               
               if (dossierRes.ok) {
                 console.log("Client dossier generated successfully (fallback)");
+                // Now redirect to Module 1
+                sessionStorage.setItem("payment_verified", "true");
+                queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
+                setLocation("/module/1");
+                return;
               } else {
                 console.error("Failed to generate client dossier");
+                // Show ready state so user can manually proceed
+                setState("ready");
               }
-              setState("ready");
             }
           } catch (err) {
             console.error("Error checking/generating client dossier:", err);
-            // Still allow proceeding - the module retry logic will handle missing dossier
+            // Still allow proceeding - show ready state
             setState("ready");
           }
         } else {

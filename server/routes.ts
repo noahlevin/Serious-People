@@ -346,42 +346,104 @@ Important:
 
 Output ONLY valid JSON. No markdown, no explanation, just the JSON object.`;
 
-// Helper function to generate interview analysis using AI
-async function generateInterviewAnalysis(transcript: { role: string; content: string }[]): Promise<InterviewAnalysis | null> {
+// Helper function to generate interview analysis using AI (single attempt)
+async function generateInterviewAnalysisSingle(transcript: { role: string; content: string }[]): Promise<InterviewAnalysis> {
+  const transcriptText = transcript.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+  
+  let response: string;
+  
+  if (useAnthropic && anthropic) {
+    const result = await anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 4096,
+      system: INTERVIEW_ANALYSIS_PROMPT,
+      messages: [{ role: "user", content: transcriptText }],
+    });
+    response = result.content[0].type === 'text' ? result.content[0].text : '';
+  } else {
+    const result = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        { role: "system", content: INTERVIEW_ANALYSIS_PROMPT },
+        { role: "user", content: transcriptText }
+      ],
+      max_completion_tokens: 4096,
+    });
+    response = result.choices[0].message.content || '';
+  }
+  
+  // Parse JSON response
+  const jsonMatch = response.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return JSON.parse(jsonMatch[0]) as InterviewAnalysis;
+  }
+  throw new Error("Failed to parse interview analysis JSON from AI response");
+}
+
+// Helper function to generate interview analysis with retry logic
+async function generateInterviewAnalysis(transcript: { role: string; content: string }[], maxRetries: number = 3): Promise<InterviewAnalysis | null> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[DOSSIER] Generating interview analysis (attempt ${attempt}/${maxRetries})...`);
+      const result = await generateInterviewAnalysisSingle(transcript);
+      console.log(`[DOSSIER] Interview analysis generated successfully on attempt ${attempt}`);
+      return result;
+    } catch (error: any) {
+      console.error(`[DOSSIER] Attempt ${attempt} failed:`, error.message);
+      if (attempt === maxRetries) {
+        console.error(`[DOSSIER] All ${maxRetries} attempts failed`);
+        return null;
+      }
+      // Wait before retry (exponential backoff: 1s, 2s, 4s)
+      const waitMs = Math.pow(2, attempt - 1) * 1000;
+      console.log(`[DOSSIER] Waiting ${waitMs}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, waitMs));
+    }
+  }
+  return null;
+}
+
+// Helper function to generate and save dossier with retry logic
+// Returns true if dossier was created/updated, false if failed
+async function generateAndSaveDossier(userId: string, transcript: { role: string; content: string }[]): Promise<boolean> {
+  const lockKey = String(userId);
+  const existingLock = dossierGenerationLocks.get(lockKey);
+  const now = Date.now();
+  
+  // Check if there's an active (non-stale) lock
+  if (existingLock && (now - existingLock) < DOSSIER_LOCK_TIMEOUT_MS) {
+    console.log(`[DOSSIER] Generation already in progress for user ${userId}, skipping`);
+    return false;
+  }
+  
+  // Acquire lock
+  dossierGenerationLocks.set(lockKey, now);
+  
   try {
-    const transcriptText = transcript.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+    console.log(`[DOSSIER] Starting generation for user ${userId} (${transcript.length} messages)`);
+    const interviewAnalysis = await generateInterviewAnalysis(transcript, 3);
     
-    let response: string;
-    
-    if (useAnthropic && anthropic) {
-      const result = await anthropic.messages.create({
-        model: "claude-haiku-4-5",
-        max_tokens: 4096,
-        system: INTERVIEW_ANALYSIS_PROMPT,
-        messages: [{ role: "user", content: transcriptText }],
-      });
-      response = result.content[0].type === 'text' ? result.content[0].text : '';
-    } else {
-      const result = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
-        messages: [
-          { role: "system", content: INTERVIEW_ANALYSIS_PROMPT },
-          { role: "user", content: transcriptText }
-        ],
-        max_completion_tokens: 4096,
-      });
-      response = result.choices[0].message.content || '';
+    if (!interviewAnalysis) {
+      console.error(`[DOSSIER] Failed to generate analysis for user ${userId} after all retries`);
+      return false;
     }
     
-    // Parse JSON response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]) as InterviewAnalysis;
-    }
-    return null;
-  } catch (error) {
-    console.error("Failed to generate interview analysis:", error);
-    return null;
+    const dossier: ClientDossier = {
+      interviewTranscript: transcript,
+      interviewAnalysis,
+      moduleRecords: [],
+      lastUpdated: new Date().toISOString(),
+    };
+    
+    await storage.updateClientDossier(userId, dossier);
+    console.log(`[DOSSIER] Successfully saved for user ${userId}`);
+    return true;
+  } catch (error: any) {
+    console.error(`[DOSSIER] Error generating for user ${userId}:`, error.message);
+    return false;
+  } finally {
+    // Release lock
+    dossierGenerationLocks.delete(lockKey);
   }
 }
 
@@ -1608,6 +1670,8 @@ COMMUNICATION STYLE:
           valueBullets: transcript.valueBullets,
           socialProof: transcript.socialProof,
           planCard: transcript.planCard,
+          // Include clientDossier presence flag for success page redirect logic
+          clientDossier: transcript.clientDossier ? true : null,
         });
       } else {
         res.json({ transcript: null });
@@ -1618,59 +1682,7 @@ COMMUNICATION STYLE:
     }
   });
   
-  // POST /api/transcript - Save user's transcript
-  app.post("/api/transcript", requireAuth, async (req, res) => {
-    try {
-      const userId = req.user!.id;
-      const { 
-        transcript, 
-        currentModule, 
-        progress, 
-        interviewComplete, 
-        paymentVerified,
-        valueBullets,
-        socialProof,
-        planCard
-      } = req.body;
-      
-      // Check if user already has a transcript
-      let existingTranscript = await storage.getTranscriptByUserId(userId);
-      
-      if (existingTranscript) {
-        // Update existing transcript
-        await storage.updateTranscript(existingTranscript.sessionToken, {
-          transcript,
-          currentModule,
-          progress,
-          interviewComplete,
-          paymentVerified,
-          valueBullets,
-          socialProof,
-          planCard,
-        });
-      } else {
-        // Create new transcript with a session token
-        const sessionToken = crypto.randomBytes(32).toString("hex");
-        await storage.createTranscript({
-          sessionToken,
-          userId,
-          transcript: transcript || [],
-          currentModule: currentModule || "Interview",
-          progress: progress || 0,
-          interviewComplete: interviewComplete || false,
-          paymentVerified: paymentVerified || false,
-          valueBullets,
-          socialProof,
-          planCard,
-        });
-      }
-      
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error("Save transcript error:", error);
-      res.status(500).json({ error: "Failed to save transcript" });
-    }
-  });
+  // NOTE: POST /api/transcript is defined later in the file with dossier generation logic
   
   // ============== EXISTING ROUTES ==============
   
@@ -1806,8 +1818,8 @@ COMMUNICATION STYLE:
   });
 
   // POST /api/interview/complete - Lightweight endpoint to mark interview complete
-  // Called BEFORE Stripe redirect to ensure database is updated (no keepalive needed)
-  // Uses server-side transcript data to avoid 64KB keepalive body limit
+  // Called BEFORE Stripe redirect to ensure database is updated
+  // Note: Dossier generation now happens when planCard is saved via POST /api/transcript
   app.post("/api/interview/complete", async (req, res) => {
     try {
       const user = req.user as any;
@@ -1823,7 +1835,7 @@ COMMUNICATION STYLE:
       // Already complete - return success
       if (transcript.interviewComplete) {
         console.log(`[INTERVIEW COMPLETE] User ${user.id} already marked complete`);
-        return res.json({ ok: true, alreadyComplete: true });
+        return res.json({ ok: true, alreadyComplete: true, hasDossier: !!transcript.clientDossier });
       }
 
       // Mark interview as complete in database
@@ -1834,44 +1846,17 @@ COMMUNICATION STYLE:
 
       console.log(`[INTERVIEW COMPLETE] Marked interview complete for user ${user.id}`);
 
-      // Start dossier generation asynchronously (don't wait for it)
-      // This uses server-side transcript data, avoiding keepalive body size issues
-      if (!transcript.clientDossier && transcript.transcript && Array.isArray(transcript.transcript)) {
-        const transcriptMessages = transcript.transcript as { role: string; content: string }[];
-        
-        // Fire and forget - don't block the response
-        (async () => {
-          try {
-            console.log(`[DOSSIER] Starting async generation for user ${user.id}`);
-            const interviewAnalysis = await generateInterviewAnalysis(transcriptMessages);
-            
-            if (interviewAnalysis) {
-              const dossier: ClientDossier = {
-                interviewTranscript: transcriptMessages,
-                interviewAnalysis,
-                moduleRecords: [],
-                lastUpdated: new Date().toISOString(),
-              };
-              await storage.updateClientDossier(user.id, dossier);
-              console.log(`[DOSSIER] Successfully generated for user ${user.id}`);
-            } else {
-              console.error(`[DOSSIER] Failed to generate analysis for user ${user.id}`);
-            }
-          } catch (err) {
-            console.error(`[DOSSIER] Error generating for user ${user.id}:`, err);
-          }
-        })();
-      }
-
-      res.json({ ok: true });
+      // Dossier should already exist (generated when planCard was saved)
+      // Just report whether it's ready
+      res.json({ ok: true, hasDossier: !!transcript.clientDossier });
     } catch (error: any) {
       console.error("Interview complete error:", error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  // POST /api/generate-dossier - Generate initial client dossier after payment
-  // This runs in the background after payment verification
+  // POST /api/generate-dossier - Fallback endpoint to generate dossier if missing
+  // Normally dossier is generated when planCard is saved, but this provides a fallback
   app.post("/api/generate-dossier", async (req, res) => {
     try {
       const user = req.user as any;
@@ -1890,27 +1875,16 @@ COMMUNICATION STYLE:
         return res.json({ ok: true, message: "Dossier already exists" });
       }
 
-      console.log(`Generating client dossier for user ${user.id}...`);
+      console.log(`[GENERATE-DOSSIER] Fallback generation for user ${user.id}...`);
 
-      // Generate the interview analysis
-      const interviewAnalysis = await generateInterviewAnalysis(transcript.transcript as { role: string; content: string }[]);
+      // Use the shared helper with retry logic
+      const transcriptMessages = transcript.transcript as { role: string; content: string }[];
+      const success = await generateAndSaveDossier(user.id, transcriptMessages);
       
-      if (!interviewAnalysis) {
-        return res.status(500).json({ error: "Failed to generate interview analysis" });
+      if (!success) {
+        return res.status(500).json({ error: "Failed to generate dossier after retries" });
       }
 
-      // Create the initial dossier
-      const dossier: ClientDossier = {
-        interviewTranscript: transcript.transcript as { role: string; content: string }[],
-        interviewAnalysis,
-        moduleRecords: [],
-        lastUpdated: new Date().toISOString(),
-      };
-
-      // Save to database
-      await storage.updateClientDossier(user.id, dossier);
-
-      console.log(`Client dossier generated successfully for user ${user.id}`);
       res.json({ ok: true });
     } catch (error: any) {
       console.error("Generate dossier error:", error);
@@ -3076,6 +3050,7 @@ FORMAT:
   });
 
   // POST /api/transcript - Save user's transcript to database
+  // Also triggers dossier generation when planCard is present
   app.post("/api/transcript", requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any)?.id;
@@ -3098,6 +3073,30 @@ FORMAT:
         return res.status(400).json({ error: "Invalid transcript format" });
       }
 
+      // Check if we need to generate/regenerate dossier
+      // This happens when planCard is present in the save request
+      let dossierGenerated = false;
+      if (planCard && transcript.length > 0) {
+        // Check if dossier already exists and if planCard has changed
+        const existingTranscript = await storage.getTranscriptByUserId(userId);
+        const existingPlanCard = existingTranscript?.planCard;
+        const planCardChanged = !existingPlanCard || 
+          JSON.stringify(existingPlanCard) !== JSON.stringify(planCard);
+        
+        if (planCardChanged) {
+          console.log(`[TRANSCRIPT] Plan card ${existingPlanCard ? 'changed' : 'created'} for user ${userId}, triggering dossier generation`);
+          
+          // Generate dossier synchronously so it's ready before payment
+          const transcriptMessages = transcript as { role: string; content: string }[];
+          dossierGenerated = await generateAndSaveDossier(userId, transcriptMessages);
+          
+          if (!dossierGenerated) {
+            console.error(`[TRANSCRIPT] Dossier generation failed for user ${userId}`);
+            // Don't fail the request, just log - dossier can be retried later
+          }
+        }
+      }
+
       // Upsert transcript for this user
       const result = await storage.upsertTranscriptByUserId(userId, {
         transcript,
@@ -3110,7 +3109,7 @@ FORMAT:
         planCard,
       });
 
-      res.json({ success: true, id: result.id });
+      res.json({ success: true, id: result.id, dossierGenerated });
     } catch (error: any) {
       console.error("Save transcript error:", error);
       res.status(500).json({ error: error.message });
