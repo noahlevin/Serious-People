@@ -123,6 +123,110 @@ async function findActivePromoCode(priceCurrency: string): Promise<ActivePromoRe
 }
 
 // ============================================================================
+// ROBUST TRANSCRIPT LOADING WITH RETRY
+// Handles race conditions where transcript may not be immediately available
+// ============================================================================
+
+interface TranscriptLoadResult {
+  success: boolean;
+  transcript: any | null;
+  clientDossier: ClientDossier | null;
+  planCard: CoachingPlan | null;
+  error?: string;
+}
+
+async function loadUserTranscriptWithRetry(
+  userId: number | string,
+  options: {
+    requireDossier?: boolean;
+    requirePlanCard?: boolean;
+    maxAttempts?: number;
+    delayMs?: number;
+  } = {}
+): Promise<TranscriptLoadResult> {
+  const {
+    requireDossier = false,
+    requirePlanCard = false,
+    maxAttempts = 3,
+    delayMs = 1000,
+  } = options;
+
+  // Ensure userId is a string for storage.getTranscriptByUserId
+  const userIdStr = String(userId);
+
+  let attempts = 0;
+  let lastError = "";
+
+  while (attempts < maxAttempts) {
+    attempts++;
+    
+    try {
+      const transcript = await storage.getTranscriptByUserId(userIdStr);
+      
+      if (!transcript) {
+        lastError = "No transcript found for user";
+        console.log(`[TranscriptLoader] Attempt ${attempts}/${maxAttempts}: No transcript for user ${userId}`);
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          continue;
+        }
+        break;
+      }
+
+      // Check if we have the required data
+      const hasDossier = !!transcript.clientDossier;
+      const hasPlanCard = !!transcript.planCard;
+
+      if (requireDossier && !hasDossier) {
+        lastError = "Interview completed but client dossier not yet generated";
+        console.log(`[TranscriptLoader] Attempt ${attempts}/${maxAttempts}: Missing dossier for user ${userId}`);
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          continue;
+        }
+        break;
+      }
+
+      if (requirePlanCard && !hasPlanCard) {
+        lastError = "Interview completed but coaching plan not yet generated";
+        console.log(`[TranscriptLoader] Attempt ${attempts}/${maxAttempts}: Missing planCard for user ${userId}`);
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          continue;
+        }
+        break;
+      }
+
+      // Success - we have all required data
+      console.log(`[TranscriptLoader] Successfully loaded transcript for user ${userId} on attempt ${attempts}`);
+      return {
+        success: true,
+        transcript,
+        clientDossier: transcript.clientDossier || null,
+        planCard: transcript.planCard || null,
+      };
+
+    } catch (err: any) {
+      lastError = err.message || "Database error loading transcript";
+      console.error(`[TranscriptLoader] Attempt ${attempts}/${maxAttempts} error:`, err);
+      if (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+
+  // All attempts failed
+  console.error(`[TranscriptLoader] Failed to load transcript for user ${userId} after ${maxAttempts} attempts: ${lastError}`);
+  return {
+    success: false,
+    transcript: null,
+    clientDossier: null,
+    planCard: null,
+    error: lastError,
+  };
+}
+
+// ============================================================================
 // CLIENT DOSSIER GENERATION - INTERNAL AI NOTES (NEVER SHOWN TO USER)
 // ============================================================================
 
@@ -823,17 +927,6 @@ export async function registerRoutes(
     try {
       const userId = req.user!.id;
       
-      // Get user's transcript
-      const transcript = await storage.getTranscriptByUserId(userId);
-      if (!transcript) {
-        return res.status(400).json({ error: "No transcript found for user" });
-      }
-      
-      // Check if all modules are complete
-      if (!transcript.module1Complete || !transcript.module2Complete || !transcript.module3Complete) {
-        return res.status(400).json({ error: "All modules must be completed before generating Serious Plan" });
-      }
-      
       // Check if already has a plan
       const existingPlan = await storage.getSeriousPlanByUserId(userId);
       if (existingPlan) {
@@ -845,9 +938,28 @@ export async function registerRoutes(
         });
       }
       
-      // Get dossier and coaching plan from transcript
-      const dossier = transcript.clientDossier as ClientDossier | null;
-      const planCard = transcript.planCard as CoachingPlan | null;
+      // Load transcript with retry logic - require dossier and planCard for Serious Plan generation
+      const loadResult = await loadUserTranscriptWithRetry(userId, {
+        requireDossier: true,
+        requirePlanCard: true,
+        maxAttempts: 3,
+        delayMs: 1500,
+      });
+      
+      if (!loadResult.success) {
+        return res.status(409).json({ 
+          error: "Context not ready",
+          message: loadResult.error,
+          retryable: true,
+        });
+      }
+      
+      const { transcript, clientDossier: dossier, planCard } = loadResult;
+      
+      // Check if all modules are complete
+      if (!transcript.module1Complete || !transcript.module2Complete || !transcript.module3Complete) {
+        return res.status(400).json({ error: "All modules must be completed before generating Serious Plan" });
+      }
       
       if (!planCard) {
         return res.status(400).json({ error: "No coaching plan found in transcript" });
@@ -1151,10 +1263,23 @@ export async function registerRoutes(
       // Get existing chat history
       const existingMessages = await storage.getCoachChatMessages(planId);
       
-      // Get user's coaching context from the interview transcript
-      const transcript = await storage.getTranscriptByUserId(userId);
-      const clientDossier = transcript?.clientDossier || null;
-      const coachingPlan = transcript?.planCard || null;
+      // Get user's coaching context from the interview transcript with retry
+      const loadResult = await loadUserTranscriptWithRetry(userId, {
+        requireDossier: true,
+        requirePlanCard: true,
+        maxAttempts: 2, // Less aggressive retries since user should definitely have data at this point
+        delayMs: 1000,
+      });
+      
+      if (!loadResult.success) {
+        return res.status(409).json({ 
+          error: "Context not ready",
+          message: loadResult.error,
+          retryable: true,
+        });
+      }
+      
+      const { clientDossier, planCard: coachingPlan } = loadResult;
       
       // Get the artifacts for context
       const artifacts = await storage.getArtifactsByPlanId(planId);
@@ -2512,20 +2637,31 @@ ${dossierContext}`;
       const lastUserMessage = [...transcript].reverse().find((t: any) => t.role === 'user');
       const isTestSkip = lastUserMessage?.content?.toLowerCase().trim() === 'testskip';
 
-      // Try to get the user's coaching plan and dossier from the database
-      let planCard = null;
-      let clientDossier: ClientDossier | null = null;
-      if (req.user && (req.user as any).id) {
-        const userTranscript = await storage.getTranscriptByUserId((req.user as any).id);
-        if (userTranscript) {
-          if (userTranscript.planCard) {
-            planCard = userTranscript.planCard;
-          }
-          if (userTranscript.clientDossier) {
-            clientDossier = userTranscript.clientDossier;
-          }
-        }
+      // Ensure user is authenticated
+      if (!req.user || !(req.user as any).id) {
+        return res.status(401).json({ error: "Authentication required" });
       }
+      const userId = (req.user as any).id;
+
+      // Load transcript with retry logic - REQUIRE dossier for modules
+      // This prevents the AI from fabricating context when data is missing
+      const loadResult = await loadUserTranscriptWithRetry(userId, {
+        requireDossier: true,
+        requirePlanCard: true,
+        maxAttempts: 3,
+        delayMs: 1500,
+      });
+
+      if (!loadResult.success) {
+        // Return a specific error code so frontend can handle appropriately
+        return res.status(409).json({ 
+          error: "Context not ready",
+          message: loadResult.error,
+          retryable: true,
+        });
+      }
+
+      const { clientDossier, planCard } = loadResult;
 
       // Generate dynamic system prompt based on the coaching plan and dossier
       let systemPrompt = generateModulePrompt(moduleNumber, planCard, clientDossier);
@@ -2642,14 +2778,12 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
           summary = summaryMatch[1].trim();
         }
         
-        // Mark module as complete in database if user is authenticated
-        if (req.user && (req.user as any).id) {
-          try {
-            await storage.updateModuleComplete((req.user as any).id, moduleNumber as 1 | 2 | 3, true);
-            console.log(`Module ${moduleNumber} marked complete for user ${(req.user as any).id}`);
-          } catch (err) {
-            console.error("Failed to mark module complete:", err);
-          }
+        // Mark module as complete in database (user is already authenticated at this point)
+        try {
+          await storage.updateModuleComplete(userId, moduleNumber as 1 | 2 | 3, true);
+          console.log(`Module ${moduleNumber} marked complete for user ${userId}`);
+        } catch (err) {
+          console.error("Failed to mark module complete:", err);
         }
       }
 
