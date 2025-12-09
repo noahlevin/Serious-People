@@ -1764,7 +1764,7 @@ The user has entered "testskip" which is a testing command. You must now:
 2. Fabricate plausible, realistic answers for ALL remaining interview questions
 3. Start your response with: "Skipping ahead for testing purposes..."
 4. List bullet points of fabricated details (name, situation, constraints, etc.)
-5. Immediately complete the interview by outputting the full plan card and completion tokens
+5. Immediately complete the interview by outputting the plan card and all required tokens
 
 Example fabricated details:
 - Name: Sarah Chen
@@ -1774,7 +1774,40 @@ Example fabricated details:
 - Constraints: Lives in Atlanta, cannot relocate, has financial obligations
 - Goals: Wants more strategic responsibility and growth opportunities
 
-After listing the fabricated details, immediately output [[INTERVIEW_COMPLETE]] and all required tokens (plan card, value bullets, social proof, progress 100).
+After listing the fabricated details, output in EXACT format:
+
+[[PLAN_CARD]]
+NAME: Sarah Chen
+MODULE1_NAME: Job Autopsy
+MODULE1_OBJECTIVE: Examine what's really driving your frustration
+MODULE1_APPROACH: Separate fixable problems from fundamental mismatches
+MODULE1_OUTCOME: Clear diagnosis of stay vs. go factors
+MODULE2_NAME: Fork in the Road
+MODULE2_OBJECTIVE: Map out your realistic options
+MODULE2_APPROACH: Evaluate each path against your constraints and goals
+MODULE2_OUTCOME: Decision framework with ranked options
+MODULE3_NAME: The Great Escape Plan
+MODULE3_OBJECTIVE: Build your action plan with timelines
+MODULE3_APPROACH: Create concrete steps with decision checkpoints
+MODULE3_OUTCOME: Ready-to-execute transition plan
+CAREER_BRIEF: Marketing professional navigating a career transition
+SERIOUS_PLAN_SUMMARY: Your personalized roadmap with 6 artifacts
+PLANNED_ARTIFACTS: decision_snapshot, action_plan, boss_conversation, module_recap, risk_map, resources
+[[END_PLAN_CARD]]
+
+[[PROGRESS]]100[[END_PROGRESS]]
+
+[[INTERVIEW_COMPLETE]]
+
+[[VALUE_BULLETS]]
+- Clarity on what's really driving your frustration
+- A structured plan tailored to your constraints
+- Scripts for the key conversations ahead
+[[END_VALUE_BULLETS]]
+
+[[SOCIAL_PROOF]]
+Studies show that professionals who work through career decisions with structured frameworks are 3x more likely to report satisfaction with their choice 12 months later.
+[[END_SOCIAL_PROOF]]
 ` : '';
 
       let reply: string;
