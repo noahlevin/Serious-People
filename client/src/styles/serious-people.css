@@ -2690,17 +2690,14 @@
 }
 
 /* Quote Section */
-.sp-landing-quote-section {
-  padding: 3rem 0;
-}
-
 .sp-landing-quote-box {
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  padding: 1.5rem;
-  border-top: 1px solid var(--sp-border);
-  border-bottom: 1px solid var(--sp-border);
+  padding: 2rem;
+  border: 1px solid var(--sp-border);
+  border-radius: 4px;
+  background: #ffffff;
   max-width: 500px;
   margin: 0 auto;
 }

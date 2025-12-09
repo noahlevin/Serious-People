@@ -233,7 +233,7 @@ export default function Landing() {
       </header>
 
       {/* BRAND QUOTE */}
-      <section className="sp-landing-section sp-landing-quote-section">
+      <section className="sp-landing-section sp-landing-section-alt">
         <div className="sp-landing-container">
           <div className="sp-landing-quote-box">
             <img src="/logan-roy.png" alt="Logan Roy" className="sp-landing-quote-image" />
