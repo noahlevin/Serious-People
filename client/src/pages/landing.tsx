@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useJourney, getNextStep } from "@/hooks/useJourney";
 import { useQuery } from "@tanstack/react-query";
 import "@/styles/serious-people.css";
 
@@ -94,12 +95,21 @@ const comparisons = [
 
 export default function Landing() {
   const { isAuthenticated } = useAuth();
+  const { journeyState, isLoading: journeyLoading } = useJourney();
   const [, setLocation] = useLocation();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [displayText, setDisplayText] = useState("");
   const phraseIndexRef = useRef(0);
   const charIndexRef = useRef(0);
   const isDeletingRef = useRef(false);
+  
+  // Calculate the correct path based on journey state
+  const getJourneyPath = () => {
+    if (!isAuthenticated || !journeyState) {
+      return "/login";
+    }
+    return getNextStep(journeyState).path;
+  };
   
   // Set page title and capture promo code from URL
   useEffect(() => {
@@ -142,7 +152,10 @@ export default function Landing() {
   ];
   
   const handleStartInterview = () => {
-    if (isAuthenticated) {
+    if (isAuthenticated && journeyState) {
+      setLocation(getNextStep(journeyState).path);
+    } else if (isAuthenticated && journeyLoading) {
+      // Still loading journey state, wait a moment
       setLocation("/interview");
     } else {
       setLocation("/login");
@@ -199,7 +212,7 @@ export default function Landing() {
             <span>Serious People</span>
           </div>
           {isAuthenticated ? (
-            <Link href="/interview" className="sp-landing-login-link" data-testid="link-continue">
+            <Link href={getJourneyPath()} className="sp-landing-login-link" data-testid="link-continue">
               Continue →
             </Link>
           ) : (
@@ -233,9 +246,15 @@ export default function Landing() {
             >
               Start the free interview
             </button>
-            <Link href="/login" className="sp-landing-cta-secondary" data-testid="link-resume">
-              Already started? Log back in →
-            </Link>
+            {isAuthenticated ? (
+              <Link href={getJourneyPath()} className="sp-landing-cta-secondary" data-testid="link-resume">
+                Already started? Continue →
+              </Link>
+            ) : (
+              <Link href="/login" className="sp-landing-cta-secondary" data-testid="link-resume">
+                Already started? Log back in →
+              </Link>
+            )}
           </div>
           
           <p className="sp-landing-reassurance">
