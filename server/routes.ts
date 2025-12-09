@@ -2314,15 +2314,15 @@ When the module is complete, include:
 [[MODULE_COMPLETE]]
 [[SUMMARY]]
 **Key Insights**
-- Insight 1
+- Insight 1 (written in second person - "you", not their name)
 - Insight 2
 - Insight 3
 
 **Summary**
-Your assessment of what was covered in 2-3 sentences.
+Your assessment of what was covered in 2-3 sentences. IMPORTANT: Write in second person ("you discovered", "your situation") - NOT third person with their name.
 
 **Key Takeaway**
-One concrete insight they can carry forward.
+One concrete insight they can carry forward (in second person).
 [[END_SUMMARY]]
 
 ${dossierContext}`;
