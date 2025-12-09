@@ -224,9 +224,7 @@ export default function ModulePage() {
       setAnimatingMessageIndex(updatedTranscript.length - 1);
 
       if (data.options && data.options.length > 0) {
-        setTimeout(() => {
-          setOptions(data.options || []);
-        }, data.reply.length * 12 + 100);
+        setOptions(data.options || []);
       }
     } catch (error) {
       console.error("Module error:", error);

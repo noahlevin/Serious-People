@@ -581,9 +581,7 @@ export default function Interview() {
       }
 
       if (data.options && data.options.length > 0) {
-        setTimeout(() => {
-          setOptions(data.options || []);
-        }, data.reply.length * 12 + 100);
+        setOptions(data.options || []);
       }
     } catch (error) {
       console.error("Interview error:", error);
