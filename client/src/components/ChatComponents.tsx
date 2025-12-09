@@ -59,6 +59,9 @@ export function formatContent(content: string, optionsOrSkipTitleCard: FormatOpt
   formatted = formatted.replace(/\{\{ITALIC_START\}\}/g, "<i>");
   formatted = formatted.replace(/\{\{ITALIC_END\}\}/g, "</i>");
 
+  // Convert markdown horizontal rules (--- on their own line) to <hr>
+  formatted = formatted.replace(/^---+$/gm, "<hr>");
+  
   // Skip bullet conversion when content will be wrapped in <li> elements
   if (!options.skipBulletConversion) {
     formatted = formatted.replace(/^- (.+)$/gm, "• $1");
