@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
+import { formatContent } from "@/components/ChatComponents";
 import { FileText, MessageCircle } from "lucide-react";
 import "@/styles/serious-people.css";
 
@@ -136,7 +137,10 @@ function TranscriptRenderer({ artifact }: { artifact: Artifact }) {
       {summary && (
         <div className="sp-transcript-summary" data-testid="text-transcript-summary">
           <h3 className="sp-artifact-h3">Summary</h3>
-          <p className="sp-body">{summary}</p>
+          <div 
+            className="sp-body sp-formatted-content"
+            dangerouslySetInnerHTML={{ __html: formatContent(summary) }}
+          />
         </div>
       )}
       <div className="sp-transcript-messages">
@@ -154,9 +158,10 @@ function TranscriptRenderer({ artifact }: { artifact: Artifact }) {
                 <span className="sp-transcript-user-icon">You</span>
               )}
             </div>
-            <div className="sp-transcript-content">
-              {msg.content}
-            </div>
+            <div 
+              className="sp-transcript-content sp-formatted-content"
+              dangerouslySetInnerHTML={{ __html: formatContent(msg.content) }}
+            />
           </div>
         ))}
       </div>
