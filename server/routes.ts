@@ -365,12 +365,16 @@ async function generateInterviewAnalysisSingle(transcript: { role: string; conte
     const result = await anthropic.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 8192, // Increased to prevent truncation
+      temperature: 0, // Use deterministic output to reduce variance
       system: INTERVIEW_ANALYSIS_PROMPT,
       messages: [
         { role: "user", content: transcriptText },
         { role: "assistant", content: "{" } // Prefill to ensure JSON starts correctly
       ],
     });
+    // Log stop reason and usage for debugging
+    console.log(`[DOSSIER_DEBUG] stop_reason=${result.stop_reason} input_tokens=${result.usage?.input_tokens} output_tokens=${result.usage?.output_tokens}`);
+    
     // Prepend the { since we used it as prefill
     const content = result.content[0].type === 'text' ? result.content[0].text : '';
     response = "{" + content;
@@ -3166,40 +3170,26 @@ FORMAT:
         return res.status(400).json({ error: "Invalid transcript format" });
       }
 
-      // Check if we need to generate/regenerate dossier
-      // This happens when planCard is present in the save request
-      let dossierGenerated = false;
-      let dossierDurationMs = 0;
+      // Check if we need to generate dossier BEFORE upsert (to get existing state)
+      let dossierTriggered = false;
+      let existingHasDossier = false;
+      let shouldTriggerDossier = false;
+      
       if (planCard && transcript.length > 0) {
-        // Check if dossier already exists and if planCard has changed
+        // Check existing state BEFORE we upsert
         const existingTranscript = await storage.getTranscriptByUserId(userId);
         const existingPlanCard = existingTranscript?.planCard;
-        const hasDossier = !!existingTranscript?.clientDossier;
+        existingHasDossier = !!existingTranscript?.clientDossier;
         const planCardChanged = !existingPlanCard || 
           JSON.stringify(existingPlanCard) !== JSON.stringify(planCard);
         
-        console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} planCardCheck existingPlanCard=${!!existingPlanCard} planCardChanged=${planCardChanged} hasDossier=${hasDossier}`);
+        console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} planCardCheck existingPlanCard=${!!existingPlanCard} planCardChanged=${planCardChanged} hasDossier=${existingHasDossier}`);
         
-        if (planCardChanged) {
-          const planCardAction = existingPlanCard ? 'changed' : 'created';
-          console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=triggering_dossier planCardAction=${planCardAction}`);
-          
-          // Generate dossier synchronously so it's ready before payment
-          const transcriptMessages = transcript as { role: string; content: string }[];
-          const dossierStart = Date.now();
-          const dossierResult = await generateAndSaveDossier(userId, transcriptMessages);
-          dossierDurationMs = Date.now() - dossierStart;
-          
-          // Consider both 'success' and 'in_progress' as acceptable (dossier is being handled)
-          dossierGenerated = dossierResult.status === 'success';
-          const dossierStatus = dossierResult.status;
-          console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} dossierResult=${dossierStatus} dossierDurationMs=${dossierDurationMs}`);
-        } else {
-          console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=skipping_dossier reason=planCard_unchanged`);
-        }
+        shouldTriggerDossier = planCardChanged && !existingHasDossier;
       }
-
-      // Upsert transcript for this user
+      
+      // SAVE THE TRANSCRIPT FIRST - this ensures planCard and messages are persisted
+      // before the user navigates to Stripe. Dossier generation happens in background.
       const upsertStart = Date.now();
       const result = await storage.upsertTranscriptByUserId(userId, {
         transcript,
@@ -3212,11 +3202,31 @@ FORMAT:
         planCard,
       });
       const upsertDurationMs = Date.now() - upsertStart;
+      
+      // Trigger dossier generation in background AFTER transcript is saved
+      if (shouldTriggerDossier) {
+        console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=triggering_dossier_background`);
+        
+        // Trigger dossier generation in BACKGROUND (fire-and-forget)
+        // This allows the POST to complete immediately so the user can proceed to payment
+        const transcriptMessages = transcript as { role: string; content: string }[];
+        generateAndSaveDossier(userId, transcriptMessages)
+          .then(result => {
+            console.log(`[DOSSIER_BACKGROUND] ts=${new Date().toISOString()} user=${userId} status=${result.status}`);
+          })
+          .catch(err => {
+            console.error(`[DOSSIER_BACKGROUND] ts=${new Date().toISOString()} user=${userId} status=error error="${err.message}"`);
+          });
+        
+        dossierTriggered = true;
+      } else if (planCard && existingHasDossier) {
+        console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=skipping_dossier reason=already_exists`);
+      }
 
       const durationMs = Date.now() - requestStart;
-      console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=success upsertDurationMs=${upsertDurationMs} dossierGenerated=${dossierGenerated} dossierDurationMs=${dossierDurationMs} durationMs=${durationMs}`);
+      console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=success upsertDurationMs=${upsertDurationMs} dossierTriggered=${dossierTriggered} durationMs=${durationMs}`);
 
-      res.json({ success: true, id: result.id, dossierGenerated });
+      res.json({ success: true, id: result.id, dossierTriggered });
     } catch (error: any) {
       const durationMs = Date.now() - requestStart;
       console.error(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${(req.user as any)?.id || 'unknown'} status=error durationMs=${durationMs} error="${error.message}"`);

@@ -18,11 +18,12 @@ The Serious Plan and its artifacts are generated in parallel upon completion of 
 
 **Dossier Generation:**
 Client dossiers are generated during the interview (when the plan card is created) to avoid delays after payment. The system uses:
-- Anthropic Claude Haiku 4.5 for speed (8192 max tokens to prevent truncation)
+- **Non-blocking architecture**: Transcript is saved FIRST, then dossier generation runs in background (fire-and-forget). This ensures planCard and messages are persisted immediately so subsequent reads see correct data.
+- Anthropic Claude Haiku 4.5 for speed (8192 max tokens, temperature=0 for deterministic output)
 - Anthropic prefill technique for reliable JSON output
 - OpenAI native JSON mode as fallback
 - In-memory locking (60s stale timeout) to prevent duplicate concurrent generation
-- Success page polling (every 2 seconds for up to 60 seconds) instead of blocking await
+- Success page polling (every 2 seconds for up to 60 seconds) with fallback generation if needed
 
 ## User Preferences
 
