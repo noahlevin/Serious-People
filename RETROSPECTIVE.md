@@ -13,6 +13,7 @@ This document captures lessons learned from building the Serious People career c
 3. [Instructions for Future Agents](#instructions-for-future-agents)
 4. [Bug Prevention Checklist](#bug-prevention-checklist)
 5. [Design Patterns That Work](#design-patterns-that-work)
+6. [Future Improvements / Technical Debt](#future-improvements--technical-debt)
 
 ---
 
@@ -124,10 +125,72 @@ The "testskip" command allows rapid testing without completing full conversation
 Typing "testskip" in any module causes the AI to:
 1. Fabricate plausible context based on prior conversation
 2. List what was fabricated
-3. Complete the module normally
+3. Complete the conversation content ONLY
 ```
 
+**Critical:** Testskip must only complete the conversational content and stop BEFORE triggering any final programmatic steps (like auto-starting the next phase). This allows testing the conversation flow without side effects.
+
 This saved hours of manual testing during development.
+
+### 8. State Machine for User Journey
+
+Using a state machine pattern to track where users are in their journey proved invaluable:
+
+```typescript
+// Journey states tracked in transcript
+{
+  interviewComplete: boolean;
+  hasPaid: boolean;
+  module1Complete: boolean;
+  module2Complete: boolean;
+  module3Complete: boolean;
+}
+
+// API endpoint resolves current state
+app.get("/api/journey", requireAuth, async (req, res) => {
+  const transcript = await storage.getTranscriptByUserId(userId);
+  const plan = await storage.getSeriousPlanByUserId(userId);
+  
+  // Determine current step based on state
+  let currentStep = 'interview';
+  if (transcript?.interviewComplete && !transcript?.hasPaid) currentStep = 'payment';
+  if (transcript?.hasPaid && !transcript?.module1Complete) currentStep = 'module1';
+  // ... etc
+  
+  res.json({ currentStep, ... });
+});
+```
+
+Benefits:
+- Users can always resume where they left off
+- Frontend can redirect to correct page on load
+- Easy to debug user state issues
+- Clear progression through the product
+
+### 9. Default Infrastructure Choices
+
+Starting with solid infrastructure from day one saved significant rework:
+
+**Database:** Use Replit's built-in PostgreSQL (Neon-backed) by default. It provides:
+- Automatic provisioning
+- Environment variables pre-configured
+- Rollback support
+- Easy access via SQL tools
+
+**Email:** Resend works well for transactional email:
+- Simple API
+- Good deliverability
+- Magic link authentication support
+- Webhook support for inbound email
+
+**Analytics:** PostHog for user behavior tracking:
+- Easy integration
+- Funnel analysis
+- User identification
+- **Important:** Always set email as a person property, not just the distinct_id:
+  ```typescript
+  posthog.identify(email, { email, name, ...otherProperties });
+  ```
 
 ---
 
@@ -423,6 +486,128 @@ function releaseLock(key: string): void {
 
 ---
 
+## Future Improvements / Technical Debt
+
+These are patterns we should implement in future projects or clean up in this one:
+
+### 1. Model Router for AI Prompts
+
+Currently, model selection is scattered throughout the codebase. A model router would make it easy to:
+- Test new models without code changes
+- A/B test model performance
+- Switch models based on task type
+
+**Recommended pattern:**
+
+```typescript
+// server/ai/modelRouter.ts
+type TaskType = 'chat' | 'analysis' | 'generation' | 'structured_json';
+
+interface ModelConfig {
+  provider: 'anthropic' | 'openai';
+  model: string;
+  maxTokens: number;
+  temperature: number;
+}
+
+const modelConfigs: Record<TaskType, ModelConfig> = {
+  chat: { provider: 'anthropic', model: 'claude-sonnet-4-20250514', maxTokens: 2048, temperature: 0.7 },
+  analysis: { provider: 'anthropic', model: 'claude-haiku-4-20250514', maxTokens: 8192, temperature: 0 },
+  generation: { provider: 'anthropic', model: 'claude-sonnet-4-20250514', maxTokens: 4096, temperature: 0.5 },
+  structured_json: { provider: 'openai', model: 'gpt-4.1-mini', maxTokens: 4096, temperature: 0 },
+};
+
+export function getModel(taskType: TaskType): ModelConfig {
+  return modelConfigs[taskType];
+}
+```
+
+### 2. Prompts as Separate Files
+
+Prompts are currently embedded in TypeScript files, making them hard to iterate on. Better pattern:
+
+```
+server/
+  prompts/
+    interview/
+      system.txt
+      complete-check.txt
+    modules/
+      module1-system.txt
+      module2-system.txt
+      module3-system.txt
+    artifacts/
+      action-plan.txt
+      decision-snapshot.txt
+    shared/
+      persona.txt
+      formatting.txt
+```
+
+**Benefits:**
+- Easy to read and edit prompts
+- Version control shows prompt changes clearly
+- Non-developers can contribute to prompt engineering
+- Prompts can be loaded dynamically
+
+**Implementation:**
+
+```typescript
+// server/ai/prompts.ts
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+const promptsDir = join(__dirname, 'prompts');
+
+export function loadPrompt(path: string): string {
+  return readFileSync(join(promptsDir, path), 'utf-8');
+}
+
+export function loadPromptWithVariables(path: string, vars: Record<string, string>): string {
+  let prompt = loadPrompt(path);
+  for (const [key, value] of Object.entries(vars)) {
+    prompt = prompt.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+  }
+  return prompt;
+}
+```
+
+### 3. Modular Prompt Components
+
+Common instructions (personas, formatting rules, JSON schemas) are duplicated across prompts. Use composition:
+
+```typescript
+// server/ai/promptBuilder.ts
+const components = {
+  persona: loadPrompt('shared/persona.txt'),
+  jsonFormatting: loadPrompt('shared/json-formatting.txt'),
+  markdownRules: loadPrompt('shared/markdown-rules.txt'),
+};
+
+export function buildPrompt(template: string, includes: string[]): string {
+  let prompt = template;
+  for (const include of includes) {
+    prompt = prompt.replace(`{{include:${include}}}`, components[include] || '');
+  }
+  return prompt;
+}
+
+// Usage in prompt file:
+// {{include:persona}}
+// 
+// Your task is to analyze the interview...
+// 
+// {{include:jsonFormatting}}
+```
+
+**Benefits:**
+- Single source of truth for shared instructions
+- Easy to update persona across all prompts
+- Smaller, more focused prompt files
+- Easier testing of individual components
+
+---
+
 ## Summary
 
 The key principles that made this project successful:
@@ -433,6 +618,9 @@ The key principles that made this project successful:
 4. **Recovery paths** - Design for failure and provide retry mechanisms.
 5. **Structured logging** - Make debugging easy with consistent, parseable logs.
 6. **Parallel when possible** - Use `Promise.all` for independent operations.
-7. **Test shortcuts** - Build in ways to test quickly (like "testskip").
+7. **Test shortcuts** - Build in ways to test quickly (like "testskip"), but keep them isolated from programmatic side effects.
+8. **State machine for journey** - Track user progress explicitly and resolve to correct state on page load.
+9. **Infrastructure from day one** - Start with database, email, and analytics configured properly.
+10. **Prompt organization** - Separate prompts from code, modularize common components.
 
 Following these patterns will help avoid the bugs we encountered and make the codebase more maintainable.
