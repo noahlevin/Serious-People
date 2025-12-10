@@ -441,7 +441,12 @@ async function generateInterviewAnalysis(transcript: { role: string; content: st
 
 // Helper function to generate and save dossier with retry logic
 // Returns true if dossier was created/updated, false if failed
-async function generateAndSaveDossier(userId: string, transcript: { role: string; content: string }[]): Promise<boolean> {
+type DossierResult = 
+  | { status: 'success' }
+  | { status: 'in_progress'; lockAgeMs: number }
+  | { status: 'failed'; error: string };
+
+async function generateAndSaveDossier(userId: string, transcript: { role: string; content: string }[]): Promise<DossierResult> {
   const startTime = Date.now();
   const lockKey = String(userId);
   const existingLock = dossierGenerationLocks.get(lockKey);
@@ -449,12 +454,12 @@ async function generateAndSaveDossier(userId: string, transcript: { role: string
   
   console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=started messageCount=${transcript.length} durationMs=0`);
   
-  // Check if there's an active (non-stale) lock
+  // Check if there's an active (non-stale) lock - this means generation is already in progress
   if (existingLock && (now - existingLock) < DOSSIER_LOCK_TIMEOUT_MS) {
     const lockAgeMs = now - existingLock;
     const durationMs = Date.now() - startTime;
-    console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=skipped_locked lockAgeMs=${lockAgeMs} timeoutMs=${DOSSIER_LOCK_TIMEOUT_MS} durationMs=${durationMs}`);
-    return false;
+    console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=in_progress lockAgeMs=${lockAgeMs} timeoutMs=${DOSSIER_LOCK_TIMEOUT_MS} durationMs=${durationMs}`);
+    return { status: 'in_progress', lockAgeMs };
   }
   
   // Acquire lock
@@ -470,7 +475,7 @@ async function generateAndSaveDossier(userId: string, transcript: { role: string
     if (!interviewAnalysis) {
       const durationMs = Date.now() - startTime;
       console.error(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=failed_analysis analysisMs=${analysisMs} durationMs=${durationMs}`);
-      return false;
+      return { status: 'failed', error: 'Analysis generation failed' };
     }
     
     const analysisCompleteMs = Date.now() - startTime;
@@ -489,11 +494,11 @@ async function generateAndSaveDossier(userId: string, transcript: { role: string
     
     const durationMs = Date.now() - startTime;
     console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=success analysisMs=${analysisMs} saveMs=${saveMs} durationMs=${durationMs}`);
-    return true;
+    return { status: 'success' };
   } catch (error: any) {
     const durationMs = Date.now() - startTime;
     console.error(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=error error="${error.message}" durationMs=${durationMs}`);
-    return false;
+    return { status: 'failed', error: error.message };
   } finally {
     // Release lock
     dossierGenerationLocks.delete(lockKey);
@@ -1979,16 +1984,23 @@ COMMUNICATION STYLE:
       // Use the shared helper with retry logic
       const transcriptMessages = transcript.transcript as { role: string; content: string }[];
       const generateStart = Date.now();
-      const success = await generateAndSaveDossier(user.id, transcriptMessages);
+      const result = await generateAndSaveDossier(user.id, transcriptMessages);
       const generateDurationMs = Date.now() - generateStart;
       
-      if (!success) {
-        const durationMs = Date.now() - requestStart;
-        console.error(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=failed generateDurationMs=${generateDurationMs} durationMs=${durationMs}`);
+      const durationMs = Date.now() - requestStart;
+      
+      if (result.status === 'in_progress') {
+        // Generation is already in progress (another request is handling it)
+        // Return success - the polling will pick up the dossier when it's ready
+        console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=in_progress lockAgeMs=${result.lockAgeMs} durationMs=${durationMs}`);
+        return res.json({ ok: true, message: "Generation in progress", inProgress: true });
+      }
+      
+      if (result.status === 'failed') {
+        console.error(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=failed generateDurationMs=${generateDurationMs} durationMs=${durationMs} error="${result.error}"`);
         return res.status(500).json({ error: "Failed to generate dossier after retries" });
       }
 
-      const durationMs = Date.now() - requestStart;
       console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=success generateDurationMs=${generateDurationMs} durationMs=${durationMs}`);
       res.json({ ok: true });
     } catch (error: any) {
@@ -3175,10 +3187,12 @@ FORMAT:
           // Generate dossier synchronously so it's ready before payment
           const transcriptMessages = transcript as { role: string; content: string }[];
           const dossierStart = Date.now();
-          dossierGenerated = await generateAndSaveDossier(userId, transcriptMessages);
+          const dossierResult = await generateAndSaveDossier(userId, transcriptMessages);
           dossierDurationMs = Date.now() - dossierStart;
           
-          const dossierStatus = dossierGenerated ? 'success' : 'failed';
+          // Consider both 'success' and 'in_progress' as acceptable (dossier is being handled)
+          dossierGenerated = dossierResult.status === 'success';
+          const dossierStatus = dossierResult.status;
           console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} dossierResult=${dossierStatus} dossierDurationMs=${dossierDurationMs}`);
         } else {
           console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=skipping_dossier reason=planCard_unchanged`);
