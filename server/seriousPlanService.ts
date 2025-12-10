@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import { z } from "zod";
 import { storage } from "./storage";
 import type { 
   ClientDossier, 
@@ -9,6 +10,19 @@ import type {
   ImportanceLevel,
   InterviewTranscript
 } from "@shared/schema";
+
+// Zod schema for validating AI artifact responses
+const artifactResponseSchema = z.object({
+  artifact_key: z.string().optional(), // Optional - we validate against expected key if provided
+  title: z.string().min(1, "Title is required"),
+  type: z.enum(['snapshot', 'conversation', 'narrative', 'plan', 'recap', 'resources']).default('snapshot'),
+  importance_level: z.enum(['must_read', 'recommended', 'optional', 'bonus']).default('recommended'),
+  why_important: z.string().nullable().optional(),
+  content: z.string().min(1, "Content is required"),
+  metadata: z.record(z.any()).nullable().optional(),
+});
+
+type ValidatedArtifactResponse = z.infer<typeof artifactResponseSchema>;
 
 const useAnthropic = !!process.env.ANTHROPIC_API_KEY;
 const anthropic = useAnthropic ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
@@ -620,22 +634,36 @@ async function generateSingleArtifact(
       throw new Error('Failed to parse AI response as JSON');
     }
 
-    const generated = JSON.parse(jsonMatch[0]);
-    
-    // Validate required fields
-    if (!generated.content || typeof generated.content !== 'string') {
-      throw new Error(`Invalid response: missing or invalid 'content' field for ${artifactKey}`);
+    let rawParsed: unknown;
+    try {
+      rawParsed = JSON.parse(jsonMatch[0]);
+    } catch (parseErr: any) {
+      throw new Error(`JSON parse error for ${artifactKey}: ${parseErr.message}`);
     }
     
-    // Update artifact immediately
+    // Validate with Zod schema
+    const validationResult = artifactResponseSchema.safeParse(rawParsed);
+    if (!validationResult.success) {
+      const errors = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      throw new Error(`Validation failed for ${artifactKey}: ${errors}`);
+    }
+    
+    const validated: ValidatedArtifactResponse = validationResult.data;
+    
+    // Warn if artifact_key doesn't match (but don't fail - AI might omit or mismatch)
+    if (validated.artifact_key && validated.artifact_key !== artifactKey) {
+      console.warn(`[ARTIFACT] ts=${new Date().toISOString()} plan=${planId} artifact=${artifactKey} warning=key_mismatch received=${validated.artifact_key}`);
+    }
+    
+    // Update artifact with validated data
     await storage.updateArtifact(artifactId, {
-      title: generated.title || formatArtifactKeyToTitle(artifactKey),
-      type: generated.type || 'snapshot',
-      importanceLevel: generated.importance_level || 'recommended',
-      whyImportant: generated.why_important || null,
-      contentRaw: generated.content,
+      title: validated.title || formatArtifactKeyToTitle(artifactKey),
+      type: validated.type,
+      importanceLevel: validated.importance_level as ImportanceLevel,
+      whyImportant: validated.why_important || null,
+      contentRaw: validated.content,
       generationStatus: 'complete',
-      metadata: generated.metadata || null,
+      metadata: validated.metadata || null,
     });
     
     const durationMs = Date.now() - startTime;

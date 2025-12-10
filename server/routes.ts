@@ -934,6 +934,67 @@ Continue using [[OPTIONS]] and [[PROGRESS]] throughout. Do NOT emit [[INTERVIEW_
 - Alternate between freeform and structured questions.
 - Include [[PROGRESS]]…[[END_PROGRESS]] in **every** reply.`;
 
+// Retry configuration for Serious Plan auto-start
+const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000, 120000, 300000]; // 5s, 15s, 30s, 1m, 2m, 5m
+const MAX_RETRY_ATTEMPTS = 6;
+
+/**
+ * Attempts to initialize Serious Plan with exponential backoff retry.
+ * Fire-and-forget - runs in background, doesn't block HTTP response.
+ */
+async function attemptSeriousPlanInitWithRetry(
+  userId: string,
+  sessionToken: string,
+  attempt: number
+): Promise<void> {
+  const ts = new Date().toISOString();
+  
+  // Check if plan was created by another process
+  const existingPlan = await storage.getSeriousPlanByUserId(userId);
+  if (existingPlan) {
+    console.log(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=skipped reason=plan_exists planId=${existingPlan.id}`);
+    return;
+  }
+  
+  // Get latest transcript
+  const transcript = await storage.getTranscript(sessionToken);
+  
+  if (transcript?.planCard && transcript?.clientDossier) {
+    // Data is ready - attempt initialization
+    console.log(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=starting`);
+    
+    try {
+      const result = await initializeSeriousPlan(
+        userId,
+        transcript.id,
+        transcript.planCard,
+        transcript.clientDossier,
+        transcript
+      );
+      
+      if (result.success) {
+        console.log(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=success planId=${result.planId}`);
+      } else {
+        console.error(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=init_failed error="${result.error}"`);
+      }
+    } catch (err: any) {
+      console.error(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=error error="${err.message}"`);
+    }
+  } else {
+    // Data not ready - schedule retry if attempts remain
+    if (attempt < MAX_RETRY_ATTEMPTS) {
+      const delay = RETRY_DELAYS_MS[attempt - 1] || RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
+      console.log(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=waiting reason=missing_data nextAttemptIn=${delay}ms`);
+      
+      setTimeout(() => {
+        attemptSeriousPlanInitWithRetry(userId, sessionToken, attempt + 1);
+      }, delay);
+    } else {
+      console.error(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=exhausted reason=max_retries_reached`);
+    }
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -2081,30 +2142,12 @@ COMMUNICATION STYLE:
           if (existingPlan) {
             console.log(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=skipped reason=plan_exists planId=${existingPlan.id} planStatus=${existingPlan.status}`);
           } else {
-            console.log(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=auto_starting reason=module3_complete`);
-            
-            // Get the latest transcript with planCard
-            const latestTranscript = await storage.getTranscript(userTranscript.sessionToken);
-            if (latestTranscript?.planCard && latestTranscript?.clientDossier) {
-              // Fire and forget - don't block the response
-              initializeSeriousPlan(
-                user.id,
-                latestTranscript.id,
-                latestTranscript.planCard,
-                latestTranscript.clientDossier,
-                latestTranscript
-              ).then(result => {
-                if (result.success) {
-                  console.log(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=initialized planId=${result.planId}`);
-                } else {
-                  console.error(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=init_failed error="${result.error}"`);
-                }
-              }).catch(err => {
-                console.error(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=init_error error="${err.message}"`);
-              });
-            } else {
-              console.warn(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=skipped reason=missing_planCard_or_dossier`);
-            }
+            // Fire and forget - retry mechanism handles missing data
+            attemptSeriousPlanInitWithRetry(
+              user.id,
+              userTranscript.sessionToken,
+              1 // Start at attempt 1
+            );
           }
         }
       }
