@@ -2073,6 +2073,40 @@ COMMUNICATION STYLE:
         
         await storage.updateTranscript(userTranscript.sessionToken, moduleCompleteUpdate);
         console.log(`Module ${moduleNumber} marked as complete for user ${user.id}`);
+        
+        // Auto-start Serious Plan generation when Module 3 completes
+        if (moduleNumber === 3) {
+          // Check if plan already exists before starting
+          const existingPlan = await storage.getSeriousPlanByUserId(user.id);
+          if (existingPlan) {
+            console.log(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=skipped reason=plan_exists planId=${existingPlan.id} planStatus=${existingPlan.status}`);
+          } else {
+            console.log(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=auto_starting reason=module3_complete`);
+            
+            // Get the latest transcript with planCard
+            const latestTranscript = await storage.getTranscript(userTranscript.sessionToken);
+            if (latestTranscript?.planCard && latestTranscript?.clientDossier) {
+              // Fire and forget - don't block the response
+              initializeSeriousPlan(
+                user.id,
+                latestTranscript.id,
+                latestTranscript.planCard,
+                latestTranscript.clientDossier,
+                latestTranscript
+              ).then(result => {
+                if (result.success) {
+                  console.log(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=initialized planId=${result.planId}`);
+                } else {
+                  console.error(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=init_failed error="${result.error}"`);
+                }
+              }).catch(err => {
+                console.error(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=init_error error="${err.message}"`);
+              });
+            } else {
+              console.warn(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=skipped reason=missing_planCard_or_dossier`);
+            }
+          }
+        }
       }
 
       console.log(`Dossier updated with module ${moduleNumber} for user ${user.id}`);

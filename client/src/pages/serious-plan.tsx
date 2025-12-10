@@ -61,7 +61,8 @@ function parseMarkdownInline(text: string): (string | JSX.Element)[] | string {
 }
 
 // Preprocess content to fix broken markdown links (where ] and ( are on separate lines)
-function preprocessMarkdownContent(content: string): string {
+function preprocessMarkdownContent(content: string | null | undefined): string {
+  if (!content) return '';
   // Join lines where a link title ends with ] on one line and ( starts on the next
   return content.replace(/\]\s*\n\s*\(/g, '](');
 }
@@ -338,6 +339,12 @@ export default function SeriousPlanPage() {
 
               {isTranscript ? (
                 <TranscriptRenderer artifact={selectedArtifact} />
+              ) : !selectedArtifact.contentRaw ? (
+                <div className="sp-artifact-body" data-testid="text-artifact-content">
+                  <p className="sp-artifact-p" style={{ color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+                    This artifact is still being generated. Please check back in a moment.
+                  </p>
+                </div>
               ) : (
                 <div className="sp-artifact-body" data-testid="text-artifact-content">
                   {preprocessMarkdownContent(selectedArtifact.contentRaw).split('\n').map((line, i) => {

@@ -573,8 +573,86 @@ Output ONLY the letter text, nothing else.`;
 }
 
 /**
- * Generate the plan artifacts asynchronously.
- * This handles the longer-running artifact generation.
+ * Generate a single artifact.
+ * Each artifact is generated independently and updates storage immediately on completion.
+ */
+async function generateSingleArtifact(
+  planId: string,
+  artifactId: string,
+  artifactKey: string,
+  clientName: string,
+  coachingPlan: CoachingPlan,
+  dossier: ClientDossier | null,
+  planHorizon: { type: string; rationale: string }
+): Promise<{ success: boolean; artifactKey: string }> {
+  const startTime = Date.now();
+  console.log(`[ARTIFACT] ts=${new Date().toISOString()} plan=${planId} artifact=${artifactKey} status=started`);
+  
+  try {
+    // Mark as generating
+    await storage.updateArtifactGenerationStatus(artifactId, 'generating');
+    
+    const prompt = buildSingleArtifactPrompt(artifactKey, clientName, coachingPlan, dossier, planHorizon);
+    
+    let responseText: string;
+
+    if (useAnthropic && anthropic) {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 2048,
+        messages: [{ role: "user", content: prompt }],
+      });
+      responseText = response.content[0].type === 'text' ? response.content[0].text : '';
+      const aiDurationMs = Date.now() - startTime;
+      console.log(`[ARTIFACT] ts=${new Date().toISOString()} plan=${planId} artifact=${artifactKey} status=ai_complete stop=${response.stop_reason} tokens=${response.usage?.output_tokens} aiDurationMs=${aiDurationMs}`);
+    } else {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [{ role: "user", content: prompt }],
+        max_completion_tokens: 2048,
+      });
+      responseText = response.choices[0].message.content || '';
+    }
+
+    // Parse the response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Failed to parse AI response as JSON');
+    }
+
+    const generated = JSON.parse(jsonMatch[0]);
+    
+    // Validate required fields
+    if (!generated.content || typeof generated.content !== 'string') {
+      throw new Error(`Invalid response: missing or invalid 'content' field for ${artifactKey}`);
+    }
+    
+    // Update artifact immediately
+    await storage.updateArtifact(artifactId, {
+      title: generated.title || formatArtifactKeyToTitle(artifactKey),
+      type: generated.type || 'snapshot',
+      importanceLevel: generated.importance_level || 'recommended',
+      whyImportant: generated.why_important || null,
+      contentRaw: generated.content,
+      generationStatus: 'complete',
+      metadata: generated.metadata || null,
+    });
+    
+    const durationMs = Date.now() - startTime;
+    console.log(`[ARTIFACT] ts=${new Date().toISOString()} plan=${planId} artifact=${artifactKey} status=success durationMs=${durationMs}`);
+    
+    return { success: true, artifactKey };
+  } catch (error: any) {
+    const durationMs = Date.now() - startTime;
+    console.error(`[ARTIFACT] ts=${new Date().toISOString()} plan=${planId} artifact=${artifactKey} status=error error="${error.message}" durationMs=${durationMs}`);
+    await storage.updateArtifactGenerationStatus(artifactId, 'error');
+    return { success: false, artifactKey };
+  }
+}
+
+/**
+ * Generate the plan artifacts asynchronously - IN PARALLEL.
+ * Each artifact is generated independently and updates the frontend immediately on completion.
  */
 async function generateArtifactsAsync(
   planId: string,
@@ -587,103 +665,210 @@ async function generateArtifactsAsync(
   console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=started artifactCount=${artifactKeys.length} keys=${artifactKeys.join(',')}`);
   
   try {
-    // Mark all artifacts as generating
+    // Get existing artifacts to find their IDs
     const existingArtifacts = await storage.getArtifactsByPlanId(planId);
+    // Filter to only include non-transcript artifacts that need generation
     const artifactsToGenerate = existingArtifacts.filter(a => 
-      artifactKeys.includes(a.artifactKey) && a.generationStatus === 'pending'
+      artifactKeys.includes(a.artifactKey) && 
+      a.generationStatus === 'pending' &&
+      a.type !== 'transcript' && 
+      !a.artifactKey.startsWith('transcript_')
     );
 
-    for (const artifact of artifactsToGenerate) {
-      await storage.updateArtifactGenerationStatus(artifact.id, 'generating');
-    }
-
     const planHorizon = determinePlanHorizon(dossier);
-    const prompt = buildArtifactsPrompt(clientName, coachingPlan, dossier, planHorizon, artifactKeys);
 
-    const aiStartTime = Date.now();
-    console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=calling_ai promptLength=${prompt.length}`);
+    // Generate all artifacts in parallel
+    const generationPromises = artifactsToGenerate.map(artifact => 
+      generateSingleArtifact(
+        planId,
+        artifact.id,
+        artifact.artifactKey,
+        clientName,
+        coachingPlan,
+        dossier,
+        planHorizon
+      )
+    );
+
+    // Wait for all to complete (each updates storage independently)
+    const results = await Promise.all(generationPromises);
     
-    let responseText: string;
+    const successCount = results.filter(r => r.success).length;
+    const failedCount = results.filter(r => !r.success).length;
 
-    if (useAnthropic && anthropic) {
-      const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 8192,
-        messages: [{ role: "user", content: prompt }],
-      });
-      responseText = response.content[0].type === 'text' ? response.content[0].text : '';
-      const aiDurationMs = Date.now() - aiStartTime;
-      console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=ai_complete stop_reason=${response.stop_reason} input_tokens=${response.usage?.input_tokens} output_tokens=${response.usage?.output_tokens} aiDurationMs=${aiDurationMs}`);
+    // Generate metadata in a separate call (lightweight)
+    await generatePlanMetadata(planId, clientName, coachingPlan, dossier, planHorizon);
+
+    // Mark plan as ready (or error if all failed)
+    if (failedCount === artifactsToGenerate.length) {
+      await storage.updateSeriousPlanStatus(planId, 'error');
     } else {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
-        messages: [{ role: "user", content: prompt }],
-        max_completion_tokens: 8192,
-      });
-      responseText = response.choices[0].message.content || '';
-      const aiDurationMs = Date.now() - aiStartTime;
-      console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=ai_complete aiDurationMs=${aiDurationMs}`);
+      await storage.updateSeriousPlanStatus(planId, 'ready');
     }
-
-    // Parse the response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Failed to parse AI response as JSON');
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    const generatedArtifacts: ArtifactGeneration[] = parsed.artifacts || [];
-    console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=parsed generatedCount=${generatedArtifacts.length}`);
-
-    // Update metadata on the plan
-    if (parsed.metadata) {
-      await storage.updateSeriousPlan(planId, {
-        summaryMetadata: parsed.metadata,
-      });
-    }
-
-    // Update each artifact with its generated content
-    for (const generated of generatedArtifacts) {
-      const existing = artifactsToGenerate.find(a => a.artifactKey === generated.artifact_key);
-      if (existing) {
-        await storage.updateArtifact(existing.id, {
-          title: generated.title,
-          type: generated.type,
-          importanceLevel: generated.importance_level,
-          whyImportant: generated.why_important,
-          contentRaw: generated.content,
-          generationStatus: 'complete',
-          metadata: generated.metadata || null,
-        });
-      }
-    }
-
-    // Mark any remaining artifacts as complete (even if empty)
-    for (const artifact of artifactsToGenerate) {
-      const wasGenerated = generatedArtifacts.some(g => g.artifact_key === artifact.artifactKey);
-      if (!wasGenerated) {
-        await storage.updateArtifactGenerationStatus(artifact.id, 'complete', 
-          `This artifact was not generated. The coach focused on other materials more relevant to your situation.`
-        );
-      }
-    }
-
-    // Mark plan as ready
-    await storage.updateSeriousPlanStatus(planId, 'ready');
+    
     const durationMs = Date.now() - startTime;
-    console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=success generatedCount=${generatedArtifacts.length} durationMs=${durationMs}`);
+    console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=complete successCount=${successCount} failedCount=${failedCount} durationMs=${durationMs}`);
   } catch (error: any) {
     const durationMs = Date.now() - startTime;
     console.error(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=error error="${error.message}" durationMs=${durationMs}`);
-    // Mark artifacts as error
-    const existingArtifacts = await storage.getArtifactsByPlanId(planId);
-    for (const artifact of existingArtifacts) {
-      if (artifact.generationStatus === 'generating') {
-        await storage.updateArtifactGenerationStatus(artifact.id, 'error');
-      }
-    }
     await storage.updateSeriousPlanStatus(planId, 'error');
   }
+}
+
+/**
+ * Generate plan metadata separately (lightweight call).
+ */
+async function generatePlanMetadata(
+  planId: string,
+  clientName: string,
+  coachingPlan: CoachingPlan,
+  dossier: ClientDossier | null,
+  planHorizon: { type: string; rationale: string }
+): Promise<void> {
+  try {
+    const constraints = dossier?.interviewAnalysis?.constraints || [];
+    const primaryRecommendation = dossier?.moduleRecords?.find(m => m.moduleNumber === 3)?.summary || 
+      'Focus on the action items in your plan';
+    
+    const metadata = {
+      clientName,
+      planHorizonType: planHorizon.type,
+      planHorizonRationale: planHorizon.rationale,
+      keyConstraints: constraints,
+      primaryRecommendation,
+      emotionalTone: 'encouraging',
+    };
+    
+    await storage.updateSeriousPlan(planId, { summaryMetadata: metadata });
+  } catch (error: any) {
+    console.error(`[METADATA] ts=${new Date().toISOString()} plan=${planId} status=error error="${error.message}"`);
+  }
+}
+
+/**
+ * Build prompt for a single artifact.
+ */
+function buildSingleArtifactPrompt(
+  artifactKey: string,
+  clientName: string,
+  coachingPlan: CoachingPlan,
+  dossier: ClientDossier | null,
+  planHorizon: { type: string; rationale: string }
+): string {
+  let dossierContext = '';
+  if (dossier) {
+    const analysis = dossier.interviewAnalysis;
+    dossierContext = `
+## Client Dossier
+**Name:** ${analysis.clientName}
+**Current Role:** ${analysis.currentRole} at ${analysis.company}
+**Tenure:** ${analysis.tenure}
+**Situation:** ${analysis.situation}
+**Big Problem:** ${analysis.bigProblem}
+**Desired Outcome:** ${analysis.desiredOutcome}
+**Emotional State:** ${analysis.emotionalState}
+**Key Facts:** ${analysis.keyFacts?.join(', ') || 'Not specified'}
+**Constraints:** ${analysis.constraints?.join(', ') || 'Not specified'}
+**Priorities:** ${analysis.priorities?.join(', ') || 'Not specified'}
+
+**Module Summaries:**
+${dossier.moduleRecords?.map(m => `- Module ${m.moduleNumber} (${m.moduleName}): ${m.summary}`).join('\n') || 'No modules completed'}
+`;
+  }
+
+  const artifactGuidelines = getArtifactGuidelines(artifactKey, planHorizon);
+
+  return `You are generating a SINGLE personalized artifact for ${clientName} who just completed a 3-module career coaching program.
+
+${dossierContext}
+
+## Plan Horizon: ${planHorizon.type.replace('_', ' ')}
+
+## Artifact to Generate: ${artifactKey}
+${artifactGuidelines}
+
+## Output Format
+Return valid JSON with this exact structure:
+{
+  "title": "Human-readable title for this artifact",
+  "type": "${artifactKey.includes('conversation') ? 'script' : 'snapshot'}",
+  "importance_level": "${artifactKey === 'decision_snapshot' || artifactKey === 'action_plan' ? 'must_read' : 'recommended'}",
+  "why_important": "One sentence explaining why THIS specific client needs this artifact",
+  "content": "Full markdown content..."
+}
+
+## Guidelines
+- Write clear, direct language - no corporate jargon
+- Reference their specific situation, people, constraints
+- Be actionable and concrete
+- Use markdown formatting (headers, lists, bold)
+
+Return ONLY valid JSON.`;
+}
+
+/**
+ * Get artifact-specific guidelines.
+ */
+function getArtifactGuidelines(artifactKey: string, planHorizon: { type: string }): string {
+  const guidelines: Record<string, string> = {
+    decision_snapshot: `### decision_snapshot (ESSENTIAL)
+One-page decision summary including:
+- Current situation in 2-3 sentences
+- 2-4 realistic options with pros/cons for each
+- Clear recommendation with rationale
+- "If you only do one thing..." action line`,
+    
+    action_plan: `### action_plan (ESSENTIAL)
+Time-boxed action plan for ${planHorizon.type.replace('_', ' ')}:
+- Divide into logical time intervals (Week 1-2, Week 3-4, etc.)
+- 2-4 specific, actionable tasks per interval
+- Include deadlines and success criteria
+- End with "How to know you're on track" section`,
+    
+    boss_conversation: `### boss_conversation (Script)
+Practical conversation guide:
+- Goal of the conversation
+- Opening lines (2-3 options)
+- Core message and talking points
+- Likely pushbacks and how to respond
+- Red lines / what not to say
+- Closing / next steps`,
+    
+    partner_conversation: `### partner_conversation (Script)
+Practical conversation guide for discussing career decisions with partner:
+- Goal and context
+- Opening approach
+- Key points to cover
+- How to address concerns
+- Collaborative next steps`,
+    
+    self_narrative: `### self_narrative (Personal)
+Internal memo / personal reflection:
+- How to describe this moment to yourself
+- What you're moving toward (not just away from)
+- Core values this decision honors
+- Permission slip / affirmation`,
+    
+    risk_map: `### risk_map (Strategic)
+Risk assessment table:
+- List 4-6 key risks
+- For each: likelihood (High/Med/Low), impact, mitigation strategy, fallback plan
+- Include both external risks and personal/emotional risks`,
+    
+    module_recap: `### module_recap (Reference)
+Summary of coaching journey:
+- For each module: key topics, decisions made, major insights
+- Overall arc of the conversation
+- Key quotes or breakthroughs`,
+    
+    resources: `### resources (Reference)
+5-8 curated resources:
+- Format: [Resource Name](URL) - One sentence on personal relevance
+- Include mix of articles, books, tools
+- Explain WHY each is relevant to THIS client's situation`,
+  };
+  
+  return guidelines[artifactKey] || `### ${artifactKey}\nGenerate helpful content for this artifact based on the client's situation.`;
 }
 
 function buildArtifactsPrompt(
