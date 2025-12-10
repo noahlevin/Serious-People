@@ -13,7 +13,7 @@ import { sendMagicLinkEmail, getResendClient, sendSeriousPlanEmail } from "./res
 import { db } from "./db";
 import { interviewTranscripts, seriousPlans, seriousPlanArtifacts, type ClientDossier, type InterviewAnalysis, type ModuleRecord, type CoachingPlan, getCurrentJourneyStep, getStepPath, type JourneyState } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { generateSeriousPlan, getSeriousPlanWithArtifacts, getLatestSeriousPlan, initializeSeriousPlan } from "./seriousPlanService";
+import { generateSeriousPlan, getSeriousPlanWithArtifacts, getLatestSeriousPlan, initializeSeriousPlan, regeneratePendingArtifacts } from "./seriousPlanService";
 import { generateArtifactPdf, generateBundlePdf, generateAllArtifactPdfs } from "./pdfService";
 
 // Use Anthropic Claude if API key is available, otherwise fall back to OpenAI
@@ -1227,6 +1227,37 @@ export async function registerRoutes(
       res.json(plan);
     } catch (error: any) {
       console.error("Get Serious Plan error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // POST /api/serious-plan/:id/regenerate - Regenerate pending/failed artifacts
+  app.post("/api/serious-plan/:id/regenerate", requireAuth, async (req, res) => {
+    try {
+      const planId = req.params.id;
+      const plan = await storage.getSeriousPlan(planId);
+      
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      
+      if (plan.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      const result = await regeneratePendingArtifacts(planId);
+      
+      if (!result.started) {
+        return res.json({ message: "No pending artifacts to regenerate", regenerating: false });
+      }
+      
+      res.json({ 
+        message: `Started regenerating ${result.artifactCount} artifacts`, 
+        regenerating: true,
+        artifactCount: result.artifactCount
+      });
+    } catch (error: any) {
+      console.error("Regenerate artifacts error:", error);
       res.status(500).json({ error: error.message });
     }
   });

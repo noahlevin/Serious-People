@@ -12,10 +12,14 @@ import type {
 } from "@shared/schema";
 
 // Zod schema for validating AI artifact responses
+// Accepts both expected types and common AI-generated variations
 const artifactResponseSchema = z.object({
   artifact_key: z.string().optional(), // Optional - we validate against expected key if provided
   title: z.string().min(1, "Title is required"),
-  type: z.enum(['snapshot', 'conversation', 'narrative', 'plan', 'recap', 'resources']).default('snapshot'),
+  type: z.enum([
+    'snapshot', 'conversation', 'narrative', 'plan', 'recap', 'resources',
+    'script', 'action_plan', 'checklist', 'guide', 'summary', 'timeline'
+  ]).default('snapshot'),
   importance_level: z.enum(['must_read', 'recommended', 'optional', 'bonus']).default('recommended'),
   why_important: z.string().nullable().optional(),
   content: z.string().min(1, "Content is required"),
@@ -613,7 +617,7 @@ async function generateSingleArtifact(
     if (useAnthropic && anthropic) {
       const response = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
-        max_tokens: 2048,
+        max_tokens: 4096,
         messages: [{ role: "user", content: prompt }],
       });
       responseText = response.content[0].type === 'text' ? response.content[0].text : '';
@@ -623,7 +627,7 @@ async function generateSingleArtifact(
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages: [{ role: "user", content: prompt }],
-        max_completion_tokens: 2048,
+        max_completion_tokens: 4096,
       });
       responseText = response.choices[0].message.content || '';
     }
@@ -741,6 +745,44 @@ async function generateArtifactsAsync(
     console.error(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=error error="${error.message}" durationMs=${durationMs}`);
     await storage.updateSeriousPlanStatus(planId, 'error');
   }
+}
+
+/**
+ * Regenerate pending/error artifacts for an existing plan.
+ * Can be called to retry failed artifacts without recreating the entire plan.
+ */
+export async function regeneratePendingArtifacts(planId: string): Promise<{ started: boolean; artifactCount: number }> {
+  const plan = await storage.getSeriousPlan(planId);
+  if (!plan) {
+    throw new Error('Plan not found');
+  }
+  
+  // Get the transcript for context using user ID
+  const transcript = await storage.getTranscriptByUserId(plan.userId);
+  if (!transcript?.planCard || !transcript?.clientDossier) {
+    throw new Error('Missing transcript data for regeneration');
+  }
+  
+  const artifacts = await storage.getArtifactsByPlanId(planId);
+  const pendingArtifacts = artifacts.filter(a => 
+    (a.generationStatus === 'pending' || a.generationStatus === 'error') &&
+    a.type !== 'transcript' &&
+    !a.artifactKey.startsWith('transcript_')
+  );
+  
+  if (pendingArtifacts.length === 0) {
+    return { started: false, artifactCount: 0 };
+  }
+  
+  const artifactKeys = pendingArtifacts.map(a => a.artifactKey);
+  const clientName = transcript.clientDossier.interviewAnalysis?.clientName || 'Client';
+  
+  console.log(`[REGENERATE] ts=${new Date().toISOString()} plan=${planId} status=starting artifactCount=${artifactKeys.length} keys=${artifactKeys.join(',')}`);
+  
+  // Fire and forget - run in background
+  generateArtifactsAsync(planId, clientName, transcript.planCard, transcript.clientDossier, artifactKeys);
+  
+  return { started: true, artifactCount: pendingArtifacts.length };
 }
 
 /**
