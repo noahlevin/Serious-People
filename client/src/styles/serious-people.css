@@ -781,6 +781,7 @@
   background: var(--sp-bg);
   border-top: 1px solid var(--sp-border);
   padding: 1rem;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   flex-shrink: 0;
   max-width: 700px;
   width: 100%;

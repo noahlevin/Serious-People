@@ -828,9 +828,19 @@ export default function Interview() {
                 onFocus={() => {
                   // On mobile, scroll input into view after keyboard appears
                   if (isMobileDevice()) {
-                    setTimeout(() => {
-                      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 300);
+                    // iOS Chrome needs multiple scroll attempts as keyboard animates
+                    const scrollIntoViewport = () => {
+                      if (textareaRef.current) {
+                        // Use scrollIntoView with block: 'end' to ensure input is above keyboard
+                        textareaRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                      }
+                    };
+                    // Initial scroll after short delay
+                    setTimeout(scrollIntoViewport, 100);
+                    // Second scroll after keyboard animation completes (iOS takes ~300-400ms)
+                    setTimeout(scrollIntoViewport, 400);
+                    // Final scroll to handle any iOS Chrome quirks with accessory bar
+                    setTimeout(scrollIntoViewport, 600);
                   }
                 }}
               />
