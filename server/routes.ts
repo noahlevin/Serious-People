@@ -381,22 +381,30 @@ async function generateInterviewAnalysisSingle(transcript: { role: string; conte
 }
 
 // Helper function to generate interview analysis with retry logic
-async function generateInterviewAnalysis(transcript: { role: string; content: string }[], maxRetries: number = 3): Promise<InterviewAnalysis | null> {
+async function generateInterviewAnalysis(transcript: { role: string; content: string }[], maxRetries: number = 3, userId?: string): Promise<InterviewAnalysis | null> {
+  const startTime = Date.now();
+  const userTag = userId || 'unknown';
+  
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const attemptStart = Date.now();
     try {
-      console.log(`[DOSSIER] Generating interview analysis (attempt ${attempt}/${maxRetries})...`);
+      const elapsedMs = Date.now() - startTime;
+      console.log(`[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=started attempt=${attempt}/${maxRetries} durationMs=${elapsedMs}`);
       const result = await generateInterviewAnalysisSingle(transcript);
-      console.log(`[DOSSIER] Interview analysis generated successfully on attempt ${attempt}`);
+      const durationMs = Date.now() - startTime;
+      console.log(`[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=success attempt=${attempt}/${maxRetries} durationMs=${durationMs}`);
       return result;
     } catch (error: any) {
-      console.error(`[DOSSIER] Attempt ${attempt} failed:`, error.message);
+      const durationMs = Date.now() - startTime;
+      console.error(`[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=failed attempt=${attempt}/${maxRetries} error="${error.message}" durationMs=${durationMs}`);
       if (attempt === maxRetries) {
-        console.error(`[DOSSIER] All ${maxRetries} attempts failed`);
+        console.error(`[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=all_attempts_failed durationMs=${durationMs}`);
         return null;
       }
       // Wait before retry (exponential backoff: 1s, 2s, 4s)
       const waitMs = Math.pow(2, attempt - 1) * 1000;
-      console.log(`[DOSSIER] Waiting ${waitMs}ms before retry...`);
+      const waitStartMs = Date.now() - startTime;
+      console.log(`[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=retry_wait waitMs=${waitMs} durationMs=${waitStartMs}`);
       await new Promise(resolve => setTimeout(resolve, waitMs));
     }
   }
@@ -406,27 +414,39 @@ async function generateInterviewAnalysis(transcript: { role: string; content: st
 // Helper function to generate and save dossier with retry logic
 // Returns true if dossier was created/updated, false if failed
 async function generateAndSaveDossier(userId: string, transcript: { role: string; content: string }[]): Promise<boolean> {
+  const startTime = Date.now();
   const lockKey = String(userId);
   const existingLock = dossierGenerationLocks.get(lockKey);
   const now = Date.now();
   
+  console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=started messageCount=${transcript.length} durationMs=0`);
+  
   // Check if there's an active (non-stale) lock
   if (existingLock && (now - existingLock) < DOSSIER_LOCK_TIMEOUT_MS) {
-    console.log(`[DOSSIER] Generation already in progress for user ${userId}, skipping`);
+    const lockAgeMs = now - existingLock;
+    const durationMs = Date.now() - startTime;
+    console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=skipped_locked lockAgeMs=${lockAgeMs} timeoutMs=${DOSSIER_LOCK_TIMEOUT_MS} durationMs=${durationMs}`);
     return false;
   }
   
   // Acquire lock
   dossierGenerationLocks.set(lockKey, now);
+  const lockAcquireMs = Date.now() - startTime;
+  console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=lock_acquired durationMs=${lockAcquireMs}`);
   
   try {
-    console.log(`[DOSSIER] Starting generation for user ${userId} (${transcript.length} messages)`);
-    const interviewAnalysis = await generateInterviewAnalysis(transcript, 3);
+    const analysisStart = Date.now();
+    const interviewAnalysis = await generateInterviewAnalysis(transcript, 3, userId);
+    const analysisMs = Date.now() - analysisStart;
     
     if (!interviewAnalysis) {
-      console.error(`[DOSSIER] Failed to generate analysis for user ${userId} after all retries`);
+      const durationMs = Date.now() - startTime;
+      console.error(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=failed_analysis analysisMs=${analysisMs} durationMs=${durationMs}`);
       return false;
     }
+    
+    const analysisCompleteMs = Date.now() - startTime;
+    console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=analysis_complete analysisMs=${analysisMs} durationMs=${analysisCompleteMs}`);
     
     const dossier: ClientDossier = {
       interviewTranscript: transcript,
@@ -435,15 +455,22 @@ async function generateAndSaveDossier(userId: string, transcript: { role: string
       lastUpdated: new Date().toISOString(),
     };
     
+    const saveStart = Date.now();
     await storage.updateClientDossier(userId, dossier);
-    console.log(`[DOSSIER] Successfully saved for user ${userId}`);
+    const saveMs = Date.now() - saveStart;
+    
+    const durationMs = Date.now() - startTime;
+    console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=success analysisMs=${analysisMs} saveMs=${saveMs} durationMs=${durationMs}`);
     return true;
   } catch (error: any) {
-    console.error(`[DOSSIER] Error generating for user ${userId}:`, error.message);
+    const durationMs = Date.now() - startTime;
+    console.error(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=error error="${error.message}" durationMs=${durationMs}`);
     return false;
   } finally {
     // Release lock
     dossierGenerationLocks.delete(lockKey);
+    const durationMs = Date.now() - startTime;
+    console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=lock_released durationMs=${durationMs}`);
   }
 }
 
@@ -1656,11 +1683,16 @@ COMMUNICATION STYLE:
   
   // GET /api/transcript - Get user's transcript
   app.get("/api/transcript", requireAuth, async (req, res) => {
+    const requestStart = Date.now();
     try {
       const userId = req.user!.id;
       const transcript = await storage.getTranscriptByUserId(userId);
       
       if (transcript) {
+        const durationMs = Date.now() - requestStart;
+        const messageCount = Array.isArray(transcript.transcript) ? transcript.transcript.length : 0;
+        console.log(`[TRANSCRIPT_GET] ts=${new Date().toISOString()} user=${userId} status=found messageCount=${messageCount} module=${transcript.currentModule} progress=${transcript.progress} interviewComplete=${transcript.interviewComplete} paymentVerified=${transcript.paymentVerified} hasPlanCard=${!!transcript.planCard} hasDossier=${!!transcript.clientDossier} durationMs=${durationMs}`);
+        
         res.json({
           transcript: transcript.transcript,
           currentModule: transcript.currentModule,
@@ -1674,10 +1706,13 @@ COMMUNICATION STYLE:
           clientDossier: transcript.clientDossier ? true : null,
         });
       } else {
+        const durationMs = Date.now() - requestStart;
+        console.log(`[TRANSCRIPT_GET] ts=${new Date().toISOString()} user=${userId} status=not_found durationMs=${durationMs}`);
         res.json({ transcript: null });
       }
     } catch (error: any) {
-      console.error("Get transcript error:", error);
+      const durationMs = Date.now() - requestStart;
+      console.error(`[TRANSCRIPT_GET] ts=${new Date().toISOString()} user=${req.user?.id || 'unknown'} status=error durationMs=${durationMs} error="${error.message}"`);
       res.status(500).json({ error: "Failed to fetch transcript" });
     }
   });
@@ -1785,19 +1820,27 @@ COMMUNICATION STYLE:
 
   // GET /verify-session - Verify Stripe payment and mark transcript as payment verified
   app.get("/verify-session", async (req, res) => {
+    const requestStart = Date.now();
     try {
       const sessionId = req.query.session_id as string;
+      const user = (req as any).user;
+      const userId = user?.id || 'anonymous';
+      
+      console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=started stripeSessionId=${sessionId?.slice(0, 20)}...`);
       
       if (!sessionId) {
+        const durationMs = Date.now() - requestStart;
+        console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=failed_missing_session durationMs=${durationMs}`);
         return res.status(400).json({ ok: false, error: "Missing session_id" });
       }
 
       const stripe = await getStripeClient();
       const session = await stripe.checkout.sessions.retrieve(sessionId);
 
+      console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} stripePaymentStatus=${session.payment_status}`);
+
       if (session.payment_status === "paid") {
         // If user is authenticated, mark their transcript as payment verified
-        const user = (req as any).user;
         if (user?.id) {
           const transcript = await storage.getTranscriptByUserId(user.id);
           if (transcript && transcript.sessionToken) {
@@ -1805,14 +1848,20 @@ COMMUNICATION STYLE:
               paymentVerified: true,
               stripeSessionId: sessionId,
             });
+            console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=state_change paymentVerified=true hasDossier=${!!transcript.clientDossier}`);
           }
         }
+        const durationMs = Date.now() - requestStart;
+        console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=success durationMs=${durationMs}`);
         return res.json({ ok: true });
       } else {
+        const durationMs = Date.now() - requestStart;
+        console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=failed_not_paid stripePaymentStatus=${session.payment_status} durationMs=${durationMs}`);
         return res.status(403).json({ ok: false, error: "Payment not completed" });
       }
     } catch (error: any) {
-      console.error("Verify session error:", error);
+      const durationMs = Date.now() - requestStart;
+      console.error(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${(req as any).user?.id || 'anonymous'} status=error durationMs=${durationMs} error="${error.message}"`);
       res.status(500).json({ ok: false, error: error.message });
     }
   });
@@ -1821,21 +1870,31 @@ COMMUNICATION STYLE:
   // Called BEFORE Stripe redirect to ensure database is updated
   // Note: Dossier generation now happens when planCard is saved via POST /api/transcript
   app.post("/api/interview/complete", async (req, res) => {
+    const requestStart = Date.now();
     try {
       const user = req.user as any;
       if (!user?.id) {
+        console.log(`[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=anonymous status=rejected_not_authenticated`);
         return res.status(401).json({ error: "Not authenticated" });
       }
 
+      console.log(`[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${user.id} status=started`);
+
       const transcript = await storage.getTranscriptByUserId(user.id);
       if (!transcript) {
+        const durationMs = Date.now() - requestStart;
+        console.log(`[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${user.id} status=failed_no_transcript durationMs=${durationMs}`);
         return res.status(400).json({ error: "No transcript found" });
       }
 
+      const hasPlanCard = !!transcript.planCard;
+      const hasDossier = !!transcript.clientDossier;
+
       // Already complete - return success
       if (transcript.interviewComplete) {
-        console.log(`[INTERVIEW COMPLETE] User ${user.id} already marked complete`);
-        return res.json({ ok: true, alreadyComplete: true, hasDossier: !!transcript.clientDossier });
+        const durationMs = Date.now() - requestStart;
+        console.log(`[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${user.id} status=already_complete hasPlanCard=${hasPlanCard} hasDossier=${hasDossier} durationMs=${durationMs}`);
+        return res.json({ ok: true, alreadyComplete: true, hasDossier });
       }
 
       // Mark interview as complete in database
@@ -1844,13 +1903,15 @@ COMMUNICATION STYLE:
         progress: 100,
       });
 
-      console.log(`[INTERVIEW COMPLETE] Marked interview complete for user ${user.id}`);
+      const durationMs = Date.now() - requestStart;
+      console.log(`[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${user.id} status=state_change interviewComplete=true progress=100 hasPlanCard=${hasPlanCard} hasDossier=${hasDossier} durationMs=${durationMs}`);
 
       // Dossier should already exist (generated when planCard was saved)
       // Just report whether it's ready
-      res.json({ ok: true, hasDossier: !!transcript.clientDossier });
+      res.json({ ok: true, hasDossier });
     } catch (error: any) {
-      console.error("Interview complete error:", error);
+      const durationMs = Date.now() - requestStart;
+      console.error(`[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${(req.user as any)?.id || 'unknown'} status=error durationMs=${durationMs} error="${error.message}"`);
       res.status(500).json({ error: error.message });
     }
   });
@@ -1858,36 +1919,53 @@ COMMUNICATION STYLE:
   // POST /api/generate-dossier - Fallback endpoint to generate dossier if missing
   // Normally dossier is generated when planCard is saved, but this provides a fallback
   app.post("/api/generate-dossier", async (req, res) => {
+    const requestStart = Date.now();
+    
     try {
       const user = req.user as any;
       if (!user?.id) {
+        console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=anonymous status=rejected_not_authenticated`);
         return res.status(401).json({ error: "Not authenticated" });
       }
+
+      console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=started`);
 
       // Get the user's transcript from the database
       const transcript = await storage.getTranscriptByUserId(user.id);
       if (!transcript || !transcript.transcript || !Array.isArray(transcript.transcript)) {
+        const durationMs = Date.now() - requestStart;
+        console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=failed_no_transcript durationMs=${durationMs}`);
         return res.status(400).json({ error: "No interview transcript found" });
       }
 
       // Check if dossier already exists
       if (transcript.clientDossier) {
+        const durationMs = Date.now() - requestStart;
+        console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=already_exists durationMs=${durationMs}`);
         return res.json({ ok: true, message: "Dossier already exists" });
       }
 
-      console.log(`[GENERATE-DOSSIER] Fallback generation for user ${user.id}...`);
+      const messageCount = transcript.transcript.length;
+      console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=generating messageCount=${messageCount}`);
 
       // Use the shared helper with retry logic
       const transcriptMessages = transcript.transcript as { role: string; content: string }[];
+      const generateStart = Date.now();
       const success = await generateAndSaveDossier(user.id, transcriptMessages);
+      const generateDurationMs = Date.now() - generateStart;
       
       if (!success) {
+        const durationMs = Date.now() - requestStart;
+        console.error(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=failed generateDurationMs=${generateDurationMs} durationMs=${durationMs}`);
         return res.status(500).json({ error: "Failed to generate dossier after retries" });
       }
 
+      const durationMs = Date.now() - requestStart;
+      console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=success generateDurationMs=${generateDurationMs} durationMs=${durationMs}`);
       res.json({ ok: true });
     } catch (error: any) {
-      console.error("Generate dossier error:", error);
+      const durationMs = Date.now() - requestStart;
+      console.error(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${(req.user as any)?.id || 'unknown'} status=error durationMs=${durationMs} error="${error.message}"`);
       res.status(500).json({ error: error.message });
     }
   });
@@ -3019,9 +3097,12 @@ FORMAT:
   // POST /api/transcript - Save user's transcript to database
   // Also triggers dossier generation when planCard is present
   app.post("/api/transcript", requireAuth, async (req, res) => {
+    const requestStart = Date.now();
+    
     try {
       const userId = (req.user as any)?.id;
       if (!userId) {
+        console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=anonymous status=rejected_not_authenticated`);
         return res.status(401).json({ error: "Not authenticated" });
       }
 
@@ -3036,35 +3117,48 @@ FORMAT:
         planCard
       } = req.body;
 
+      const messageCount = transcript?.length || 0;
+      console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=started module=${currentModule} progress=${progress} interviewComplete=${interviewComplete} hasPlanCard=${!!planCard} messageCount=${messageCount}`);
+
       if (!transcript || !Array.isArray(transcript)) {
+        const durationMs = Date.now() - requestStart;
+        console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=failed_invalid_format durationMs=${durationMs}`);
         return res.status(400).json({ error: "Invalid transcript format" });
       }
 
       // Check if we need to generate/regenerate dossier
       // This happens when planCard is present in the save request
       let dossierGenerated = false;
+      let dossierDurationMs = 0;
       if (planCard && transcript.length > 0) {
         // Check if dossier already exists and if planCard has changed
         const existingTranscript = await storage.getTranscriptByUserId(userId);
         const existingPlanCard = existingTranscript?.planCard;
+        const hasDossier = !!existingTranscript?.clientDossier;
         const planCardChanged = !existingPlanCard || 
           JSON.stringify(existingPlanCard) !== JSON.stringify(planCard);
         
+        console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} planCardCheck existingPlanCard=${!!existingPlanCard} planCardChanged=${planCardChanged} hasDossier=${hasDossier}`);
+        
         if (planCardChanged) {
-          console.log(`[TRANSCRIPT] Plan card ${existingPlanCard ? 'changed' : 'created'} for user ${userId}, triggering dossier generation`);
+          const planCardAction = existingPlanCard ? 'changed' : 'created';
+          console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=triggering_dossier planCardAction=${planCardAction}`);
           
           // Generate dossier synchronously so it's ready before payment
           const transcriptMessages = transcript as { role: string; content: string }[];
+          const dossierStart = Date.now();
           dossierGenerated = await generateAndSaveDossier(userId, transcriptMessages);
+          dossierDurationMs = Date.now() - dossierStart;
           
-          if (!dossierGenerated) {
-            console.error(`[TRANSCRIPT] Dossier generation failed for user ${userId}`);
-            // Don't fail the request, just log - dossier can be retried later
-          }
+          const dossierStatus = dossierGenerated ? 'success' : 'failed';
+          console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} dossierResult=${dossierStatus} dossierDurationMs=${dossierDurationMs}`);
+        } else {
+          console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=skipping_dossier reason=planCard_unchanged`);
         }
       }
 
       // Upsert transcript for this user
+      const upsertStart = Date.now();
       const result = await storage.upsertTranscriptByUserId(userId, {
         transcript,
         currentModule: currentModule || "Interview",
@@ -3075,10 +3169,15 @@ FORMAT:
         socialProof,
         planCard,
       });
+      const upsertDurationMs = Date.now() - upsertStart;
+
+      const durationMs = Date.now() - requestStart;
+      console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=success upsertDurationMs=${upsertDurationMs} dossierGenerated=${dossierGenerated} dossierDurationMs=${dossierDurationMs} durationMs=${durationMs}`);
 
       res.json({ success: true, id: result.id, dossierGenerated });
     } catch (error: any) {
-      console.error("Save transcript error:", error);
+      const durationMs = Date.now() - requestStart;
+      console.error(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${(req.user as any)?.id || 'unknown'} status=error durationMs=${durationMs} error="${error.message}"`);
       res.status(500).json({ error: error.message });
     }
   });
