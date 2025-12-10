@@ -495,6 +495,9 @@ async function generateCoachLetterAsync(
   coachingPlan: CoachingPlan,
   dossier: ClientDossier | null
 ): Promise<void> {
+  const startTime = Date.now();
+  console.log(`[COACH_LETTER] ts=${new Date().toISOString()} plan=${planId} status=started`);
+  
   try {
     // Mark as generating
     await storage.updateCoachLetter(planId, 'generating');
@@ -521,9 +524,11 @@ async function generateCoachLetterAsync(
 
     // Update the plan with the letter content
     await storage.updateCoachLetter(planId, 'complete', letterContent);
-    console.log(`Coach letter generated for plan ${planId}`);
+    const durationMs = Date.now() - startTime;
+    console.log(`[COACH_LETTER] ts=${new Date().toISOString()} plan=${planId} status=success durationMs=${durationMs}`);
   } catch (error: any) {
-    console.error('Coach letter generation error:', error);
+    const durationMs = Date.now() - startTime;
+    console.error(`[COACH_LETTER] ts=${new Date().toISOString()} plan=${planId} status=error error="${error.message}" durationMs=${durationMs}`);
     await storage.updateCoachLetter(planId, 'error');
   }
 }
@@ -578,6 +583,9 @@ async function generateArtifactsAsync(
   dossier: ClientDossier | null,
   artifactKeys: string[]
 ): Promise<void> {
+  const startTime = Date.now();
+  console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=started artifactCount=${artifactKeys.length} keys=${artifactKeys.join(',')}`);
+  
   try {
     // Mark all artifacts as generating
     const existingArtifacts = await storage.getArtifactsByPlanId(planId);
@@ -592,6 +600,9 @@ async function generateArtifactsAsync(
     const planHorizon = determinePlanHorizon(dossier);
     const prompt = buildArtifactsPrompt(clientName, coachingPlan, dossier, planHorizon, artifactKeys);
 
+    const aiStartTime = Date.now();
+    console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=calling_ai promptLength=${prompt.length}`);
+    
     let responseText: string;
 
     if (useAnthropic && anthropic) {
@@ -601,6 +612,8 @@ async function generateArtifactsAsync(
         messages: [{ role: "user", content: prompt }],
       });
       responseText = response.content[0].type === 'text' ? response.content[0].text : '';
+      const aiDurationMs = Date.now() - aiStartTime;
+      console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=ai_complete stop_reason=${response.stop_reason} input_tokens=${response.usage?.input_tokens} output_tokens=${response.usage?.output_tokens} aiDurationMs=${aiDurationMs}`);
     } else {
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
@@ -608,6 +621,8 @@ async function generateArtifactsAsync(
         max_completion_tokens: 8192,
       });
       responseText = response.choices[0].message.content || '';
+      const aiDurationMs = Date.now() - aiStartTime;
+      console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=ai_complete aiDurationMs=${aiDurationMs}`);
     }
 
     // Parse the response
@@ -618,6 +633,7 @@ async function generateArtifactsAsync(
 
     const parsed = JSON.parse(jsonMatch[0]);
     const generatedArtifacts: ArtifactGeneration[] = parsed.artifacts || [];
+    console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=parsed generatedCount=${generatedArtifacts.length}`);
 
     // Update metadata on the plan
     if (parsed.metadata) {
@@ -654,9 +670,11 @@ async function generateArtifactsAsync(
 
     // Mark plan as ready
     await storage.updateSeriousPlanStatus(planId, 'ready');
-    console.log(`Artifacts generated for plan ${planId}`);
+    const durationMs = Date.now() - startTime;
+    console.log(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=success generatedCount=${generatedArtifacts.length} durationMs=${durationMs}`);
   } catch (error: any) {
-    console.error('Artifact generation error:', error);
+    const durationMs = Date.now() - startTime;
+    console.error(`[ARTIFACTS_GEN] ts=${new Date().toISOString()} plan=${planId} status=error error="${error.message}" durationMs=${durationMs}`);
     // Mark artifacts as error
     const existingArtifacts = await storage.getArtifactsByPlanId(planId);
     for (const artifact of existingArtifacts) {
