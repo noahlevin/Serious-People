@@ -344,7 +344,15 @@ Important:
 - Capture nuance and subtext.
 - The "observations" field should be especially detailed.
 
-Output ONLY valid JSON. No markdown, no explanation, just the JSON object.`;
+CRITICAL JSON FORMATTING RULES:
+- Output ONLY valid JSON. No markdown code fences, no explanation, just the raw JSON object.
+- Start your response with { and end with }
+- Ensure all strings are properly escaped (especially quotes and newlines)
+- Ensure all arrays are properly closed with ]
+- Ensure all objects are properly closed with }
+- Double-check that every { has a matching } and every [ has a matching ]
+- Limit questionsAsked to the 10 most important questions
+- Limit optionsOffered to actual options presented (usually 2-5)`;
 
 // Helper function to generate interview analysis using AI (single attempt)
 async function generateInterviewAnalysisSingle(transcript: { role: string; content: string }[]): Promise<InterviewAnalysis> {
@@ -353,13 +361,19 @@ async function generateInterviewAnalysisSingle(transcript: { role: string; conte
   let response: string;
   
   if (useAnthropic && anthropic) {
+    // Use prefill technique: start assistant response with { to ensure clean JSON
     const result = await anthropic.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 4096,
+      max_tokens: 8192, // Increased to prevent truncation
       system: INTERVIEW_ANALYSIS_PROMPT,
-      messages: [{ role: "user", content: transcriptText }],
+      messages: [
+        { role: "user", content: transcriptText },
+        { role: "assistant", content: "{" } // Prefill to ensure JSON starts correctly
+      ],
     });
-    response = result.content[0].type === 'text' ? result.content[0].text : '';
+    // Prepend the { since we used it as prefill
+    const content = result.content[0].type === 'text' ? result.content[0].text : '';
+    response = "{" + content;
   } else {
     const result = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
@@ -367,17 +381,31 @@ async function generateInterviewAnalysisSingle(transcript: { role: string; conte
         { role: "system", content: INTERVIEW_ANALYSIS_PROMPT },
         { role: "user", content: transcriptText }
       ],
-      max_completion_tokens: 4096,
+      max_completion_tokens: 8192,
+      response_format: { type: "json_object" }, // OpenAI native JSON mode
     });
     response = result.choices[0].message.content || '';
   }
   
-  // Parse JSON response
-  const jsonMatch = response.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    return JSON.parse(jsonMatch[0]) as InterviewAnalysis;
+  // Parse JSON response with better error handling
+  try {
+    // First try direct parse (works if response is clean JSON)
+    return JSON.parse(response) as InterviewAnalysis;
+  } catch (directError: any) {
+    // Try extracting JSON object from response
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[0]) as InterviewAnalysis;
+      } catch (extractError: any) {
+        // Log details for debugging
+        const snippet = jsonMatch[0].substring(Math.max(0, extractError.message.match(/position (\d+)/)?.[1] - 50 || 0), 
+                                                (extractError.message.match(/position (\d+)/)?.[1] || 100) + 50);
+        throw new Error(`JSON parse failed at: ...${snippet}... - ${extractError.message}`);
+      }
+    }
+    throw new Error(`Failed to parse interview analysis JSON: ${directError.message}`);
   }
-  throw new Error("Failed to parse interview analysis JSON from AI response");
 }
 
 // Helper function to generate interview analysis with retry logic

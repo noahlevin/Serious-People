@@ -83,6 +83,37 @@ export default function Success() {
     return false;
   }, []);
 
+  // Poll for dossier existence - redirects when ready or times out
+  const pollForDossier = useCallback(async (maxWaitMs: number = 60000, pollIntervalMs: number = 2000) => {
+    const startTime = Date.now();
+    let pollCount = 0;
+    
+    while (Date.now() - startTime < maxWaitMs) {
+      pollCount++;
+      try {
+        const checkRes = await fetch("/api/transcript", { credentials: "include" });
+        if (checkRes.ok) {
+          const data = await checkRes.json();
+          if (data?.clientDossier) {
+            console.log(`Dossier ready after ${pollCount} polls (${Date.now() - startTime}ms)`);
+            sessionStorage.setItem("payment_verified", "true");
+            queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
+            setLocation("/module/1");
+            return true;
+          }
+        }
+      } catch (err) {
+        console.error("Poll error:", err);
+      }
+      
+      // Wait before next poll
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+    }
+    
+    console.log(`Dossier not ready after ${maxWaitMs}ms, showing manual start button`);
+    return false;
+  }, [setLocation]);
+
   const verifyPayment = useCallback(async () => {
     if (!sessionId) {
       setState("error");
@@ -97,9 +128,6 @@ export default function Success() {
 
       if (data.ok) {
         analytics.paymentCompleted();
-        
-        // Check if dossier already exists (generated when planCard was saved)
-        // This check happens regardless of sessionStorage state
         setState("preparing-coaching");
         
         try {
@@ -108,7 +136,7 @@ export default function Success() {
           const transcriptData = checkRes.ok ? await checkRes.json() : null;
           
           if (transcriptData?.clientDossier) {
-            // Dossier already exists - skip success page, go straight to Module 1
+            // Dossier already exists - redirect immediately
             console.log("Client dossier ready, redirecting to Module 1");
             sessionStorage.setItem("payment_verified", "true");
             queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
@@ -116,35 +144,33 @@ export default function Success() {
             return;
           }
           
-          // No dossier found - try to load transcript and generate
-          if (loadTranscript() || (transcriptData?.transcript && transcriptData.transcript.length > 0)) {
-            // Have transcript, generate dossier now as fallback
-            console.log("Dossier not found, generating now...");
-            const dossierRes = await fetch("/api/generate-dossier", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-            });
-            
-            if (dossierRes.ok) {
-              console.log("Client dossier generated successfully (fallback)");
-              // Now redirect to Module 1
-              sessionStorage.setItem("payment_verified", "true");
-              queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
-              setLocation("/module/1");
-              return;
-            } else {
-              console.error("Failed to generate client dossier");
-              // Show ready state so user can manually proceed
-              setState("ready");
-            }
-          } else {
-            // No transcript in sessionStorage or database
+          // No dossier found - check if we have a transcript
+          const hasTranscript = loadTranscript() || (transcriptData?.transcript && transcriptData.transcript.length > 0);
+          
+          if (!hasTranscript) {
             setState("transcript-error");
+            return;
+          }
+          
+          // Trigger fallback generation in the background (fire-and-forget)
+          // This ensures generation starts even if the pre-paywall attempt failed
+          console.log("Dossier not ready, triggering fallback generation...");
+          fetch("/api/generate-dossier", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          }).catch(err => console.error("Fallback generation error:", err));
+          
+          // Poll for dossier existence - this will redirect when ready
+          // or timeout after 60 seconds and show manual button
+          const dossierReady = await pollForDossier(60000, 2000);
+          
+          if (!dossierReady) {
+            // Timeout - show manual start button
+            setState("ready");
           }
         } catch (err) {
           console.error("Error checking/generating client dossier:", err);
-          // Still allow proceeding - show ready state
           setState("ready");
         }
       } else {
@@ -154,7 +180,7 @@ export default function Success() {
       console.error("Verification error:", error);
       setState("error");
     }
-  }, [sessionId, loadTranscript]);
+  }, [sessionId, loadTranscript, pollForDossier, setLocation]);
 
   useEffect(() => {
     verifyPayment();
