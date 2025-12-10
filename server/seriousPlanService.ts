@@ -612,14 +612,36 @@ async function generateSingleArtifact(
     let responseText: string;
 
     if (useAnthropic && anthropic) {
-      const response = await anthropic.messages.create({
+      // Enable web search tool ONLY for resources artifact
+      const useWebSearch = artifactKey === 'resources';
+      
+      const requestParams: Anthropic.MessageCreateParams = {
         model: "claude-sonnet-4-5",
         max_tokens: 4096,
         messages: [{ role: "user", content: prompt }],
-      });
-      responseText = response.content[0].type === 'text' ? response.content[0].text : '';
+      };
+      
+      // Add web search tool for resources artifact
+      if (useWebSearch) {
+        requestParams.tools = [{
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: 10, // Allow up to 10 searches to find quality resources
+        } as Anthropic.WebSearchTool20250305];
+        console.log(`[ARTIFACT] ts=${new Date().toISOString()} plan=${planId} artifact=${artifactKey} status=web_search_enabled`);
+      }
+      
+      const response = await anthropic.messages.create(requestParams);
+      
+      // Extract text from response (may include tool_use blocks for web search)
+      responseText = response.content
+        .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+        .map(block => block.text)
+        .join('');
+      
       const aiDurationMs = Date.now() - startTime;
-      console.log(`[ARTIFACT] ts=${new Date().toISOString()} plan=${planId} artifact=${artifactKey} status=ai_complete stop=${response.stop_reason} tokens=${response.usage?.output_tokens} aiDurationMs=${aiDurationMs}`);
+      const searchInfo = useWebSearch ? ` webSearchUsed=true` : '';
+      console.log(`[ARTIFACT] ts=${new Date().toISOString()} plan=${planId} artifact=${artifactKey} status=ai_complete stop=${response.stop_reason} tokens=${response.usage?.output_tokens} aiDurationMs=${aiDurationMs}${searchInfo}`);
     } else {
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
@@ -929,10 +951,25 @@ Summary of coaching journey:
 - Key quotes or breakthroughs`,
     
     resources: `### resources (Reference)
-5-8 curated resources:
-- Format: [Resource Name](URL) - One sentence on personal relevance
-- Include mix of articles, books, tools
-- Explain WHY each is relevant to THIS client's situation`,
+5-8 curated resources with VERIFIED, WORKING URLs:
+
+CRITICAL: You have web search enabled. You MUST:
+1. Use web search to find real, current resources relevant to this client's situation
+2. Only include URLs that you found via web search - NEVER make up or guess URLs
+3. Verify each link exists by searching for it
+4. Include a mix of: articles, books (link to Amazon/Goodreads), tools, frameworks
+
+Format for each resource:
+- [Resource Name](verified_URL) - One sentence explaining why THIS client specifically needs this
+
+Categories to consider:
+- Career transition articles/guides
+- Books relevant to their industry or situation
+- Negotiation or communication frameworks
+- Industry-specific resources
+- Tools for job search, networking, or skill building
+
+DO NOT include any URL you did not find via web search. If you cannot find enough quality resources, include fewer rather than making up links.`,
   };
   
   return guidelines[artifactKey] || `### ${artifactKey}\nGenerate helpful content for this artifact based on the client's situation.`;
