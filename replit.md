@@ -66,3 +66,7 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 -   **Email Services:** Resend for sending magic links and inbound email webhooks.
 -   **Analytics:** PostHog for user behavior tracking.
 -   **PDF Generation:** Puppeteer for generating WSJ-styled PDFs of Serious Plan artifacts.
+
+## Project Documentation
+
+- **RETROSPECTIVE.md** - Comprehensive retrospective covering what went well, what didn't, instructions for future agents, bug prevention checklists, and design patterns. Essential reading before making significant changes.
