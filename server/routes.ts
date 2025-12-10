@@ -3014,40 +3014,7 @@ FORMAT:
     }
   });
 
-  // GET /api/transcript - Load user's transcript from database
-  app.get("/api/transcript", requireAuth, async (req, res) => {
-    try {
-      const userId = (req.user as any)?.id;
-      if (!userId) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const transcript = await storage.getTranscriptByUserId(userId);
-      if (!transcript) {
-        return res.json({ 
-          transcript: [],
-          progress: 0,
-          currentModule: "Interview",
-          interviewComplete: false,
-          paymentVerified: false
-        });
-      }
-
-      res.json({
-        transcript: transcript.transcript,
-        progress: transcript.progress || 0,
-        currentModule: transcript.currentModule || "Interview",
-        interviewComplete: transcript.interviewComplete || false,
-        paymentVerified: transcript.paymentVerified || false,
-        valueBullets: transcript.valueBullets,
-        socialProof: transcript.socialProof,
-        planCard: transcript.planCard,
-      });
-    } catch (error: any) {
-      console.error("Load transcript error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
+  // NOTE: GET /api/transcript is defined earlier in the file at line ~1660 with clientDossier field
 
   // POST /api/transcript - Save user's transcript to database
   // Also triggers dossier generation when planCard is present

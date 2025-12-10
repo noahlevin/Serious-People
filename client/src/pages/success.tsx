@@ -97,52 +97,55 @@ export default function Success() {
 
       if (data.ok) {
         analytics.paymentCompleted();
-        if (loadTranscript()) {
-          // Check if dossier already exists (generated when planCard was saved)
-          // If ready, skip success page and go straight to Module 1
-          setState("preparing-coaching");
+        
+        // Check if dossier already exists (generated when planCard was saved)
+        // This check happens regardless of sessionStorage state
+        setState("preparing-coaching");
+        
+        try {
+          // First check if dossier already exists in database
+          const checkRes = await fetch("/api/transcript", { credentials: "include" });
+          const transcriptData = checkRes.ok ? await checkRes.json() : null;
           
-          try {
-            // First check if dossier already exists
-            const checkRes = await fetch("/api/transcript", { credentials: "include" });
-            const transcriptData = checkRes.ok ? await checkRes.json() : null;
+          if (transcriptData?.clientDossier) {
+            // Dossier already exists - skip success page, go straight to Module 1
+            console.log("Client dossier ready, redirecting to Module 1");
+            sessionStorage.setItem("payment_verified", "true");
+            queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
+            setLocation("/module/1");
+            return;
+          }
+          
+          // No dossier found - try to load transcript and generate
+          if (loadTranscript() || (transcriptData?.transcript && transcriptData.transcript.length > 0)) {
+            // Have transcript, generate dossier now as fallback
+            console.log("Dossier not found, generating now...");
+            const dossierRes = await fetch("/api/generate-dossier", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+            });
             
-            if (transcriptData?.clientDossier) {
-              // Dossier already exists - skip success page, go straight to Module 1
-              console.log("Client dossier ready, redirecting to Module 1");
+            if (dossierRes.ok) {
+              console.log("Client dossier generated successfully (fallback)");
+              // Now redirect to Module 1
               sessionStorage.setItem("payment_verified", "true");
               queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
               setLocation("/module/1");
               return;
             } else {
-              // Dossier not found - generate it now as fallback
-              console.log("Dossier not found, generating now...");
-              const dossierRes = await fetch("/api/generate-dossier", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-              });
-              
-              if (dossierRes.ok) {
-                console.log("Client dossier generated successfully (fallback)");
-                // Now redirect to Module 1
-                sessionStorage.setItem("payment_verified", "true");
-                queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
-                setLocation("/module/1");
-                return;
-              } else {
-                console.error("Failed to generate client dossier");
-                // Show ready state so user can manually proceed
-                setState("ready");
-              }
+              console.error("Failed to generate client dossier");
+              // Show ready state so user can manually proceed
+              setState("ready");
             }
-          } catch (err) {
-            console.error("Error checking/generating client dossier:", err);
-            // Still allow proceeding - show ready state
-            setState("ready");
+          } else {
+            // No transcript in sessionStorage or database
+            setState("transcript-error");
           }
-        } else {
-          setState("transcript-error");
+        } catch (err) {
+          console.error("Error checking/generating client dossier:", err);
+          // Still allow proceeding - show ready state
+          setState("ready");
         }
       } else {
         setState("error");
