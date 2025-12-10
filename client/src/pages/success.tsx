@@ -246,7 +246,7 @@ export default function Success() {
           <div className="sp-state-container">
             <div className="sp-error-card">
               <h2>Payment Verification Failed</h2>
-              <p>We couldn't verify your payment. Please contact <a href="mailto:support@example.com">support@example.com</a> for assistance.</p>
+              <p>We couldn't verify your payment. Please contact <a href="mailto:hello@seriouspeople.com">hello@seriouspeople.com</a> for assistance.</p>
             </div>
           </div>
         )}
@@ -316,7 +316,7 @@ export default function Success() {
       </div>
 
       <footer className="sp-footer">
-        <p>Questions? Contact <a href="mailto:support@example.com">support@example.com</a></p>
+        <p>Questions? Contact <a href="mailto:hello@seriouspeople.com">hello@seriouspeople.com</a></p>
       </footer>
     </div>
   );

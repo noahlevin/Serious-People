@@ -197,7 +197,7 @@ export default function CareerBrief() {
       </div>
 
       <footer className="sp-footer">
-        <p>Questions? Contact <a href="mailto:support@example.com">support@example.com</a></p>
+        <p>Questions? Contact <a href="mailto:hello@seriouspeople.com">hello@seriouspeople.com</a></p>
       </footer>
     </div>
   );
