@@ -23,7 +23,8 @@ export function initPostHog() {
 
 export function identifyUser(email: string, properties?: Record<string, unknown>) {
   if (!POSTHOG_KEY) return;
-  posthog.identify(email, properties);
+  // Always include email as a person property so it appears in PostHog UI
+  posthog.identify(email, { email, ...properties });
 }
 
 export function resetUser() {
