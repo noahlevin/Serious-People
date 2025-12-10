@@ -12,14 +12,11 @@ import type {
 } from "@shared/schema";
 
 // Zod schema for validating AI artifact responses
-// Accepts both expected types and common AI-generated variations
+// Type is free-form string to allow AI to create any artifact type
 const artifactResponseSchema = z.object({
   artifact_key: z.string().optional(), // Optional - we validate against expected key if provided
   title: z.string().min(1, "Title is required"),
-  type: z.enum([
-    'snapshot', 'conversation', 'narrative', 'plan', 'recap', 'resources',
-    'script', 'action_plan', 'checklist', 'guide', 'summary', 'timeline'
-  ]).default('snapshot'),
+  type: z.string().min(1).transform(s => s.toLowerCase().trim()).default('snapshot'),
   importance_level: z.enum(['must_read', 'recommended', 'optional', 'bonus']).default('recommended'),
   why_important: z.string().nullable().optional(),
   content: z.string().min(1, "Content is required"),
