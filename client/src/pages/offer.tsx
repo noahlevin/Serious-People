@@ -347,7 +347,7 @@ export default function Offer() {
         </div>
       </motion.section>
 
-      {/* Program Overview */}
+      {/* Program Overview - Journey with Interview + 3 Modules */}
       <motion.section 
         className="sp-offer-section sp-offer-program"
         initial={{ opacity: 0, y: 40 }}
@@ -356,60 +356,161 @@ export default function Offer() {
         transition={{ duration: 0.6 }}
       >
         <div className="sp-offer-container">
-          <h2 className="sp-offer-section-title">{displayName}'s Coaching Journey</h2>
+          <h2 className="sp-offer-section-title">{firstName}'s Coaching Journey</h2>
           
-          <div className="sp-offer-modules-grid">
-            {displayModules.map((mod, i) => (
-              <motion.div 
-                key={i} 
-                className="sp-offer-module-card"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-              >
-                <div className="sp-offer-module-number">Module {i + 1}</div>
-                <h3 className="sp-offer-module-name">{mod.name}</h3>
-                <p className="sp-offer-module-objective">{mod.objective}</p>
-                <div className="sp-offer-module-outcome">
-                  <CheckCircle2 size={16} />
-                  <span>{mod.outcome}</span>
-                </div>
-              </motion.div>
-            ))}
+          <div className="sp-offer-journey-timeline">
+            {/* Interview - Completed */}
+            <motion.div 
+              className="sp-offer-module-card sp-module-complete"
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0 }}
+            >
+              <div className="sp-module-complete-badge">
+                <CheckCircle2 size={14} />
+                <span>Complete</span>
+              </div>
+              <div className="sp-offer-module-number">Interview</div>
+              <h3 className="sp-offer-module-name">Discovery Session</h3>
+              <p className="sp-offer-module-objective">
+                {dossier?.situation 
+                  ? dossier.situation.length > 150 
+                    ? dossier.situation.substring(0, 147) + "..." 
+                    : dossier.situation
+                  : "We explored your current situation, constraints, and what you're looking for next."}
+              </p>
+              <div className="sp-module-divider" />
+              <div className="sp-module-outcome-header">What you shared:</div>
+              <div className="sp-offer-module-outcome sp-module-outcome-complete">
+                <CheckCircle2 size={16} />
+                <span>Your situation, goals, and constraints</span>
+              </div>
+            </motion.div>
+
+            {/* Connector */}
+            <motion.div 
+              className="sp-journey-connector"
+              initial={{ opacity: 0, scaleX: 0 }}
+              whileInView={{ opacity: 1, scaleX: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: 0.3 }}
+            >
+              <div className="sp-journey-line" />
+            </motion.div>
+
+            {/* Module 1 - Up Next */}
+            <motion.div 
+              className="sp-offer-module-card sp-module-next"
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <div className="sp-module-next-badge">
+                <span className="sp-module-next-dot" />
+                <span>Up Next</span>
+              </div>
+              <div className="sp-offer-module-number">Module 1</div>
+              <h3 className="sp-offer-module-name">{displayModules[0]?.name || "Job Autopsy"}</h3>
+              <p className="sp-offer-module-objective">{displayModules[0]?.objective || "Understand what's really driving your desire for change"}</p>
+              <div className="sp-module-timing">
+                <Clock size={14} />
+                <span>10–15 min</span>
+              </div>
+              <div className="sp-module-divider" />
+              <div className="sp-module-outcome-header">What you'll get:</div>
+              <div className="sp-offer-module-outcome">
+                <CheckCircle2 size={16} />
+                <span>{displayModules[0]?.outcome || "Crystal clarity on why now is the time for a change"}</span>
+              </div>
+            </motion.div>
+
+            {/* Connector */}
+            <motion.div 
+              className="sp-journey-connector"
+              initial={{ opacity: 0, scaleX: 0 }}
+              whileInView={{ opacity: 1, scaleX: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: 0.5 }}
+            >
+              <div className="sp-journey-line" />
+            </motion.div>
+
+            {/* Module 2 */}
+            <motion.div 
+              className="sp-offer-module-card"
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              <div className="sp-offer-module-number">Module 2</div>
+              <h3 className="sp-offer-module-name">{displayModules[1]?.name || "Fork in the Road"}</h3>
+              <p className="sp-offer-module-objective">{displayModules[1]?.objective || "Explore your realistic options without magical thinking"}</p>
+              <div className="sp-module-timing">
+                <Clock size={14} />
+                <span>10–15 min</span>
+              </div>
+              <div className="sp-module-divider" />
+              <div className="sp-module-outcome-header">What you'll get:</div>
+              <div className="sp-offer-module-outcome">
+                <CheckCircle2 size={16} />
+                <span>{displayModules[1]?.outcome || "A clear view of 2-3 realistic paths forward"}</span>
+              </div>
+            </motion.div>
+
+            {/* Connector */}
+            <motion.div 
+              className="sp-journey-connector"
+              initial={{ opacity: 0, scaleX: 0 }}
+              whileInView={{ opacity: 1, scaleX: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: 0.7 }}
+            >
+              <div className="sp-journey-line" />
+            </motion.div>
+
+            {/* Module 3 */}
+            <motion.div 
+              className="sp-offer-module-card"
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.6 }}
+            >
+              <div className="sp-offer-module-number">Module 3</div>
+              <h3 className="sp-offer-module-name">{displayModules[2]?.name || "The Great Escape Plan"}</h3>
+              <p className="sp-offer-module-objective">{displayModules[2]?.objective || "Build a concrete action plan you'll actually follow"}</p>
+              <div className="sp-module-timing">
+                <Clock size={14} />
+                <span>10–15 min</span>
+              </div>
+              <div className="sp-module-divider" />
+              <div className="sp-module-outcome-header">What you'll get:</div>
+              <div className="sp-offer-module-outcome">
+                <CheckCircle2 size={16} />
+                <span>{displayModules[2]?.outcome || "A 30-90 day roadmap with clear milestones"}</span>
+              </div>
+            </motion.div>
           </div>
+
+          {/* Arrow pointing down to artifacts */}
+          <motion.div 
+            className="sp-journey-arrow-down"
+            initial={{ opacity: 0, y: -10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.8 }}
+          >
+            <div className="sp-journey-arrow-line" />
+            <ChevronDown size={24} className="sp-journey-arrow-icon" />
+            <span className="sp-journey-arrow-label">Your Serious Plan</span>
+          </motion.div>
         </div>
       </motion.section>
 
-      {/* Value Propositions */}
-      <motion.section 
-        className="sp-offer-section sp-offer-value"
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="sp-offer-container">
-          <h2 className="sp-offer-section-title">Why This Matters for {firstName !== "Your" ? firstName : "You"}</h2>
-          <div className="sp-offer-value-list">
-            {valueBullets.map((bullet, i) => (
-              <motion.div 
-                key={i} 
-                className="sp-offer-value-item"
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.1 }}
-              >
-                <CheckCircle2 className="sp-offer-value-icon" />
-                <span>{bullet}</span>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </motion.section>
-
-      {/* Artifact Preview */}
+      {/* Artifact Preview - Now immediately after modules */}
       <motion.section 
         className="sp-offer-section sp-offer-artifacts"
         initial={{ opacity: 0, y: 40 }}
@@ -441,6 +542,34 @@ export default function Offer() {
                 </motion.div>
               );
             })}
+          </div>
+        </div>
+      </motion.section>
+
+      {/* Value Propositions */}
+      <motion.section 
+        className="sp-offer-section sp-offer-value"
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="sp-offer-container">
+          <h2 className="sp-offer-section-title">Why This Matters for {firstName !== "Your" ? firstName : "You"}</h2>
+          <div className="sp-offer-value-list">
+            {valueBullets.map((bullet, i) => (
+              <motion.div 
+                key={i} 
+                className="sp-offer-value-item"
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.1 }}
+              >
+                <CheckCircle2 className="sp-offer-value-icon" />
+                <span>{bullet}</span>
+              </motion.div>
+            ))}
           </div>
         </div>
       </motion.section>
