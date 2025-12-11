@@ -470,6 +470,15 @@ export default function Interview() {
         setStatus("");
         analytics.interviewCompleted();
         
+        // CRITICAL: Save valueBullets and socialProof to the database
+        // Previously these were only saved to state but never persisted,
+        // causing the offer page to have no value propositions
+        saveTranscript(currentTranscript, {
+          interviewComplete: true,
+          valueBullets: data.valueBullets || undefined,
+          socialProof: data.socialProof || undefined,
+        });
+        
         // NOTE: Dossier generation is now triggered by /api/interview/complete
         // which is called in handleCheckout BEFORE Stripe redirect
         // This avoids the 64KB keepalive body limit that caused silent failures
