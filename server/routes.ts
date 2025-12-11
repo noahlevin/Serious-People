@@ -1964,7 +1964,10 @@ COMMUNICATION STYLE:
       }
 
       const stripe = await getStripeClient();
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      // Expand total_details.breakdown to get coupon info
+      const session = await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ['total_details.breakdown']
+      });
 
       console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} stripePaymentStatus=${session.payment_status}`);
 
@@ -1978,6 +1981,18 @@ COMMUNICATION STYLE:
               stripeSessionId: sessionId,
             });
             console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=state_change paymentVerified=true hasDossier=${!!transcript.clientDossier}`);
+          }
+          
+          // Check if a friends & family coupon was used
+          const FRIENDS_FAMILY_COUPONS = ['uEW83Os5', 'h8TgzjXR', 'klpY3iUM'];
+          const discounts = session.total_details?.breakdown?.discounts || [];
+          const usedCouponId = discounts.length > 0 
+            ? (discounts[0].discount as any)?.coupon?.id 
+            : null;
+          
+          if (usedCouponId && FRIENDS_FAMILY_COUPONS.includes(usedCouponId)) {
+            await storage.updateUser(user.id, { isFriendsAndFamily: true });
+            console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=friends_family_flagged couponId=${usedCouponId}`);
           }
         }
         const durationMs = Date.now() - requestStart;

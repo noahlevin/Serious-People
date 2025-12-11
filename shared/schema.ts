@@ -36,6 +36,7 @@ export const users = pgTable("users", {
   oauthProvider: text("oauth_provider"),
   oauthId: text("oauth_id"),
   promoCode: text("promo_code"),
+  isFriendsAndFamily: boolean("is_friends_and_family").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
