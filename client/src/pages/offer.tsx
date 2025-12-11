@@ -159,7 +159,7 @@ const defaultArtifacts = [
 ];
 
 export default function Offer() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { journeyState, isLoading: journeyLoading } = useJourney();
   const [, setLocation] = useLocation();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -247,7 +247,7 @@ export default function Offer() {
   
   // Use fallbacks when personalized data is missing
   const displayModules = planCard?.modules || defaultModules;
-  const displayName = dossier?.clientName || planCard?.name || "Your";
+  const displayName = dossier?.clientName || planCard?.name || user?.providedName || "Your";
   const firstName = displayName.split(' ')[0]; // Get first name for friendly address
   const valueBullets = parsedValueBullets.length > 0 ? parsedValueBullets : defaultValueBullets;
   const plannedArtifacts = planCard?.plannedArtifacts || defaultArtifacts;

@@ -3401,9 +3401,9 @@ FORMAT:
       }
 
       const durationMs = Date.now() - requestStart;
-      console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=success upsertDurationMs=${upsertDurationMs} dossierTriggered=${dossierTriggered} durationMs=${durationMs}`);
+      console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=success upsertDurationMs=${upsertDurationMs} dossierTriggered=${dossierTriggered} providedNameUpdated=${providedNameUpdated} durationMs=${durationMs}`);
 
-      res.json({ success: true, id: result.id, dossierTriggered });
+      res.json({ success: true, id: result.id, dossierTriggered, providedNameUpdated });
     } catch (error: any) {
       const durationMs = Date.now() - requestStart;
       console.error(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${(req.user as any)?.id || 'unknown'} status=error durationMs=${durationMs} error="${error.message}"`);

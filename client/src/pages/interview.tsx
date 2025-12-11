@@ -318,6 +318,12 @@ export default function Interview() {
       const response = await apiRequest("POST", "/api/transcript", data);
       return response.json();
     },
+    onSuccess: (data) => {
+      // Refetch auth when providedName is captured from AI response
+      if (data?.providedNameUpdated) {
+        refetch();
+      }
+    },
   });
 
   const scrollToBottom = useCallback(() => {
