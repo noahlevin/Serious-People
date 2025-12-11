@@ -3519,6 +3519,43 @@ body.page-transition-out {
   align-items: center;
 }
 
+.sp-offer-header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.sp-offer-header-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-family: var(--sp-font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.6rem 1.25rem;
+  background: var(--sp-text);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sp-offer-header-cta:hover:not(:disabled) {
+  background: #333;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.sp-offer-header-cta:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.sp-offer-header-cta .sp-cta-price-original {
+  font-size: 0.85rem;
+}
+
 .sp-logo-link {
   display: flex;
   align-items: center;
@@ -4214,20 +4251,21 @@ body.page-transition-out {
   font-size: 1.1rem;
   font-weight: 600;
   padding: 1rem 2.5rem;
-  background: transparent;
-  color: var(--sp-text);
-  border: 2px solid var(--sp-text);
+  background: var(--sp-text);
+  color: #fff;
+  border: none;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .sp-offer-cta-button-secondary:hover:not(:disabled) {
-  background: var(--sp-text);
-  color: #fff;
+  background: #333;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .sp-offer-cta-button-secondary:disabled {
-  opacity: 0.5;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
@@ -4314,6 +4352,10 @@ body.page-transition-out {
 }
 
 @media (max-width: 600px) {
+  .sp-offer-header-cta {
+    display: none;
+  }
+
   .sp-offer-hero {
     padding: 3rem 1.5rem;
   }

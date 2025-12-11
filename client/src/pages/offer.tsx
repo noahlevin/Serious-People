@@ -277,7 +277,28 @@ export default function Offer() {
             <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
             <span className="sp-logo">Serious People</span>
           </Link>
-          <UserMenu />
+          <div className="sp-offer-header-right">
+            <button
+              className="sp-offer-header-cta"
+              data-testid="button-checkout-header"
+              onClick={handleCheckout}
+              disabled={isCheckoutLoading}
+            >
+              {isCheckoutLoading ? "Loading..." : (
+                <>
+                  Start — {hasDiscount ? (
+                    <>
+                      <span className="sp-cta-price-original">${originalPrice}</span>
+                      ${displayPrice}
+                    </>
+                  ) : (
+                    `$${displayPrice}`
+                  )}
+                </>
+              )}
+            </button>
+            <UserMenu />
+          </div>
         </div>
       </header>
 
