@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { 
   ChevronDown, 
+  Circle,
   Clock, 
   FileText, 
   MessageSquare, 
@@ -388,16 +389,18 @@ export default function Offer() {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0 }}
             >
-              <div className="sp-module-complete-badge">
-                <CheckCircle2 size={14} />
-                <span>Complete</span>
+              <div className="sp-module-badge-area">
+                <div className="sp-module-complete-badge">
+                  <CheckCircle2 size={14} />
+                  <span>Complete</span>
+                </div>
               </div>
               <div className="sp-offer-module-number">Interview</div>
               <h3 className="sp-offer-module-name">Discovery Session</h3>
               <p className="sp-offer-module-objective">
                 {dossier?.situation 
-                  ? dossier.situation.length > 150 
-                    ? dossier.situation.substring(0, 147) + "..." 
+                  ? dossier.situation.length > 120 
+                    ? dossier.situation.substring(0, 117) + "..." 
                     : dossier.situation
                   : "We explored your current situation, constraints, and what you're looking for next."}
               </p>
@@ -407,6 +410,7 @@ export default function Offer() {
                 <CheckCircle2 size={16} />
                 <span>Your situation, goals, and constraints</span>
               </div>
+              <div className="sp-module-complete-date">Completed today</div>
             </motion.div>
 
             {/* Connector */}
@@ -428,9 +432,12 @@ export default function Offer() {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
-              <div className="sp-module-next-badge">
-                <span className="sp-module-next-dot" />
-                <span>Up Next</span>
+              <div className="sp-module-badge-area">
+                <div className="sp-module-next-badge">
+                  <span className="sp-module-next-dot" />
+                  <span>Up Next</span>
+                </div>
+                <span className="sp-module-next-pill">1 of 3</span>
               </div>
               <div className="sp-offer-module-number">Module 1</div>
               <h3 className="sp-offer-module-name">{displayModules[0]?.name || "Job Autopsy"}</h3>
@@ -458,14 +465,15 @@ export default function Offer() {
               <div className="sp-journey-line" />
             </motion.div>
 
-            {/* Module 2 */}
+            {/* Module 2 - Future */}
             <motion.div 
-              className="sp-offer-module-card"
+              className="sp-offer-module-card sp-module-future"
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >
+              <div className="sp-module-badge-area" />
               <div className="sp-offer-module-number">Module 2</div>
               <h3 className="sp-offer-module-name">{displayModules[1]?.name || "Fork in the Road"}</h3>
               <p className="sp-offer-module-objective">{displayModules[1]?.objective || "Explore your realistic options without magical thinking"}</p>
@@ -476,7 +484,7 @@ export default function Offer() {
               <div className="sp-module-divider" />
               <div className="sp-module-outcome-header">What you'll get:</div>
               <div className="sp-offer-module-outcome">
-                <CheckCircle2 size={16} />
+                <Circle size={16} />
                 <span>{displayModules[1]?.outcome || "A clear view of 2-3 realistic paths forward"}</span>
               </div>
             </motion.div>
@@ -492,14 +500,15 @@ export default function Offer() {
               <div className="sp-journey-line" />
             </motion.div>
 
-            {/* Module 3 */}
+            {/* Module 3 - Future */}
             <motion.div 
-              className="sp-offer-module-card"
+              className="sp-offer-module-card sp-module-future"
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.6 }}
             >
+              <div className="sp-module-badge-area" />
               <div className="sp-offer-module-number">Module 3</div>
               <h3 className="sp-offer-module-name">{displayModules[2]?.name || "The Great Escape Plan"}</h3>
               <p className="sp-offer-module-objective">{displayModules[2]?.objective || "Build a concrete action plan you'll actually follow"}</p>
@@ -510,7 +519,7 @@ export default function Offer() {
               <div className="sp-module-divider" />
               <div className="sp-module-outcome-header">What you'll get:</div>
               <div className="sp-offer-module-outcome">
-                <CheckCircle2 size={16} />
+                <Circle size={16} />
                 <span>{displayModules[2]?.outcome || "A 30-90 day roadmap with clear milestones"}</span>
               </div>
             </motion.div>

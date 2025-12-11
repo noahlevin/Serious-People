@@ -3779,25 +3779,34 @@ body.page-transition-out {
   display: flex;
   align-items: stretch;
   gap: 0;
-  margin-top: 3rem;
-  overflow-x: auto;
-  padding-bottom: 1rem;
+  margin-top: 2rem;
+  overflow-x: visible;
+  padding-bottom: 0.5rem;
 }
 
 .sp-offer-journey-timeline .sp-offer-module-card {
   flex: 1;
-  min-width: 240px;
-  max-width: 280px;
+  min-width: 0;
+  max-width: none;
   position: relative;
   display: flex;
   flex-direction: column;
+  padding: 1rem 1.25rem;
+}
+
+/* Fixed height badge area for vertical alignment */
+.sp-module-badge-area {
+  height: 1.75rem;
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.25rem;
 }
 
 /* Journey connectors between modules */
 .sp-journey-connector {
   display: flex;
   align-items: center;
-  width: 40px;
+  width: 24px;
   flex-shrink: 0;
   transform-origin: left center;
 }
@@ -3816,29 +3825,48 @@ body.page-transition-out {
 
 /* Completed module styling */
 .sp-module-complete {
-  background: linear-gradient(135deg, #f8f7f4 0%, #f0efe8 100%);
-  border: 1px solid rgba(46, 125, 50, 0.2);
+  background: linear-gradient(135deg, #f0f7f0 0%, #e8f5e8 100%);
+  border: 1px solid rgba(46, 125, 50, 0.25);
+  position: relative;
+}
+
+.sp-module-complete .sp-offer-module-objective,
+.sp-module-complete .sp-offer-module-outcome span {
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.sp-module-complete .sp-offer-module-name {
+  opacity: 0.85;
 }
 
 .sp-module-complete-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  background: rgba(46, 125, 50, 0.1);
+  gap: 0.3rem;
+  background: rgba(46, 125, 50, 0.15);
   color: #2e7d32;
   font-family: var(--sp-font-display);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 0.35rem 0.65rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 100px;
-  margin-bottom: 0.75rem;
 }
 
 .sp-module-complete-badge svg {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
+}
+
+.sp-module-complete-date {
+  font-family: var(--sp-font-body);
+  font-size: 0.7rem;
+  color: #2e7d32;
+  opacity: 0.7;
+  margin-top: 0.5rem;
+  font-style: italic;
 }
 
 .sp-module-outcome-complete svg {
@@ -3847,26 +3875,42 @@ body.page-transition-out {
 
 /* Up Next module styling */
 .sp-module-next {
-  border: 2px solid rgba(139, 90, 43, 0.4);
-  box-shadow: 0 4px 20px rgba(139, 90, 43, 0.1);
+  background: linear-gradient(135deg, #fffbf5 0%, #fdf6eb 100%);
+  border: 2px solid rgba(139, 90, 43, 0.5);
+  box-shadow: 0 6px 24px rgba(139, 90, 43, 0.15);
+  z-index: 1;
 }
 
 .sp-module-next-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  background: rgba(139, 90, 43, 0.12);
   font-family: var(--sp-font-display);
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--sp-primary);
-  margin-bottom: 0.75rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 100px;
+}
+
+.sp-module-next-pill {
+  display: inline-flex;
+  font-family: var(--sp-font-body);
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: var(--sp-text-secondary);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.2rem 0.4rem;
+  border-radius: 100px;
+  margin-left: 0.4rem;
 }
 
 .sp-module-next-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   background: var(--sp-primary);
   border-radius: 50%;
   animation: pulse-dot 2s ease-in-out infinite;
@@ -3883,21 +3927,36 @@ body.page-transition-out {
   }
 }
 
+/* Future module styling (dimmed) */
+.sp-module-future {
+  background: var(--sp-bg);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  opacity: 0.85;
+}
+
+.sp-module-future .sp-offer-module-objective {
+  opacity: 0.7;
+}
+
+.sp-module-future .sp-offer-module-outcome svg {
+  color: #999;
+}
+
 /* Module timing indicator */
 .sp-module-timing {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   font-family: var(--sp-font-body);
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   color: var(--sp-text-secondary);
   margin-top: auto;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .sp-module-timing svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   opacity: 0.7;
 }
 
@@ -3905,22 +3964,48 @@ body.page-transition-out {
 .sp-module-divider {
   height: 1px;
   background: var(--sp-border-light);
-  margin: 1rem 0 0.75rem;
+  margin: 0.75rem 0 0.5rem;
 }
 
 .sp-module-outcome-header {
   font-family: var(--sp-font-display);
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: #888;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
 .sp-offer-journey-timeline .sp-offer-module-outcome {
   border-top: none;
   padding-top: 0;
+}
+
+.sp-offer-journey-timeline .sp-offer-module-name {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.sp-offer-journey-timeline .sp-offer-module-number {
+  font-size: 0.6rem;
+  margin-bottom: 0.15rem;
+}
+
+.sp-offer-journey-timeline .sp-offer-module-objective {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.sp-offer-journey-timeline .sp-offer-module-outcome {
+  font-size: 0.75rem;
+  gap: 0.35rem;
+}
+
+.sp-offer-journey-timeline .sp-offer-module-outcome svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* Arrow pointing to artifacts */
