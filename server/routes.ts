@@ -2060,6 +2060,32 @@ COMMUNICATION STYLE:
     }
   });
 
+  // POST /api/transcript/revision - Increment revision count when user clicks "Change Something"
+  app.post("/api/transcript/revision", async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.status(400).json({ error: "No transcript found" });
+      }
+
+      const currentCount = (transcript as any).revisionCount || 0;
+      await storage.updateTranscript(transcript.sessionToken, {
+        revisionCount: currentCount + 1,
+      } as any);
+
+      console.log(`[REVISION] ts=${new Date().toISOString()} user=${user.id} revisionCount=${currentCount + 1}`);
+      res.json({ ok: true, revisionCount: currentCount + 1 });
+    } catch (error: any) {
+      console.error("Revision count error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // POST /api/generate-dossier - Fallback endpoint to generate dossier if missing
   // Normally dossier is generated when planCard is saved, but this provides a fallback
   app.post("/api/generate-dossier", async (req, res) => {

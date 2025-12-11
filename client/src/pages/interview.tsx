@@ -196,71 +196,40 @@ function OptionsContainer({
   );
 }
 
-function Paywall({ 
-  valueBullets, 
-  socialProof, 
-  onCheckout, 
-  isLoading,
-  pricing
-}: { 
-  valueBullets?: string; 
-  socialProof?: string;
-  onCheckout: () => void;
+function PlanConfirmationCTAs({
+  onConfirm,
+  onRevise,
+  isLoading
+}: {
+  onConfirm: () => void;
+  onRevise: () => void;
   isLoading: boolean;
-  pricing?: PricingData;
 }) {
-  const bullets = valueBullets
-    ? valueBullets.trim().split("\n").filter(line => line.trim().startsWith("-")).map(line => line.replace(/^-\s*/, "").trim())
-    : [];
-
-  const hasDiscount = pricing && pricing.discountedPrice !== null && pricing.discountedPrice < pricing.originalPrice;
-  const displayPrice = hasDiscount ? pricing.discountedPrice : (pricing?.originalPrice ?? 49);
-  const originalPrice = pricing?.originalPrice ?? 49;
-
   return (
-    <div className="sp-paywall-inline sp-card-animate" data-testid="paywall">
-      <div className="sp-paywall-card">
-        <h3>Ready to work the plan?</h3>
-        <p>
-          We've mapped out a custom 3-module coaching session plus your Career Brief.
-        </p>
-        {bullets.length > 0 && (
-          <div className="sp-reasons">
-            <p className="intro">Why you'll benefit from this program:</p>
-            <ul>
-              {bullets.map((bullet, i) => (
-                <li key={i} dangerouslySetInnerHTML={{ __html: formatContent(bullet, { skipBulletConversion: true, skipLineBreaks: true }) }} />
-              ))}
-            </ul>
-          </div>
-        )}
-        {socialProof && <div className="sp-social-proof" dangerouslySetInnerHTML={{ __html: formatContent(socialProof, { skipBulletConversion: true }) }} />}
+    <div className="sp-plan-ctas sp-card-animate" data-testid="plan-confirmation-ctas">
+      <div className="sp-plan-ctas-container">
         <button
-          className="sp-checkout-button"
-          data-testid="button-checkout"
-          onClick={onCheckout}
+          className="sp-cta-primary"
+          data-testid="button-lets-do-it"
+          onClick={onConfirm}
           disabled={isLoading}
         >
           {isLoading ? (
             <>
-              <span className="sp-spinner"></span>Redirecting...
+              <span className="sp-spinner"></span>Loading...
             </>
           ) : (
-            <>
-              Let's Work the Plan – {hasDiscount ? (
-                <>
-                  <span className="sp-button-price-original">${originalPrice}</span>
-                  <span className="sp-button-price-discounted">${displayPrice}</span>
-                </>
-              ) : (
-                `$${displayPrice}`
-              )}
-            </>
+            "Let's Do It"
           )}
         </button>
-        <div className="sp-price-note">
-          Payment handled securely via Stripe.{hasDiscount && " Discount pre-applied."}
-        </div>
+        <button
+          className="sp-cta-secondary"
+          data-testid="button-change-something"
+          onClick={onRevise}
+          disabled={isLoading}
+        >
+          Change Something
+        </button>
       </div>
     </div>
   );
@@ -296,6 +265,9 @@ export default function Interview() {
   const [animatingMessageIndex, setAnimatingMessageIndex] = useState<number | null>(null);
   const [titleCards, setTitleCards] = useState<{ index: number; name: string; time: string }[]>([]);
   const [paymentVerified, setPaymentVerified] = useState(false);
+  const [isNavigatingToOffer, setIsNavigatingToOffer] = useState(false);
+  const [showPlanCTAs, setShowPlanCTAs] = useState(false);
+  const [isRevising, setIsRevising] = useState(false);
   
   const chatWindowRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -530,6 +502,8 @@ export default function Interview() {
 
       if (data.planCard?.name) {
         setPlanCard({ card: data.planCard, index: updatedTranscript.length - 1 });
+        setShowPlanCTAs(true); // Show CTAs when plan card is displayed
+        setIsRevising(false); // Clear revising state
         // Save plan card to sessionStorage for success page
         try {
           sessionStorage.setItem("serious_people_plan_card", JSON.stringify(data.planCard));
@@ -629,6 +603,58 @@ export default function Interview() {
     setOptions([]);
     setInputValue("");
     sendMessage(option);
+  };
+
+  // Handle "Let's Do It" - confirm plan and navigate to offer page
+  const handleConfirmPlan = async () => {
+    setIsNavigatingToOffer(true);
+    analytics.interviewCompleted();
+    
+    try {
+      // Mark interview complete in database
+      const completeRes = await fetch("/api/interview/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      
+      if (!completeRes.ok) {
+        console.error("Failed to mark interview complete:", await completeRes.text());
+      }
+      
+      // Add a small delay for the animation effect
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Navigate to offer page with transition
+      document.body.classList.add('page-transition-out');
+      setTimeout(() => {
+        setLocation("/offer");
+      }, 400);
+    } catch (error) {
+      console.error("Error confirming plan:", error);
+      setIsNavigatingToOffer(false);
+    }
+  };
+
+  // Handle "Change Something" - continue chat to revise the plan
+  const handleRevisePlan = async () => {
+    setIsRevising(true);
+    setShowPlanCTAs(false);
+    
+    // Increment revision count in database
+    try {
+      await fetch("/api/transcript/revision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Failed to increment revision count:", error);
+    }
+    
+    // Send a message asking to revise the plan
+    const revisionMessage = "I'd like to change something about this plan.";
+    sendMessage(revisionMessage);
   };
 
   // Load transcript from server or sessionStorage on initialization
@@ -795,22 +821,20 @@ export default function Interview() {
               );
             })}
             {isTyping && <TypingIndicator />}
-            {options.length > 0 && animatingMessageIndex === null && (
+            {options.length > 0 && animatingMessageIndex === null && !showPlanCTAs && (
               <OptionsContainer options={options} onSelect={handleOptionSelect} />
             )}
-            {interviewComplete && (
-              <Paywall
-                valueBullets={valueBullets}
-                socialProof={socialProof}
-                onCheckout={handleCheckout}
-                isLoading={isCheckoutLoading}
-                pricing={pricing}
+            {showPlanCTAs && planCard && animatingMessageIndex === null && !interviewComplete && (
+              <PlanConfirmationCTAs
+                onConfirm={handleConfirmPlan}
+                onRevise={handleRevisePlan}
+                isLoading={isNavigatingToOffer}
               />
             )}
           </div>
         </main>
 
-        {!interviewComplete && (
+        {!interviewComplete && !showPlanCTAs && (
           <div className="sp-input-area">
             <div className="sp-input-row">
               <textarea

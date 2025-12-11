@@ -10,6 +10,7 @@ import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Prepare from "@/pages/prepare";
 import Interview from "@/pages/interview";
+import Offer from "@/pages/offer";
 import Success from "@/pages/success";
 import ModulePage from "@/pages/module";
 import Progress from "@/pages/progress";
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/prepare" component={Prepare} />
       <Route path="/interview" component={Interview} />
+      <Route path="/offer" component={Offer} />
       <Route path="/success" component={Success} />
       <Route path="/module/:moduleNumber" component={ModulePage} />
       <Route path="/progress" component={Progress} />
