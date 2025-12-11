@@ -10,17 +10,23 @@ interface JourneyResponse {
 }
 
 export function useJourney() {
-  const { data, isLoading, error, refetch } = useQuery<JourneyResponse>({
+  const { data, isLoading, isFetching, error, refetch } = useQuery<JourneyResponse>({
     queryKey: ["/api/journey"],
     retry: false,
     staleTime: 0, // Always refetch to ensure fresh journey state
   });
 
+  // CRITICAL: Use isLoading OR isFetching to prevent stale data race conditions
+  // isLoading is only true when there's no cached data
+  // isFetching is true during any fetch, including background refetches after cache invalidation
+  // Without checking isFetching, pages might redirect based on stale cached data
+  const loading = isLoading || isFetching;
+
   return {
     journeyState: data?.state ?? null,
     currentStep: data?.currentStep ?? null,
     currentPath: data?.currentPath ?? null,
-    isLoading,
+    isLoading: loading,
     error,
     refetch,
   };
