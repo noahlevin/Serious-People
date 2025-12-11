@@ -102,6 +102,47 @@ const features = [
   { icon: RefreshCw, title: "Tailored to You", description: "Not a generic template" },
 ];
 
+// Default modules when planCard is missing
+const defaultModules = [
+  {
+    name: "Job Autopsy",
+    objective: "Understand what's really driving your desire for change",
+    approach: "We'll dig into your current situation—beyond surface frustrations—to identify the core issues.",
+    outcome: "Crystal clarity on why now is the time for a change"
+  },
+  {
+    name: "Fork in the Road",
+    objective: "Explore your realistic options without magical thinking",
+    approach: "We'll map out paths you might not have considered, stress-test assumptions, and narrow to viable options.",
+    outcome: "A clear view of 2-3 realistic paths forward"
+  },
+  {
+    name: "The Great Escape Plan",
+    objective: "Build a concrete action plan you'll actually follow",
+    approach: "We'll create specific next steps, conversation scripts, and contingency plans.",
+    outcome: "A 30-90 day roadmap with clear milestones"
+  }
+];
+
+// Default value bullets when valueBullets is missing
+const defaultValueBullets = [
+  "Get unstuck from the analysis paralysis that's keeping you in place",
+  "See your situation clearly without the fog of everyday stress",
+  "Know exactly what to say in difficult conversations with your boss or team",
+  "Have a concrete plan instead of vague intentions",
+  "Feel confident about your next move, whatever it is"
+];
+
+// Default planned artifacts when planCard.plannedArtifacts is missing
+const defaultArtifacts = [
+  { key: "decision_snapshot", title: "Decision Snapshot", type: "snapshot", description: "A clear summary of your situation, options, and recommended path forward" },
+  { key: "conversation_scripts", title: "Conversation Scripts", type: "conversation", description: "Word-for-word scripts for difficult discussions you'll need to have" },
+  { key: "action_plan", title: "30-90 Day Action Plan", type: "plan", description: "Specific steps with deadlines and accountability checkpoints" },
+  { key: "risk_map", title: "Risk Assessment", type: "strategic", description: "What could go wrong and how to prepare for it" },
+  { key: "resources", title: "Curated Resources", type: "reference", description: "Books, tools, and connections relevant to your path" },
+  { key: "coach_letter", title: "Coach Graduation Note", type: "personal", description: "A personal message capturing your journey and next steps" }
+];
+
 export default function Offer() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { journeyState, isLoading: journeyLoading } = useJourney();
@@ -184,9 +225,15 @@ export default function Offer() {
   const originalPrice = pricing?.originalPrice ?? 49;
 
   const planCard = transcriptData?.planCard;
-  const valueBullets = transcriptData?.valueBullets
+  const parsedValueBullets = transcriptData?.valueBullets
     ? transcriptData.valueBullets.trim().split("\n").filter(line => line.trim().startsWith("-")).map(line => line.replace(/^-\s*/, "").trim())
     : [];
+  
+  // Use fallbacks when personalized data is missing
+  const displayModules = planCard?.modules || defaultModules;
+  const displayName = planCard?.name || "Your";
+  const valueBullets = parsedValueBullets.length > 0 ? parsedValueBullets : defaultValueBullets;
+  const plannedArtifacts = planCard?.plannedArtifacts || defaultArtifacts;
 
   if (authLoading || journeyLoading || transcriptLoading) {
     return (
@@ -255,108 +302,102 @@ export default function Offer() {
       </motion.section>
 
       {/* Program Overview */}
-      {planCard && (
-        <motion.section 
-          className="sp-offer-section sp-offer-program"
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="sp-offer-container">
-            <h2 className="sp-offer-section-title">{planCard.name}'s Coaching Journey</h2>
-            
-            <div className="sp-offer-modules-grid">
-              {planCard.modules.map((mod, i) => (
-                <motion.div 
-                  key={i} 
-                  className="sp-offer-module-card"
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                >
-                  <div className="sp-offer-module-number">Module {i + 1}</div>
-                  <h3 className="sp-offer-module-name">{mod.name}</h3>
-                  <p className="sp-offer-module-objective">{mod.objective}</p>
-                  <div className="sp-offer-module-outcome">
-                    <CheckCircle2 size={16} />
-                    <span>{mod.outcome}</span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+      <motion.section 
+        className="sp-offer-section sp-offer-program"
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="sp-offer-container">
+          <h2 className="sp-offer-section-title">{displayName}'s Coaching Journey</h2>
+          
+          <div className="sp-offer-modules-grid">
+            {displayModules.map((mod, i) => (
+              <motion.div 
+                key={i} 
+                className="sp-offer-module-card"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+              >
+                <div className="sp-offer-module-number">Module {i + 1}</div>
+                <h3 className="sp-offer-module-name">{mod.name}</h3>
+                <p className="sp-offer-module-objective">{mod.objective}</p>
+                <div className="sp-offer-module-outcome">
+                  <CheckCircle2 size={16} />
+                  <span>{mod.outcome}</span>
+                </div>
+              </motion.div>
+            ))}
           </div>
-        </motion.section>
-      )}
+        </div>
+      </motion.section>
 
       {/* Value Propositions */}
-      {valueBullets.length > 0 && (
-        <motion.section 
-          className="sp-offer-section sp-offer-value"
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="sp-offer-container">
-            <h2 className="sp-offer-section-title">Why This Matters for You</h2>
-            <div className="sp-offer-value-list">
-              {valueBullets.map((bullet, i) => (
-                <motion.div 
-                  key={i} 
-                  className="sp-offer-value-item"
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: i * 0.1 }}
-                >
-                  <CheckCircle2 className="sp-offer-value-icon" />
-                  <span dangerouslySetInnerHTML={{ __html: bullet }} />
-                </motion.div>
-              ))}
-            </div>
+      <motion.section 
+        className="sp-offer-section sp-offer-value"
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="sp-offer-container">
+          <h2 className="sp-offer-section-title">Why This Matters for You</h2>
+          <div className="sp-offer-value-list">
+            {valueBullets.map((bullet, i) => (
+              <motion.div 
+                key={i} 
+                className="sp-offer-value-item"
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.1 }}
+              >
+                <CheckCircle2 className="sp-offer-value-icon" />
+                <span>{bullet}</span>
+              </motion.div>
+            ))}
           </div>
-        </motion.section>
-      )}
+        </div>
+      </motion.section>
 
       {/* Artifact Preview */}
-      {planCard?.plannedArtifacts && planCard.plannedArtifacts.length > 0 && (
-        <motion.section 
-          className="sp-offer-section sp-offer-artifacts"
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="sp-offer-container">
-            <h2 className="sp-offer-section-title">Your Serious Plan Includes</h2>
-            <p className="sp-offer-section-subtitle">
-              After completing the session, you'll receive a comprehensive package of personalized deliverables:
-            </p>
-            
-            <div className="sp-offer-artifacts-grid">
-              {planCard.plannedArtifacts.map((artifact, i) => {
-                const IconComponent = artifactIcons[artifact.type] || FileText;
-                return (
-                  <motion.div 
-                    key={i} 
-                    className="sp-offer-artifact-card"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: i * 0.05 }}
-                  >
-                    <IconComponent className="sp-offer-artifact-icon" />
-                    <h4 className="sp-offer-artifact-title">{artifact.title}</h4>
-                    <p className="sp-offer-artifact-desc">{artifact.description}</p>
-                  </motion.div>
-                );
-              })}
-            </div>
+      <motion.section 
+        className="sp-offer-section sp-offer-artifacts"
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="sp-offer-container">
+          <h2 className="sp-offer-section-title">Your Serious Plan Includes</h2>
+          <p className="sp-offer-section-subtitle">
+            After completing the session, you'll receive a comprehensive package of personalized deliverables:
+          </p>
+          
+          <div className="sp-offer-artifacts-grid">
+            {plannedArtifacts.map((artifact, i) => {
+              const IconComponent = artifactIcons[artifact.type] || FileText;
+              return (
+                <motion.div 
+                  key={i} 
+                  className="sp-offer-artifact-card"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: i * 0.05 }}
+                >
+                  <IconComponent className="sp-offer-artifact-icon" />
+                  <h4 className="sp-offer-artifact-title">{artifact.title}</h4>
+                  <p className="sp-offer-artifact-desc">{artifact.description}</p>
+                </motion.div>
+              );
+            })}
           </div>
-        </motion.section>
-      )}
+        </div>
+      </motion.section>
 
       {/* Features Grid */}
       <motion.section 
