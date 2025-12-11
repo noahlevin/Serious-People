@@ -31,7 +31,7 @@ export function useJourneyGate(requiredStep: JourneyStep) {
   const { journeyState, currentStep, currentPath, isLoading } = useJourney();
   
   const stepOrder: JourneyStep[] = [
-    'interview', 'paywall', 'module_1', 'module_2', 'module_3', 'graduation', 'serious_plan'
+    'interview', 'offer', 'module_1', 'module_2', 'module_3', 'graduation', 'serious_plan'
   ];
   
   useEffect(() => {
@@ -78,7 +78,7 @@ export function getNextStep(journeyState: JourneyState): { step: JourneyStep; pa
     return { step: 'interview', path: '/interview' };
   }
   if (!journeyState.paymentVerified) {
-    return { step: 'paywall', path: '/interview' };
+    return { step: 'offer', path: '/offer' };
   }
   if (!journeyState.module1Complete) {
     return { step: 'module_1', path: '/module/1' };

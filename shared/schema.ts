@@ -6,7 +6,7 @@ import { z } from "zod";
 // User journey steps for state machine
 export type JourneyStep = 
   | 'interview'
-  | 'paywall'
+  | 'offer'
   | 'module_1'
   | 'module_2'
   | 'module_3'
@@ -132,6 +132,8 @@ export const interviewTranscripts = pgTable("interview_transcripts", {
   socialProof: text("social_proof"),
   planCard: json("plan_card").$type<CoachingPlan | null>(),
   clientDossier: json("client_dossier").$type<ClientDossier | null>(),
+  // Program revision count (for analytics)
+  revisionCount: integer("revision_count").default(0),
   // Module completion tracking
   module1Complete: boolean("module_1_complete").default(false),
   module2Complete: boolean("module_2_complete").default(false),
@@ -296,7 +298,7 @@ export interface JourneyState {
 // Determine the current step in the user journey
 export function getCurrentJourneyStep(state: JourneyState): JourneyStep {
   if (!state.interviewComplete) return 'interview';
-  if (!state.paymentVerified) return 'paywall';
+  if (!state.paymentVerified) return 'offer';
   if (!state.module1Complete) return 'module_1';
   if (!state.module2Complete) return 'module_2';
   if (!state.module3Complete) return 'module_3';
@@ -308,7 +310,7 @@ export function getCurrentJourneyStep(state: JourneyState): JourneyStep {
 export function canAccessStep(state: JourneyState, targetStep: JourneyStep): boolean {
   const currentStep = getCurrentJourneyStep(state);
   const stepOrder: JourneyStep[] = [
-    'interview', 'paywall', 'module_1', 'module_2', 'module_3', 'graduation', 'serious_plan'
+    'interview', 'offer', 'module_1', 'module_2', 'module_3', 'graduation', 'serious_plan'
   ];
   const currentIndex = stepOrder.indexOf(currentStep);
   const targetIndex = stepOrder.indexOf(targetStep);
@@ -320,7 +322,7 @@ export function canAccessStep(state: JourneyState, targetStep: JourneyStep): boo
 export function getStepPath(step: JourneyStep): string {
   switch (step) {
     case 'interview': return '/interview';
-    case 'paywall': return '/interview';  // Paywall is shown within interview
+    case 'offer': return '/offer';
     case 'module_1': return '/module/1';
     case 'module_2': return '/module/2';
     case 'module_3': return '/module/3';
