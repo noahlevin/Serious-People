@@ -32,6 +32,7 @@ export const users = pgTable("users", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").unique(),
   name: text("name"),
+  providedName: text("provided_name"), // Name the user gave during interview
   password: text("password"),
   oauthProvider: text("oauth_provider"),
   oauthId: text("oauth_id"),

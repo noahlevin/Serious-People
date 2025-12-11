@@ -1067,7 +1067,8 @@ export async function registerRoutes(
         user: { 
           id: req.user.id, 
           email: req.user.email, 
-          name: req.user.name 
+          name: req.user.name,
+          providedName: req.user.providedName || null
         } 
       });
     } else {
