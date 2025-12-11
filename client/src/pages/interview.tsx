@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatContent } from "@/components/ChatComponents";
 import { analytics } from "@/lib/posthog";
 import "@/styles/serious-people.css";
@@ -638,6 +638,10 @@ export default function Interview() {
       if (!completeRes.ok) {
         console.error("Failed to mark interview complete:", await completeRes.text());
       }
+      
+      // CRITICAL: Invalidate the journey cache so the offer page sees updated state
+      // Without this, the offer page may redirect back to interview due to stale cache
+      await queryClient.invalidateQueries({ queryKey: ["/api/journey"] });
       
       // Add a small delay for the animation effect
       await new Promise(resolve => setTimeout(resolve, 300));
