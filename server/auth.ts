@@ -13,6 +13,7 @@ declare global {
       id: string;
       email: string | null;
       name: string | null;
+      providedName: string | null;
     }
   }
 }
@@ -84,7 +85,7 @@ export function setupAuth(app: Express): void {
     try {
       const user = await storage.getUser(id);
       if (user) {
-        done(null, { id: user.id, email: user.email, name: user.name });
+        done(null, { id: user.id, email: user.email, name: user.name, providedName: user.providedName || null });
       } else {
         done(null, false);
       }
@@ -130,7 +131,7 @@ export function setupAuth(app: Express): void {
               });
             }
 
-            done(null, { id: user!.id, email: user!.email, name: user!.name });
+            done(null, { id: user!.id, email: user!.email, name: user!.name, providedName: user!.providedName || null });
           } catch (err) {
             done(err as Error);
           }

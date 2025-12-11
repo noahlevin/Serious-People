@@ -630,7 +630,12 @@ That's it. Wait for their answer before asking anything else.
 
 ### Second turn (after getting their name)
 
-Greet them warmly by name. Then offer structured options with natural phrasing:
+IMPORTANT: When the user provides their name, you MUST output this token on its own line FIRST, before any other content:
+[[PROVIDED_NAME:TheirName]]
+
+Replace "TheirName" with exactly what they told you (just the name, nothing else). This saves their name to their profile.
+
+Then greet them warmly by name and offer structured options with natural phrasing:
 
 "How would you like to get started?"
 
@@ -1736,7 +1741,7 @@ COMMUNICATION STYLE:
       }
       
       // Log user in
-      req.login({ id: user.id, email: user.email, name: user.name }, (err) => {
+      req.login({ id: user.id, email: user.email, name: user.name, providedName: user.providedName || null }, (err) => {
         if (err) {
           console.error("Login error:", err);
           return res.redirect("/login?error=login_failed");
@@ -1791,7 +1796,7 @@ COMMUNICATION STYLE:
       }
       
       // Log user in
-      req.login({ id: user.id, email: user.email, name: user.name }, (err) => {
+      req.login({ id: user.id, email: user.email, name: user.name, providedName: user.providedName || null }, (err) => {
         if (err) {
           console.error("Demo login error:", err);
           return res.status(500).json({ error: "Login failed" });
@@ -3318,6 +3323,28 @@ FORMAT:
         const durationMs = Date.now() - requestStart;
         console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=failed_invalid_format durationMs=${durationMs}`);
         return res.status(400).json({ error: "Invalid transcript format" });
+      }
+
+      // Parse PROVIDED_NAME token from AI responses and update user profile
+      // Token format: [[PROVIDED_NAME:TheirName]]
+      let providedNameUpdated = false;
+      for (const message of transcript) {
+        if (message.role === 'assistant' && message.content) {
+          const nameMatch = message.content.match(/\[\[PROVIDED_NAME:([^\]]+)\]\]/);
+          if (nameMatch && nameMatch[1]) {
+            const providedName = nameMatch[1].trim();
+            if (providedName) {
+              // Check if user already has a providedName
+              const existingUser = await storage.getUser(userId);
+              if (existingUser && !existingUser.providedName) {
+                await storage.updateUser(userId, { providedName });
+                providedNameUpdated = true;
+                console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} providedName="${providedName}" status=updated`);
+              }
+            }
+            break; // Only process the first name token
+          }
+        }
       }
 
       // Check if we need to generate dossier BEFORE upsert (to get existing state)
