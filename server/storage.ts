@@ -118,7 +118,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    // Auto-flag friends & family based on email domain
+    const email = insertUser.email?.toLowerCase() || '';
+    const isFriendsAndFamily = email.endsWith('@noahlevin.com') || email.endsWith('@seriouspeople.app');
+    
+    const [user] = await db.insert(users).values({
+      ...insertUser,
+      isFriendsAndFamily,
+    }).returning();
     return user;
   }
 
