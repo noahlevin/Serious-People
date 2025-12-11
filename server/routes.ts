@@ -1065,17 +1065,37 @@ export async function registerRoutes(
   // ============== AUTH ROUTES ==============
   
   // GET /auth/me - Get current authenticated user
-  app.get("/auth/me", (req, res) => {
+  // Always fetch fresh data from storage to reflect updates like providedName
+  app.get("/auth/me", async (req, res) => {
     if (req.isAuthenticated() && req.user) {
-      res.json({ 
-        authenticated: true, 
-        user: { 
-          id: req.user.id, 
-          email: req.user.email, 
-          name: req.user.name,
-          providedName: req.user.providedName || null
-        } 
-      });
+      try {
+        const freshUser = await storage.getUser(req.user.id);
+        if (freshUser) {
+          res.json({ 
+            authenticated: true, 
+            user: { 
+              id: freshUser.id, 
+              email: freshUser.email, 
+              name: freshUser.name,
+              providedName: freshUser.providedName || null
+            } 
+          });
+        } else {
+          res.json({ authenticated: false, user: null });
+        }
+      } catch (error) {
+        console.error("[auth/me] Error fetching user:", error);
+        // Fall back to session data
+        res.json({ 
+          authenticated: true, 
+          user: { 
+            id: req.user.id, 
+            email: req.user.email, 
+            name: req.user.name,
+            providedName: req.user.providedName || null
+          } 
+        });
+      }
     } else {
       res.json({ authenticated: false, user: null });
     }
