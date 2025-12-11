@@ -1070,22 +1070,20 @@ export async function registerRoutes(
     if (req.isAuthenticated() && req.user) {
       try {
         const freshUser = await storage.getUser(req.user.id);
-        if (freshUser) {
-          res.json({ 
-            authenticated: true, 
-            user: { 
-              id: freshUser.id, 
-              email: freshUser.email, 
-              name: freshUser.name,
-              providedName: freshUser.providedName || null
-            } 
-          });
-        } else {
-          res.json({ authenticated: false, user: null });
-        }
+        // Use fresh data if available, otherwise fall back to session data
+        const userData = freshUser || req.user;
+        res.json({ 
+          authenticated: true, 
+          user: { 
+            id: userData.id, 
+            email: userData.email, 
+            name: userData.name,
+            providedName: userData.providedName || null
+          } 
+        });
       } catch (error) {
         console.error("[auth/me] Error fetching user:", error);
-        // Fall back to session data
+        // Fall back to session data on error
         res.json({ 
           authenticated: true, 
           user: { 
