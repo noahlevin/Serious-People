@@ -1831,8 +1831,8 @@ COMMUNICATION STYLE:
           valueBullets: transcript.valueBullets,
           socialProof: transcript.socialProof,
           planCard: transcript.planCard,
-          // Include clientDossier presence flag for success page redirect logic
-          clientDossier: transcript.clientDossier ? true : null,
+          // Include clientDossier for personalization on offer page
+          clientDossier: transcript.clientDossier || null,
         });
       } else {
         const durationMs = Date.now() - requestStart;

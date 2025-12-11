@@ -37,9 +37,23 @@ interface CoachingPlan {
   plannedArtifacts?: { key: string; title: string; type: string; description: string }[];
 }
 
+interface ClientDossier {
+  clientName: string;
+  currentRole: string;
+  company: string;
+  tenure: string;
+  situation: string;
+  bigProblem: string;
+  desiredOutcome: string;
+  keyFacts: string[];
+  relationships: { person: string; role: string; dynamic: string }[];
+  emotionalState: string;
+}
+
 interface TranscriptData {
   planCard: CoachingPlan | null;
   valueBullets: string | null;
+  clientDossier: ClientDossier | null;
 }
 
 // Artifact type to icon mapping
@@ -225,15 +239,23 @@ export default function Offer() {
   const originalPrice = pricing?.originalPrice ?? 49;
 
   const planCard = transcriptData?.planCard;
+  const dossier = transcriptData?.clientDossier;
   const parsedValueBullets = transcriptData?.valueBullets
     ? transcriptData.valueBullets.trim().split("\n").filter(line => line.trim().startsWith("-")).map(line => line.replace(/^-\s*/, "").trim())
     : [];
   
   // Use fallbacks when personalized data is missing
   const displayModules = planCard?.modules || defaultModules;
-  const displayName = planCard?.name || "Your";
+  const displayName = dossier?.clientName || planCard?.name || "Your";
+  const firstName = displayName.split(' ')[0]; // Get first name for friendly address
   const valueBullets = parsedValueBullets.length > 0 ? parsedValueBullets : defaultValueBullets;
   const plannedArtifacts = planCard?.plannedArtifacts || defaultArtifacts;
+  
+  // Personalization data from dossier
+  const hasPersonalization = !!(dossier?.situation || dossier?.bigProblem);
+  const roleContext = dossier?.currentRole && dossier?.company 
+    ? `${dossier.currentRole} at ${dossier.company}` 
+    : null;
 
   if (authLoading || journeyLoading || transcriptLoading) {
     return (
@@ -286,16 +308,40 @@ export default function Offer() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            Your Coaching Plan is Ready
+            {firstName !== "Your" ? `${firstName}, Your Plan is Ready` : "Your Coaching Plan is Ready"}
           </motion.h1>
+          
+          {/* Personalized Context - Shows we listened */}
+          {hasPersonalization && (
+            <motion.div 
+              className="sp-offer-context-box"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+              data-testid="personalized-context"
+            >
+              <p className="sp-offer-context-text">
+                {roleContext && <span className="sp-offer-context-role">{roleContext}</span>}
+                {dossier?.bigProblem && (
+                  <span className="sp-offer-context-problem">
+                    {roleContext ? " · " : ""}Navigating: <em>{dossier.bigProblem}</em>
+                  </span>
+                )}
+              </p>
+            </motion.div>
+          )}
           
           <motion.p 
             className="sp-offer-hero-subtitle"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
+            transition={{ duration: 0.6, delay: hasPersonalization ? 0.6 : 0.5 }}
           >
-            We've designed a personalized session based on your situation. <br />
+            {hasPersonalization 
+              ? "Based on what you shared, we've designed a session specifically for your situation."
+              : "We've designed a personalized session based on your situation."
+            }
+            <br />
             <span className="sp-highlight">30 minutes to clarity. Pause and return anytime.</span>
           </motion.p>
         </div>
@@ -344,7 +390,7 @@ export default function Offer() {
         transition={{ duration: 0.6 }}
       >
         <div className="sp-offer-container">
-          <h2 className="sp-offer-section-title">Why This Matters for You</h2>
+          <h2 className="sp-offer-section-title">Why This Matters for {firstName !== "Your" ? firstName : "You"}</h2>
           <div className="sp-offer-value-list">
             {valueBullets.map((bullet, i) => (
               <motion.div 

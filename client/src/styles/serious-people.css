@@ -3605,6 +3605,39 @@ body.page-transition-out {
   margin: 0;
 }
 
+/* Personalized context box - shows we listened */
+.sp-offer-context-box {
+  background: linear-gradient(135deg, rgba(139, 90, 43, 0.08) 0%, rgba(139, 90, 43, 0.04) 100%);
+  border: 1px solid rgba(139, 90, 43, 0.15);
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  margin: 0 auto 1.5rem;
+  max-width: 600px;
+}
+
+.sp-offer-context-text {
+  font-family: var(--sp-font-body);
+  font-size: 1rem;
+  color: var(--sp-text);
+  margin: 0;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.sp-offer-context-role {
+  font-weight: 600;
+  color: var(--sp-text);
+}
+
+.sp-offer-context-problem {
+  color: var(--sp-text-secondary);
+}
+
+.sp-offer-context-problem em {
+  font-style: italic;
+  color: var(--sp-text);
+}
+
 .sp-highlight {
   color: var(--sp-text);
   font-weight: 500;
@@ -4084,6 +4117,15 @@ body.page-transition-out {
 
   .sp-offer-hero-subtitle br {
     display: none;
+  }
+
+  .sp-offer-context-box {
+    padding: 0.875rem 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .sp-offer-context-text {
+    font-size: 0.9rem;
   }
 
   .sp-offer-section {
