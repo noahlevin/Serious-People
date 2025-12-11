@@ -279,25 +279,6 @@ export default function Offer() {
             <span className="sp-logo">Serious People</span>
           </Link>
           <div className="sp-offer-header-right">
-            <button
-              className="sp-offer-header-cta"
-              data-testid="button-checkout-header"
-              onClick={handleCheckout}
-              disabled={isCheckoutLoading}
-            >
-              {isCheckoutLoading ? "Loading..." : (
-                <>
-                  Start — {hasDiscount ? (
-                    <>
-                      <span className="sp-cta-price-original">${originalPrice}</span>
-                      ${displayPrice}
-                    </>
-                  ) : (
-                    `$${displayPrice}`
-                  )}
-                </>
-              )}
-            </button>
             <UserMenu />
           </div>
         </div>
@@ -366,6 +347,29 @@ export default function Offer() {
             <br />
             <span className="sp-highlight">30 minutes to clarity. Pause and return anytime.</span>
           </motion.p>
+          
+          <motion.button
+            className="sp-offer-hero-cta"
+            data-testid="button-checkout-hero"
+            onClick={handleCheckout}
+            disabled={isCheckoutLoading}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: hasPersonalization ? 0.7 : 0.6 }}
+          >
+            {isCheckoutLoading ? "Loading..." : (
+              <>
+                Start Your Session — {hasDiscount ? (
+                  <>
+                    <span className="sp-cta-price-original">${originalPrice}</span>
+                    ${displayPrice}
+                  </>
+                ) : (
+                  `$${displayPrice}`
+                )}
+              </>
+            )}
+          </motion.button>
         </div>
       </motion.section>
 
@@ -390,8 +394,8 @@ export default function Offer() {
               transition={{ duration: 0.5, delay: 0 }}
             >
               <div className="sp-module-badge-area">
-                <div className="sp-module-complete-badge">
-                  <CheckCircle2 size={14} />
+                <div className="sp-module-badge sp-module-badge--complete">
+                  <CheckCircle2 size={11} />
                   <span>Complete</span>
                 </div>
               </div>
@@ -404,13 +408,16 @@ export default function Offer() {
                     : dossier.situation
                   : "We explored your current situation, constraints, and what you're looking for next."}
               </p>
+              <div className="sp-module-timing sp-module-timing--complete">
+                <CheckCircle2 size={14} />
+                <span>Completed today</span>
+              </div>
               <div className="sp-module-divider" />
               <div className="sp-module-outcome-header">What you shared:</div>
               <div className="sp-offer-module-outcome sp-module-outcome-complete">
                 <CheckCircle2 size={16} />
                 <span>Your situation, goals, and constraints</span>
               </div>
-              <div className="sp-module-complete-date">Completed today</div>
             </motion.div>
 
             {/* Connector */}
@@ -433,11 +440,10 @@ export default function Offer() {
               transition={{ duration: 0.5, delay: 0.2 }}
             >
               <div className="sp-module-badge-area">
-                <div className="sp-module-next-badge">
+                <div className="sp-module-badge sp-module-badge--next">
                   <span className="sp-module-next-dot" />
                   <span>Up Next</span>
                 </div>
-                <span className="sp-module-next-pill">1 of 3</span>
               </div>
               <div className="sp-offer-module-number">Module 1</div>
               <h3 className="sp-offer-module-name">{displayModules[0]?.name || "Job Autopsy"}</h3>
@@ -449,7 +455,7 @@ export default function Offer() {
               <div className="sp-module-divider" />
               <div className="sp-module-outcome-header">What you'll get:</div>
               <div className="sp-offer-module-outcome">
-                <CheckCircle2 size={16} />
+                <Circle size={16} />
                 <span>{displayModules[0]?.outcome || "Crystal clarity on why now is the time for a change"}</span>
               </div>
             </motion.div>
@@ -473,7 +479,12 @@ export default function Offer() {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.4 }}
             >
-              <div className="sp-module-badge-area" />
+              <div className="sp-module-badge-area">
+                <div className="sp-module-badge sp-module-badge--future">
+                  <Circle size={11} />
+                  <span>Not Started</span>
+                </div>
+              </div>
               <div className="sp-offer-module-number">Module 2</div>
               <h3 className="sp-offer-module-name">{displayModules[1]?.name || "Fork in the Road"}</h3>
               <p className="sp-offer-module-objective">{displayModules[1]?.objective || "Explore your realistic options without magical thinking"}</p>
@@ -508,7 +519,12 @@ export default function Offer() {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.6 }}
             >
-              <div className="sp-module-badge-area" />
+              <div className="sp-module-badge-area">
+                <div className="sp-module-badge sp-module-badge--future">
+                  <Circle size={11} />
+                  <span>Not Started</span>
+                </div>
+              </div>
               <div className="sp-offer-module-number">Module 3</div>
               <h3 className="sp-offer-module-name">{displayModules[2]?.name || "The Great Escape Plan"}</h3>
               <p className="sp-offer-module-objective">{displayModules[2]?.objective || "Build a concrete action plan you'll actually follow"}</p>
@@ -534,8 +550,7 @@ export default function Offer() {
             transition={{ duration: 0.5, delay: 0.8 }}
           >
             <div className="sp-journey-arrow-line" />
-            <ChevronDown size={24} className="sp-journey-arrow-icon" />
-            <span className="sp-journey-arrow-label">Your Serious Plan</span>
+            <ChevronDown size={20} className="sp-journey-arrow-icon" />
           </motion.div>
         </div>
       </motion.section>
@@ -549,7 +564,7 @@ export default function Offer() {
         transition={{ duration: 0.6 }}
       >
         <div className="sp-offer-container">
-          <h2 className="sp-offer-section-title">Your Serious Plan Includes</h2>
+          <h2 className="sp-offer-section-title">{firstName}'s Tools to Take Away</h2>
           <p className="sp-offer-section-subtitle">
             After completing the session, you'll receive a comprehensive package of personalized deliverables:
           </p>
