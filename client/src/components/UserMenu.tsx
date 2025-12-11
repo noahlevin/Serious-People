@@ -5,17 +5,20 @@ import { useLocation } from "wouter";
 function useTypingAnimation(text: string, delay: number = 80) {
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [hasAnimated, setHasAnimated] = useState(false);
+  const animatedTextRef = useRef<string | null>(null);
   
   useEffect(() => {
-    if (!text || hasAnimated) {
-      setDisplayedText(text || "");
+    // Only start animation for new non-empty text
+    if (!text || text === animatedTextRef.current) {
+      if (!text) setDisplayedText("");
       return;
     }
     
+    // Lock in the text we're animating (use ref to avoid re-triggering effect)
+    animatedTextRef.current = text;
     setIsTyping(true);
-    let index = 0;
     setDisplayedText("");
+    let index = 0;
     
     const interval = setInterval(() => {
       if (index < text.length) {
@@ -23,13 +26,12 @@ function useTypingAnimation(text: string, delay: number = 80) {
         index++;
       } else {
         setIsTyping(false);
-        setHasAnimated(true);
         clearInterval(interval);
       }
     }, delay);
     
     return () => clearInterval(interval);
-  }, [text, delay, hasAnimated]);
+  }, [text, delay]);
   
   return { displayedText, isTyping };
 }
@@ -39,23 +41,14 @@ export function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [, setLocation] = useLocation();
   const menuRef = useRef<HTMLDivElement>(null);
-  const [prevProvidedName, setPrevProvidedName] = useState<string | null>(null);
   
-  // Track when providedName changes to trigger animation
-  const shouldAnimate = user?.providedName && user.providedName !== prevProvidedName;
   const displayName = user?.providedName || user?.name || user?.email?.split("@")[0] || "User";
   
+  // Animate when providedName exists - the hook handles preventing re-animation
   const { displayedText, isTyping } = useTypingAnimation(
-    shouldAnimate ? user.providedName! : "",
+    user?.providedName || "",
     60
   );
-  
-  // Update prev name after animation completes
-  useEffect(() => {
-    if (user?.providedName) {
-      setPrevProvidedName(user.providedName);
-    }
-  }, [user?.providedName]);
   
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
