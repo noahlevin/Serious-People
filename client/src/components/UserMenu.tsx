@@ -3,18 +3,21 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 
 function useTypingAnimation(text: string, delay: number = 80) {
-  const [displayedText, setDisplayedText] = useState("");
+  const [displayedText, setDisplayedText] = useState(text);
   const [isTyping, setIsTyping] = useState(false);
   const animatedTextRef = useRef<string | null>(null);
   
   useEffect(() => {
-    // Only start animation for new non-empty text
-    if (!text || text === animatedTextRef.current) {
-      if (!text) setDisplayedText("");
+    // Check sessionStorage to see if we've already animated this name
+    const animatedName = sessionStorage.getItem("sp_animated_name");
+    
+    // Only animate if: text exists, hasn't been animated this session, and isn't currently animating
+    if (!text || text === animatedName || text === animatedTextRef.current) {
+      setDisplayedText(text || "");
       return;
     }
     
-    // Lock in the text we're animating (use ref to avoid re-triggering effect)
+    // Lock in the text we're animating
     animatedTextRef.current = text;
     setIsTyping(true);
     setDisplayedText("");
@@ -26,6 +29,8 @@ function useTypingAnimation(text: string, delay: number = 80) {
         index++;
       } else {
         setIsTyping(false);
+        // Persist that we've animated this name
+        sessionStorage.setItem("sp_animated_name", text);
         clearInterval(interval);
       }
     }, delay);
