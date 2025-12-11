@@ -33,6 +33,9 @@ export function formatContent(content: string, optionsOrSkipTitleCard: FormatOpt
     ? { skipTitleCard: optionsOrSkipTitleCard }
     : optionsOrSkipTitleCard;
 
+  // Strip system tokens that shouldn't be displayed to users
+  formatted = formatted.replace(/\[\[PROVIDED_NAME:[^\]]+\]\]\n?/g, "");
+
   if (!options.skipTitleCard) {
     formatted = formatted.replace(/^—\s*(.+?)\s*\(est\.\s*([^)]+)\)\s*—\s*\n?/m, "");
   }
