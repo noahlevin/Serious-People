@@ -491,7 +491,15 @@ export default function Interview() {
       const assistantMessage: Message = { role: "assistant", content: data.reply };
       const updatedTranscript = [...currentTranscript, assistantMessage];
       setTranscript(updatedTranscript);
-      saveTranscript(updatedTranscript);
+      
+      // CRITICAL: Pass planCard in extraData to ensure it's saved to the server
+      // Previously planCard was only saved to state AFTER saveTranscript was called,
+      // causing stale closure issues where planCard was never persisted to DB
+      saveTranscript(updatedTranscript, {
+        planCard: data.planCard || null,
+        valueBullets: data.valueBullets || undefined,
+        socialProof: data.socialProof || undefined,
+      });
 
       const titleCard = extractTitleCard(data.reply);
       if (titleCard) {
