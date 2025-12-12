@@ -2250,42 +2250,61 @@ IMPORTANT OVERRIDE - TESTSKIP MODE:
 The user has entered "testskip" which is a testing command. You must now:
 1. Review the conversation so far
 2. Fabricate plausible, realistic answers for ALL remaining interview questions
-3. Start your response with: "Skipping ahead for testing purposes..."
-4. Present a summary of the fabricated client story in a clear, structured format
-5. Ask the user to confirm if this summary is correct using structured options
+3. Start your response with a brief summary of what you're fabricating
+4. IMMEDIATELY output the full plan card, value bullets, social proof, and interview complete markers
 
-DO NOT output the plan card yet. Wait for the user to confirm first.
+Generate everything in THIS SINGLE RESPONSE. Use fabricated but realistic details:
+- Name: Sarah Chen
+- Role: Senior Product Manager at a mid-size tech company
+- Tenure: 3 years
+- Situation: Feeling stuck at current level, manager seems supportive in 1-on-1s but doesn't advocate for promotions
+- Constraints: Partner expecting first child in 6 months, needs stable health insurance
+- Goals: Either get promoted here or find a role with more growth opportunity
 
-Your response should follow this format:
-
----
-
-Skipping ahead for testing purposes...
-
-Based on our conversation, here's what I understand about your situation:
-
-**Your Story:**
-- **Name:** [Fabricated name, e.g., Sarah Chen]
-- **Current Role:** [Fabricated role, e.g., Marketing Manager at a mid-size tech company]
-- **Tenure:** [Fabricated tenure, e.g., 3 years]
-- **The Situation:** [Fabricated situation, e.g., Feeling stuck, manager is unsupportive, considering leaving]
-- **Key Constraints:** [Fabricated constraints, e.g., Lives in Atlanta, cannot relocate, has financial obligations]
-- **What You Want:** [Fabricated goals, e.g., More strategic responsibility and growth opportunities]
-
-[[PROGRESS]]85[[END_PROGRESS]]
+Your response format:
 
 ---
 
-Does this capture your situation correctly?
+Skipping ahead for testing purposes. I've fabricated a realistic client story:
 
-[[STRUCTURED_OPTIONS]]
-- Yes, that's right - let's continue
-- Not quite - let me clarify a few things
-[[END_STRUCTURED_OPTIONS]]
+Sarah is a Senior PM who's been at her company for 3 years. She feels stuck - her manager says the right things but hasn't advocated for her promotion. With her first child coming in 6 months, she needs to figure out whether to push for promotion here or start looking elsewhere.
+
+[[PROVIDED_NAME:Sarah]]
+
+[[PROGRESS]]90[[END_PROGRESS]]
+
+[[PLAN_CARD]]
+NAME: Sarah
+MODULE1_NAME: The Performance Paradox
+MODULE1_OBJECTIVE: Understand why "doing good work" hasn't translated to advancement
+MODULE1_APPROACH: We'll examine the gap between your contributions and how they're perceived
+MODULE1_OUTCOME: Clarity on what's actually blocking your promotion
+MODULE2_NAME: The Family Factor
+MODULE2_OBJECTIVE: Map your options with realistic timelines and constraints
+MODULE2_APPROACH: We'll stress-test each path against your family timeline
+MODULE2_OUTCOME: A clear view of 2-3 paths that work with your life
+MODULE3_NAME: The Decisive Move
+MODULE3_OBJECTIVE: Build a concrete action plan for the next 90 days
+MODULE3_APPROACH: We'll sequence the conversations and decisions you need to make
+MODULE3_OUTCOME: A step-by-step plan with decision points and fallback options
+CAREER_BRIEF: Senior PM at 3 years, stuck at current level despite strong performance, needs clarity before parental leave
+SERIOUS_PLAN_SUMMARY: Your personalized Serious Plan will include a decision framework, conversation scripts for your manager, and a 90-day action timeline.
+PLANNED_ARTIFACTS: decision_snapshot, boss_conversation, action_plan, module_recap, resources
+[[END_PLAN_CARD]]
+
+[[VALUE_BULLETS]]
+- **Get clarity on whether your manager is actually in your corner** — we'll decode the "supportive in 1-on-1s but doesn't advocate in calibrations" dynamic
+- **Make a decision that accounts for your family timeline** — this isn't just career moves, it's about planning around parental leave
+- **Stop spinning on "am I good enough?"** — the vague feedback is designed to keep you guessing; we'll break that cycle
+[[END_VALUE_BULLETS]]
+
+[[SOCIAL_PROOF]]
+Research shows that 73% of people who feel "stuck" at their level say the biggest barrier isn't skill — it's lack of clarity about what the organization actually wants.
+[[END_SOCIAL_PROOF]]
+
+[[INTERVIEW_COMPLETE]]
 
 ---
-
-Remember: Do NOT output [[PLAN_CARD]], [[INTERVIEW_COMPLETE]], [[VALUE_BULLETS]], or [[SOCIAL_PROOF]] in this response. Those come only after the user confirms.
 ` : '';
 
       let reply: string;
