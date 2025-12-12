@@ -83,6 +83,7 @@ export interface InterviewAnalysis {
   situation: string;  // Summary of their career situation
   bigProblem: string;  // The core issue they're facing
   desiredOutcome: string;  // What they want to achieve
+  clientFacingSummary: string;  // 2-3 sentence client-facing summary of situation and coaching objectives (shown on offer page)
   keyFacts: string[];  // Concrete facts: salary, savings, timeline, etc.
   relationships: { person: string; role: string; dynamic: string }[];  // Partner, manager, etc.
   emotionalState: string;  // Frustration level, confidence, hesitation patterns
