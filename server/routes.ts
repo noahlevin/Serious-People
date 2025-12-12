@@ -9,16 +9,43 @@ import passport from "passport";
 import { getStripeClient } from "./stripeClient";
 import { storage } from "./storage";
 import { setupAuth, requireAuth } from "./auth";
-import { sendMagicLinkEmail, getResendClient, sendSeriousPlanEmail } from "./resendClient";
+import {
+  sendMagicLinkEmail,
+  getResendClient,
+  sendSeriousPlanEmail,
+} from "./resendClient";
 import { db } from "./db";
-import { interviewTranscripts, seriousPlans, seriousPlanArtifacts, type ClientDossier, type InterviewAnalysis, type ModuleRecord, type CoachingPlan, getCurrentJourneyStep, getStepPath, type JourneyState } from "@shared/schema";
+import {
+  interviewTranscripts,
+  seriousPlans,
+  seriousPlanArtifacts,
+  type ClientDossier,
+  type InterviewAnalysis,
+  type ModuleRecord,
+  type CoachingPlan,
+  getCurrentJourneyStep,
+  getStepPath,
+  type JourneyState,
+} from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { generateSeriousPlan, getSeriousPlanWithArtifacts, getLatestSeriousPlan, initializeSeriousPlan, regeneratePendingArtifacts } from "./seriousPlanService";
-import { generateArtifactPdf, generateBundlePdf, generateAllArtifactPdfs } from "./pdfService";
+import {
+  generateSeriousPlan,
+  getSeriousPlanWithArtifacts,
+  getLatestSeriousPlan,
+  initializeSeriousPlan,
+  regeneratePendingArtifacts,
+} from "./seriousPlanService";
+import {
+  generateArtifactPdf,
+  generateBundlePdf,
+  generateAllArtifactPdfs,
+} from "./pdfService";
 
 // Use Anthropic Claude if API key is available, otherwise fall back to OpenAI
 const useAnthropic = !!process.env.ANTHROPIC_API_KEY;
-const anthropic = useAnthropic ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
+const anthropic = useAnthropic
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // In-memory lock to prevent duplicate dossier generation attempts
@@ -37,27 +64,29 @@ function getBaseUrl(): string {
 }
 
 // Use specific Stripe product ID
-const STRIPE_PRODUCT_ID = 'prod_TWhB1gfxXvIa9N';
+const STRIPE_PRODUCT_ID = "prod_TWhB1gfxXvIa9N";
 let cachedPriceId: string | null = null;
 
 async function getProductPrice(): Promise<string> {
   if (cachedPriceId) return cachedPriceId;
-  
+
   const stripe = await getStripeClient();
-  
+
   // Get the active price for our specific product
-  const prices = await stripe.prices.list({ 
-    product: STRIPE_PRODUCT_ID, 
+  const prices = await stripe.prices.list({
+    product: STRIPE_PRODUCT_ID,
     active: true,
-    limit: 1 
+    limit: 1,
   });
-  
+
   if (prices.data.length > 0) {
     cachedPriceId = prices.data[0].id;
-    console.log(`Using price ${cachedPriceId} for product ${STRIPE_PRODUCT_ID}`);
+    console.log(
+      `Using price ${cachedPriceId} for product ${STRIPE_PRODUCT_ID}`,
+    );
     return cachedPriceId;
   }
-  
+
   throw new Error(`No active price found for product ${STRIPE_PRODUCT_ID}`);
 }
 
@@ -68,46 +97,56 @@ interface ActivePromoResult {
   amountOff: number | null;
 }
 
-async function findActivePromoCode(priceCurrency: string): Promise<ActivePromoResult> {
+async function findActivePromoCode(
+  priceCurrency: string,
+): Promise<ActivePromoResult> {
   const stripe = await getStripeClient();
-  
+
   try {
     const promoCodes = await stripe.promotionCodes.list({
       active: true,
-      expand: ['data.coupon'],
-      limit: 10
+      expand: ["data.coupon"],
+      limit: 10,
     });
-    
+
     for (const promo of promoCodes.data) {
       const coupon = promo.coupon;
-      
+
       // Check if coupon is still valid
       if (!coupon.valid) continue;
-      
+
       // Check expiration
       if (coupon.redeem_by && coupon.redeem_by * 1000 < Date.now()) continue;
-      
+
       // Check max redemptions
-      if (coupon.max_redemptions && coupon.times_redeemed >= coupon.max_redemptions) continue;
-      
+      if (
+        coupon.max_redemptions &&
+        coupon.times_redeemed >= coupon.max_redemptions
+      )
+        continue;
+
       // Check if coupon is restricted to specific products (skip if it doesn't include our product)
-      if (coupon.applies_to && coupon.applies_to.products && coupon.applies_to.products.length > 0) {
+      if (
+        coupon.applies_to &&
+        coupon.applies_to.products &&
+        coupon.applies_to.products.length > 0
+      ) {
         if (!coupon.applies_to.products.includes(STRIPE_PRODUCT_ID)) {
           continue; // Skip coupons that don't apply to our product
         }
       }
-      
+
       // Skip 100% off coupons from public display (these are private/friends-only codes)
       if (coupon.percent_off && coupon.percent_off >= 100) {
         continue;
       }
-      
+
       // Percent off coupons work for any currency
       if (coupon.percent_off) {
         return {
           promoCodeId: promo.id,
           percentOff: coupon.percent_off,
-          amountOff: null
+          amountOff: null,
         };
       } else if (coupon.amount_off && coupon.currency) {
         // Amount off coupons must match the price currency
@@ -115,7 +154,7 @@ async function findActivePromoCode(priceCurrency: string): Promise<ActivePromoRe
           return {
             promoCodeId: promo.id,
             percentOff: null,
-            amountOff: coupon.amount_off / 100
+            amountOff: coupon.amount_off / 100,
           };
         }
       }
@@ -123,7 +162,7 @@ async function findActivePromoCode(priceCurrency: string): Promise<ActivePromoRe
   } catch (promoError) {
     console.log("Error fetching promotion codes:", promoError);
   }
-  
+
   return { promoCodeId: null, percentOff: null, amountOff: null };
 }
 
@@ -147,7 +186,7 @@ async function loadUserTranscriptWithRetry(
     requirePlanCard?: boolean;
     maxAttempts?: number;
     delayMs?: number;
-  } = {}
+  } = {},
 ): Promise<TranscriptLoadResult> {
   const {
     requireDossier = false,
@@ -164,15 +203,17 @@ async function loadUserTranscriptWithRetry(
 
   while (attempts < maxAttempts) {
     attempts++;
-    
+
     try {
       const transcript = await storage.getTranscriptByUserId(userIdStr);
-      
+
       if (!transcript) {
         lastError = "No transcript found for user";
-        console.log(`[TranscriptLoader] Attempt ${attempts}/${maxAttempts}: No transcript for user ${userId}`);
+        console.log(
+          `[TranscriptLoader] Attempt ${attempts}/${maxAttempts}: No transcript for user ${userId}`,
+        );
         if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
           continue;
         }
         break;
@@ -184,9 +225,11 @@ async function loadUserTranscriptWithRetry(
 
       if (requireDossier && !hasDossier) {
         lastError = "Interview completed but client dossier not yet generated";
-        console.log(`[TranscriptLoader] Attempt ${attempts}/${maxAttempts}: Missing dossier for user ${userId}`);
+        console.log(
+          `[TranscriptLoader] Attempt ${attempts}/${maxAttempts}: Missing dossier for user ${userId}`,
+        );
         if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
           continue;
         }
         break;
@@ -194,34 +237,42 @@ async function loadUserTranscriptWithRetry(
 
       if (requirePlanCard && !hasPlanCard) {
         lastError = "Interview completed but coaching plan not yet generated";
-        console.log(`[TranscriptLoader] Attempt ${attempts}/${maxAttempts}: Missing planCard for user ${userId}`);
+        console.log(
+          `[TranscriptLoader] Attempt ${attempts}/${maxAttempts}: Missing planCard for user ${userId}`,
+        );
         if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
           continue;
         }
         break;
       }
 
       // Success - we have all required data
-      console.log(`[TranscriptLoader] Successfully loaded transcript for user ${userId} on attempt ${attempts}`);
+      console.log(
+        `[TranscriptLoader] Successfully loaded transcript for user ${userId} on attempt ${attempts}`,
+      );
       return {
         success: true,
         transcript,
         clientDossier: transcript.clientDossier || null,
         planCard: transcript.planCard || null,
       };
-
     } catch (err: any) {
       lastError = err.message || "Database error loading transcript";
-      console.error(`[TranscriptLoader] Attempt ${attempts}/${maxAttempts} error:`, err);
+      console.error(
+        `[TranscriptLoader] Attempt ${attempts}/${maxAttempts} error:`,
+        err,
+      );
       if (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
   }
 
   // All attempts failed
-  console.error(`[TranscriptLoader] Failed to load transcript for user ${userId} after ${maxAttempts} attempts: ${lastError}`);
+  console.error(
+    `[TranscriptLoader] Failed to load transcript for user ${userId} after ${maxAttempts} attempts: ${lastError}`,
+  );
   return {
     success: false,
     transcript: null,
@@ -356,11 +407,15 @@ CRITICAL JSON FORMATTING RULES:
 - Limit optionsOffered to actual options presented (usually 2-5)`;
 
 // Helper function to generate interview analysis using AI (single attempt)
-async function generateInterviewAnalysisSingle(transcript: { role: string; content: string }[]): Promise<InterviewAnalysis> {
-  const transcriptText = transcript.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
-  
+async function generateInterviewAnalysisSingle(
+  transcript: { role: string; content: string }[],
+): Promise<InterviewAnalysis> {
+  const transcriptText = transcript
+    .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
+    .join("\n\n");
+
   let response: string;
-  
+
   if (useAnthropic && anthropic) {
     // Use prefill technique: start assistant response with { to ensure clean JSON
     const result = await anthropic.messages.create({
@@ -370,28 +425,31 @@ async function generateInterviewAnalysisSingle(transcript: { role: string; conte
       system: INTERVIEW_ANALYSIS_PROMPT,
       messages: [
         { role: "user", content: transcriptText },
-        { role: "assistant", content: "{" } // Prefill to ensure JSON starts correctly
+        { role: "assistant", content: "{" }, // Prefill to ensure JSON starts correctly
       ],
     });
     // Log stop reason and usage for debugging
-    console.log(`[DOSSIER_DEBUG] stop_reason=${result.stop_reason} input_tokens=${result.usage?.input_tokens} output_tokens=${result.usage?.output_tokens}`);
-    
+    console.log(
+      `[DOSSIER_DEBUG] stop_reason=${result.stop_reason} input_tokens=${result.usage?.input_tokens} output_tokens=${result.usage?.output_tokens}`,
+    );
+
     // Prepend the { since we used it as prefill
-    const content = result.content[0].type === 'text' ? result.content[0].text : '';
+    const content =
+      result.content[0].type === "text" ? result.content[0].text : "";
     response = "{" + content;
   } else {
     const result = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
       messages: [
         { role: "system", content: INTERVIEW_ANALYSIS_PROMPT },
-        { role: "user", content: transcriptText }
+        { role: "user", content: transcriptText },
       ],
       max_completion_tokens: 8192,
       response_format: { type: "json_object" }, // OpenAI native JSON mode
     });
-    response = result.choices[0].message.content || '';
+    response = result.choices[0].message.content || "";
   }
-  
+
   // Parse JSON response with better error handling
   try {
     // First try direct parse (works if response is clean JSON)
@@ -404,41 +462,64 @@ async function generateInterviewAnalysisSingle(transcript: { role: string; conte
         return JSON.parse(jsonMatch[0]) as InterviewAnalysis;
       } catch (extractError: any) {
         // Log details for debugging
-        const snippet = jsonMatch[0].substring(Math.max(0, extractError.message.match(/position (\d+)/)?.[1] - 50 || 0), 
-                                                (extractError.message.match(/position (\d+)/)?.[1] || 100) + 50);
-        throw new Error(`JSON parse failed at: ...${snippet}... - ${extractError.message}`);
+        const snippet = jsonMatch[0].substring(
+          Math.max(
+            0,
+            extractError.message.match(/position (\d+)/)?.[1] - 50 || 0,
+          ),
+          (extractError.message.match(/position (\d+)/)?.[1] || 100) + 50,
+        );
+        throw new Error(
+          `JSON parse failed at: ...${snippet}... - ${extractError.message}`,
+        );
       }
     }
-    throw new Error(`Failed to parse interview analysis JSON: ${directError.message}`);
+    throw new Error(
+      `Failed to parse interview analysis JSON: ${directError.message}`,
+    );
   }
 }
 
 // Helper function to generate interview analysis with retry logic
-async function generateInterviewAnalysis(transcript: { role: string; content: string }[], maxRetries: number = 3, userId?: string): Promise<InterviewAnalysis | null> {
+async function generateInterviewAnalysis(
+  transcript: { role: string; content: string }[],
+  maxRetries: number = 3,
+  userId?: string,
+): Promise<InterviewAnalysis | null> {
   const startTime = Date.now();
-  const userTag = userId || 'unknown';
-  
+  const userTag = userId || "unknown";
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const attemptStart = Date.now();
     try {
       const elapsedMs = Date.now() - startTime;
-      console.log(`[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=started attempt=${attempt}/${maxRetries} durationMs=${elapsedMs}`);
+      console.log(
+        `[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=started attempt=${attempt}/${maxRetries} durationMs=${elapsedMs}`,
+      );
       const result = await generateInterviewAnalysisSingle(transcript);
       const durationMs = Date.now() - startTime;
-      console.log(`[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=success attempt=${attempt}/${maxRetries} durationMs=${durationMs}`);
+      console.log(
+        `[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=success attempt=${attempt}/${maxRetries} durationMs=${durationMs}`,
+      );
       return result;
     } catch (error: any) {
       const durationMs = Date.now() - startTime;
-      console.error(`[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=failed attempt=${attempt}/${maxRetries} error="${error.message}" durationMs=${durationMs}`);
+      console.error(
+        `[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=failed attempt=${attempt}/${maxRetries} error="${error.message}" durationMs=${durationMs}`,
+      );
       if (attempt === maxRetries) {
-        console.error(`[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=all_attempts_failed durationMs=${durationMs}`);
+        console.error(
+          `[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=all_attempts_failed durationMs=${durationMs}`,
+        );
         return null;
       }
       // Wait before retry (exponential backoff: 1s, 2s, 4s)
       const waitMs = Math.pow(2, attempt - 1) * 1000;
       const waitStartMs = Date.now() - startTime;
-      console.log(`[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=retry_wait waitMs=${waitMs} durationMs=${waitStartMs}`);
-      await new Promise(resolve => setTimeout(resolve, waitMs));
+      console.log(
+        `[DOSSIER_ANALYSIS] ts=${new Date().toISOString()} user=${userTag} status=retry_wait waitMs=${waitMs} durationMs=${waitStartMs}`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
     }
   }
   return null;
@@ -446,69 +527,92 @@ async function generateInterviewAnalysis(transcript: { role: string; content: st
 
 // Helper function to generate and save dossier with retry logic
 // Returns true if dossier was created/updated, false if failed
-type DossierResult = 
-  | { status: 'success' }
-  | { status: 'in_progress'; lockAgeMs: number }
-  | { status: 'failed'; error: string };
+type DossierResult =
+  | { status: "success" }
+  | { status: "in_progress"; lockAgeMs: number }
+  | { status: "failed"; error: string };
 
-async function generateAndSaveDossier(userId: string, transcript: { role: string; content: string }[]): Promise<DossierResult> {
+async function generateAndSaveDossier(
+  userId: string,
+  transcript: { role: string; content: string }[],
+): Promise<DossierResult> {
   const startTime = Date.now();
   const lockKey = String(userId);
   const existingLock = dossierGenerationLocks.get(lockKey);
   const now = Date.now();
-  
-  console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=started messageCount=${transcript.length} durationMs=0`);
-  
+
+  console.log(
+    `[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=started messageCount=${transcript.length} durationMs=0`,
+  );
+
   // Check if there's an active (non-stale) lock - this means generation is already in progress
-  if (existingLock && (now - existingLock) < DOSSIER_LOCK_TIMEOUT_MS) {
+  if (existingLock && now - existingLock < DOSSIER_LOCK_TIMEOUT_MS) {
     const lockAgeMs = now - existingLock;
     const durationMs = Date.now() - startTime;
-    console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=in_progress lockAgeMs=${lockAgeMs} timeoutMs=${DOSSIER_LOCK_TIMEOUT_MS} durationMs=${durationMs}`);
-    return { status: 'in_progress', lockAgeMs };
+    console.log(
+      `[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=in_progress lockAgeMs=${lockAgeMs} timeoutMs=${DOSSIER_LOCK_TIMEOUT_MS} durationMs=${durationMs}`,
+    );
+    return { status: "in_progress", lockAgeMs };
   }
-  
+
   // Acquire lock
   dossierGenerationLocks.set(lockKey, now);
   const lockAcquireMs = Date.now() - startTime;
-  console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=lock_acquired durationMs=${lockAcquireMs}`);
-  
+  console.log(
+    `[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=lock_acquired durationMs=${lockAcquireMs}`,
+  );
+
   try {
     const analysisStart = Date.now();
-    const interviewAnalysis = await generateInterviewAnalysis(transcript, 3, userId);
+    const interviewAnalysis = await generateInterviewAnalysis(
+      transcript,
+      3,
+      userId,
+    );
     const analysisMs = Date.now() - analysisStart;
-    
+
     if (!interviewAnalysis) {
       const durationMs = Date.now() - startTime;
-      console.error(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=failed_analysis analysisMs=${analysisMs} durationMs=${durationMs}`);
-      return { status: 'failed', error: 'Analysis generation failed' };
+      console.error(
+        `[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=failed_analysis analysisMs=${analysisMs} durationMs=${durationMs}`,
+      );
+      return { status: "failed", error: "Analysis generation failed" };
     }
-    
+
     const analysisCompleteMs = Date.now() - startTime;
-    console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=analysis_complete analysisMs=${analysisMs} durationMs=${analysisCompleteMs}`);
-    
+    console.log(
+      `[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=analysis_complete analysisMs=${analysisMs} durationMs=${analysisCompleteMs}`,
+    );
+
     const dossier: ClientDossier = {
       interviewTranscript: transcript,
       interviewAnalysis,
       moduleRecords: [],
       lastUpdated: new Date().toISOString(),
     };
-    
+
     const saveStart = Date.now();
     await storage.updateClientDossier(userId, dossier);
     const saveMs = Date.now() - saveStart;
-    
+
     const durationMs = Date.now() - startTime;
-    console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=success analysisMs=${analysisMs} saveMs=${saveMs} durationMs=${durationMs}`);
-    return { status: 'success' };
+    console.log(
+      `[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=success analysisMs=${analysisMs} saveMs=${saveMs} durationMs=${durationMs}`,
+    );
+    return { status: "success" };
   } catch (error: any) {
     const durationMs = Date.now() - startTime;
-    console.error(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=error error="${error.message}" durationMs=${durationMs}`);
-    return { status: 'failed', error: error.message };
+    console.error(
+      `[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=error error="${error.message}" durationMs=${durationMs}`,
+    );
+    return { status: "failed", error: error.message };
   } finally {
     // Release lock
     dossierGenerationLocks.delete(lockKey);
     const durationMs = Date.now() - startTime;
-    console.log(`[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=lock_released durationMs=${durationMs}`);
+    console.log(
+      `[DOSSIER_SAVE] ts=${new Date().toISOString()} user=${userId} status=lock_released durationMs=${durationMs}`,
+    );
   }
 }
 
@@ -516,33 +620,47 @@ async function generateAndSaveDossier(userId: string, transcript: { role: string
 async function generateModuleAnalysis(
   moduleNumber: number,
   moduleName: string,
-  transcript: { role: string; content: string }[]
-): Promise<Omit<ModuleRecord, 'moduleNumber' | 'moduleName' | 'transcript' | 'completedAt'> | null> {
+  transcript: { role: string; content: string }[],
+): Promise<Omit<
+  ModuleRecord,
+  "moduleNumber" | "moduleName" | "transcript" | "completedAt"
+> | null> {
   try {
-    const transcriptText = transcript.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
-    
+    const transcriptText = transcript
+      .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
+      .join("\n\n");
+
     let response: string;
-    
+
     if (useAnthropic && anthropic) {
       const result = await anthropic.messages.create({
         model: "claude-sonnet-4-5",
         max_tokens: 4096,
         system: MODULE_ANALYSIS_PROMPT,
-        messages: [{ role: "user", content: `Module ${moduleNumber}: ${moduleName}\n\n${transcriptText}` }],
+        messages: [
+          {
+            role: "user",
+            content: `Module ${moduleNumber}: ${moduleName}\n\n${transcriptText}`,
+          },
+        ],
       });
-      response = result.content[0].type === 'text' ? result.content[0].text : '';
+      response =
+        result.content[0].type === "text" ? result.content[0].text : "";
     } else {
       const result = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages: [
           { role: "system", content: MODULE_ANALYSIS_PROMPT },
-          { role: "user", content: `Module ${moduleNumber}: ${moduleName}\n\n${transcriptText}` }
+          {
+            role: "user",
+            content: `Module ${moduleNumber}: ${moduleName}\n\n${transcriptText}`,
+          },
         ],
         max_completion_tokens: 4096,
       });
-      response = result.choices[0].message.content || '';
+      response = result.choices[0].message.content || "";
     }
-    
+
     // Parse JSON response
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -773,6 +891,7 @@ Use [[OPTIONS]]...[[END_OPTIONS]] very liberally throughout the interview. They 
 - **Plan confirmation**: "This plan looks right" / "I'd change something"
 - **When asking "why"**: Instead of open-ended "Why do you want to leave?", offer common reasons as options
 - **Whenever you can anticipate likely responses**
+- **When questions are posed as multiple choice**: "Is it that you are feeling X, or is it more of Y?"
 
 **Pattern for exploring new topics:**
 
@@ -818,7 +937,8 @@ NN
 Where NN is 5–100. Progress is **per-module**:
 - When you start a new module (output a title card), mentally reset progress to ~5
 - Increase towards ~95 by the end of that module
-- Progress can only stay flat or increase, never decrease
+- Progress should increase by at least 2 on every reply
+- Progress should track roughly with your progress through the module agenda -- e.g. if you've finished 2 of 3 major topics, progress should be around 65
 
 ### Custom 3-module plan (pre-paywall)
 
@@ -858,7 +978,7 @@ MODULE3_APPROACH: [How we'll build the plan — 1 sentence]
 MODULE3_OUTCOME: [What they'll walk away with — 1 sentence]
 CAREER_BRIEF: [2-3 sentences describing the final deliverable - a structured document with their situation mirror, diagnosis, options map, action plan, and conversation scripts tailored to their specific people and dynamics]
 SERIOUS_PLAN_SUMMARY: [One sentence describing their personalized Serious Plan - the comprehensive coaching packet they'll receive after completing all modules]
-PLANNED_ARTIFACTS: [Comma-separated list of artifact types planned for this client. Always include: decision_snapshot, action_plan, module_recap, resources. Include boss_conversation if they have manager issues. Include partner_conversation if they mentioned a spouse/partner. Include self_narrative if identity/values are central. Add other custom artifacts if uniquely helpful for their situation.]
+PLANNED_ARTIFACTS: [Comma-separated list of artifact types planned for this client. Always include: decision_snapshot, action_plan, module_recap, resources. Include boss_conversation if they have manager issues. Include partner_conversation if they mentioned a spouse/partner. Include self_narrative if identity/values are central. Add at least three custom artifacts that are uniquely helpful for their situation and will delight the user with how specifically and thoughtfully they address their situational needs.]
 [[END_PLAN_CARD]]
 
 3. IMMEDIATELY after the plan card, include value bullets tailored to them:
@@ -924,120 +1044,135 @@ const MAX_RETRY_ATTEMPTS = 6;
 async function attemptSeriousPlanInitWithRetry(
   userId: string,
   sessionToken: string,
-  attempt: number
+  attempt: number,
 ): Promise<void> {
   const ts = new Date().toISOString();
-  
+
   // Check if plan was created by another process
   const existingPlan = await storage.getSeriousPlanByUserId(userId);
   if (existingPlan) {
-    console.log(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=skipped reason=plan_exists planId=${existingPlan.id}`);
+    console.log(
+      `[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=skipped reason=plan_exists planId=${existingPlan.id}`,
+    );
     return;
   }
-  
+
   // Get latest transcript
   const transcript = await storage.getTranscript(sessionToken);
-  
+
   if (transcript?.planCard && transcript?.clientDossier) {
     // Data is ready - attempt initialization
-    console.log(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=starting`);
-    
+    console.log(
+      `[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=starting`,
+    );
+
     try {
       const result = await initializeSeriousPlan(
         userId,
         transcript.id,
         transcript.planCard,
         transcript.clientDossier,
-        transcript
+        transcript,
       );
-      
+
       if (result.success) {
-        console.log(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=success planId=${result.planId}`);
+        console.log(
+          `[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=success planId=${result.planId}`,
+        );
       } else {
-        console.error(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=init_failed error="${result.error}"`);
+        console.error(
+          `[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=init_failed error="${result.error}"`,
+        );
       }
     } catch (err: any) {
-      console.error(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=error error="${err.message}"`);
+      console.error(
+        `[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=error error="${err.message}"`,
+      );
     }
   } else {
     // Data not ready - schedule retry if attempts remain
     if (attempt < MAX_RETRY_ATTEMPTS) {
-      const delay = RETRY_DELAYS_MS[attempt - 1] || RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
-      console.log(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=waiting reason=missing_data nextAttemptIn=${delay}ms`);
-      
+      const delay =
+        RETRY_DELAYS_MS[attempt - 1] ||
+        RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
+      console.log(
+        `[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=waiting reason=missing_data nextAttemptIn=${delay}ms`,
+      );
+
       setTimeout(() => {
         attemptSeriousPlanInitWithRetry(userId, sessionToken, attempt + 1);
       }, delay);
     } else {
-      console.error(`[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=exhausted reason=max_retries_reached`);
+      console.error(
+        `[SERIOUS_PLAN_RETRY] ts=${ts} user=${userId} attempt=${attempt} status=exhausted reason=max_retries_reached`,
+      );
     }
   }
 }
 
 export async function registerRoutes(
   httpServer: Server,
-  app: Express
+  app: Express,
 ): Promise<Server> {
-  
   const publicPath = path.resolve(process.cwd(), "public");
   app.use(express.static(publicPath));
-  
+
   // Set up authentication (Passport, sessions, strategies)
   setupAuth(app);
-  
+
   // ============== PRICING API ==============
-  
+
   // GET /api/pricing - Get current price and active coupon from Stripe
   app.get("/api/pricing", async (req, res) => {
     try {
       const stripe = await getStripeClient();
       const priceId = await getProductPrice();
-      
+
       // Get the price details
       const price = await stripe.prices.retrieve(priceId, {
-        expand: ['product']
+        expand: ["product"],
       });
-      
+
       const originalAmount = price.unit_amount ? price.unit_amount / 100 : 19;
-      const priceCurrency = price.currency || 'usd';
-      
+      const priceCurrency = price.currency || "usd";
+
       // Find active promotion code using shared helper
       const promo = await findActivePromoCode(priceCurrency);
-      
+
       let discountedAmount: number | null = null;
       if (promo.percentOff) {
         discountedAmount = originalAmount * (1 - promo.percentOff / 100);
       } else if (promo.amountOff) {
         discountedAmount = Math.max(0, originalAmount - promo.amountOff);
       }
-      
+
       // Round to 2 decimal places
       if (discountedAmount !== null) {
         discountedAmount = Math.round(discountedAmount * 100) / 100;
       }
-      
+
       res.json({
         originalPrice: originalAmount,
         discountedPrice: discountedAmount,
         percentOff: promo.percentOff,
         amountOff: promo.amountOff,
-        currency: priceCurrency
+        currency: priceCurrency,
       });
     } catch (error: any) {
       console.error("Pricing API error:", error);
-      res.status(503).json({ 
+      res.status(503).json({
         error: "Unable to fetch pricing",
         originalPrice: 19,
         discountedPrice: null,
         percentOff: null,
         amountOff: null,
-        currency: 'usd'
+        currency: "usd",
       });
     }
   });
-  
+
   // ============== AUTH ROUTES ==============
-  
+
   // GET /auth/me - Get current authenticated user
   // Always fetch fresh data from storage to reflect updates like providedName
   app.get("/auth/me", async (req, res) => {
@@ -1046,39 +1181,39 @@ export async function registerRoutes(
         const freshUser = await storage.getUser(req.user.id);
         // Use fresh data if available, otherwise fall back to session data
         const userData = freshUser || req.user;
-        res.json({ 
-          authenticated: true, 
-          user: { 
-            id: userData.id, 
-            email: userData.email, 
+        res.json({
+          authenticated: true,
+          user: {
+            id: userData.id,
+            email: userData.email,
             name: userData.name,
-            providedName: userData.providedName || null
-          } 
+            providedName: userData.providedName || null,
+          },
         });
       } catch (error) {
         console.error("[auth/me] Error fetching user:", error);
         // Fall back to session data on error
-        res.json({ 
-          authenticated: true, 
-          user: { 
-            id: req.user.id, 
-            email: req.user.email, 
+        res.json({
+          authenticated: true,
+          user: {
+            id: req.user.id,
+            email: req.user.email,
             name: req.user.name,
-            providedName: req.user.providedName || null
-          } 
+            providedName: req.user.providedName || null,
+          },
         });
       }
     } else {
       res.json({ authenticated: false, user: null });
     }
   });
-  
+
   // GET /api/journey - Get user's journey state and current step
   app.get("/api/journey", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
       const journeyState = await storage.getJourneyState(userId);
-      
+
       if (!journeyState) {
         // User has no transcript yet - they're at the start
         const defaultState: JourneyState = {
@@ -1091,14 +1226,14 @@ export async function registerRoutes(
         };
         return res.json({
           state: defaultState,
-          currentStep: 'interview',
-          currentPath: '/interview',
+          currentStep: "interview",
+          currentPath: "/interview",
         });
       }
-      
+
       const currentStep = getCurrentJourneyStep(journeyState);
       const currentPath = getStepPath(currentStep);
-      
+
       res.json({
         state: journeyState,
         currentStep,
@@ -1109,25 +1244,25 @@ export async function registerRoutes(
       res.status(500).json({ error: "Failed to get journey state" });
     }
   });
-  
+
   // ============== SERIOUS PLAN ROUTES ==============
-  
+
   // POST /api/serious-plan - Initialize a new Serious Plan with parallel generation
   app.post("/api/serious-plan", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Check if already has a plan
       const existingPlan = await storage.getSeriousPlanByUserId(userId);
       if (existingPlan) {
-        return res.json({ 
-          success: true, 
+        return res.json({
+          success: true,
           planId: existingPlan.id,
           message: "Plan already exists",
-          alreadyExists: true
+          alreadyExists: true,
         });
       }
-      
+
       // Load transcript with retry logic - require dossier and planCard for Serious Plan generation
       const loadResult = await loadUserTranscriptWithRetry(userId, {
         requireDossier: true,
@@ -1135,53 +1270,74 @@ export async function registerRoutes(
         maxAttempts: 3,
         delayMs: 1500,
       });
-      
+
       if (!loadResult.success) {
-        return res.status(409).json({ 
+        return res.status(409).json({
           error: "Context not ready",
           message: loadResult.error,
           retryable: true,
         });
       }
-      
+
       const { transcript, clientDossier: dossier, planCard } = loadResult;
-      
+
       // Check if all modules are complete
-      if (!transcript.module1Complete || !transcript.module2Complete || !transcript.module3Complete) {
-        return res.status(400).json({ error: "All modules must be completed before generating Serious Plan" });
+      if (
+        !transcript.module1Complete ||
+        !transcript.module2Complete ||
+        !transcript.module3Complete
+      ) {
+        return res
+          .status(400)
+          .json({
+            error:
+              "All modules must be completed before generating Serious Plan",
+          });
       }
-      
+
       if (!planCard) {
-        return res.status(400).json({ error: "No coaching plan found in transcript" });
+        return res
+          .status(400)
+          .json({ error: "No coaching plan found in transcript" });
       }
-      
+
       // Initialize the plan with parallel generation (returns immediately, generation happens async)
-      const result = await initializeSeriousPlan(userId, transcript.id, planCard, dossier, transcript);
-      
+      const result = await initializeSeriousPlan(
+        userId,
+        transcript.id,
+        planCard,
+        dossier,
+        transcript,
+      );
+
       if (result.success) {
         res.json({ success: true, planId: result.planId });
       } else {
-        res.status(500).json({ error: result.error || "Failed to initialize Serious Plan" });
+        res
+          .status(500)
+          .json({ error: result.error || "Failed to initialize Serious Plan" });
       }
     } catch (error: any) {
       console.error("Serious Plan initialization error:", error);
       res.status(500).json({ error: error.message });
     }
   });
-  
+
   // GET /api/serious-plan/letter - Get coach letter status and content
   app.get("/api/serious-plan/letter", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
       const plan = await storage.getSeriousPlanByUserId(userId);
-      
+
       if (!plan) {
         return res.status(404).json({ error: "No Serious Plan found" });
       }
-      
+
       // If we have content, treat as complete (handles edge cases where status wasn't updated)
-      const effectiveStatus = plan.coachNoteContent ? 'complete' : (plan.coachLetterStatus || 'pending');
-      
+      const effectiveStatus = plan.coachNoteContent
+        ? "complete"
+        : plan.coachLetterStatus || "pending";
+
       res.json({
         status: effectiveStatus,
         content: plan.coachNoteContent,
@@ -1192,258 +1348,292 @@ export async function registerRoutes(
       res.status(500).json({ error: error.message });
     }
   });
-  
+
   // POST /api/serious-plan/letter/seen - Mark coach letter as seen
   app.post("/api/serious-plan/letter/seen", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
       const plan = await storage.getSeriousPlanByUserId(userId);
-      
+
       if (!plan) {
         return res.status(404).json({ error: "No Serious Plan found" });
       }
-      
+
       await storage.markCoachLetterSeen(plan.id);
-      
+
       res.json({ success: true });
     } catch (error: any) {
       console.error("Mark letter seen error:", error);
       res.status(500).json({ error: error.message });
     }
   });
-  
+
   // GET /api/serious-plan/latest - Get user's latest Serious Plan with artifacts
   app.get("/api/serious-plan/latest", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
       const plan = await getLatestSeriousPlan(userId);
-      
+
       if (!plan) {
         return res.status(404).json({ error: "No Serious Plan found" });
       }
-      
+
       res.json(plan);
     } catch (error: any) {
       console.error("Get Serious Plan error:", error);
       res.status(500).json({ error: error.message });
     }
   });
-  
+
   // POST /api/serious-plan/:id/regenerate - Regenerate pending/failed artifacts
-  app.post("/api/serious-plan/:id/regenerate", requireAuth, async (req, res) => {
-    try {
-      const planId = req.params.id;
-      const plan = await storage.getSeriousPlan(planId);
-      
-      if (!plan) {
-        return res.status(404).json({ error: "Plan not found" });
+  app.post(
+    "/api/serious-plan/:id/regenerate",
+    requireAuth,
+    async (req, res) => {
+      try {
+        const planId = req.params.id;
+        const plan = await storage.getSeriousPlan(planId);
+
+        if (!plan) {
+          return res.status(404).json({ error: "Plan not found" });
+        }
+
+        if (plan.userId !== req.user!.id) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+
+        const result = await regeneratePendingArtifacts(planId);
+
+        if (!result.started) {
+          return res.json({
+            message: "No pending artifacts to regenerate",
+            regenerating: false,
+          });
+        }
+
+        res.json({
+          message: `Started regenerating ${result.artifactCount} artifacts`,
+          regenerating: true,
+          artifactCount: result.artifactCount,
+        });
+      } catch (error: any) {
+        console.error("Regenerate artifacts error:", error);
+        res.status(500).json({ error: error.message });
       }
-      
-      if (plan.userId !== req.user!.id) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-      
-      const result = await regeneratePendingArtifacts(planId);
-      
-      if (!result.started) {
-        return res.json({ message: "No pending artifacts to regenerate", regenerating: false });
-      }
-      
-      res.json({ 
-        message: `Started regenerating ${result.artifactCount} artifacts`, 
-        regenerating: true,
-        artifactCount: result.artifactCount
-      });
-    } catch (error: any) {
-      console.error("Regenerate artifacts error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-  
+    },
+  );
+
   // GET /api/serious-plan/:id - Get a specific Serious Plan by ID
   app.get("/api/serious-plan/:id", requireAuth, async (req, res) => {
     try {
       const planId = req.params.id;
       const plan = await getSeriousPlanWithArtifacts(planId);
-      
+
       if (!plan) {
         return res.status(404).json({ error: "Serious Plan not found" });
       }
-      
+
       // Verify the plan belongs to the user
       if (plan.userId !== req.user!.id) {
         return res.status(403).json({ error: "Access denied" });
       }
-      
+
       res.json(plan);
     } catch (error: any) {
       console.error("Get Serious Plan error:", error);
       res.status(500).json({ error: error.message });
     }
   });
-  
+
   // GET /api/serious-plan/:planId/artifacts/:artifactKey - Get a specific artifact
-  app.get("/api/serious-plan/:planId/artifacts/:artifactKey", requireAuth, async (req, res) => {
-    try {
-      const { planId, artifactKey } = req.params;
-      
-      // Verify plan ownership
-      const plan = await storage.getSeriousPlan(planId);
-      if (!plan) {
-        return res.status(404).json({ error: "Plan not found" });
+  app.get(
+    "/api/serious-plan/:planId/artifacts/:artifactKey",
+    requireAuth,
+    async (req, res) => {
+      try {
+        const { planId, artifactKey } = req.params;
+
+        // Verify plan ownership
+        const plan = await storage.getSeriousPlan(planId);
+        if (!plan) {
+          return res.status(404).json({ error: "Plan not found" });
+        }
+        if (plan.userId !== req.user!.id) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+
+        const artifact = await storage.getArtifactByKey(planId, artifactKey);
+        if (!artifact) {
+          return res.status(404).json({ error: "Artifact not found" });
+        }
+
+        res.json(artifact);
+      } catch (error: any) {
+        console.error("Get artifact error:", error);
+        res.status(500).json({ error: error.message });
       }
-      if (plan.userId !== req.user!.id) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-      
-      const artifact = await storage.getArtifactByKey(planId, artifactKey);
-      if (!artifact) {
-        return res.status(404).json({ error: "Artifact not found" });
-      }
-      
-      res.json(artifact);
-    } catch (error: any) {
-      console.error("Get artifact error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-  
+    },
+  );
+
   // POST /api/serious-plan/:planId/artifacts/:artifactId/pdf - Generate PDF for an artifact
-  app.post("/api/serious-plan/:planId/artifacts/:artifactId/pdf", requireAuth, async (req, res) => {
-    try {
-      const { planId, artifactId } = req.params;
-      
-      const plan = await storage.getSeriousPlan(planId);
-      if (!plan) {
-        return res.status(404).json({ error: "Plan not found" });
+  app.post(
+    "/api/serious-plan/:planId/artifacts/:artifactId/pdf",
+    requireAuth,
+    async (req, res) => {
+      try {
+        const { planId, artifactId } = req.params;
+
+        const plan = await storage.getSeriousPlan(planId);
+        if (!plan) {
+          return res.status(404).json({ error: "Plan not found" });
+        }
+        if (plan.userId !== req.user!.id) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+
+        const clientName =
+          (plan.summaryMetadata as any)?.clientName || "Client";
+        const result = await generateArtifactPdf(artifactId, clientName);
+
+        if (result.success) {
+          res.json({ success: true, url: result.url });
+        } else {
+          res.status(500).json({ error: result.error });
+        }
+      } catch (error: any) {
+        console.error("Artifact PDF generation error:", error);
+        res.status(500).json({ error: error.message });
       }
-      if (plan.userId !== req.user!.id) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-      
-      const clientName = (plan.summaryMetadata as any)?.clientName || 'Client';
-      const result = await generateArtifactPdf(artifactId, clientName);
-      
-      if (result.success) {
-        res.json({ success: true, url: result.url });
-      } else {
-        res.status(500).json({ error: result.error });
-      }
-    } catch (error: any) {
-      console.error("Artifact PDF generation error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-  
+    },
+  );
+
   // POST /api/serious-plan/:planId/bundle-pdf - Generate bundle PDF with all artifacts
-  app.post("/api/serious-plan/:planId/bundle-pdf", requireAuth, async (req, res) => {
-    try {
-      const { planId } = req.params;
-      
-      const plan = await storage.getSeriousPlan(planId);
-      if (!plan) {
-        return res.status(404).json({ error: "Plan not found" });
+  app.post(
+    "/api/serious-plan/:planId/bundle-pdf",
+    requireAuth,
+    async (req, res) => {
+      try {
+        const { planId } = req.params;
+
+        const plan = await storage.getSeriousPlan(planId);
+        if (!plan) {
+          return res.status(404).json({ error: "Plan not found" });
+        }
+        if (plan.userId !== req.user!.id) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+
+        const result = await generateBundlePdf(planId);
+
+        if (result.success) {
+          res.json({ success: true, url: result.url });
+        } else {
+          res.status(500).json({ error: result.error });
+        }
+      } catch (error: any) {
+        console.error("Bundle PDF generation error:", error);
+        res.status(500).json({ error: error.message });
       }
-      if (plan.userId !== req.user!.id) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-      
-      const result = await generateBundlePdf(planId);
-      
-      if (result.success) {
-        res.json({ success: true, url: result.url });
-      } else {
-        res.status(500).json({ error: result.error });
-      }
-    } catch (error: any) {
-      console.error("Bundle PDF generation error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-  
+    },
+  );
+
   // POST /api/serious-plan/:planId/generate-all-pdfs - Generate PDFs for all artifacts
-  app.post("/api/serious-plan/:planId/generate-all-pdfs", requireAuth, async (req, res) => {
-    try {
-      const { planId } = req.params;
-      
-      const plan = await storage.getSeriousPlan(planId);
-      if (!plan) {
-        return res.status(404).json({ error: "Plan not found" });
+  app.post(
+    "/api/serious-plan/:planId/generate-all-pdfs",
+    requireAuth,
+    async (req, res) => {
+      try {
+        const { planId } = req.params;
+
+        const plan = await storage.getSeriousPlan(planId);
+        if (!plan) {
+          return res.status(404).json({ error: "Plan not found" });
+        }
+        if (plan.userId !== req.user!.id) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+
+        const result = await generateAllArtifactPdfs(planId);
+
+        res.json(result);
+      } catch (error: any) {
+        console.error("Generate all PDFs error:", error);
+        res.status(500).json({ error: error.message });
       }
-      if (plan.userId !== req.user!.id) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-      
-      const result = await generateAllArtifactPdfs(planId);
-      
-      res.json(result);
-    } catch (error: any) {
-      console.error("Generate all PDFs error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-  
+    },
+  );
+
   // POST /api/serious-plan/:planId/send-email - Send the Serious Plan to user's email
-  app.post("/api/serious-plan/:planId/send-email", requireAuth, async (req, res) => {
-    try {
-      const { planId } = req.params;
-      const userId = req.user!.id;
-      const userEmail = req.user!.email;
-      
-      if (!userEmail) {
-        return res.status(400).json({ error: "No email address associated with your account" });
+  app.post(
+    "/api/serious-plan/:planId/send-email",
+    requireAuth,
+    async (req, res) => {
+      try {
+        const { planId } = req.params;
+        const userId = req.user!.id;
+        const userEmail = req.user!.email;
+
+        if (!userEmail) {
+          return res
+            .status(400)
+            .json({ error: "No email address associated with your account" });
+        }
+
+        const plan = await storage.getSeriousPlan(planId);
+        if (!plan) {
+          return res.status(404).json({ error: "Plan not found" });
+        }
+        if (plan.userId !== userId) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+
+        if (plan.status !== "ready") {
+          return res.status(400).json({ error: "Plan is not ready yet" });
+        }
+
+        const artifacts = await storage.getArtifactsByPlanId(planId);
+        const clientName =
+          (plan.summaryMetadata as any)?.clientName || "Client";
+        const coachNote =
+          plan.coachNoteContent || "Your Serious Plan is ready for review.";
+
+        const baseUrl = getBaseUrl();
+        const viewPlanUrl = `${baseUrl}/serious-plan`;
+        const bundlePdfUrl = plan.bundlePdfUrl || undefined;
+
+        const result = await sendSeriousPlanEmail({
+          toEmail: userEmail,
+          clientName,
+          coachNote,
+          artifactCount: artifacts.length,
+          viewPlanUrl,
+          bundlePdfUrl,
+        });
+
+        if (result.success) {
+          res.json({ success: true, message: "Email sent successfully" });
+        } else {
+          res
+            .status(500)
+            .json({ error: result.error || "Failed to send email" });
+        }
+      } catch (error: any) {
+        console.error("Send Serious Plan email error:", error);
+        res.status(500).json({ error: error.message });
       }
-      
-      const plan = await storage.getSeriousPlan(planId);
-      if (!plan) {
-        return res.status(404).json({ error: "Plan not found" });
-      }
-      if (plan.userId !== userId) {
-        return res.status(403).json({ error: "Access denied" });
-      }
-      
-      if (plan.status !== 'ready') {
-        return res.status(400).json({ error: "Plan is not ready yet" });
-      }
-      
-      const artifacts = await storage.getArtifactsByPlanId(planId);
-      const clientName = (plan.summaryMetadata as any)?.clientName || 'Client';
-      const coachNote = plan.coachNoteContent || 'Your Serious Plan is ready for review.';
-      
-      const baseUrl = getBaseUrl();
-      const viewPlanUrl = `${baseUrl}/serious-plan`;
-      const bundlePdfUrl = plan.bundlePdfUrl || undefined;
-      
-      const result = await sendSeriousPlanEmail({
-        toEmail: userEmail,
-        clientName,
-        coachNote,
-        artifactCount: artifacts.length,
-        viewPlanUrl,
-        bundlePdfUrl,
-      });
-      
-      if (result.success) {
-        res.json({ success: true, message: "Email sent successfully" });
-      } else {
-        res.status(500).json({ error: result.error || "Failed to send email" });
-      }
-    } catch (error: any) {
-      console.error("Send Serious Plan email error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
+    },
+  );
 
   // ========================================
   // COACH CHAT ENDPOINTS
   // ========================================
-  
+
   // GET /api/coach-chat/:planId/messages - Get chat history for a plan
   app.get("/api/coach-chat/:planId/messages", requireAuth, async (req, res) => {
     try {
       const { planId } = req.params;
       const userId = req.user!.id;
-      
+
       // Verify user owns this plan
       const plan = await storage.getSeriousPlan(planId);
       if (!plan) {
@@ -1452,7 +1642,7 @@ export async function registerRoutes(
       if (plan.userId !== userId) {
         return res.status(403).json({ error: "Access denied" });
       }
-      
+
       const messages = await storage.getCoachChatMessages(planId);
       res.json(messages);
     } catch (error: any) {
@@ -1460,18 +1650,18 @@ export async function registerRoutes(
       res.status(500).json({ error: error.message });
     }
   });
-  
+
   // POST /api/coach-chat/:planId/message - Send a message and get AI response
   app.post("/api/coach-chat/:planId/message", requireAuth, async (req, res) => {
     try {
       const { planId } = req.params;
       const { message } = req.body;
       const userId = req.user!.id;
-      
+
       if (!message || typeof message !== "string") {
         return res.status(400).json({ error: "Message is required" });
       }
-      
+
       // Verify user owns this plan
       const plan = await storage.getSeriousPlan(planId);
       if (!plan) {
@@ -1480,10 +1670,10 @@ export async function registerRoutes(
       if (plan.userId !== userId) {
         return res.status(403).json({ error: "Access denied" });
       }
-      
+
       // Get existing chat history
       const existingMessages = await storage.getCoachChatMessages(planId);
-      
+
       // Get user's coaching context from the interview transcript with retry
       const loadResult = await loadUserTranscriptWithRetry(userId, {
         requireDossier: true,
@@ -1491,42 +1681,43 @@ export async function registerRoutes(
         maxAttempts: 2, // Less aggressive retries since user should definitely have data at this point
         delayMs: 1000,
       });
-      
+
       if (!loadResult.success) {
-        return res.status(409).json({ 
+        return res.status(409).json({
           error: "Context not ready",
           message: loadResult.error,
           retryable: true,
         });
       }
-      
+
       const { clientDossier, planCard: coachingPlan } = loadResult;
-      
+
       // Get the artifacts for context
       const artifacts = await storage.getArtifactsByPlanId(planId);
-      
+
       // Build the chat context for the AI
-      const clientName = (plan.summaryMetadata as any)?.clientName || 'Client';
-      const primaryRecommendation = (plan.summaryMetadata as any)?.primaryRecommendation || '';
-      
+      const clientName = (plan.summaryMetadata as any)?.clientName || "Client";
+      const primaryRecommendation =
+        (plan.summaryMetadata as any)?.primaryRecommendation || "";
+
       // Save the user's message
       await storage.createCoachChatMessage({
         planId,
-        role: 'user',
+        role: "user",
         content: message,
       });
-      
+
       // Build system prompt with context
       const systemPrompt = `You are a supportive career coach continuing a conversation with ${clientName} who has completed a 3-module coaching program and received their Serious Plan.
 
 CONTEXT FROM COACHING:
-${clientDossier ? `Client Background: ${JSON.stringify(clientDossier)}` : ''}
-${coachingPlan ? `Coaching Plan: ${JSON.stringify(coachingPlan)}` : ''}
+${clientDossier ? `Client Background: ${JSON.stringify(clientDossier)}` : ""}
+${coachingPlan ? `Coaching Plan: ${JSON.stringify(coachingPlan)}` : ""}
 Primary Recommendation: ${primaryRecommendation}
-Coach's Note: ${plan.coachNoteContent || 'Completed coaching successfully.'}
+Coach's Note: ${plan.coachNoteContent || "Completed coaching successfully."}
 
 ARTIFACTS IN THEIR PLAN:
-${artifacts.map(a => `- ${a.title} (${a.type}): ${a.whyImportant || ''}`).join('\n')}
+${artifacts.map((a) => `- ${a.title} (${a.type}): ${a.whyImportant || ""}`).join("\n")}
 
 YOUR ROLE:
 - Answer questions about their Serious Plan and artifacts
@@ -1544,59 +1735,58 @@ COMMUNICATION STYLE:
 - Empathetic but not saccharine`;
 
       // Build conversation history for AI
-      const chatHistory = existingMessages.map(m => ({
-        role: m.role as 'user' | 'assistant',
+      const chatHistory = existingMessages.map((m) => ({
+        role: m.role as "user" | "assistant",
         content: m.content,
       }));
-      
+
       // Add the new user message
-      chatHistory.push({ role: 'user', content: message });
-      
+      chatHistory.push({ role: "user", content: message });
+
       // Use Anthropic if available, otherwise OpenAI
       let aiReply: string;
-      
+
       if (process.env.ANTHROPIC_API_KEY) {
         const Anthropic = (await import("@anthropic-ai/sdk")).default;
         const anthropic = new Anthropic();
-        
+
         const response = await anthropic.messages.create({
           model: "claude-sonnet-4-5",
           max_tokens: 1024,
           system: systemPrompt,
-          messages: chatHistory.map(m => ({
+          messages: chatHistory.map((m) => ({
             role: m.role,
             content: m.content,
           })),
         });
-        
+
         aiReply = response.content
-          .filter(block => block.type === 'text')
-          .map(block => (block as { type: 'text'; text: string }).text)
-          .join('\n');
+          .filter((block) => block.type === "text")
+          .map((block) => (block as { type: "text"; text: string }).text)
+          .join("\n");
       } else {
         const OpenAI = (await import("openai")).default;
         const openai = new OpenAI();
-        
+
         const response = await openai.chat.completions.create({
           model: "gpt-4-1106-preview",
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...chatHistory,
-          ],
+          messages: [{ role: "system", content: systemPrompt }, ...chatHistory],
           max_tokens: 1024,
         });
-        
-        aiReply = response.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response. Please try again.";
+
+        aiReply =
+          response.choices[0]?.message?.content ||
+          "I'm sorry, I couldn't generate a response. Please try again.";
       }
-      
+
       // Save the assistant's reply
       const assistantMessage = await storage.createCoachChatMessage({
         planId,
-        role: 'assistant',
+        role: "assistant",
         content: aiReply,
       });
-      
-      res.json({ 
+
+      res.json({
         reply: aiReply,
         message: assistantMessage,
       });
@@ -1605,7 +1795,7 @@ COMMUNICATION STYLE:
       res.status(500).json({ error: error.message });
     }
   });
-  
+
   // GET /auth/google - Start Google OAuth flow
   app.get("/auth/google", (req, res, next) => {
     // Store promo code in session before OAuth redirect
@@ -1614,17 +1804,26 @@ COMMUNICATION STYLE:
       (req.session as any).pendingPromoCode = promoCode;
       req.session.save((err) => {
         if (err) console.error("Session save error for promo code:", err);
-        passport.authenticate("google", { scope: ["email", "profile"] })(req, res, next);
+        passport.authenticate("google", { scope: ["email", "profile"] })(
+          req,
+          res,
+          next,
+        );
       });
     } else {
-      passport.authenticate("google", { scope: ["email", "profile"] })(req, res, next);
+      passport.authenticate("google", { scope: ["email", "profile"] })(
+        req,
+        res,
+        next,
+      );
     }
   });
-  
+
   // GET /auth/google/callback - Google OAuth callback
-  app.get("/auth/google/callback",
-    passport.authenticate("google", { 
-      failureRedirect: "/login?error=google_auth_failed" 
+  app.get(
+    "/auth/google/callback",
+    passport.authenticate("google", {
+      failureRedirect: "/login?error=google_auth_failed",
     }),
     async (req, res) => {
       // Check if there's a pending promo code to save
@@ -1635,11 +1834,13 @@ COMMUNICATION STYLE:
         const fullUser = await storage.getUser(user.id);
         if (fullUser && !fullUser.promoCode) {
           await storage.updateUser(user.id, { promoCode });
-          console.log(`Saved promo code ${promoCode} for Google user ${user.id}`);
+          console.log(
+            `Saved promo code ${promoCode} for Google user ${user.id}`,
+          );
         }
         delete (req.session as any).pendingPromoCode;
       }
-      
+
       // Ensure session is saved before redirect (prevents race condition)
       req.session.save((err) => {
         if (err) {
@@ -1647,29 +1848,29 @@ COMMUNICATION STYLE:
         }
         res.redirect("/prepare");
       });
-    }
+    },
   );
-  
+
   // POST /auth/magic/start - Request magic link email
   app.post("/auth/magic/start", async (req, res) => {
     try {
       const { email, promoCode } = req.body;
-      
+
       if (!email || typeof email !== "string") {
         return res.status(400).json({ error: "Email is required" });
       }
-      
+
       // Validate email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return res.status(400).json({ error: "Invalid email format" });
       }
-      
+
       // Generate secure token
       const token = crypto.randomBytes(32).toString("hex");
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-      
+
       // Store token in database with promo code if provided
       await storage.createMagicLinkToken({
         email: email.toLowerCase(),
@@ -1677,47 +1878,54 @@ COMMUNICATION STYLE:
         promoCode: promoCode || null,
         expiresAt,
       });
-      
+
       // Send email with magic link
       const baseUrl = getBaseUrl();
       const magicLinkUrl = `${baseUrl}/auth/magic/verify?token=${token}`;
-      
+
       const result = await sendMagicLinkEmail(email, magicLinkUrl);
-      
+
       if (result.success) {
-        res.json({ success: true, message: "Check your email for the login link" });
+        res.json({
+          success: true,
+          message: "Check your email for the login link",
+        });
       } else {
         console.error("Failed to send magic link:", result.error);
-        res.status(500).json({ error: "Failed to send email. Please try again." });
+        res
+          .status(500)
+          .json({ error: "Failed to send email. Please try again." });
       }
     } catch (error: any) {
       console.error("Magic link start error:", error);
-      res.status(500).json({ error: "Something went wrong. Please try again." });
+      res
+        .status(500)
+        .json({ error: "Something went wrong. Please try again." });
     }
   });
-  
+
   // GET /auth/magic/verify - Verify magic link and log in
   app.get("/auth/magic/verify", async (req, res) => {
     try {
       const { token } = req.query;
-      
+
       if (!token || typeof token !== "string") {
         return res.redirect("/login?error=invalid_token");
       }
-      
+
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
       const magicToken = await storage.getMagicLinkToken(tokenHash);
-      
+
       if (!magicToken) {
         return res.redirect("/login?error=expired_token");
       }
-      
+
       // Mark token as used
       await storage.markMagicLinkTokenUsed(magicToken.id);
-      
+
       // Find or create user
       let user = await storage.getUserByEmail(magicToken.email);
-      
+
       if (!user) {
         user = await storage.createUser({
           email: magicToken.email,
@@ -1731,27 +1939,35 @@ COMMUNICATION STYLE:
         await storage.updateUser(user.id, { promoCode: magicToken.promoCode });
         user = { ...user, promoCode: magicToken.promoCode };
       }
-      
+
       // Log user in
-      req.login({ id: user.id, email: user.email, name: user.name, providedName: user.providedName || null }, (err) => {
-        if (err) {
-          console.error("Login error:", err);
-          return res.redirect("/login?error=login_failed");
-        }
-        // Ensure session is saved before redirect (prevents race condition)
-        req.session.save((saveErr) => {
-          if (saveErr) {
-            console.error("Session save error:", saveErr);
+      req.login(
+        {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          providedName: user.providedName || null,
+        },
+        (err) => {
+          if (err) {
+            console.error("Login error:", err);
+            return res.redirect("/login?error=login_failed");
           }
-          res.redirect("/prepare");
-        });
-      });
+          // Ensure session is saved before redirect (prevents race condition)
+          req.session.save((saveErr) => {
+            if (saveErr) {
+              console.error("Session save error:", saveErr);
+            }
+            res.redirect("/prepare");
+          });
+        },
+      );
     } catch (error: any) {
       console.error("Magic link verify error:", error);
       res.redirect("/login?error=verification_failed");
     }
   });
-  
+
   // POST /auth/logout - Log out
   app.post("/auth/logout", (req, res) => {
     req.logout((err) => {
@@ -1767,10 +1983,10 @@ COMMUNICATION STYLE:
   app.post("/auth/demo", async (req, res) => {
     try {
       const demoEmail = "demo@test.local";
-      
+
       // Find or create demo user
       let user = await storage.getUserByEmail(demoEmail);
-      
+
       if (!user) {
         user = await storage.createUser({
           email: demoEmail,
@@ -1781,45 +1997,59 @@ COMMUNICATION STYLE:
       } else {
         // Clear any existing transcript for fresh demo session
         try {
-          await db.delete(interviewTranscripts).where(eq(interviewTranscripts.userId, user.id));
+          await db
+            .delete(interviewTranscripts)
+            .where(eq(interviewTranscripts.userId, user.id));
         } catch (e) {
           console.error("Failed to clear demo transcript:", e);
         }
       }
-      
+
       // Log user in
-      req.login({ id: user.id, email: user.email, name: user.name, providedName: user.providedName || null }, (err) => {
-        if (err) {
-          console.error("Demo login error:", err);
-          return res.status(500).json({ error: "Login failed" });
-        }
-        req.session.save((saveErr) => {
-          if (saveErr) {
-            console.error("Session save error:", saveErr);
+      req.login(
+        {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          providedName: user.providedName || null,
+        },
+        (err) => {
+          if (err) {
+            console.error("Demo login error:", err);
+            return res.status(500).json({ error: "Login failed" });
           }
-          res.json({ success: true });
-        });
-      });
+          req.session.save((saveErr) => {
+            if (saveErr) {
+              console.error("Session save error:", saveErr);
+            }
+            res.json({ success: true });
+          });
+        },
+      );
     } catch (error: any) {
       console.error("Demo login error:", error);
       res.status(500).json({ error: error.message });
     }
   });
-  
+
   // ============== TRANSCRIPT API (Protected) ==============
-  
+
   // GET /api/transcript - Get user's transcript
   app.get("/api/transcript", requireAuth, async (req, res) => {
     const requestStart = Date.now();
     try {
       const userId = req.user!.id;
       const transcript = await storage.getTranscriptByUserId(userId);
-      
+
       if (transcript) {
         const durationMs = Date.now() - requestStart;
-        const messageCount = Array.isArray(transcript.transcript) ? transcript.transcript.length : 0;
-        console.log(`[TRANSCRIPT_GET] ts=${new Date().toISOString()} user=${userId} status=found messageCount=${messageCount} module=${transcript.currentModule} progress=${transcript.progress} interviewComplete=${transcript.interviewComplete} paymentVerified=${transcript.paymentVerified} hasPlanCard=${!!transcript.planCard} hasDossier=${!!transcript.clientDossier} durationMs=${durationMs}`);
-        
+        const messageCount = Array.isArray(transcript.transcript)
+          ? transcript.transcript.length
+          : 0;
+        console.log(
+          `[TRANSCRIPT_GET] ts=${new Date().toISOString()} user=${userId} status=found messageCount=${messageCount} module=${transcript.currentModule} progress=${transcript.progress} interviewComplete=${transcript.interviewComplete} paymentVerified=${transcript.paymentVerified} hasPlanCard=${!!transcript.planCard} hasDossier=${!!transcript.clientDossier} durationMs=${durationMs}`,
+        );
+
         res.json({
           transcript: transcript.transcript,
           currentModule: transcript.currentModule,
@@ -1834,20 +2064,24 @@ COMMUNICATION STYLE:
         });
       } else {
         const durationMs = Date.now() - requestStart;
-        console.log(`[TRANSCRIPT_GET] ts=${new Date().toISOString()} user=${userId} status=not_found durationMs=${durationMs}`);
+        console.log(
+          `[TRANSCRIPT_GET] ts=${new Date().toISOString()} user=${userId} status=not_found durationMs=${durationMs}`,
+        );
         res.json({ transcript: null });
       }
     } catch (error: any) {
       const durationMs = Date.now() - requestStart;
-      console.error(`[TRANSCRIPT_GET] ts=${new Date().toISOString()} user=${req.user?.id || 'unknown'} status=error durationMs=${durationMs} error="${error.message}"`);
+      console.error(
+        `[TRANSCRIPT_GET] ts=${new Date().toISOString()} user=${req.user?.id || "unknown"} status=error durationMs=${durationMs} error="${error.message}"`,
+      );
       res.status(500).json({ error: "Failed to fetch transcript" });
     }
   });
-  
+
   // NOTE: POST /api/transcript is defined later in the file with dossier generation logic
-  
+
   // ============== EXISTING ROUTES ==============
-  
+
   // POST /checkout - Create Stripe Checkout session
   app.post("/checkout", async (req, res) => {
     try {
@@ -1855,15 +2089,15 @@ COMMUNICATION STYLE:
       const priceId = await getProductPrice();
       const baseUrl = getBaseUrl();
       const { promoCode: sessionPromoCode } = req.body || {};
-      
+
       // Get the price to check currency
       const price = await stripe.prices.retrieve(priceId);
-      const priceCurrency = price.currency || 'usd';
-      
+      const priceCurrency = price.currency || "usd";
+
       // Determine promo code priority: DB (user-specific) > session > default
       let promoCode: string | null = null;
       let isUserSpecificPromo = false;
-      
+
       // Check if user is authenticated and has a promo code stored
       const user = req.user as any;
       if (user?.id) {
@@ -1874,13 +2108,13 @@ COMMUNICATION STYLE:
           console.log(`Using user's stored promo code: ${promoCode}`);
         }
       }
-      
+
       // If no DB promo code, use session-provided promo code
       if (!promoCode && sessionPromoCode) {
         promoCode = sessionPromoCode;
         console.log(`Using session promo code: ${promoCode}`);
       }
-      
+
       // Build checkout session options
       const sessionOptions: any = {
         mode: "payment",
@@ -1893,7 +2127,7 @@ COMMUNICATION STYLE:
         success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/interview`,
       };
-      
+
       // If a promo code was found (from DB or session), look it up and apply it
       if (promoCode) {
         try {
@@ -1902,16 +2136,24 @@ COMMUNICATION STYLE:
             active: true,
             limit: 1,
           });
-          
+
           if (promoCodes.data.length > 0) {
-            sessionOptions.discounts = [{ promotion_code: promoCodes.data[0].id }];
-            console.log(`Applied promo code: ${promoCode} (user-specific: ${isUserSpecificPromo})`);
+            sessionOptions.discounts = [
+              { promotion_code: promoCodes.data[0].id },
+            ];
+            console.log(
+              `Applied promo code: ${promoCode} (user-specific: ${isUserSpecificPromo})`,
+            );
           } else {
-            console.log(`Promo code not found or inactive: ${promoCode}, falling back to default`);
+            console.log(
+              `Promo code not found or inactive: ${promoCode}, falling back to default`,
+            );
             // Fall back to standard promo or allow manual entry
             const promo = await findActivePromoCode(priceCurrency);
             if (promo.promoCodeId) {
-              sessionOptions.discounts = [{ promotion_code: promo.promoCodeId }];
+              sessionOptions.discounts = [
+                { promotion_code: promo.promoCodeId },
+              ];
             } else {
               sessionOptions.allow_promotion_codes = true;
             }
@@ -1935,7 +2177,7 @@ COMMUNICATION STYLE:
           sessionOptions.allow_promotion_codes = true;
         }
       }
-      
+
       const session = await stripe.checkout.sessions.create(sessionOptions);
 
       res.json({ url: session.url });
@@ -1951,23 +2193,29 @@ COMMUNICATION STYLE:
     try {
       const sessionId = req.query.session_id as string;
       const user = (req as any).user;
-      const userId = user?.id || 'anonymous';
-      
-      console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=started stripeSessionId=${sessionId?.slice(0, 20)}...`);
-      
+      const userId = user?.id || "anonymous";
+
+      console.log(
+        `[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=started stripeSessionId=${sessionId?.slice(0, 20)}...`,
+      );
+
       if (!sessionId) {
         const durationMs = Date.now() - requestStart;
-        console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=failed_missing_session durationMs=${durationMs}`);
+        console.log(
+          `[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=failed_missing_session durationMs=${durationMs}`,
+        );
         return res.status(400).json({ ok: false, error: "Missing session_id" });
       }
 
       const stripe = await getStripeClient();
       // Expand total_details.breakdown to get coupon info
       const session = await stripe.checkout.sessions.retrieve(sessionId, {
-        expand: ['total_details.breakdown']
+        expand: ["total_details.breakdown"],
       });
 
-      console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} stripePaymentStatus=${session.payment_status}`);
+      console.log(
+        `[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} stripePaymentStatus=${session.payment_status}`,
+      );
 
       if (session.payment_status === "paid") {
         // If user is authenticated, mark their transcript as payment verified
@@ -1978,32 +2226,45 @@ COMMUNICATION STYLE:
               paymentVerified: true,
               stripeSessionId: sessionId,
             });
-            console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=state_change paymentVerified=true hasDossier=${!!transcript.clientDossier}`);
+            console.log(
+              `[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=state_change paymentVerified=true hasDossier=${!!transcript.clientDossier}`,
+            );
           }
-          
+
           // Check if a friends & family coupon was used
-          const FRIENDS_FAMILY_COUPONS = ['uEW83Os5', 'h8TgzjXR', 'klpY3iUM'];
+          const FRIENDS_FAMILY_COUPONS = ["uEW83Os5", "h8TgzjXR", "klpY3iUM"];
           const discounts = session.total_details?.breakdown?.discounts || [];
-          const usedCouponId = discounts.length > 0 
-            ? (discounts[0].discount as any)?.coupon?.id 
-            : null;
-          
+          const usedCouponId =
+            discounts.length > 0
+              ? (discounts[0].discount as any)?.coupon?.id
+              : null;
+
           if (usedCouponId && FRIENDS_FAMILY_COUPONS.includes(usedCouponId)) {
             await storage.updateUser(user.id, { isFriendsAndFamily: true });
-            console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=friends_family_flagged couponId=${usedCouponId}`);
+            console.log(
+              `[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=friends_family_flagged couponId=${usedCouponId}`,
+            );
           }
         }
         const durationMs = Date.now() - requestStart;
-        console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=success durationMs=${durationMs}`);
+        console.log(
+          `[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=success durationMs=${durationMs}`,
+        );
         return res.json({ ok: true });
       } else {
         const durationMs = Date.now() - requestStart;
-        console.log(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=failed_not_paid stripePaymentStatus=${session.payment_status} durationMs=${durationMs}`);
-        return res.status(403).json({ ok: false, error: "Payment not completed" });
+        console.log(
+          `[VERIFY_SESSION] ts=${new Date().toISOString()} user=${userId} status=failed_not_paid stripePaymentStatus=${session.payment_status} durationMs=${durationMs}`,
+        );
+        return res
+          .status(403)
+          .json({ ok: false, error: "Payment not completed" });
       }
     } catch (error: any) {
       const durationMs = Date.now() - requestStart;
-      console.error(`[VERIFY_SESSION] ts=${new Date().toISOString()} user=${(req as any).user?.id || 'anonymous'} status=error durationMs=${durationMs} error="${error.message}"`);
+      console.error(
+        `[VERIFY_SESSION] ts=${new Date().toISOString()} user=${(req as any).user?.id || "anonymous"} status=error durationMs=${durationMs} error="${error.message}"`,
+      );
       res.status(500).json({ ok: false, error: error.message });
     }
   });
@@ -2016,16 +2277,22 @@ COMMUNICATION STYLE:
     try {
       const user = req.user as any;
       if (!user?.id) {
-        console.log(`[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=anonymous status=rejected_not_authenticated`);
+        console.log(
+          `[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=anonymous status=rejected_not_authenticated`,
+        );
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      console.log(`[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${user.id} status=started`);
+      console.log(
+        `[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${user.id} status=started`,
+      );
 
       const transcript = await storage.getTranscriptByUserId(user.id);
       if (!transcript) {
         const durationMs = Date.now() - requestStart;
-        console.log(`[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${user.id} status=failed_no_transcript durationMs=${durationMs}`);
+        console.log(
+          `[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${user.id} status=failed_no_transcript durationMs=${durationMs}`,
+        );
         return res.status(400).json({ error: "No transcript found" });
       }
 
@@ -2035,7 +2302,9 @@ COMMUNICATION STYLE:
       // Already complete - return success
       if (transcript.interviewComplete) {
         const durationMs = Date.now() - requestStart;
-        console.log(`[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${user.id} status=already_complete hasPlanCard=${hasPlanCard} hasDossier=${hasDossier} durationMs=${durationMs}`);
+        console.log(
+          `[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${user.id} status=already_complete hasPlanCard=${hasPlanCard} hasDossier=${hasDossier} durationMs=${durationMs}`,
+        );
         return res.json({ ok: true, alreadyComplete: true, hasDossier });
       }
 
@@ -2046,14 +2315,18 @@ COMMUNICATION STYLE:
       });
 
       const durationMs = Date.now() - requestStart;
-      console.log(`[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${user.id} status=state_change interviewComplete=true progress=100 hasPlanCard=${hasPlanCard} hasDossier=${hasDossier} durationMs=${durationMs}`);
+      console.log(
+        `[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${user.id} status=state_change interviewComplete=true progress=100 hasPlanCard=${hasPlanCard} hasDossier=${hasDossier} durationMs=${durationMs}`,
+      );
 
       // Dossier should already exist (generated when planCard was saved)
       // Just report whether it's ready
       res.json({ ok: true, hasDossier });
     } catch (error: any) {
       const durationMs = Date.now() - requestStart;
-      console.error(`[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${(req.user as any)?.id || 'unknown'} status=error durationMs=${durationMs} error="${error.message}"`);
+      console.error(
+        `[INTERVIEW_COMPLETE] ts=${new Date().toISOString()} user=${(req.user as any)?.id || "unknown"} status=error durationMs=${durationMs} error="${error.message}"`,
+      );
       res.status(500).json({ error: error.message });
     }
   });
@@ -2076,7 +2349,9 @@ COMMUNICATION STYLE:
         revisionCount: currentCount + 1,
       } as any);
 
-      console.log(`[REVISION] ts=${new Date().toISOString()} user=${user.id} revisionCount=${currentCount + 1}`);
+      console.log(
+        `[REVISION] ts=${new Date().toISOString()} user=${user.id} revisionCount=${currentCount + 1}`,
+      );
       res.json({ ok: true, revisionCount: currentCount + 1 });
     } catch (error: any) {
       console.error("Revision count error:", error);
@@ -2088,59 +2363,90 @@ COMMUNICATION STYLE:
   // Normally dossier is generated when planCard is saved, but this provides a fallback
   app.post("/api/generate-dossier", async (req, res) => {
     const requestStart = Date.now();
-    
+
     try {
       const user = req.user as any;
       if (!user?.id) {
-        console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=anonymous status=rejected_not_authenticated`);
+        console.log(
+          `[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=anonymous status=rejected_not_authenticated`,
+        );
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=started`);
+      console.log(
+        `[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=started`,
+      );
 
       // Get the user's transcript from the database
       const transcript = await storage.getTranscriptByUserId(user.id);
-      if (!transcript || !transcript.transcript || !Array.isArray(transcript.transcript)) {
+      if (
+        !transcript ||
+        !transcript.transcript ||
+        !Array.isArray(transcript.transcript)
+      ) {
         const durationMs = Date.now() - requestStart;
-        console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=failed_no_transcript durationMs=${durationMs}`);
+        console.log(
+          `[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=failed_no_transcript durationMs=${durationMs}`,
+        );
         return res.status(400).json({ error: "No interview transcript found" });
       }
 
       // Check if dossier already exists
       if (transcript.clientDossier) {
         const durationMs = Date.now() - requestStart;
-        console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=already_exists durationMs=${durationMs}`);
+        console.log(
+          `[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=already_exists durationMs=${durationMs}`,
+        );
         return res.json({ ok: true, message: "Dossier already exists" });
       }
 
       const messageCount = transcript.transcript.length;
-      console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=generating messageCount=${messageCount}`);
+      console.log(
+        `[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=generating messageCount=${messageCount}`,
+      );
 
       // Use the shared helper with retry logic
-      const transcriptMessages = transcript.transcript as { role: string; content: string }[];
+      const transcriptMessages = transcript.transcript as {
+        role: string;
+        content: string;
+      }[];
       const generateStart = Date.now();
       const result = await generateAndSaveDossier(user.id, transcriptMessages);
       const generateDurationMs = Date.now() - generateStart;
-      
+
       const durationMs = Date.now() - requestStart;
-      
-      if (result.status === 'in_progress') {
+
+      if (result.status === "in_progress") {
         // Generation is already in progress (another request is handling it)
         // Return success - the polling will pick up the dossier when it's ready
-        console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=in_progress lockAgeMs=${result.lockAgeMs} durationMs=${durationMs}`);
-        return res.json({ ok: true, message: "Generation in progress", inProgress: true });
-      }
-      
-      if (result.status === 'failed') {
-        console.error(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=failed generateDurationMs=${generateDurationMs} durationMs=${durationMs} error="${result.error}"`);
-        return res.status(500).json({ error: "Failed to generate dossier after retries" });
+        console.log(
+          `[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=in_progress lockAgeMs=${result.lockAgeMs} durationMs=${durationMs}`,
+        );
+        return res.json({
+          ok: true,
+          message: "Generation in progress",
+          inProgress: true,
+        });
       }
 
-      console.log(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=success generateDurationMs=${generateDurationMs} durationMs=${durationMs}`);
+      if (result.status === "failed") {
+        console.error(
+          `[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=failed generateDurationMs=${generateDurationMs} durationMs=${durationMs} error="${result.error}"`,
+        );
+        return res
+          .status(500)
+          .json({ error: "Failed to generate dossier after retries" });
+      }
+
+      console.log(
+        `[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${user.id} status=success generateDurationMs=${generateDurationMs} durationMs=${durationMs}`,
+      );
       res.json({ ok: true });
     } catch (error: any) {
       const durationMs = Date.now() - requestStart;
-      console.error(`[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${(req.user as any)?.id || 'unknown'} status=error durationMs=${durationMs} error="${error.message}"`);
+      console.error(
+        `[DOSSIER_FALLBACK] ts=${new Date().toISOString()} user=${(req.user as any)?.id || "unknown"} status=error durationMs=${durationMs} error="${error.message}"`,
+      );
       res.status(500).json({ error: error.message });
     }
   });
@@ -2153,8 +2459,12 @@ COMMUNICATION STYLE:
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      const { moduleNumber, moduleName, transcript: moduleTranscript } = req.body;
-      
+      const {
+        moduleNumber,
+        moduleName,
+        transcript: moduleTranscript,
+      } = req.body;
+
       if (!moduleNumber || !moduleTranscript) {
         return res.status(400).json({ error: "Missing module data" });
       }
@@ -2165,13 +2475,21 @@ COMMUNICATION STYLE:
         return res.status(400).json({ error: "No dossier found" });
       }
 
-      console.log(`Updating dossier with module ${moduleNumber} for user ${user.id}...`);
+      console.log(
+        `Updating dossier with module ${moduleNumber} for user ${user.id}...`,
+      );
 
       // Generate the module analysis
-      const analysis = await generateModuleAnalysis(moduleNumber, moduleName || `Module ${moduleNumber}`, moduleTranscript);
-      
+      const analysis = await generateModuleAnalysis(
+        moduleNumber,
+        moduleName || `Module ${moduleNumber}`,
+        moduleTranscript,
+      );
+
       if (!analysis) {
-        return res.status(500).json({ error: "Failed to generate module analysis" });
+        return res
+          .status(500)
+          .json({ error: "Failed to generate module analysis" });
       }
 
       // Create the module record
@@ -2187,8 +2505,10 @@ COMMUNICATION STYLE:
       const updatedDossier: ClientDossier = {
         ...userTranscript.clientDossier,
         moduleRecords: [
-          ...userTranscript.clientDossier.moduleRecords.filter(m => m.moduleNumber !== moduleNumber),
-          moduleRecord
+          ...userTranscript.clientDossier.moduleRecords.filter(
+            (m) => m.moduleNumber !== moduleNumber,
+          ),
+          moduleRecord,
         ].sort((a, b) => a.moduleNumber - b.moduleNumber),
         lastUpdated: new Date().toISOString(),
       };
@@ -2201,28 +2521,37 @@ COMMUNICATION STYLE:
         if (moduleNumber === 1) moduleCompleteUpdate.module1Complete = true;
         if (moduleNumber === 2) moduleCompleteUpdate.module2Complete = true;
         if (moduleNumber === 3) moduleCompleteUpdate.module3Complete = true;
-        
-        await storage.updateTranscript(userTranscript.sessionToken, moduleCompleteUpdate);
-        console.log(`Module ${moduleNumber} marked as complete for user ${user.id}`);
-        
+
+        await storage.updateTranscript(
+          userTranscript.sessionToken,
+          moduleCompleteUpdate,
+        );
+        console.log(
+          `Module ${moduleNumber} marked as complete for user ${user.id}`,
+        );
+
         // Auto-start Serious Plan generation when Module 3 completes
         if (moduleNumber === 3) {
           // Check if plan already exists before starting
           const existingPlan = await storage.getSeriousPlanByUserId(user.id);
           if (existingPlan) {
-            console.log(`[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=skipped reason=plan_exists planId=${existingPlan.id} planStatus=${existingPlan.status}`);
+            console.log(
+              `[SERIOUS_PLAN] ts=${new Date().toISOString()} user=${user.id} status=skipped reason=plan_exists planId=${existingPlan.id} planStatus=${existingPlan.status}`,
+            );
           } else {
             // Fire and forget - retry mechanism handles missing data
             attemptSeriousPlanInitWithRetry(
               user.id,
               userTranscript.sessionToken,
-              1 // Start at attempt 1
+              1, // Start at attempt 1
             );
           }
         }
       }
 
-      console.log(`Dossier updated with module ${moduleNumber} for user ${user.id}`);
+      console.log(
+        `Dossier updated with module ${moduleNumber} for user ${user.id}`,
+      );
       res.json({ ok: true });
     } catch (error: any) {
       console.error("Update module dossier error:", error);
@@ -2240,11 +2569,15 @@ COMMUNICATION STYLE:
       const { transcript = [] } = req.body;
 
       // Check if user sent "testskip" command (case-insensitive)
-      const lastUserMessage = [...transcript].reverse().find((t: any) => t.role === 'user');
-      const isTestSkip = lastUserMessage?.content?.toLowerCase().trim() === 'testskip';
+      const lastUserMessage = [...transcript]
+        .reverse()
+        .find((t: any) => t.role === "user");
+      const isTestSkip =
+        lastUserMessage?.content?.toLowerCase().trim() === "testskip";
 
       // Build testskip prompt override if needed
-      const testSkipPrompt = isTestSkip ? `
+      const testSkipPrompt = isTestSkip
+        ? `
 
 IMPORTANT OVERRIDE - TESTSKIP MODE:
 The user has entered "testskip" which is a testing command. You must now:
@@ -2305,26 +2638,33 @@ Research shows that 73% of people who feel "stuck" at their level say the bigges
 [[INTERVIEW_COMPLETE]]
 
 ---
-` : '';
+`
+        : "";
 
       let reply: string;
       const systemPromptToUse = INTERVIEW_SYSTEM_PROMPT + testSkipPrompt;
 
       if (useAnthropic && anthropic) {
         // Use Anthropic Claude
-        const claudeMessages: { role: "user" | "assistant"; content: string }[] = [];
+        const claudeMessages: {
+          role: "user" | "assistant";
+          content: string;
+        }[] = [];
 
         for (const turn of transcript) {
           if (turn && turn.role && turn.content) {
             claudeMessages.push({
               role: turn.role as "user" | "assistant",
-              content: turn.content
+              content: turn.content,
             });
           }
         }
 
         if (transcript.length === 0) {
-          claudeMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
+          claudeMessages.push({
+            role: "user",
+            content: "Start the interview. Ask your first question.",
+          });
         }
 
         const response = await anthropic.messages.create({
@@ -2334,24 +2674,29 @@ Research shows that 73% of people who feel "stuck" at their level say the bigges
           messages: claudeMessages,
         });
 
-        reply = response.content[0].type === 'text' ? response.content[0].text : '';
+        reply =
+          response.content[0].type === "text" ? response.content[0].text : "";
       } else {
         // Fall back to OpenAI
-        const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-          { role: "system", content: systemPromptToUse }
-        ];
+        const messages: {
+          role: "system" | "user" | "assistant";
+          content: string;
+        }[] = [{ role: "system", content: systemPromptToUse }];
 
         for (const turn of transcript) {
           if (turn && turn.role && turn.content) {
             messages.push({
               role: turn.role as "user" | "assistant",
-              content: turn.content
+              content: turn.content,
             });
           }
         }
 
         if (transcript.length === 0) {
-          messages.push({ role: "user", content: "Start the interview. Ask your first question." });
+          messages.push({
+            role: "user",
+            content: "Start the interview. Ask your first question.",
+          });
         }
 
         const response = await openai.chat.completions.create({
@@ -2367,16 +2712,29 @@ Research shows that 73% of people who feel "stuck" at their level say the bigges
       let socialProof: string | null = null;
       let options: string[] | null = null;
       let progress: number | null = null;
-      let planCard: { 
-        name: string; 
-        modules: { name: string; objective: string; approach: string; outcome: string }[]; 
+      let planCard: {
+        name: string;
+        modules: {
+          name: string;
+          objective: string;
+          approach: string;
+          outcome: string;
+        }[];
         careerBrief: string;
         seriousPlanSummary: string;
-        plannedArtifacts: { key: string; title: string; type: string; description: string; importance: string }[];
+        plannedArtifacts: {
+          key: string;
+          title: string;
+          type: string;
+          description: string;
+          importance: string;
+        }[];
       } | null = null;
 
       // Parse progress token
-      const progressMatch = reply.match(/\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/);
+      const progressMatch = reply.match(
+        /\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/,
+      );
       if (progressMatch) {
         progress = parseInt(progressMatch[1], 10);
         if (isNaN(progress) || progress < 0 || progress > 100) {
@@ -2385,110 +2743,239 @@ Research shows that 73% of people who feel "stuck" at their level say the bigges
       }
 
       // Parse structured options (handles both newline and pipe-separated)
-      const optionsMatch = reply.match(/\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/);
+      const optionsMatch = reply.match(
+        /\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/,
+      );
       if (optionsMatch) {
         const rawOptions = optionsMatch[1].trim();
         // Split on newlines first, then on pipes if we only got one option
-        let parsedOptions = rawOptions.split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
-        if (parsedOptions.length === 1 && parsedOptions[0].includes('|')) {
-          parsedOptions = parsedOptions[0].split('|').map(opt => opt.trim()).filter(opt => opt.length > 0);
+        let parsedOptions = rawOptions
+          .split("\n")
+          .map((opt) => opt.trim())
+          .filter((opt) => opt.length > 0);
+        if (parsedOptions.length === 1 && parsedOptions[0].includes("|")) {
+          parsedOptions = parsedOptions[0]
+            .split("|")
+            .map((opt) => opt.trim())
+            .filter((opt) => opt.length > 0);
         }
         options = parsedOptions;
       }
 
       // Parse plan card with expanded format (objectives, approach, outcome)
-      const planCardMatch = reply.match(/\[\[PLAN_CARD\]\]([\s\S]*?)\[\[END_PLAN_CARD\]\]/);
-      console.log(`[INTERVIEW] isTestSkip=${isTestSkip} hasPlanCardMatch=${!!planCardMatch} replyLength=${reply.length}`);
+      const planCardMatch = reply.match(
+        /\[\[PLAN_CARD\]\]([\s\S]*?)\[\[END_PLAN_CARD\]\]/,
+      );
+      console.log(
+        `[INTERVIEW] isTestSkip=${isTestSkip} hasPlanCardMatch=${!!planCardMatch} replyLength=${reply.length}`,
+      );
       if (isTestSkip) {
-        console.log(`[INTERVIEW_TESTSKIP] Raw reply (first 2000 chars): ${reply.substring(0, 2000)}`);
+        console.log(
+          `[INTERVIEW_TESTSKIP] Raw reply (first 2000 chars): ${reply.substring(0, 2000)}`,
+        );
       }
       if (planCardMatch) {
         const cardContent = planCardMatch[1].trim();
         const nameMatch = cardContent.match(/NAME:\s*(.+)/);
-        
+
         // Module 1
         const module1NameMatch = cardContent.match(/MODULE1_NAME:\s*(.+)/);
-        const module1ObjectiveMatch = cardContent.match(/MODULE1_OBJECTIVE:\s*(.+)/);
-        const module1ApproachMatch = cardContent.match(/MODULE1_APPROACH:\s*(.+)/);
-        const module1OutcomeMatch = cardContent.match(/MODULE1_OUTCOME:\s*(.+)/);
-        
+        const module1ObjectiveMatch = cardContent.match(
+          /MODULE1_OBJECTIVE:\s*(.+)/,
+        );
+        const module1ApproachMatch = cardContent.match(
+          /MODULE1_APPROACH:\s*(.+)/,
+        );
+        const module1OutcomeMatch = cardContent.match(
+          /MODULE1_OUTCOME:\s*(.+)/,
+        );
+
         // Module 2
         const module2NameMatch = cardContent.match(/MODULE2_NAME:\s*(.+)/);
-        const module2ObjectiveMatch = cardContent.match(/MODULE2_OBJECTIVE:\s*(.+)/);
-        const module2ApproachMatch = cardContent.match(/MODULE2_APPROACH:\s*(.+)/);
-        const module2OutcomeMatch = cardContent.match(/MODULE2_OUTCOME:\s*(.+)/);
-        
+        const module2ObjectiveMatch = cardContent.match(
+          /MODULE2_OBJECTIVE:\s*(.+)/,
+        );
+        const module2ApproachMatch = cardContent.match(
+          /MODULE2_APPROACH:\s*(.+)/,
+        );
+        const module2OutcomeMatch = cardContent.match(
+          /MODULE2_OUTCOME:\s*(.+)/,
+        );
+
         // Module 3
         const module3NameMatch = cardContent.match(/MODULE3_NAME:\s*(.+)/);
-        const module3ObjectiveMatch = cardContent.match(/MODULE3_OBJECTIVE:\s*(.+)/);
-        const module3ApproachMatch = cardContent.match(/MODULE3_APPROACH:\s*(.+)/);
-        const module3OutcomeMatch = cardContent.match(/MODULE3_OUTCOME:\s*(.+)/);
-        
+        const module3ObjectiveMatch = cardContent.match(
+          /MODULE3_OBJECTIVE:\s*(.+)/,
+        );
+        const module3ApproachMatch = cardContent.match(
+          /MODULE3_APPROACH:\s*(.+)/,
+        );
+        const module3OutcomeMatch = cardContent.match(
+          /MODULE3_OUTCOME:\s*(.+)/,
+        );
+
         const careerBriefMatch = cardContent.match(/CAREER_BRIEF:\s*(.+)/);
-        const seriousPlanSummaryMatch = cardContent.match(/SERIOUS_PLAN_SUMMARY:\s*(.+)/);
-        const plannedArtifactsMatch = cardContent.match(/PLANNED_ARTIFACTS:\s*(.+)/);
+        const seriousPlanSummaryMatch = cardContent.match(
+          /SERIOUS_PLAN_SUMMARY:\s*(.+)/,
+        );
+        const plannedArtifactsMatch = cardContent.match(
+          /PLANNED_ARTIFACTS:\s*(.+)/,
+        );
 
         // Parse planned artifacts into structured format
-        const parseArtifacts = (artifactList: string): { key: string; title: string; type: string; description: string; importance: string }[] => {
-          const artifactKeys = artifactList.split(',').map(a => a.trim().toLowerCase().replace(/\s+/g, '_'));
-          const artifactDefinitions: Record<string, { title: string; type: string; description: string; importance: string }> = {
-            'decision_snapshot': { title: 'Decision Snapshot', type: 'snapshot', description: 'A concise summary of your situation, options, and recommended path forward', importance: 'must_read' },
-            'action_plan': { title: 'Action Plan', type: 'plan', description: 'A time-boxed plan with concrete steps and decision checkpoints', importance: 'must_read' },
-            'boss_conversation': { title: 'Boss Conversation Plan', type: 'conversation', description: 'Scripts and strategies for navigating your manager conversation', importance: 'must_read' },
-            'partner_conversation': { title: 'Partner Conversation Plan', type: 'conversation', description: 'Talking points for discussing this transition with your partner', importance: 'recommended' },
-            'self_narrative': { title: 'Clarity Memo', type: 'narrative', description: 'The story you tell yourself about this transition and what you want', importance: 'recommended' },
-            'module_recap': { title: 'Module Recap', type: 'recap', description: 'Key insights and decisions from each coaching session', importance: 'recommended' },
-            'resources': { title: 'Curated Resources', type: 'resources', description: 'Articles, books, and tools specifically chosen for your situation', importance: 'optional' },
-            'risk_map': { title: 'Risk & Fallback Map', type: 'plan', description: 'Identified risks with mitigation strategies and backup plans', importance: 'recommended' },
-            'negotiation_toolkit': { title: 'Negotiation Toolkit', type: 'conversation', description: 'Strategies and scripts for salary or terms negotiation', importance: 'recommended' },
-            'networking_plan': { title: 'Networking Plan', type: 'plan', description: 'A targeted approach to building connections for your next move', importance: 'optional' },
+        const parseArtifacts = (
+          artifactList: string,
+        ): {
+          key: string;
+          title: string;
+          type: string;
+          description: string;
+          importance: string;
+        }[] => {
+          const artifactKeys = artifactList
+            .split(",")
+            .map((a) => a.trim().toLowerCase().replace(/\s+/g, "_"));
+          const artifactDefinitions: Record<
+            string,
+            {
+              title: string;
+              type: string;
+              description: string;
+              importance: string;
+            }
+          > = {
+            decision_snapshot: {
+              title: "Decision Snapshot",
+              type: "snapshot",
+              description:
+                "A concise summary of your situation, options, and recommended path forward",
+              importance: "must_read",
+            },
+            action_plan: {
+              title: "Action Plan",
+              type: "plan",
+              description:
+                "A time-boxed plan with concrete steps and decision checkpoints",
+              importance: "must_read",
+            },
+            boss_conversation: {
+              title: "Boss Conversation Plan",
+              type: "conversation",
+              description:
+                "Scripts and strategies for navigating your manager conversation",
+              importance: "must_read",
+            },
+            partner_conversation: {
+              title: "Partner Conversation Plan",
+              type: "conversation",
+              description:
+                "Talking points for discussing this transition with your partner",
+              importance: "recommended",
+            },
+            self_narrative: {
+              title: "Clarity Memo",
+              type: "narrative",
+              description:
+                "The story you tell yourself about this transition and what you want",
+              importance: "recommended",
+            },
+            module_recap: {
+              title: "Module Recap",
+              type: "recap",
+              description:
+                "Key insights and decisions from each coaching session",
+              importance: "recommended",
+            },
+            resources: {
+              title: "Curated Resources",
+              type: "resources",
+              description:
+                "Articles, books, and tools specifically chosen for your situation",
+              importance: "optional",
+            },
+            risk_map: {
+              title: "Risk & Fallback Map",
+              type: "plan",
+              description:
+                "Identified risks with mitigation strategies and backup plans",
+              importance: "recommended",
+            },
+            negotiation_toolkit: {
+              title: "Negotiation Toolkit",
+              type: "conversation",
+              description:
+                "Strategies and scripts for salary or terms negotiation",
+              importance: "recommended",
+            },
+            networking_plan: {
+              title: "Networking Plan",
+              type: "plan",
+              description:
+                "A targeted approach to building connections for your next move",
+              importance: "optional",
+            },
           };
-          
-          return artifactKeys.map(key => {
-            const def = artifactDefinitions[key] || { title: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), type: 'custom', description: 'Custom artifact for your situation', importance: 'recommended' };
+
+          return artifactKeys.map((key) => {
+            const def = artifactDefinitions[key] || {
+              title: key
+                .replace(/_/g, " ")
+                .replace(/\b\w/g, (c) => c.toUpperCase()),
+              type: "custom",
+              description: "Custom artifact for your situation",
+              importance: "recommended",
+            };
             return { key, ...def };
           });
         };
 
         if (nameMatch) {
-          const artifactList = plannedArtifactsMatch?.[1]?.trim() || 'decision_snapshot, action_plan, module_recap, resources';
+          const artifactList =
+            plannedArtifactsMatch?.[1]?.trim() ||
+            "decision_snapshot, action_plan, module_recap, resources";
           planCard = {
             name: nameMatch[1].trim(),
             modules: [
-              { 
-                name: module1NameMatch?.[1]?.trim() || 'Discovery', 
-                objective: module1ObjectiveMatch?.[1]?.trim() || '',
-                approach: module1ApproachMatch?.[1]?.trim() || '',
-                outcome: module1OutcomeMatch?.[1]?.trim() || ''
+              {
+                name: module1NameMatch?.[1]?.trim() || "Discovery",
+                objective: module1ObjectiveMatch?.[1]?.trim() || "",
+                approach: module1ApproachMatch?.[1]?.trim() || "",
+                outcome: module1OutcomeMatch?.[1]?.trim() || "",
               },
-              { 
-                name: module2NameMatch?.[1]?.trim() || 'Options', 
-                objective: module2ObjectiveMatch?.[1]?.trim() || '',
-                approach: module2ApproachMatch?.[1]?.trim() || '',
-                outcome: module2OutcomeMatch?.[1]?.trim() || ''
+              {
+                name: module2NameMatch?.[1]?.trim() || "Options",
+                objective: module2ObjectiveMatch?.[1]?.trim() || "",
+                approach: module2ApproachMatch?.[1]?.trim() || "",
+                outcome: module2OutcomeMatch?.[1]?.trim() || "",
               },
-              { 
-                name: module3NameMatch?.[1]?.trim() || 'Action Plan', 
-                objective: module3ObjectiveMatch?.[1]?.trim() || '',
-                approach: module3ApproachMatch?.[1]?.trim() || '',
-                outcome: module3OutcomeMatch?.[1]?.trim() || ''
-              }
+              {
+                name: module3NameMatch?.[1]?.trim() || "Action Plan",
+                objective: module3ObjectiveMatch?.[1]?.trim() || "",
+                approach: module3ApproachMatch?.[1]?.trim() || "",
+                outcome: module3OutcomeMatch?.[1]?.trim() || "",
+              },
             ],
-            careerBrief: careerBriefMatch?.[1]?.trim() || '',
-            seriousPlanSummary: seriousPlanSummaryMatch?.[1]?.trim() || 'Your personalized Serious Plan with tailored coaching artifacts',
-            plannedArtifacts: parseArtifacts(artifactList)
+            careerBrief: careerBriefMatch?.[1]?.trim() || "",
+            seriousPlanSummary:
+              seriousPlanSummaryMatch?.[1]?.trim() ||
+              "Your personalized Serious Plan with tailored coaching artifacts",
+            plannedArtifacts: parseArtifacts(artifactList),
           };
         }
       }
 
       // Parse value bullets (can appear with plan card or interview complete)
-      const bulletMatch = reply.match(/\[\[VALUE_BULLETS\]\]([\s\S]*?)\[\[END_VALUE_BULLETS\]\]/);
+      const bulletMatch = reply.match(
+        /\[\[VALUE_BULLETS\]\]([\s\S]*?)\[\[END_VALUE_BULLETS\]\]/,
+      );
       if (bulletMatch) {
         valueBullets = bulletMatch[1].trim();
       }
 
       // Parse social proof (can appear with plan card or interview complete)
-      const socialProofMatch = reply.match(/\[\[SOCIAL_PROOF\]\]([\s\S]*?)\[\[END_SOCIAL_PROOF\]\]/);
+      const socialProofMatch = reply.match(
+        /\[\[SOCIAL_PROOF\]\]([\s\S]*?)\[\[END_SOCIAL_PROOF\]\]/,
+      );
       if (socialProofMatch) {
         socialProof = socialProofMatch[1].trim();
       }
@@ -2500,15 +2987,23 @@ Research shows that 73% of people who feel "stuck" at their level say the bigges
 
       // Sanitize reply - remove all control tokens
       reply = reply
-        .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, '')
-        .replace(/\[\[INTERVIEW_COMPLETE\]\]/g, '')
-        .replace(/\[\[VALUE_BULLETS\]\][\s\S]*?\[\[END_VALUE_BULLETS\]\]/g, '')
-        .replace(/\[\[SOCIAL_PROOF\]\][\s\S]*?\[\[END_SOCIAL_PROOF\]\]/g, '')
-        .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, '')
-        .replace(/\[\[PLAN_CARD\]\][\s\S]*?\[\[END_PLAN_CARD\]\]/g, '')
+        .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, "")
+        .replace(/\[\[INTERVIEW_COMPLETE\]\]/g, "")
+        .replace(/\[\[VALUE_BULLETS\]\][\s\S]*?\[\[END_VALUE_BULLETS\]\]/g, "")
+        .replace(/\[\[SOCIAL_PROOF\]\][\s\S]*?\[\[END_SOCIAL_PROOF\]\]/g, "")
+        .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, "")
+        .replace(/\[\[PLAN_CARD\]\][\s\S]*?\[\[END_PLAN_CARD\]\]/g, "")
         .trim();
 
-      res.json({ reply, done, valueBullets, socialProof, options, progress, planCard });
+      res.json({
+        reply,
+        done,
+        valueBullets,
+        socialProof,
+        options,
+        progress,
+        planCard,
+      });
     } catch (error: any) {
       console.error("Interview error:", error);
       res.status(500).json({ error: error.message });
@@ -2737,11 +3232,14 @@ Brief talking points for the 1-2 most important conversations they need to have.
 
 **Your Anchor**
 A reminder of why they're doing this and what success looks like.
-[[END_SUMMARY]]`
+[[END_SUMMARY]]`,
   };
 
   // Helper function to format the dossier context for the AI
-  function formatDossierContext(dossier: ClientDossier | null, moduleNumber: number): string {
+  function formatDossierContext(
+    dossier: ClientDossier | null,
+    moduleNumber: number,
+  ): string {
     if (!dossier) {
       return "No prior context available.";
     }
@@ -2770,10 +3268,10 @@ ${interviewAnalysis.bigProblem}
 ${interviewAnalysis.desiredOutcome}
 
 **Key Facts:**
-${interviewAnalysis.keyFacts.map(f => `- ${f}`).join('\n')}
+${interviewAnalysis.keyFacts.map((f) => `- ${f}`).join("\n")}
 
 **Key Relationships:**
-${interviewAnalysis.relationships.map(r => `- ${r.person} (${r.role}): ${r.dynamic}`).join('\n')}
+${interviewAnalysis.relationships.map((r) => `- ${r.person} (${r.role}): ${r.dynamic}`).join("\n")}
 
 **Emotional State:**
 ${interviewAnalysis.emotionalState}
@@ -2782,27 +3280,29 @@ ${interviewAnalysis.emotionalState}
 ${interviewAnalysis.communicationStyle}
 
 **Priorities:**
-${interviewAnalysis.priorities.map(p => `- ${p}`).join('\n')}
+${interviewAnalysis.priorities.map((p) => `- ${p}`).join("\n")}
 
 **Constraints:**
-${interviewAnalysis.constraints.map(c => `- ${c}`).join('\n')}
+${interviewAnalysis.constraints.map((c) => `- ${c}`).join("\n")}
 
 **Motivations:**
-${interviewAnalysis.motivations.map(m => `- ${m}`).join('\n')}
+${interviewAnalysis.motivations.map((m) => `- ${m}`).join("\n")}
 
 **Fears:**
-${interviewAnalysis.fears.map(f => `- ${f}`).join('\n')}
+${interviewAnalysis.fears.map((f) => `- ${f}`).join("\n")}
 
 **Your Private Observations:**
 ${interviewAnalysis.observations}
 
 ## INTERVIEW TRANSCRIPT (VERBATIM)
 
-${interviewTranscript.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}
+${interviewTranscript.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n")}
 `;
 
     // Add prior module records if they exist
-    const priorModules = moduleRecords.filter(m => m.moduleNumber < moduleNumber);
+    const priorModules = moduleRecords.filter(
+      (m) => m.moduleNumber < moduleNumber,
+    );
     if (priorModules.length > 0) {
       context += `
 ## PRIOR MODULE SESSIONS
@@ -2817,19 +3317,19 @@ Completed: ${mod.completedAt}
 ${mod.summary}
 
 **Decisions Made:**
-${mod.decisions.map(d => `- ${d}`).join('\n')}
+${mod.decisions.map((d) => `- ${d}`).join("\n")}
 
 **Insights:**
-${mod.insights.map(i => `- ${i}`).join('\n')}
+${mod.insights.map((i) => `- ${i}`).join("\n")}
 
 **Action Items:**
-${mod.actionItems.map(a => `- ${a}`).join('\n')}
+${mod.actionItems.map((a) => `- ${a}`).join("\n")}
 
 **Your Private Observations:**
 ${mod.observations}
 
 **Full Transcript:**
-${mod.transcript.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}
+${mod.transcript.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n")}
 
 ---
 `;
@@ -2855,12 +3355,16 @@ CRITICAL RULES:
   }
 
   // Helper function to generate dynamic module system prompts
-  function generateModulePrompt(moduleNumber: number, planCard: any, dossier: ClientDossier | null = null): string {
+  function generateModulePrompt(
+    moduleNumber: number,
+    planCard: any,
+    dossier: ClientDossier | null = null,
+  ): string {
     const moduleInfo = planCard?.modules?.[moduleNumber - 1];
-    
+
     // Format the dossier context
     const dossierContext = formatDossierContext(dossier, moduleNumber);
-    
+
     if (!moduleInfo) {
       // If no custom plan, use default prompts but still include dossier
       const basePrompt = MODULE_SYSTEM_PROMPTS[moduleNumber];
@@ -2869,35 +3373,41 @@ CRITICAL RULES:
       }
       return basePrompt;
     }
-    
+
     const { name, objective, approach, outcome } = moduleInfo;
-    
-    const moduleStructure: Record<number, { role: string; context: string; structure: string }> = {
+
+    const moduleStructure: Record<
+      number,
+      { role: string; context: string; structure: string }
+    > = {
       1: {
         role: "discovery/unpacking",
-        context: "The user has completed an initial interview where they shared their career situation. They've paid for coaching and are now starting the first module. You have complete access to the interview transcript and your analysis of their situation.",
+        context:
+          "The user has completed an initial interview where they shared their career situation. They've paid for coaching and are now starting the first module. You have complete access to the interview transcript and your analysis of their situation.",
         structure: `1. **Opening (1 message)**: Start with a title card, then briefly introduce the module's purpose. Reference something specific from their interview to show you remember their situation.
 2. **Deep Dive (4-6 exchanges)**: ${approach}
-3. **Wrap-up**: When you feel you have a clear picture, output [[MODULE_COMPLETE]] along with a summary.`
+3. **Wrap-up**: When you feel you have a clear picture, output [[MODULE_COMPLETE]] along with a summary.`,
       },
       2: {
         role: "exploring motivations/options/constraints",
-        context: "The user has completed Module 1. You have the full transcript and analysis from that module. Now they need to explore their motivations, constraints, and options.",
+        context:
+          "The user has completed Module 1. You have the full transcript and analysis from that module. Now they need to explore their motivations, constraints, and options.",
         structure: `1. **Opening (1 message)**: Start with a title card, then briefly recap what you learned in Module 1 and introduce this module's focus.
 2. **Exploration (4-6 exchanges)**: ${approach}
-3. **Wrap-up**: When you've mapped their options and constraints, output [[MODULE_COMPLETE]] with a summary.`
+3. **Wrap-up**: When you've mapped their options and constraints, output [[MODULE_COMPLETE]] with a summary.`,
       },
       3: {
         role: "action planning",
-        context: "The user has completed Modules 1 and 2. You have the full transcripts and analyses from both modules. Now it's time to build an action plan.",
+        context:
+          "The user has completed Modules 1 and 2. You have the full transcripts and analyses from both modules. Now it's time to build an action plan.",
         structure: `1. **Opening (1 message)**: Start with a title card, briefly recap their situation and direction, then dive into planning.
 2. **Action Planning (4-6 exchanges)**: ${approach}
-3. **Wrap-up**: When you have a clear action plan, output [[MODULE_COMPLETE]] with a summary.`
-      }
+3. **Wrap-up**: When you have a clear action plan, output [[MODULE_COMPLETE]] with a summary.`,
+      },
     };
-    
+
     const info = moduleStructure[moduleNumber];
-    
+
     return `You are an experienced, plain-spoken career coach conducting Module ${moduleNumber}: ${name}.
 
 ### Context
@@ -2962,8 +3472,11 @@ ${dossierContext}`;
       }
 
       // Check if user sent "testskip" command (case-insensitive)
-      const lastUserMessage = [...transcript].reverse().find((t: any) => t.role === 'user');
-      const isTestSkip = lastUserMessage?.content?.toLowerCase().trim() === 'testskip';
+      const lastUserMessage = [...transcript]
+        .reverse()
+        .find((t: any) => t.role === "user");
+      const isTestSkip =
+        lastUserMessage?.content?.toLowerCase().trim() === "testskip";
 
       // Ensure user is authenticated
       if (!req.user || !(req.user as any).id) {
@@ -2985,27 +3498,39 @@ ${dossierContext}`;
         const userIdStr = String(userId);
         const existingLock = dossierGenerationLocks.get(userIdStr);
         const now = Date.now();
-        
+
         // Check if there's an active (non-stale) lock
-        if (existingLock && (now - existingLock) < DOSSIER_LOCK_TIMEOUT_MS) {
-          console.log(`[MODULE] Dossier generation already in progress for user ${userId}`);
+        if (existingLock && now - existingLock < DOSSIER_LOCK_TIMEOUT_MS) {
+          console.log(
+            `[MODULE] Dossier generation already in progress for user ${userId}`,
+          );
           return res.status(409).json({
             error: "Dossier generation in progress",
-            message: "Your coaching context is being prepared. Please try again in a few seconds.",
+            message:
+              "Your coaching context is being prepared. Please try again in a few seconds.",
             retryable: true,
           });
         }
-        
+
         // Acquire lock and generate
         dossierGenerationLocks.set(userIdStr, now);
-        console.log(`[MODULE] Dossier missing for user ${userId}, generating on-demand...`);
-        
+        console.log(
+          `[MODULE] Dossier missing for user ${userId}, generating on-demand...`,
+        );
+
         const rawTranscript = await storage.getTranscriptByUserId(userId);
-        if (rawTranscript?.transcript && Array.isArray(rawTranscript.transcript)) {
-          const transcriptMessages = rawTranscript.transcript as { role: string; content: string }[];
-          
+        if (
+          rawTranscript?.transcript &&
+          Array.isArray(rawTranscript.transcript)
+        ) {
+          const transcriptMessages = rawTranscript.transcript as {
+            role: string;
+            content: string;
+          }[];
+
           try {
-            const interviewAnalysis = await generateInterviewAnalysis(transcriptMessages);
+            const interviewAnalysis =
+              await generateInterviewAnalysis(transcriptMessages);
             if (interviewAnalysis) {
               const dossier: ClientDossier = {
                 interviewTranscript: transcriptMessages,
@@ -3014,8 +3539,10 @@ ${dossierContext}`;
                 lastUpdated: new Date().toISOString(),
               };
               await storage.updateClientDossier(userId, dossier);
-              console.log(`[MODULE] On-demand dossier generated for user ${userId}`);
-              
+              console.log(
+                `[MODULE] On-demand dossier generated for user ${userId}`,
+              );
+
               // Retry loading after generation
               loadResult = await loadUserTranscriptWithRetry(userId, {
                 requireDossier: true,
@@ -3025,7 +3552,10 @@ ${dossierContext}`;
               });
             }
           } catch (dossierErr) {
-            console.error(`[MODULE] Failed to generate on-demand dossier:`, dossierErr);
+            console.error(
+              `[MODULE] Failed to generate on-demand dossier:`,
+              dossierErr,
+            );
           } finally {
             // Release lock
             dossierGenerationLocks.delete(userIdStr);
@@ -3038,7 +3568,7 @@ ${dossierContext}`;
 
       if (!loadResult.success) {
         // Return a specific error code so frontend can handle appropriately
-        return res.status(409).json({ 
+        return res.status(409).json({
           error: "Context not ready",
           message: loadResult.error,
           retryable: true,
@@ -3048,7 +3578,11 @@ ${dossierContext}`;
       const { clientDossier, planCard } = loadResult;
 
       // Generate dynamic system prompt based on the coaching plan and dossier
-      let systemPrompt = generateModulePrompt(moduleNumber, planCard, clientDossier);
+      let systemPrompt = generateModulePrompt(
+        moduleNumber,
+        planCard,
+        clientDossier,
+      );
 
       // Add testskip override if needed
       if (isTestSkip) {
@@ -3077,19 +3611,26 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
 
       if (useAnthropic && anthropic) {
         // Use Anthropic Claude
-        const claudeMessages: { role: "user" | "assistant"; content: string }[] = [];
+        const claudeMessages: {
+          role: "user" | "assistant";
+          content: string;
+        }[] = [];
 
         for (const turn of transcript) {
           if (turn && turn.role && turn.content) {
             claudeMessages.push({
               role: turn.role as "user" | "assistant",
-              content: turn.content
+              content: turn.content,
             });
           }
         }
 
         if (transcript.length === 0) {
-          claudeMessages.push({ role: "user", content: "Start the module. Introduce it and ask your first question." });
+          claudeMessages.push({
+            role: "user",
+            content:
+              "Start the module. Introduce it and ask your first question.",
+          });
         }
 
         const response = await anthropic.messages.create({
@@ -3099,24 +3640,30 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
           messages: claudeMessages,
         });
 
-        reply = response.content[0].type === 'text' ? response.content[0].text : '';
+        reply =
+          response.content[0].type === "text" ? response.content[0].text : "";
       } else {
         // Fall back to OpenAI
-        const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
-          { role: "system", content: systemPrompt }
-        ];
+        const messages: {
+          role: "system" | "user" | "assistant";
+          content: string;
+        }[] = [{ role: "system", content: systemPrompt }];
 
         for (const turn of transcript) {
           if (turn && turn.role && turn.content) {
             messages.push({
               role: turn.role as "user" | "assistant",
-              content: turn.content
+              content: turn.content,
             });
           }
         }
 
         if (transcript.length === 0) {
-          messages.push({ role: "user", content: "Start the module. Introduce it and ask your first question." });
+          messages.push({
+            role: "user",
+            content:
+              "Start the module. Introduce it and ask your first question.",
+          });
         }
 
         const response = await openai.chat.completions.create({
@@ -3133,7 +3680,9 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
       let progress: number | null = null;
 
       // Parse progress token
-      const progressMatch = reply.match(/\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/);
+      const progressMatch = reply.match(
+        /\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/,
+      );
       if (progressMatch) {
         progress = parseInt(progressMatch[1], 10);
         if (isNaN(progress) || progress < 0 || progress > 100) {
@@ -3142,13 +3691,21 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
       }
 
       // Parse structured options (handles both newline and pipe-separated)
-      const optionsMatch = reply.match(/\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/);
+      const optionsMatch = reply.match(
+        /\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/,
+      );
       if (optionsMatch) {
         const rawOptions = optionsMatch[1].trim();
         // Split on newlines first, then on pipes if we only got one option
-        let parsedOptions = rawOptions.split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
-        if (parsedOptions.length === 1 && parsedOptions[0].includes('|')) {
-          parsedOptions = parsedOptions[0].split('|').map(opt => opt.trim()).filter(opt => opt.length > 0);
+        let parsedOptions = rawOptions
+          .split("\n")
+          .map((opt) => opt.trim())
+          .filter((opt) => opt.length > 0);
+        if (parsedOptions.length === 1 && parsedOptions[0].includes("|")) {
+          parsedOptions = parsedOptions[0]
+            .split("|")
+            .map((opt) => opt.trim())
+            .filter((opt) => opt.length > 0);
         }
         options = parsedOptions;
       }
@@ -3157,15 +3714,23 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
       if (reply.includes("[[MODULE_COMPLETE]]")) {
         done = true;
 
-        const summaryMatch = reply.match(/\[\[SUMMARY\]\]([\s\S]*?)\[\[END_SUMMARY\]\]/);
+        const summaryMatch = reply.match(
+          /\[\[SUMMARY\]\]([\s\S]*?)\[\[END_SUMMARY\]\]/,
+        );
         if (summaryMatch) {
           summary = summaryMatch[1].trim();
         }
-        
+
         // Mark module as complete in database (user is already authenticated at this point)
         try {
-          await storage.updateModuleComplete(userId, moduleNumber as 1 | 2 | 3, true);
-          console.log(`Module ${moduleNumber} marked complete for user ${userId}`);
+          await storage.updateModuleComplete(
+            userId,
+            moduleNumber as 1 | 2 | 3,
+            true,
+          );
+          console.log(
+            `Module ${moduleNumber} marked complete for user ${userId}`,
+          );
         } catch (err) {
           console.error("Failed to mark module complete:", err);
         }
@@ -3173,11 +3738,11 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
 
       // Sanitize reply - remove all control tokens
       reply = reply
-        .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, '')
-        .replace(/\[\[MODULE_COMPLETE\]\]\s*/g, '')
-        .replace(/\[\[SUMMARY\]\][\s\S]*?\[\[END_SUMMARY\]\]\s*/g, '')
-        .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, '')
-        .replace(/\n\s*\n\s*\n/g, '\n\n') // Clean up excessive blank lines
+        .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, "")
+        .replace(/\[\[MODULE_COMPLETE\]\]\s*/g, "")
+        .replace(/\[\[SUMMARY\]\][\s\S]*?\[\[END_SUMMARY\]\]\s*/g, "")
+        .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, "")
+        .replace(/\n\s*\n\s*\n/g, "\n\n") // Clean up excessive blank lines
         .trim();
 
       res.json({ reply, done, summary, options, progress });
@@ -3196,7 +3761,11 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
 
       const { transcript } = req.body;
 
-      if (!transcript || !Array.isArray(transcript) || transcript.length === 0) {
+      if (
+        !transcript ||
+        !Array.isArray(transcript) ||
+        transcript.length === 0
+      ) {
         return res.status(400).json({ error: "Missing or empty transcript" });
       }
 
@@ -3289,7 +3858,8 @@ FORMAT:
           messages: [{ role: "user", content: prompt }],
         });
 
-        text = response.content[0].type === 'text' ? response.content[0].text : null;
+        text =
+          response.content[0].type === "text" ? response.content[0].text : null;
       } else {
         // Fall back to OpenAI
         const response = await openai.chat.completions.create({
@@ -3314,31 +3884,37 @@ FORMAT:
   // Also triggers dossier generation when planCard is present
   app.post("/api/transcript", requireAuth, async (req, res) => {
     const requestStart = Date.now();
-    
+
     try {
       const userId = (req.user as any)?.id;
       if (!userId) {
-        console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=anonymous status=rejected_not_authenticated`);
+        console.log(
+          `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=anonymous status=rejected_not_authenticated`,
+        );
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      const { 
-        transcript, 
-        currentModule, 
-        progress, 
-        interviewComplete, 
+      const {
+        transcript,
+        currentModule,
+        progress,
+        interviewComplete,
         paymentVerified,
         valueBullets,
         socialProof,
-        planCard
+        planCard,
       } = req.body;
 
       const messageCount = transcript?.length || 0;
-      console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=started module=${currentModule} progress=${progress} interviewComplete=${interviewComplete} hasPlanCard=${!!planCard} messageCount=${messageCount}`);
+      console.log(
+        `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=started module=${currentModule} progress=${progress} interviewComplete=${interviewComplete} hasPlanCard=${!!planCard} messageCount=${messageCount}`,
+      );
 
       if (!transcript || !Array.isArray(transcript)) {
         const durationMs = Date.now() - requestStart;
-        console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=failed_invalid_format durationMs=${durationMs}`);
+        console.log(
+          `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=failed_invalid_format durationMs=${durationMs}`,
+        );
         return res.status(400).json({ error: "Invalid transcript format" });
       }
 
@@ -3346,8 +3922,10 @@ FORMAT:
       // Token format: [[PROVIDED_NAME:TheirName]]
       let providedNameUpdated = false;
       for (const message of transcript) {
-        if (message.role === 'assistant' && message.content) {
-          const nameMatch = message.content.match(/\[\[PROVIDED_NAME:([^\]]+)\]\]/);
+        if (message.role === "assistant" && message.content) {
+          const nameMatch = message.content.match(
+            /\[\[PROVIDED_NAME:([^\]]+)\]\]/,
+          );
           if (nameMatch && nameMatch[1]) {
             const providedName = nameMatch[1].trim();
             if (providedName) {
@@ -3356,7 +3934,9 @@ FORMAT:
               if (existingUser && !existingUser.providedName) {
                 await storage.updateUser(userId, { providedName });
                 providedNameUpdated = true;
-                console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} providedName="${providedName}" status=updated`);
+                console.log(
+                  `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} providedName="${providedName}" status=updated`,
+                );
               }
             }
             break; // Only process the first name token
@@ -3368,20 +3948,23 @@ FORMAT:
       let dossierTriggered = false;
       let existingHasDossier = false;
       let shouldTriggerDossier = false;
-      
+
       if (planCard && transcript.length > 0) {
         // Check existing state BEFORE we upsert
         const existingTranscript = await storage.getTranscriptByUserId(userId);
         const existingPlanCard = existingTranscript?.planCard;
         existingHasDossier = !!existingTranscript?.clientDossier;
-        const planCardChanged = !existingPlanCard || 
+        const planCardChanged =
+          !existingPlanCard ||
           JSON.stringify(existingPlanCard) !== JSON.stringify(planCard);
-        
-        console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} planCardCheck existingPlanCard=${!!existingPlanCard} planCardChanged=${planCardChanged} hasDossier=${existingHasDossier}`);
-        
+
+        console.log(
+          `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} planCardCheck existingPlanCard=${!!existingPlanCard} planCardChanged=${planCardChanged} hasDossier=${existingHasDossier}`,
+        );
+
         shouldTriggerDossier = planCardChanged && !existingHasDossier;
       }
-      
+
       // SAVE THE TRANSCRIPT FIRST - this ensures planCard and messages are persisted
       // before the user navigates to Stripe. Dossier generation happens in background.
       const upsertStart = Date.now();
@@ -3396,34 +3979,54 @@ FORMAT:
         planCard,
       });
       const upsertDurationMs = Date.now() - upsertStart;
-      
+
       // Trigger dossier generation in background AFTER transcript is saved
       if (shouldTriggerDossier) {
-        console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=triggering_dossier_background`);
-        
+        console.log(
+          `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=triggering_dossier_background`,
+        );
+
         // Trigger dossier generation in BACKGROUND (fire-and-forget)
         // This allows the POST to complete immediately so the user can proceed to payment
-        const transcriptMessages = transcript as { role: string; content: string }[];
+        const transcriptMessages = transcript as {
+          role: string;
+          content: string;
+        }[];
         generateAndSaveDossier(userId, transcriptMessages)
-          .then(result => {
-            console.log(`[DOSSIER_BACKGROUND] ts=${new Date().toISOString()} user=${userId} status=${result.status}`);
+          .then((result) => {
+            console.log(
+              `[DOSSIER_BACKGROUND] ts=${new Date().toISOString()} user=${userId} status=${result.status}`,
+            );
           })
-          .catch(err => {
-            console.error(`[DOSSIER_BACKGROUND] ts=${new Date().toISOString()} user=${userId} status=error error="${err.message}"`);
+          .catch((err) => {
+            console.error(
+              `[DOSSIER_BACKGROUND] ts=${new Date().toISOString()} user=${userId} status=error error="${err.message}"`,
+            );
           });
-        
+
         dossierTriggered = true;
       } else if (planCard && existingHasDossier) {
-        console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=skipping_dossier reason=already_exists`);
+        console.log(
+          `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=skipping_dossier reason=already_exists`,
+        );
       }
 
       const durationMs = Date.now() - requestStart;
-      console.log(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=success upsertDurationMs=${upsertDurationMs} dossierTriggered=${dossierTriggered} providedNameUpdated=${providedNameUpdated} durationMs=${durationMs}`);
+      console.log(
+        `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=success upsertDurationMs=${upsertDurationMs} dossierTriggered=${dossierTriggered} providedNameUpdated=${providedNameUpdated} durationMs=${durationMs}`,
+      );
 
-      res.json({ success: true, id: result.id, dossierTriggered, providedNameUpdated });
+      res.json({
+        success: true,
+        id: result.id,
+        dossierTriggered,
+        providedNameUpdated,
+      });
     } catch (error: any) {
       const durationMs = Date.now() - requestStart;
-      console.error(`[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${(req.user as any)?.id || 'unknown'} status=error durationMs=${durationMs} error="${error.message}"`);
+      console.error(
+        `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${(req.user as any)?.id || "unknown"} status=error durationMs=${durationMs} error="${error.message}"`,
+      );
       res.status(500).json({ error: error.message });
     }
   });
@@ -3431,19 +4034,19 @@ FORMAT:
   // ============================================
   // MODULE DATA ENDPOINTS (Database persistence for module state)
   // ============================================
-  
+
   // GET /api/module/:moduleNumber/data - Load module transcript, summary, and completion status
   app.get("/api/module/:moduleNumber/data", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
       const moduleNumber = parseInt(req.params.moduleNumber) as 1 | 2 | 3;
-      
+
       if (![1, 2, 3].includes(moduleNumber)) {
         return res.status(400).json({ error: "Invalid module number" });
       }
-      
+
       const moduleData = await storage.getModuleData(userId, moduleNumber);
-      
+
       if (!moduleData) {
         // No transcript record exists, return empty state
         return res.json({
@@ -3452,26 +4055,26 @@ FORMAT:
           complete: false,
         });
       }
-      
+
       res.json(moduleData);
     } catch (error: any) {
       console.error("Load module data error:", error);
       res.status(500).json({ error: error.message });
     }
   });
-  
+
   // POST /api/module/:moduleNumber/data - Save module transcript, summary, and/or completion status
   app.post("/api/module/:moduleNumber/data", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
       const moduleNumber = parseInt(req.params.moduleNumber) as 1 | 2 | 3;
-      
+
       if (![1, 2, 3].includes(moduleNumber)) {
         return res.status(400).json({ error: "Invalid module number" });
       }
-      
+
       const { transcript, summary, complete } = req.body;
-      
+
       // Ensure user has a transcript record first
       let existingTranscript = await storage.getTranscriptByUserId(userId);
       if (!existingTranscript) {
@@ -3487,27 +4090,27 @@ FORMAT:
           paymentVerified: false,
         });
       }
-      
+
       // Update module data
       await storage.updateModuleData(userId, moduleNumber, {
         transcript,
         summary,
         complete,
       });
-      
+
       res.json({ success: true });
     } catch (error: any) {
       console.error("Save module data error:", error);
       res.status(500).json({ error: error.message });
     }
   });
-  
+
   // GET /api/modules/status - Get completion status for all modules
   app.get("/api/modules/status", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
       const transcript = await storage.getTranscriptByUserId(userId);
-      
+
       if (!transcript) {
         return res.json({
           modules: [
@@ -3517,12 +4120,24 @@ FORMAT:
           ],
         });
       }
-      
+
       res.json({
         modules: [
-          { number: 1, complete: transcript.module1Complete || false, summary: transcript.module1Summary || null },
-          { number: 2, complete: transcript.module2Complete || false, summary: transcript.module2Summary || null },
-          { number: 3, complete: transcript.module3Complete || false, summary: transcript.module3Summary || null },
+          {
+            number: 1,
+            complete: transcript.module1Complete || false,
+            summary: transcript.module1Summary || null,
+          },
+          {
+            number: 2,
+            complete: transcript.module2Complete || false,
+            summary: transcript.module2Summary || null,
+          },
+          {
+            number: 3,
+            complete: transcript.module3Complete || false,
+            summary: transcript.module3Summary || null,
+          },
         ],
       });
     } catch (error: any) {
@@ -3535,7 +4150,7 @@ FORMAT:
   app.get("/api/test-db", async (req, res) => {
     try {
       const testToken = `test-${Date.now()}`;
-      
+
       // Create a test record
       const created = await storage.createTranscript({
         sessionToken: testToken,
@@ -3580,32 +4195,34 @@ FORMAT:
   app.post("/api/webhook/inbound", async (req, res) => {
     try {
       const payload = req.body;
-      
+
       console.log("Received Resend webhook:", JSON.stringify(payload, null, 2));
-      
+
       // Verify this is an email.received event
       if (payload.type !== "email.received") {
         console.log("Ignoring non-email.received event:", payload.type);
         return res.status(200).json({ message: "Event type ignored" });
       }
-      
+
       const emailData = payload.data;
-      
+
       if (!emailData) {
         console.log("No email data in payload");
         return res.status(200).json({ message: "No email data" });
       }
-      
+
       // Extract email details
       const originalFrom = emailData.from || "Unknown sender";
-      const originalTo = Array.isArray(emailData.to) ? emailData.to.join(", ") : (emailData.to || "Unknown recipient");
+      const originalTo = Array.isArray(emailData.to)
+        ? emailData.to.join(", ")
+        : emailData.to || "Unknown recipient";
       const originalSubject = emailData.subject || "(No subject)";
       const htmlBody = emailData.html || emailData.text || "(No content)";
       const textBody = emailData.text || "";
-      
+
       // Create forwarded subject line
       const forwardedSubject = `Fwd from ${originalFrom}: ${originalSubject}`;
-      
+
       // Create forwarded email body with original recipient info
       const forwardedHtml = `
         <div style="font-family: 'Source Serif 4', Georgia, serif; max-width: 700px; margin: 0 auto; padding: 20px;">
@@ -3620,14 +4237,18 @@ FORMAT:
           </div>
         </div>
       `;
-      
+
       // Get the Resend client and send the forwarded email
       const { client, fromEmail } = await getResendClient();
       const senderEmail = fromEmail || "onboarding@resend.dev";
-      
-      console.log("Forwarding email from:", senderEmail, "to: seriouspeople@noahlevin.com");
+
+      console.log(
+        "Forwarding email from:",
+        senderEmail,
+        "to: seriouspeople@noahlevin.com",
+      );
       console.log("Subject:", forwardedSubject);
-      
+
       const result = await client.emails.send({
         from: senderEmail,
         to: "seriouspeople@noahlevin.com",
@@ -3635,28 +4256,27 @@ FORMAT:
         html: forwardedHtml,
         text: `Original From: ${originalFrom}\nOriginal To: ${originalTo}\nOriginal Subject: ${originalSubject}\n\n---\n\n${textBody}`,
       });
-      
+
       if (result.error) {
         console.error("Failed to forward email:", result.error);
         // Still return 200 to acknowledge receipt - we don't want Resend to retry
-        return res.status(200).json({ 
+        return res.status(200).json({
           message: "Received but failed to forward",
-          error: result.error.message 
+          error: result.error.message,
         });
       }
-      
+
       console.log("Email forwarded successfully:", result.data?.id);
-      res.status(200).json({ 
+      res.status(200).json({
         message: "Email forwarded successfully",
-        emailId: result.data?.id 
+        emailId: result.data?.id,
       });
-      
     } catch (error: any) {
       console.error("Webhook processing error:", error);
       // Still return 200 to acknowledge receipt
-      res.status(200).json({ 
+      res.status(200).json({
         message: "Received but processing failed",
-        error: error.message 
+        error: error.message,
       });
     }
   });
@@ -3667,17 +4287,17 @@ FORMAT:
   app.post("/api/admin/fix-user", async (req, res) => {
     try {
       const { email, userId, secret } = req.body;
-      
+
       // Simple secret check - in production, use a proper admin auth system
       const adminSecret = process.env.ADMIN_SECRET || "serious-admin-2024";
       if (secret !== adminSecret) {
         return res.status(403).json({ error: "Invalid admin secret" });
       }
-      
+
       if (!email && !userId) {
         return res.status(400).json({ error: "Email or userId required" });
       }
-      
+
       // Find the user by email or userId
       let user;
       if (userId) {
@@ -3687,19 +4307,19 @@ FORMAT:
         user = await storage.getUserByEmail(email);
         console.log(`[ADMIN] Fixing user state for: ${email}`);
       }
-      
+
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
-      
+
       // Get their transcript
       const transcript = await storage.getTranscriptByUserId(user.id);
       if (!transcript) {
         return res.status(404).json({ error: "No transcript found for user" });
       }
-      
+
       const fixes: string[] = [];
-      
+
       // Fix 1: Mark interview as complete if they've paid
       if (transcript.paymentVerified && !transcript.interviewComplete) {
         await storage.updateTranscript(transcript.sessionToken, {
@@ -3708,19 +4328,29 @@ FORMAT:
         });
         fixes.push("Set interview_complete=true, progress=100");
       }
-      
+
       // Fix 2: Generate dossier if missing
-      if (!transcript.clientDossier && transcript.transcript && Array.isArray(transcript.transcript)) {
-        const transcriptMessages = transcript.transcript as { role: string; content: string }[];
-        console.log(`[ADMIN] Generating client dossier for ${email}... (${transcriptMessages.length} messages)`);
-        
+      if (
+        !transcript.clientDossier &&
+        transcript.transcript &&
+        Array.isArray(transcript.transcript)
+      ) {
+        const transcriptMessages = transcript.transcript as {
+          role: string;
+          content: string;
+        }[];
+        console.log(
+          `[ADMIN] Generating client dossier for ${email}... (${transcriptMessages.length} messages)`,
+        );
+
         let interviewAnalysis: InterviewAnalysis | null = null;
         try {
-          interviewAnalysis = await generateInterviewAnalysis(transcriptMessages);
+          interviewAnalysis =
+            await generateInterviewAnalysis(transcriptMessages);
         } catch (aiError: any) {
           console.error(`[ADMIN] AI analysis error:`, aiError.message);
         }
-        
+
         if (interviewAnalysis) {
           const dossier: ClientDossier = {
             interviewTranscript: transcriptMessages,
@@ -3728,12 +4358,14 @@ FORMAT:
             moduleRecords: [],
             lastUpdated: new Date().toISOString(),
           };
-          
+
           await storage.updateClientDossier(user.id, dossier);
           fixes.push("Generated client dossier with AI analysis");
         } else {
           // Create a minimal dossier without AI analysis so user can proceed
-          console.log(`[ADMIN] Creating minimal dossier without AI analysis for ${email}`);
+          console.log(
+            `[ADMIN] Creating minimal dossier without AI analysis for ${email}`,
+          );
           const minimalAnalysis: InterviewAnalysis = {
             clientName: "Client",
             currentRole: "See transcript",
@@ -3742,7 +4374,8 @@ FORMAT:
             situation: "Interview completed - see transcript for details",
             bigProblem: "See transcript for details",
             desiredOutcome: "See transcript for details",
-            clientFacingSummary: "You're ready to take the next step in your career. Together we'll map out your path forward and build the clarity you need to make your next move.",
+            clientFacingSummary:
+              "You're ready to take the next step in your career. Together we'll map out your path forward and build the clarity you need to make your next move.",
             keyFacts: ["See transcript for details"],
             relationships: [],
             emotionalState: "engaged",
@@ -3753,34 +4386,38 @@ FORMAT:
             fears: [],
             questionsAsked: [],
             optionsOffered: [],
-            observations: "Dossier created via admin fix - AI analysis was unavailable. The coach should read the full interview transcript to understand this client's situation."
+            observations:
+              "Dossier created via admin fix - AI analysis was unavailable. The coach should read the full interview transcript to understand this client's situation.",
           };
-          
+
           const dossier: ClientDossier = {
             interviewTranscript: transcriptMessages,
             interviewAnalysis: minimalAnalysis,
             moduleRecords: [],
             lastUpdated: new Date().toISOString(),
           };
-          
+
           await storage.updateClientDossier(user.id, dossier);
-          fixes.push(`Created minimal dossier (AI unavailable) with ${transcriptMessages.length} transcript messages`);
+          fixes.push(
+            `Created minimal dossier (AI unavailable) with ${transcriptMessages.length} transcript messages`,
+          );
         }
       } else if (transcript.clientDossier) {
         fixes.push("Dossier already exists (no action needed)");
       } else {
-        fixes.push(`No transcript data to generate dossier from (transcript: ${typeof transcript.transcript})`);
+        fixes.push(
+          `No transcript data to generate dossier from (transcript: ${typeof transcript.transcript})`,
+        );
       }
-      
+
       console.log(`[ADMIN] Fixes applied for ${email}:`, fixes);
-      
-      res.json({ 
-        ok: true, 
+
+      res.json({
+        ok: true,
         email,
         userId: user.id,
-        fixes 
+        fixes,
       });
-      
     } catch (error: any) {
       console.error("[ADMIN] Fix user error:", error);
       res.status(500).json({ error: error.message });

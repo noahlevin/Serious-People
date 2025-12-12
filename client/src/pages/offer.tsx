@@ -86,10 +86,6 @@ const faqs = [
     answer: "It's AI-powered coaching built on proven coaching methodologies. It won't pretend to be human, but it follows a structured curriculum designed by experienced coaches—asking hard questions, pushing back on fuzzy thinking, and helping you reach clarity."
   },
   {
-    question: "What if I'm not sure what I want to change?",
-    answer: "That's exactly what Module 2 (Fork in the Road) is for. Many people arrive unclear about their options. The coaching process helps you explore paths you might not have considered."
-  },
-  {
     question: "Is my information private?",
     answer: "Yes. Your conversation and plan are stored securely and never shared with anyone. We don't sell your data or use it to train AI models."
   },
