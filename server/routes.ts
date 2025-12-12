@@ -249,6 +249,7 @@ Analyze the interview transcript and output a JSON object with the following str
   "situation": "A detailed paragraph describing their complete career situation - be thorough, include all context",
   "bigProblem": "The core issue they're facing, explained in detail with nuance",
   "desiredOutcome": "What they want to achieve - be specific about their goals",
+  "clientFacingSummary": "A 2-3 sentence CLIENT-FACING summary shown to the user on the offer page. Write in second person ('You are...', 'Your goal is...'). Briefly describe their situation and what coaching will help them achieve. Keep it warm, professional, and focused on their goals - not their problems. Example: 'You're a Senior PM at a growing fintech looking to break into leadership. Together we'll map out your path forward and build the confidence and clarity you need to make your next move.'",
   "keyFacts": [
     "Every concrete fact mentioned: salary, savings, timeline, family situation, etc.",
     "Include specific numbers, dates, durations",
