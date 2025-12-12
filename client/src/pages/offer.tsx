@@ -46,6 +46,7 @@ interface ClientDossier {
   situation: string;
   bigProblem: string;
   desiredOutcome: string;
+  clientFacingSummary: string;
   keyFacts: string[];
   relationships: { person: string; role: string; dynamic: string }[];
   emotionalState: string;
@@ -383,6 +384,12 @@ export default function Offer() {
       >
         <div className="sp-offer-container">
           <h2 className="sp-offer-section-title">{firstName}'s Coaching Journey</h2>
+          
+          {dossier?.clientFacingSummary && (
+            <p className="sp-offer-journey-summary" data-testid="text-journey-summary">
+              {dossier.clientFacingSummary}
+            </p>
+          )}
           
           <div className="sp-offer-journey-timeline">
             {/* Interview - Completed */}

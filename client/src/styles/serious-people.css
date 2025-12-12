@@ -3830,6 +3830,16 @@ body.page-transition-out {
   letter-spacing: -0.01em;
 }
 
+.sp-offer-journey-summary {
+  font-family: var(--sp-font-body);
+  font-size: 1.1rem;
+  color: var(--sp-text-secondary);
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 2rem auto;
+  line-height: 1.6;
+}
+
 .sp-offer-section-subtitle {
   font-family: var(--sp-font-body);
   font-size: 1.1rem;
