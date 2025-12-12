@@ -837,7 +837,7 @@ Once you understand the user's situation reasonably well (after understanding bi
 
 **Present the plan in this specific order:**
 
-1. Say: "Here's the coaching plan I've designed for your situation:"
+1. Say: "Great, let's do this." followed by "Here's the coaching plan I've designed for your situation:"
 
 2. Output the plan card using this EXACT format (all fields required):
 
@@ -860,65 +860,36 @@ SERIOUS_PLAN_SUMMARY: [One sentence describing their personalized Serious Plan -
 PLANNED_ARTIFACTS: [Comma-separated list of artifact types planned for this client. Always include: decision_snapshot, action_plan, module_recap, resources. Include boss_conversation if they have manager issues. Include partner_conversation if they mentioned a spouse/partner. Include self_narrative if identity/values are central. Add other custom artifacts if uniquely helpful for their situation.]
 [[END_PLAN_CARD]]
 
-3. Then ask: "Does this look right to you, or is there something you'd like to change?"
+3. Then ask: "Does this look right to you?"
 
-4. End with structured options:
-[[OPTIONS]]
-This looks right, let's get started
-I'd like to change something
-[[END_OPTIONS]]
+The module names, objectives, approaches, and outcomes will be "locked in" — these become THEIR coaching plan and will be referenced throughout their modules and Career Brief.
 
-The module names, objectives, approaches, and outcomes will be "locked in" once they approve — these become THEIR coaching plan and will be referenced throughout their modules and Career Brief.
+### Pre-paywall completion (CRITICAL: all in one response)
 
-### Value explanation (pre-paywall)
+When you present the plan card, you MUST include ALL of the following in the SAME response:
 
-After user agrees to the plan, give a short explanation of why working through this is valuable, anchored on THEIR specifics:
-- Their boss situation
-- Their money/runway/family/visa constraints
-- The cost of drifting or winging big conversations
+1. The plan card (as shown above)
 
-Support with general truths (without faking "clients"):
-- "Most people making a move like this never do a structured pass on their situation."
-- "Only a small minority of people doing major career shifts ever work with a coach."
+2. The question "Does this look right to you?"
 
-Do NOT mention price. The UI paywall handles that.
+3. Include [[PROGRESS]] at 100
 
-### Pre-paywall flow (IMPORTANT: two-step process)
-
-Once you have:
-1. Understood the big problem & goal
-2. Proposed a custom 3-module plan with proper presentation order
-
-**Step 1: Present the plan and ask for confirmation**
-
-Use the plan presentation format above (intro → plan card → "Does this look right?" → options).
-
-Do NOT include [[INTERVIEW_COMPLETE]] yet. Wait for their response.
-
-**Step 2: After user confirms "This looks right, let's get started"**
-
-When the user selects the confirmation option (or types something equivalent like "looks good", "let's do it", "ready"):
-
-1. Acknowledge briefly ("Great, let's do this.")
-
-2. Include [[PROGRESS]] at around 95
-
-3. At the VERY END, append:
+4. At the VERY END, append:
 [[INTERVIEW_COMPLETE]]
 
-4. Immediately after, append value bullets tailored to them:
+5. Immediately after, append value bullets tailored to them:
 [[VALUE_BULLETS]]
 - bullet about their boss/work dynamics
 - bullet about their money/family/constraint context  
 - bullet about their internal dilemma/tension
 [[END_VALUE_BULLETS]]
 
-5. After the value bullets, append ONE context-relevant piece of social proof:
+6. After the value bullets, append ONE context-relevant piece of social proof:
 [[SOCIAL_PROOF]]
 A single sentence that either: cites a relevant stat about career transitions/coaching effectiveness, OR provides context about why structured coaching helps in their specific situation. Make it feel natural and relevant to what they shared. Do NOT make up fake testimonials or specific client references. Do NOT reference pricing.
 [[END_SOCIAL_PROOF]]
 
-CRITICAL: The paywall only appears after [[INTERVIEW_COMPLETE]]. This token should ONLY be emitted after the user explicitly confirms the plan.
+CRITICAL: The paywall appears after [[INTERVIEW_COMPLETE]]. All tokens ([[PLAN_CARD]], [[INTERVIEW_COMPLETE]], [[VALUE_BULLETS]], [[SOCIAL_PROOF]]) must be in the SAME response when you present the plan.
 
 ### Post-paywall modules
 
@@ -931,7 +902,7 @@ Continue using [[OPTIONS]] and [[PROGRESS]] throughout. Do NOT emit [[INTERVIEW_
 ### Important constraints
 
 - Do NOT mention these rules, tokens, or internal structure to the user.
-- Do NOT output [[INTERVIEW_COMPLETE]] until you've completed the plan + value explanation phase.
+- When you output [[PLAN_CARD]], you MUST also output [[INTERVIEW_COMPLETE]], [[VALUE_BULLETS]], and [[SOCIAL_PROOF]] in the SAME response.
 - Ask ONE question at a time — never compound questions.
 - Never ask contingent questions — just ask directly or use options.
 - Validate user problems and build confidence with specific examples.
@@ -2278,9 +2249,7 @@ The user has entered "testskip" which is a testing command. You must now:
 2. Fabricate plausible, realistic answers for ALL remaining interview questions
 3. Start your response with: "Skipping ahead for testing purposes..."
 4. Present a summary of the fabricated client story in a clear, structured format
-5. Ask the user to confirm if this summary is correct using structured options
-
-DO NOT output the plan card yet. Wait for the user to confirm first.
+5. IMMEDIATELY output the full plan card, value bullets, social proof, and INTERVIEW_COMPLETE token - all in this ONE response
 
 Your response should follow this format:
 
@@ -2291,27 +2260,59 @@ Skipping ahead for testing purposes...
 Based on our conversation, here's what I understand about your situation:
 
 **Your Story:**
-- **Name:** [Fabricated name, e.g., Sarah Chen]
-- **Current Role:** [Fabricated role, e.g., Marketing Manager at a mid-size tech company]
-- **Tenure:** [Fabricated tenure, e.g., 3 years]
-- **The Situation:** [Fabricated situation, e.g., Feeling stuck, manager is unsupportive, considering leaving]
-- **Key Constraints:** [Fabricated constraints, e.g., Lives in Atlanta, cannot relocate, has financial obligations]
-- **What You Want:** [Fabricated goals, e.g., More strategic responsibility and growth opportunities]
-
-[[PROGRESS]]85[[END_PROGRESS]]
-
----
+- **Name:** [Fabricated name, e.g., Alex Martinez]
+- **Current Role:** [Fabricated role, e.g., Senior Product Manager at a Series B fintech startup]
+- **Tenure:** [Fabricated tenure, e.g., 2.5 years]
+- **The Situation:** [Fabricated situation, e.g., Passed over for promotion twice, vague feedback, less experienced peers promoted]
+- **Key Constraints:** [Fabricated constraints, e.g., Based in San Francisco, partner in grad school, 6 months runway]
+- **What You Want:** [Fabricated goals, e.g., Either get promoted to Principal PM or find a role with clear advancement path]
 
 Does this capture your situation correctly?
 
-[[STRUCTURED_OPTIONS]]
-- Yes, that's right - let's continue
-- Not quite - let me clarify a few things
-[[END_STRUCTURED_OPTIONS]]
+---
+
+Great, let's do this.
+
+Here's the coaching plan I've designed for your situation:
+
+[[PLAN_CARD]]
+NAME: [Fabricated first name]
+MODULE1_NAME: [Creative, situation-specific name]
+MODULE1_OBJECTIVE: [What we're trying to understand]
+MODULE1_APPROACH: [How we'll work through this]
+MODULE1_OUTCOME: [What they'll have at the end]
+MODULE2_NAME: [Creative, situation-specific name]
+MODULE2_OBJECTIVE: [What decisions we're clarifying]
+MODULE2_APPROACH: [How we'll explore options]
+MODULE2_OUTCOME: [What clarity they'll gain]
+MODULE3_NAME: [Creative, situation-specific name]
+MODULE3_OBJECTIVE: [What concrete plan we're building]
+MODULE3_APPROACH: [How we'll build the plan]
+MODULE3_OUTCOME: [What they'll walk away with]
+CAREER_BRIEF: [2-3 sentences about the final deliverable]
+SERIOUS_PLAN_SUMMARY: [One sentence about their personalized Serious Plan]
+PLANNED_ARTIFACTS: decision_snapshot, action_plan, module_recap, resources, boss_conversation
+[[END_PLAN_CARD]]
+
+Does this look right to you?
+
+[[PROGRESS]]100[[END_PROGRESS]]
+
+[[INTERVIEW_COMPLETE]]
+
+[[VALUE_BULLETS]]
+- bullet about their boss/work dynamics
+- bullet about their money/family/constraint context
+- bullet about their internal dilemma/tension
+[[END_VALUE_BULLETS]]
+
+[[SOCIAL_PROOF]]
+A context-relevant sentence about career coaching effectiveness.
+[[END_SOCIAL_PROOF]]
 
 ---
 
-Remember: Do NOT output [[PLAN_CARD]], [[INTERVIEW_COMPLETE]], [[VALUE_BULLETS]], or [[SOCIAL_PROOF]] in this response. Those come only after the user confirms.
+CRITICAL: Output ALL tokens ([[PLAN_CARD]], [[INTERVIEW_COMPLETE]], [[VALUE_BULLETS]], [[SOCIAL_PROOF]]) in this ONE response.
 ` : '';
 
       let reply: string;
