@@ -2398,6 +2398,10 @@ Research shows that 73% of people who feel "stuck" at their level say the bigges
 
       // Parse plan card with expanded format (objectives, approach, outcome)
       const planCardMatch = reply.match(/\[\[PLAN_CARD\]\]([\s\S]*?)\[\[END_PLAN_CARD\]\]/);
+      console.log(`[INTERVIEW] isTestSkip=${isTestSkip} hasPlanCardMatch=${!!planCardMatch} replyLength=${reply.length}`);
+      if (isTestSkip) {
+        console.log(`[INTERVIEW_TESTSKIP] Raw reply (first 2000 chars): ${reply.substring(0, 2000)}`);
+      }
       if (planCardMatch) {
         const cardContent = planCardMatch[1].trim();
         const nameMatch = cardContent.match(/NAME:\s*(.+)/);
