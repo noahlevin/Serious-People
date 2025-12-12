@@ -486,14 +486,27 @@ export default function Interview() {
         setStatus("");
         analytics.interviewCompleted();
         
-        // CRITICAL: Save valueBullets and socialProof to the database
-        // Previously these were only saved to state but never persisted,
-        // causing the offer page to have no value propositions
+        // CRITICAL: Save valueBullets, socialProof, AND planCard to the database
+        // The new flow generates all plan data in a single response with [[INTERVIEW_COMPLETE]]
         saveTranscript(currentTranscript, {
           interviewComplete: true,
           valueBullets: data.valueBullets || undefined,
           socialProof: data.socialProof || undefined,
+          planCard: data.planCard || undefined,
         });
+        
+        // If planCard was generated, set it so the teaser appears
+        if (data.planCard?.name) {
+          // Find the last assistant message index to attach the teaser to
+          const lastAssistantIdx = currentTranscript.length - 1;
+          setPlanCard({ card: data.planCard, index: lastAssistantIdx >= 0 ? lastAssistantIdx : 0 });
+          // Save plan card to sessionStorage for success page
+          try {
+            sessionStorage.setItem("serious_people_plan_card", JSON.stringify(data.planCard));
+          } catch (e) {
+            console.error("Failed to save plan card to sessionStorage:", e);
+          }
+        }
         
         // NOTE: Dossier generation is now triggered by /api/interview/complete
         // which is called in handleCheckout BEFORE Stripe redirect
@@ -860,6 +873,12 @@ export default function Interview() {
             {isTyping && <TypingIndicator />}
             {options.length > 0 && animatingMessageIndex === null && !showPlanCTAs && (
               <OptionsContainer options={options} onSelect={handleOptionSelect} />
+            )}
+            {/* Show PlanCardTeaser when interview is complete and we have a plan */}
+            {interviewComplete && planCard && (
+              <div className="sp-message-wrapper assistant">
+                <PlanCardTeaser planCard={planCard.card} onViewPlan={handleConfirmPlan} />
+              </div>
             )}
           </div>
         </main>
