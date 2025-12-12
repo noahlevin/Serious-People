@@ -742,6 +742,90 @@
   line-height: 1.6;
 }
 
+/* Plan Teaser Card */
+.sp-plan-teaser {
+  width: 100%;
+  max-width: 520px;
+  margin: 1rem auto 1.5rem auto;
+  background: #fff;
+  border: 2px solid var(--sp-text);
+  box-shadow: 6px 6px 0 var(--sp-text);
+  position: relative;
+  text-align: center;
+}
+
+.sp-plan-teaser-header {
+  background: var(--sp-text);
+  color: #fff;
+  padding: 1.5rem 1.5rem 1.25rem;
+}
+
+.sp-plan-teaser-title {
+  font-family: var(--sp-font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.sp-plan-teaser-modules {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sp-plan-teaser-module {
+  padding: 0.75rem 1rem;
+  background: #f8f7f5;
+  border: 1px solid var(--sp-border-light);
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}
+
+.sp-plan-teaser-module.sp-teaser-module-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sp-teaser-module-number {
+  font-family: var(--sp-font-body);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sp-text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.sp-teaser-module-name {
+  font-family: var(--sp-font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--sp-text);
+}
+
+.sp-plan-teaser-cta {
+  font-family: var(--sp-font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  padding: 1rem 2.5rem;
+  margin: 0.5rem 1.5rem 1.5rem;
+  background: var(--sp-text);
+  color: #fff;
+  border: 2px solid var(--sp-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: calc(100% - 3rem);
+}
+
+.sp-plan-teaser-cta:hover {
+  background: #333;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
 /* Plan Confirmation CTAs */
 .sp-plan-ctas {
   margin: 1.5rem 0;

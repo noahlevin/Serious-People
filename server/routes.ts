@@ -861,65 +861,38 @@ SERIOUS_PLAN_SUMMARY: [One sentence describing their personalized Serious Plan -
 PLANNED_ARTIFACTS: [Comma-separated list of artifact types planned for this client. Always include: decision_snapshot, action_plan, module_recap, resources. Include boss_conversation if they have manager issues. Include partner_conversation if they mentioned a spouse/partner. Include self_narrative if identity/values are central. Add other custom artifacts if uniquely helpful for their situation.]
 [[END_PLAN_CARD]]
 
-3. Then ask: "Does this look right to you, or is there something you'd like to change?"
-
-4. End with structured options:
-[[OPTIONS]]
-This looks right, let's get started
-I'd like to change something
-[[END_OPTIONS]]
-
-The module names, objectives, approaches, and outcomes will be "locked in" once they approve — these become THEIR coaching plan and will be referenced throughout their modules and Career Brief.
-
-### Value explanation (pre-paywall)
-
-After user agrees to the plan, give a short explanation of why working through this is valuable, anchored on THEIR specifics:
-- Their boss situation
-- Their money/runway/family/visa constraints
-- The cost of drifting or winging big conversations
-
-Support with general truths (without faking "clients"):
-- "Most people making a move like this never do a structured pass on their situation."
-- "Only a small minority of people doing major career shifts ever work with a coach."
-
-Do NOT mention price. The UI paywall handles that.
-
-### Pre-paywall flow (IMPORTANT: two-step process)
-
-Once you have:
-1. Understood the big problem & goal
-2. Proposed a custom 3-module plan with proper presentation order
-
-**Step 1: Present the plan and ask for confirmation**
-
-Use the plan presentation format above (intro → plan card → "Does this look right?" → options).
-
-Do NOT include [[INTERVIEW_COMPLETE]] yet. Wait for their response.
-
-**Step 2: After user confirms "This looks right, let's get started"**
-
-When the user selects the confirmation option (or types something equivalent like "looks good", "let's do it", "ready"):
-
-1. Acknowledge briefly ("Great, let's do this.")
-
-2. Include [[PROGRESS]] at around 95
-
-3. At the VERY END, append:
-[[INTERVIEW_COMPLETE]]
-
-4. Immediately after, append value bullets tailored to them:
+3. IMMEDIATELY after the plan card, include value bullets tailored to them:
 [[VALUE_BULLETS]]
 - bullet about their boss/work dynamics
 - bullet about their money/family/constraint context  
 - bullet about their internal dilemma/tension
 [[END_VALUE_BULLETS]]
 
-5. After the value bullets, append ONE context-relevant piece of social proof:
+4. After the value bullets, append ONE context-relevant piece of social proof:
 [[SOCIAL_PROOF]]
 A single sentence that either: cites a relevant stat about career transitions/coaching effectiveness, OR provides context about why structured coaching helps in their specific situation. Make it feel natural and relevant to what they shared. Do NOT make up fake testimonials or specific client references. Do NOT reference pricing.
 [[END_SOCIAL_PROOF]]
 
-CRITICAL: The paywall only appears after [[INTERVIEW_COMPLETE]]. This token should ONLY be emitted after the user explicitly confirms the plan.
+5. After the above tokens, include the interview completion marker:
+[[INTERVIEW_COMPLETE]]
+
+6. Then your visible message text should be a brief, warm statement like: "I've put together a personalized coaching plan for you."
+
+Do NOT ask for confirmation or show options. The frontend UI will display a teaser card that invites the user to see their plan.
+
+### Pre-paywall flow (IMPORTANT: single-step process)
+
+Once you have:
+1. Understood the big problem & goal
+2. Gathered enough context about their situation
+
+Generate the plan in a single response that includes:
+- The [[PLAN_CARD]]...[[END_PLAN_CARD]] block
+- The [[VALUE_BULLETS]]...[[END_VALUE_BULLETS]] block
+- The [[SOCIAL_PROOF]]...[[END_SOCIAL_PROOF]] block
+- The [[INTERVIEW_COMPLETE]] marker
+
+CRITICAL: All of these tokens must be in the SAME response. The frontend will show a teaser card and the user will click through to see their full plan on the offer page.
 
 ### Post-paywall modules
 
@@ -2485,19 +2458,21 @@ Remember: Do NOT output [[PLAN_CARD]], [[INTERVIEW_COMPLETE]], [[VALUE_BULLETS]]
         }
       }
 
+      // Parse value bullets (can appear with plan card or interview complete)
+      const bulletMatch = reply.match(/\[\[VALUE_BULLETS\]\]([\s\S]*?)\[\[END_VALUE_BULLETS\]\]/);
+      if (bulletMatch) {
+        valueBullets = bulletMatch[1].trim();
+      }
+
+      // Parse social proof (can appear with plan card or interview complete)
+      const socialProofMatch = reply.match(/\[\[SOCIAL_PROOF\]\]([\s\S]*?)\[\[END_SOCIAL_PROOF\]\]/);
+      if (socialProofMatch) {
+        socialProof = socialProofMatch[1].trim();
+      }
+
       // Check for interview completion
       if (reply.includes("[[INTERVIEW_COMPLETE]]")) {
         done = true;
-
-        const bulletMatch = reply.match(/\[\[VALUE_BULLETS\]\]([\s\S]*?)\[\[END_VALUE_BULLETS\]\]/);
-        if (bulletMatch) {
-          valueBullets = bulletMatch[1].trim();
-        }
-
-        const socialProofMatch = reply.match(/\[\[SOCIAL_PROOF\]\]([\s\S]*?)\[\[END_SOCIAL_PROOF\]\]/);
-        if (socialProofMatch) {
-          socialProof = socialProofMatch[1].trim();
-        }
       }
 
       // Sanitize reply - remove all control tokens
@@ -3744,6 +3719,7 @@ FORMAT:
             situation: "Interview completed - see transcript for details",
             bigProblem: "See transcript for details",
             desiredOutcome: "See transcript for details",
+            clientFacingSummary: "You're ready to take the next step in your career. Together we'll map out your path forward and build the clarity you need to make your next move.",
             keyFacts: ["See transcript for details"],
             relationships: [],
             emotionalState: "engaged",

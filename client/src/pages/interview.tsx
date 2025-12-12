@@ -74,34 +74,44 @@ function ModuleTitleCard({ name, time }: { name: string; time: string }) {
   );
 }
 
-function PlanCardComponent({ planCard }: { planCard: PlanCard }) {
+function PlanCardTeaser({ planCard, onViewPlan }: { planCard: PlanCard; onViewPlan: () => void }) {
+  const [showModules, setShowModules] = useState(false);
+  
+  useEffect(() => {
+    // Delay module animation for visual effect
+    const timer = setTimeout(() => setShowModules(true), 300);
+    return () => clearTimeout(timer);
+  }, []);
+  
   return (
-    <div className="sp-plan-card sp-card-animate" data-testid="plan-card">
-      <div className="sp-plan-card-header">
-        <h3 className="sp-plan-card-title">{planCard.name}'s Coaching Plan</h3>
+    <div className="sp-plan-teaser sp-card-animate" data-testid="plan-teaser">
+      <div className="sp-plan-teaser-header">
+        <h3 className="sp-plan-teaser-title">
+          {planCard.name}, are you ready to see your personalized coaching plan?
+        </h3>
       </div>
-      <div className="sp-plan-card-content">
+      
+      <div className="sp-plan-teaser-modules">
         {planCard.modules.map((mod, i) => (
-          <div key={i} className="sp-plan-module" data-testid={`plan-module-${i + 1}`}>
-            <div className="sp-plan-module-number">Module {i + 1}</div>
-            <div className="sp-plan-module-name">{mod.name}</div>
-            <div className="sp-plan-module-details">
-              <div className="sp-plan-module-objective">{mod.objective}</div>
-              {mod.outcome && (
-                <div className="sp-plan-module-outcome">
-                  <span className="sp-outcome-label">You'll walk away with:</span> {mod.outcome}
-                </div>
-              )}
-            </div>
+          <div 
+            key={i} 
+            className={`sp-plan-teaser-module ${showModules ? 'sp-teaser-module-visible' : ''}`}
+            style={{ transitionDelay: `${i * 150}ms` }}
+            data-testid={`teaser-module-${i + 1}`}
+          >
+            <div className="sp-teaser-module-number">Module {i + 1}</div>
+            <div className="sp-teaser-module-name">{mod.name}</div>
           </div>
         ))}
-        <div className="sp-plan-career-brief">
-          <div className="sp-plan-career-brief-header">
-            <span className="sp-plan-career-brief-title">Your Career Brief</span>
-          </div>
-          <div className="sp-plan-career-brief-desc">{planCard.careerBrief}</div>
-        </div>
       </div>
+      
+      <button 
+        className="sp-plan-teaser-cta"
+        onClick={onViewPlan}
+        data-testid="button-see-plan"
+      >
+        See my plan
+      </button>
     </div>
   );
 }
@@ -842,7 +852,7 @@ export default function Interview() {
                     onTyping={scrollToBottom}
                   />
                   {planCard && planCard.index === index && msg.role === "assistant" && animatingMessageIndex === null && (
-                    <PlanCardComponent planCard={planCard.card} />
+                    <PlanCardTeaser planCard={planCard.card} onViewPlan={handleConfirmPlan} />
                   )}
                 </div>
               );
@@ -850,13 +860,6 @@ export default function Interview() {
             {isTyping && <TypingIndicator />}
             {options.length > 0 && animatingMessageIndex === null && !showPlanCTAs && (
               <OptionsContainer options={options} onSelect={handleOptionSelect} />
-            )}
-            {showPlanCTAs && planCard && animatingMessageIndex === null && !interviewComplete && (
-              <PlanConfirmationCTAs
-                onConfirm={handleConfirmPlan}
-                onRevise={handleRevisePlan}
-                isLoading={isNavigatingToOffer}
-              />
             )}
           </div>
         </main>
