@@ -187,3 +187,6 @@ After following this 14-day plan, you'll have:
 - **Momentum** — Without the burnout
 
 The goal isn't to have a job offer in 14 days. It's to be fully set up and positioned for a successful search, however long it takes.
+
+
+{{module:checklist-exit-documents}}

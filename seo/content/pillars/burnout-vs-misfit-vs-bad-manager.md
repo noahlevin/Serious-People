@@ -156,3 +156,6 @@ When you work through this diagnostic—whether on your own or with a coach—yo
 - **A decision framework:** Stay, go, or pivot—with the reasoning laid out
 
 The goal isn't to feel better temporarily. It's to understand what's broken so you can fix the right thing.
+
+
+{{module:cta-interview}}

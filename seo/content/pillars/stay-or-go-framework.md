@@ -126,3 +126,6 @@ The goal isn't to make the "right" decision. It's to make a good decision wellâ€
 If you're reading this, you've probably been thinking about this for a while. The question isn't whether you're ready to decide. It's whether you're ready to stop circling and start moving.
 
 The framework above works. The mistakes are common but avoidable. The only thing you can't get back is time.
+
+
+{{module:cta-coaching}}

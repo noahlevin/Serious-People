@@ -26,6 +26,9 @@ function markdownToHtml(markdown: string): string {
   html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
   html = html.replace(/^# (.+)$/gm, "<h1>$1</h1>");
   
+  // Convert links [text](url)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  
   // Convert bold
   html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   
@@ -156,6 +159,35 @@ function parseFrontmatter(content: string): { data: Record<string, string>; cont
 // Template paths
 const templatesDir = path.resolve(process.cwd(), "seo/templates");
 const pillarsDir = path.resolve(process.cwd(), "seo/content/pillars");
+const modulesDir = path.resolve(process.cwd(), "seo/content/modules");
+
+// Load and cache modules
+const moduleCache: Record<string, string> = {};
+
+function loadModule(moduleId: string): string {
+  if (moduleCache[moduleId]) {
+    return moduleCache[moduleId];
+  }
+  
+  const modulePath = path.join(modulesDir, `${moduleId}.md`);
+  if (!fs.existsSync(modulePath)) {
+    console.warn(`[SEO] Module not found: ${moduleId}`);
+    return `<!-- Module not found: ${moduleId} -->`;
+  }
+  
+  const rawContent = fs.readFileSync(modulePath, "utf-8");
+  const { content } = parseFrontmatter(rawContent);
+  moduleCache[moduleId] = content;
+  return content;
+}
+
+// Process module includes in markdown
+// Syntax: {{module:module-id}}
+function processModuleIncludes(markdown: string): string {
+  return markdown.replace(/\{\{module:([a-z0-9-]+)\}\}/g, (_match, moduleId) => {
+    return loadModule(moduleId);
+  });
+}
 
 // All available pillars
 const ALL_PILLARS = [
@@ -210,8 +242,11 @@ export async function renderGuide(req: Request, res: Response) {
     const rawContent = fs.readFileSync(pillarPath, "utf-8");
     const { data: frontmatter, content: markdownBody } = parseFrontmatter(rawContent);
     
+    // Process module includes ({{module:module-id}} syntax)
+    const expandedMarkdown = processModuleIncludes(markdownBody);
+    
     // Convert markdown to HTML
-    const htmlContent = markdownToHtml(markdownBody);
+    const htmlContent = markdownToHtml(expandedMarkdown);
     
     // Get related links
     const relatedLinks = getRelatedLinks(safeSlug);

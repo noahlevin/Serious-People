@@ -104,6 +104,20 @@ The SEO engine generates crawlable HTML pages for organic search traffic, served
 11. `/guides/layoff-risk-plan` — The Layoff Risk Survival Plan
 12. `/guides/toxic-boss-survival-or-exit` — Toxic Boss: Survive or Exit?
 
+### Content Modules
+Reusable content blocks that can be included in any pillar page using `{{module:module-id}}` syntax.
+
+Available modules:
+- `cta-coaching` — CTA for personalized coaching
+- `cta-interview` — CTA for free AI interview
+- `warning-counteroffer` — Warning about counteroffer traps
+- `warning-burnout-signs` — Health warning signs
+- `framework-decision-matrix` — Scoring template
+- `script-resignation` — Resignation conversation script
+- `script-asking-for-promotion` — Promotion ask script
+- `checklist-exit-documents` — Documents to collect before leaving
+- `checklist-financial-runway` — Financial runway calculator
+
 ### Quality Thresholds
 - Pillars: 1200+ words, 5+ unique modules
 - Programmatic: 700+ words, 4+ unique modules
