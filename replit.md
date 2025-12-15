@@ -90,8 +90,19 @@ The SEO engine generates crawlable HTML pages for organic search traffic, served
 - `/server/seoController.ts` — Rendering logic and route handlers
 - `/docs/seo_taxonomy_and_pillars.md` — Full taxonomy specification
 
-### Available Pillars
+### Available Pillars (12 total)
 1. `/guides/stay-or-go-framework` — The Stay-or-Go Decision Framework
+2. `/guides/burnout-vs-misfit-vs-bad-manager` — Burnout vs. Misfit vs. Bad Manager
+3. `/guides/how-to-resign-without-burning-bridges` — How to Resign Without Burning Bridges
+4. `/guides/severance-negotiation-playbook` — The Severance Negotiation Playbook
+5. `/guides/executive-job-search-is-different` — Executive Job Search Is Different
+6. `/guides/how-to-explain-your-departure` — How to Explain Your Departure
+7. `/guides/what-to-do-in-the-first-14-days` — What to Do in the First 14 Days
+8. `/guides/how-to-talk-to-your-boss-about-changing-your-role` — How to Talk to Your Boss About Changing Your Role
+9. `/guides/how-to-evaluate-an-offer-like-an-adult` — How to Evaluate an Offer Like an Adult
+10. `/guides/when-to-use-a-coach` — When to Use a Coach (And What Kind)
+11. `/guides/layoff-risk-plan` — The Layoff Risk Survival Plan
+12. `/guides/toxic-boss-survival-or-exit` — Toxic Boss: Survive or Exit?
 
 ### Quality Thresholds
 - Pillars: 1200+ words, 5+ unique modules

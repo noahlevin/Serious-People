@@ -157,16 +157,29 @@ function parseFrontmatter(content: string): { data: Record<string, string>; cont
 const templatesDir = path.resolve(process.cwd(), "seo/templates");
 const pillarsDir = path.resolve(process.cwd(), "seo/content/pillars");
 
-// Related links for each pillar (hardcoded for now, will be dynamic in Phase 3)
-const relatedLinksMap: Record<string, Array<{ href: string; title: string }>> = {
-  "stay-or-go-framework": [
-    { href: "/guides/burnout-vs-misfit-vs-bad-manager", title: "Burnout vs. Misfit vs. Bad Manager" },
-    { href: "/guides/what-to-do-in-the-first-14-days", title: "What to Do in the First 14 Days After Leaving" },
-    { href: "/guides/how-to-resign-without-burning-bridges", title: "How to Resign Without Burning Bridges" },
-    { href: "/guides/how-to-talk-to-your-boss-about-changing-your-role", title: "How to Talk to Your Boss About Changing Your Role" },
-    { href: "/guides/toxic-boss-survival-or-exit", title: "Toxic Boss: Survive or Exit?" },
-  ],
-};
+// All available pillars
+const ALL_PILLARS = [
+  { slug: "stay-or-go-framework", title: "The Stay-or-Go Decision Framework" },
+  { slug: "burnout-vs-misfit-vs-bad-manager", title: "Burnout vs. Misfit vs. Bad Manager: A Diagnostic Guide" },
+  { slug: "how-to-resign-without-burning-bridges", title: "How to Resign Without Burning Bridges" },
+  { slug: "severance-negotiation-playbook", title: "The Severance Negotiation Playbook" },
+  { slug: "executive-job-search-is-different", title: "Executive Job Search Is Different" },
+  { slug: "how-to-explain-your-departure", title: "How to Explain Your Departure" },
+  { slug: "what-to-do-in-the-first-14-days", title: "What to Do in the First 14 Days After Leaving" },
+  { slug: "how-to-talk-to-your-boss-about-changing-your-role", title: "How to Talk to Your Boss About Changing Your Role" },
+  { slug: "how-to-evaluate-an-offer-like-an-adult", title: "How to Evaluate an Offer Like an Adult" },
+  { slug: "when-to-use-a-coach", title: "When to Use a Coach (And What Kind)" },
+  { slug: "layoff-risk-plan", title: "The Layoff Risk Survival Plan" },
+  { slug: "toxic-boss-survival-or-exit", title: "Toxic Boss: Survive or Exit?" },
+];
+
+// Get related links for a pillar (returns other pillars, excluding self)
+function getRelatedLinks(currentSlug: string): Array<{ href: string; title: string }> {
+  return ALL_PILLARS
+    .filter(p => p.slug !== currentSlug)
+    .slice(0, 5)
+    .map(p => ({ href: `/guides/${p.slug}`, title: p.title }));
+}
 
 // Render a pillar page
 export async function renderGuide(req: Request, res: Response) {
@@ -201,7 +214,7 @@ export async function renderGuide(req: Request, res: Response) {
     const htmlContent = markdownToHtml(markdownBody);
     
     // Get related links
-    const relatedLinks = relatedLinksMap[safeSlug] || [];
+    const relatedLinks = getRelatedLinks(safeSlug);
     
     // Prepare template data
     const templateData = {
@@ -236,11 +249,8 @@ export async function renderGuide(req: Request, res: Response) {
 export async function renderGuidesIndex(_req: Request, res: Response) {
   const baseUrl = getBaseUrl();
   
-  // List of available pillars (will be dynamic in Phase 2)
-  const pillars = [
-    { slug: "stay-or-go-framework", title: "The Stay-or-Go Decision Framework" },
-    // More pillars will be added in Phase 2
-  ];
+  // Use all available pillars
+  const pillars = ALL_PILLARS;
   
   const html = `
 <!DOCTYPE html>
@@ -323,12 +333,11 @@ Sitemap: ${baseUrl}/sitemap.xml
 export function sitemap(_req: Request, res: Response) {
   const baseUrl = getBaseUrl();
   
-  // Static pages to include
+  // Static pages and all pillars
   const pages = [
     { loc: "/", priority: "1.0" },
     { loc: "/guides", priority: "0.9" },
-    { loc: "/guides/stay-or-go-framework", priority: "0.8" },
-    // More pillars will be added dynamically in Phase 2
+    ...ALL_PILLARS.map(p => ({ loc: `/guides/${p.slug}`, priority: "0.8" })),
   ];
   
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
