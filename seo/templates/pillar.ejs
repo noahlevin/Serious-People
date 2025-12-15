@@ -1,0 +1,27 @@
+<article class="sp-article">
+  <h1><%= title %></h1>
+  
+  <% if (typeof lede !== 'undefined' && lede) { %>
+  <p class="sp-lede"><%= lede %></p>
+  <% } %>
+  
+  <%- content %>
+  
+  <!-- Primary CTA -->
+  <div class="sp-cta-box">
+    <h3>Ready to make your decision?</h3>
+    <p>In one structured session, you'll walk away with a clear recommendation, conversation scripts, and a 14-day action plan.</p>
+    <a href="/interview" class="sp-cta-button" data-testid="cta-start-session">Start Your Session</a>
+  </div>
+  
+  <% if (typeof relatedLinks !== 'undefined' && relatedLinks.length > 0) { %>
+  <section class="sp-related">
+    <h3>Related Guides</h3>
+    <ul>
+      <% relatedLinks.forEach(function(link) { %>
+      <li><a href="<%= link.href %>"><%= link.title %></a></li>
+      <% }); %>
+    </ul>
+  </section>
+  <% } %>
+</article>

@@ -40,6 +40,7 @@ import {
   generateBundlePdf,
   generateAllArtifactPdfs,
 } from "./pdfService";
+import * as seoController from "./seoController";
 
 // Use Anthropic Claude if API key is available, otherwise fall back to OpenAI
 const useAnthropic = !!process.env.ANTHROPIC_API_KEY;
@@ -4423,6 +4424,14 @@ FORMAT:
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ==========================================================================
+  // SEO Routes (served before SPA catch-all)
+  // ==========================================================================
+  app.get("/robots.txt", seoController.robots);
+  app.get("/sitemap.xml", seoController.sitemap);
+  app.get("/guides", seoController.renderGuidesIndex);
+  app.get("/guides/:slug", seoController.renderGuide);
 
   return httpServer;
 }

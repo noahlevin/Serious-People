@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Primary Meta Tags -->
+  <title><%= title %> | Serious People</title>
+  <meta name="description" content="<%= description %>">
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="<%= canonical %>">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="<%= canonical %>">
+  <meta property="og:title" content="<%= title %> | Serious People">
+  <meta property="og:description" content="<%= description %>">
+  <meta property="og:site_name" content="Serious People">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="<%= title %> | Serious People">
+  <meta name="twitter:description" content="<%= description %>">
+  
+  <!-- Robots -->
+  <% if (typeof noindex !== 'undefined' && noindex) { %>
+  <meta name="robots" content="noindex, nofollow">
+  <% } %>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet">
+  
+  <!-- Inline Styles (no external CSS to minimize requests) -->
+  <style>
+    :root {
+      --sp-bg: #faf9f6;
+      --sp-bg-elevated: #ffffff;
+      --sp-text: #1a1a1a;
+      --sp-text-secondary: #666666;
+      --sp-text-muted: #444444;
+      --sp-border: #d4d4d4;
+      --sp-border-light: #e5e5e5;
+      --sp-accent: #c41e3a;
+      --sp-accent-hover: #a01830;
+      --sp-link: #0066cc;
+      --sp-font-display: 'Playfair Display', Georgia, serif;
+      --sp-font-body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    }
+    
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    body {
+      font-family: var(--sp-font-body);
+      background: var(--sp-bg);
+      color: var(--sp-text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    
+    /* Header */
+    .sp-header {
+      text-align: center;
+      padding: 1.5rem 1rem;
+      border-bottom: 3px double var(--sp-text);
+      margin-bottom: 2rem;
+    }
+    
+    .sp-header-logo {
+      font-family: var(--sp-font-display);
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+      color: var(--sp-text);
+      text-decoration: none;
+    }
+    
+    .sp-header-nav {
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    
+    .sp-header-nav a {
+      color: var(--sp-text-secondary);
+      text-decoration: none;
+      margin: 0 1rem;
+    }
+    
+    .sp-header-nav a:hover {
+      color: var(--sp-text);
+    }
+    
+    /* Main Content */
+    .sp-main {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 1.5rem 4rem;
+    }
+    
+    /* Article Typography */
+    .sp-article h1 {
+      font-family: var(--sp-font-display);
+      font-size: 2.5rem;
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      color: var(--sp-text);
+    }
+    
+    .sp-article h2 {
+      font-family: var(--sp-font-display);
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-top: 2.5rem;
+      margin-bottom: 1rem;
+      color: var(--sp-text);
+    }
+    
+    .sp-article h3 {
+      font-family: var(--sp-font-display);
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+      color: var(--sp-text);
+    }
+    
+    .sp-article p {
+      margin-bottom: 1.25rem;
+    }
+    
+    .sp-article ul, .sp-article ol {
+      margin-bottom: 1.25rem;
+      padding-left: 1.5rem;
+    }
+    
+    .sp-article li {
+      margin-bottom: 0.5rem;
+    }
+    
+    .sp-article strong {
+      font-weight: 600;
+    }
+    
+    .sp-article a {
+      color: var(--sp-link);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    
+    .sp-article a:hover {
+      color: var(--sp-accent);
+    }
+    
+    .sp-article blockquote {
+      border-left: 3px solid var(--sp-border);
+      padding-left: 1.25rem;
+      margin: 1.5rem 0;
+      font-style: italic;
+      color: var(--sp-text-secondary);
+    }
+    
+    /* Lede (intro paragraph) */
+    .sp-lede {
+      font-size: 1.2rem;
+      line-height: 1.5;
+      color: var(--sp-text-secondary);
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--sp-border-light);
+      padding-bottom: 2rem;
+    }
+    
+    /* CTA Box */
+    .sp-cta-box {
+      background: var(--sp-bg-elevated);
+      border: 1px solid var(--sp-border);
+      padding: 2rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    
+    .sp-cta-box h3 {
+      font-family: var(--sp-font-display);
+      font-size: 1.4rem;
+      margin-bottom: 0.75rem;
+      margin-top: 0;
+    }
+    
+    .sp-cta-box p {
+      color: var(--sp-text-secondary);
+      margin-bottom: 1.25rem;
+    }
+    
+    .sp-cta-button {
+      display: inline-block;
+      background: var(--sp-text);
+      color: var(--sp-bg);
+      font-family: var(--sp-font-body);
+      font-size: 0.95rem;
+      font-weight: 500;
+      padding: 0.875rem 2rem;
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      transition: background 0.2s;
+    }
+    
+    .sp-cta-button:hover {
+      background: var(--sp-accent);
+      color: #fff;
+    }
+    
+    /* Related Links */
+    .sp-related {
+      border-top: 1px solid var(--sp-border);
+      margin-top: 3rem;
+      padding-top: 2rem;
+    }
+    
+    .sp-related h3 {
+      font-family: var(--sp-font-display);
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .sp-related ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .sp-related li {
+      margin-bottom: 0.5rem;
+    }
+    
+    .sp-related a {
+      color: var(--sp-text);
+      text-decoration: none;
+      border-bottom: 1px solid var(--sp-border-light);
+    }
+    
+    .sp-related a:hover {
+      border-bottom-color: var(--sp-accent);
+      color: var(--sp-accent);
+    }
+    
+    /* Footer */
+    .sp-footer {
+      border-top: 3px double var(--sp-text);
+      padding: 2rem 1rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--sp-text-secondary);
+    }
+    
+    .sp-footer a {
+      color: var(--sp-text-secondary);
+      text-decoration: none;
+    }
+    
+    .sp-footer a:hover {
+      color: var(--sp-text);
+    }
+    
+    /* Responsive */
+    @media (max-width: 640px) {
+      .sp-article h1 {
+        font-size: 2rem;
+      }
+      
+      .sp-article h2 {
+        font-size: 1.35rem;
+      }
+      
+      .sp-header-logo {
+        font-size: 1.5rem;
+      }
+      
+      .sp-lede {
+        font-size: 1.1rem;
+      }
+    }
+  </style>
+  
+  <% if (typeof headExtra !== 'undefined') { %>
+  <%- headExtra %>
+  <% } %>
+</head>
+<body>
+  <header class="sp-header">
+    <a href="/" class="sp-header-logo">Serious People</a>
+    <nav class="sp-header-nav">
+      <a href="/guides">Guides</a>
+      <a href="/interview">Start Session</a>
+    </nav>
+  </header>
+  
+  <main class="sp-main">
+    <%- body %>
+  </main>
+  
+  <footer class="sp-footer">
+    <p>&copy; <%= new Date().getFullYear() %> Serious People. Career coaching for serious decisions.</p>
+    <p style="margin-top: 0.5rem;">
+      <a href="/">Home</a> &middot; 
+      <a href="/guides">Guides</a> &middot; 
+      <a href="/interview">Start Session</a>
+    </p>
+  </footer>
+  
+  <% if (typeof footerExtra !== 'undefined') { %>
+  <%- footerExtra %>
+  <% } %>
+</body>
+</html>
