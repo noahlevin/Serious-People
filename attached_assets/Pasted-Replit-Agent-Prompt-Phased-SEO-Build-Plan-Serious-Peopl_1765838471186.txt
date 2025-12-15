@@ -1,0 +1,327 @@
+Replit Agent Prompt: Phased SEO Build Plan (Serious People)
+Non-negotiables
+
+Do not break the existing SPA at / in early phases.
+
+Use a single Replit deployment and same-domain routing.
+
+All SEO pages must be server-served HTML (static pre-render is fine), not SPA-only.
+
+Keep /app optional until later; do not require migrating users to /app until we choose to flip.
+
+Any programmatic pages must pass a “quality gate” (minimum content, not near-duplicate) before being indexable.
+
+Phase 0 — Repo prep + taxonomy file (no behavior changes)
+Goal
+
+Create the scaffolding for an SEO surface and the taxonomy that will drive programmatic pages.
+
+Tasks
+
+0.1) Create the markdown file /docs/seo_taxonomy_and_pillars.md.
+It must include:
+
+The 8–12 “pillar” pages (handwritten) with proposed slugs
+
+The taxonomy dimensions (role, situation, goal, seniority) with allowed values
+
+A list of the first 25–50 programmatic pages to generate first (highest intent only)
+
+A mapping from each taxonomy branch to a recommended CTA type (session, tool, email capture)
+
+0.2) Add a machine-readable version of that taxonomy alongside it (Agent can derive from the markdown but should commit a canonical data file), e.g.:
+
+/seo/taxonomy/taxonomy.json
+
+/seo/taxonomy/pages.json (the initial “seed” list of pages)
+
+0.3) Add a placeholder /seo/README.md describing how the SEO system works and how to reuse it for other products.
+
+Definition of done
+
+Repo contains /docs/seo_taxonomy_and_pillars.md plus a canonical JSON taxonomy file.
+
+No routing or build behavior changed.
+
+Phase 1 — Stand up SEO site build (Astro recommended) + serve one page on /guides/*
+Goal
+
+Prove the core architecture: Express serves real HTML for a marketing route, while the SPA continues owning /.
+
+Implementation approach (recommended)
+
+Use Astro for the SEO surface because it’s HTML-first, fast, and makes programmatic generation easy.
+
+Tasks
+
+1.1) Create a new folder /seo with an Astro project configured to output a static build to /seo/dist.
+1.2) Implement a single guide page that matches a pillar in the taxonomy markdown, for example:
+
+/guides/stay-or-go (or whatever you specify in the taxonomy file)
+
+1.3) Wire Express to serve that HTML at the same domain:
+
+Requests to /guides/* should return the built HTML from seo/dist
+
+All other routes remain unchanged (SPA still served for / and other app routes)
+
+1.4) Add a shared header/footer style that matches your current brand minimally (doesn’t need to be perfect yet). Include one obvious CTA linking to the app (for now, it can link to /).
+
+1.5) Add basic SEO essentials for that single page:
+
+<title>, meta description, canonical
+
+OpenGraph tags
+
+Basic JSON-LD Article schema (optional but nice)
+
+Definition of done
+
+Visiting https://seriouspeople.app/guides/<slug> returns real HTML (view-source shows content).
+
+/ behavior is identical to today.
+
+Only one guide exists and it looks acceptable.
+
+Phase 2 — Expand to pillars + SEO plumbing (robots, sitemap, canonical, 404)
+Goal
+
+Create a proper crawlable marketing surface that you can scale safely.
+
+Tasks
+
+2.1) Implement the 8–12 pillar pages defined in /docs/seo_taxonomy_and_pillars.md as Astro routes under /guides/*.
+2.2) Add /robots.txt with conservative rules:
+
+Allow indexing of /guides/* and /tools/*
+
+Disallow indexing of obvious app/private paths (anything with auth, payments, user content)
+2.3) Add /sitemap.xml generation for:
+
+/guides/* pillar pages
+
+Later we’ll add programmatic pages; for now keep it tight
+
+2.4) Implement:
+
+/guides index page listing pillars
+
+404 page for missing guides
+
+2.5) Add internal linking:
+
+Each pillar links to 2–4 other relevant pillars (hard-coded at first; later auto-generated from taxonomy)
+
+Definition of done
+
+Pillars exist and are linked via an index page.
+
+robots + sitemap exist and validate.
+
+Google Search Console can be pointed at the domain without obvious issues.
+
+Phase 3 — Build the “SEO engine” (taxonomy-driven programmatic pages with a quality gate)
+Goal
+
+Generate programmatic SEO pages from taxonomy while avoiding thin/duplicate content.
+
+Core concept
+
+A “page composer” renders each page from modules, and the modules vary based on role/situation/goal so pages aren’t clones.
+
+Tasks
+
+3.1) Create a deterministic “page composer” in /seo/src/lib/pageComposer.ts that takes a page spec and renders:
+
+Hero: intent-matched headline + subhead
+
+Framework section: “how to think about this”
+
+Mistakes section: role/situation-specific
+
+One short vignette: realistic example
+
+“What you’ll walk away with”: tie to Serious People outputs/artifacts
+
+CTA: one primary CTA only
+
+Related links: 6–10 internal links (generated)
+
+3.2) Create a content module library keyed by taxonomy:
+
+/seo/src/content/modules/...
+
+Each module must have at least 2 variants (so different pages don’t share identical paragraphs)
+
+3.3) Generate the initial 25–50 programmatic pages listed in your taxonomy markdown:
+
+/roles/:role/...
+
+/situations/:situation/...
+
+or combined route /roles/:role/situations/:situation/goals/:goal (pick one scheme and stick to it)
+
+3.4) Implement a quality gate:
+
+If a page fails checks, render it but ship it with noindex meta
+Checks should include:
+
+Minimum unique content length
+
+Duplication similarity check vs nearest neighbors (simple hashing / shingling is fine)
+
+Required modules present
+
+3.5) Extend sitemap generation:
+
+Include only indexable pages (exclude noindex pages)
+
+Definition of done
+
+25–50 programmatic pages exist and render.
+
+Some pages may be noindex until they pass quality.
+
+Sitemap only includes indexable pages.
+
+Phase 4 — Tools pages (SEO + future paid ads landing pages)
+Goal
+
+Add “tools” that convert and later become PPC landing pages. These also earn backlinks naturally.
+
+Tasks
+
+4.1) Add /tools/* routes (Astro pages) for 2 tools:
+
+Stay/Go worksheet (client-side interactive, no auth required)
+
+Severance/runway calculator (client-side interactive)
+
+4.2) Instrument PostHog for:
+
+tool_viewed
+
+tool_completed (or meaningful milestones)
+
+cta_clicked_from_tool
+
+4.3) Add /lp/* landing pages intended for paid ads later:
+
+These should be message-matched, minimal nav, high intent
+
+Default to noindex until you’re ready
+
+Definition of done
+
+Tools exist and work without login.
+
+PostHog captures tool usage events.
+
+Landing pages exist but are not indexed by default.
+
+Phase 5 — Optional: mount SPA under /app with minimal risk (no user migration yet)
+Goal
+
+Make a clean separation path available without disrupting existing users.
+
+Tasks
+
+5.1) Build a second SPA output that can run under /app:
+
+Ensure Vite base path supports /app/
+
+Ensure wouter routing supports the base
+
+Ensure API calls remain same-origin (/api/...)
+
+5.2) Update Express routing:
+
+Serve SPA assets at /app/*
+
+Keep existing SPA behavior at / untouched
+
+5.3) Update the SEO site CTA links to point to /app instead of / (optional toggle)
+
+Definition of done
+
+/app loads the same product experience.
+
+/ still works exactly as before.
+
+Cookies/auth continue to function.
+
+Phase 6 — Flip / to marketing for logged-out users (best end state)
+Goal
+
+Real homepage SEO without breaking returning users.
+
+Tasks
+
+6.1) Implement logic in Express:
+
+If user is logged in, redirect / → /app
+
+If logged out, serve marketing homepage HTML from SEO build
+
+6.2) Create the marketing homepage in Astro:
+
+Clear positioning
+
+A single CTA (“Start session”)
+
+Internal links to top pillars/tools
+
+6.3) Ensure canonical + sitemap reflect the new homepage.
+
+Definition of done
+
+Logged-out users see marketing at /.
+
+Logged-in users go straight to app at /app.
+
+SEO can meaningfully rank the homepage now.
+
+Phase 7 — Operational hardening + reuse for future products
+Goal
+
+Make this portable: “drop in taxonomy, get a marketing site.”
+
+Tasks
+
+7.1) Document “how to reuse” in /seo/README.md:
+
+How to define taxonomy
+
+How to add modules
+
+How to generate pages
+
+How to connect Express routing in a new product
+
+7.2) Add a build pipeline in root package.json (or the repo’s build scripts) that:
+
+builds app
+
+builds seo
+
+starts server
+
+7.3) Add lightweight tests:
+
+route smoke test for a handful of /guides/* and /tools/*
+
+sitemap validation (at least “exists and includes expected URLs”)
+
+Definition of done
+
+One command builds everything.
+
+A new product can reuse the SEO engine by swapping taxonomy and modules.
+
+Notes for the Agent
+
+Use /docs/seo_taxonomy_and_pillars.md as the primary source of truth for what to generate.
+
+Keep the first programmatic batch intentionally small (25–50). Scale only after Search Console shows impressions and you’ve improved content modules.
+
+Prefer conservative indexing (quality gate + noindex) over “ship 500 pages.”

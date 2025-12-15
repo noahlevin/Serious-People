@@ -1,0 +1,344 @@
+PRD: Serious People SEO Engine + Marketing Surface (Replit, Single Deployment)
+1. Purpose
+
+Serious People needs a scalable acquisition engine that (a) drives organic traffic, (b) converts that traffic into sessions, and (c) later supports paid ads with intent-matched landing pages—all while avoiding disruption to the existing SPA and remaining reusable for future products.
+
+This project will add an HTML-first marketing/SEO surface (guides, tools, landing pages) to the existing app, powered by a taxonomy-driven page generation system (“SEO engine”) with a built-in quality gate to prevent thin/duplicate content.
+
+2. Goals
+
+Launch crawlable, indexable, high-quality content pages that can rank for high-intent queries relevant to career decisions.
+
+Implement a reusable, taxonomy-driven system to generate programmatic pages without harming site quality.
+
+Add 2–4 interactive tools that act as conversion engines and future PPC landing pages.
+
+Maintain a single deployment and same-domain routing on Replit.
+
+Preserve current app behavior at / during early phases.
+
+3. Non-goals
+
+Rewriting the core product app or migrating the full experience to Next.js.
+
+Building a full CMS or editorial workflow (can be added later).
+
+Shipping hundreds/thousands of programmatic pages immediately.
+
+International SEO / localization in v1.
+
+4. Success metrics
+Primary
+
+Index coverage: >90% of intended SEO pages indexed (excluding deliberately noindex pages).
+
+Organic acquisition: measurable impressions/clicks in Search Console within 2–4 weeks of launch (timing varies).
+
+Conversion: trackable funnel from SEO pages → CTA → session start → purchase.
+
+Secondary
+
+Tool engagement: tool completion rate and CTA click-through from tools.
+
+Paid readiness: ability to create noindex message-matched landing pages under /lp/*.
+
+5. Users and intent
+Primary search intents we serve
+
+“I’m stuck” decision intent: stay vs go, pivot vs persist, burnout vs misfit.
+
+Negotiation intent: severance, exit messaging, comp, offer evaluation.
+
+Narrative intent: explaining departure, updating LinkedIn, interview story.
+
+Planning intent: 14-day plan, job search plan, ramp plan.
+
+Personas (high-level)
+
+Mid-to-senior operators (product/eng/ops) and exec-adjacent leaders.
+
+People in active transition or contemplating it.
+
+6. Constraints and assumptions
+
+Current app is a React SPA (Vite + wouter) at /.
+
+Backend is Express + TypeScript; single Replit deployment; custom domain seriouspeople.app.
+
+No Cloudflare/edge rewrites—routing must be done in Express.
+
+Same-domain preferred for auth/cookies and simple UX.
+
+7. Strategy overview
+Architecture approach
+
+Add a separate SEO/marketing build (recommended: Astro) that outputs static HTML.
+
+Serve that HTML through Express for /guides/*, /tools/*, /lp/*.
+
+Keep SPA at / in early phases.
+
+Optionally mount SPA at /app later, then (optionally) flip / to marketing for logged-out users.
+
+Content approach
+
+8–12 pillar pages (handwritten) as authoritative hubs.
+
+25–50 programmatic pages in the first batch (highest intent only).
+
+Tools as conversion surfaces and paid-ad landing page bases.
+
+Internal-link graph to connect pillars ↔ programmatic ↔ tools.
+
+Source of truth
+
+Taxonomy, pillars, and initial generated page list live in:
+/docs/seo_taxonomy_and_pillars.md
+
+A machine-readable canonical taxonomy file must be generated and committed (JSON/YAML).
+
+8. Requirements
+8.1 Routing requirements (v1)
+
+/guides/* must serve HTML-first pages (indexable by default if quality gate passes).
+
+/tools/* must serve HTML-first pages with client-side interactive components.
+
+/lp/* must serve landing pages intended for ads; default noindex.
+
+/robots.txt and /sitemap.xml must be served from the root domain.
+
+Existing SPA behavior at / must not change until Phase 6.
+
+8.2 SEO technical requirements
+
+Each SEO page must support:
+
+Title tag and meta description
+
+Canonical URL
+
+OpenGraph/Twitter tags
+
+Optional JSON-LD (Article, FAQ, Breadcrumb) where appropriate
+
+Sitemap generation:
+
+Includes only indexable pages
+
+Supports lastmod when available
+
+Robots:
+
+Disallow indexing of app-private paths (auth, payments, user content)
+
+Allow indexing of /guides/* and /tools/*
+
+404 handling for missing SEO routes.
+
+8.3 Programmatic SEO engine requirements
+
+Taxonomy-driven page generation using a deterministic “page composer.”
+
+Required content modules per page:
+
+Framework section (how to think about it)
+
+Common mistakes (role/situation specific)
+
+Example vignette (anonymized but concrete)
+
+“What you’ll walk away with” tied to product artifacts
+
+Single primary CTA
+
+Related internal links (generated)
+
+Content variation:
+
+Modules must have variants to avoid near-duplicate pages.
+
+Quality gate:
+
+Pages failing quality checks must render with noindex
+
+Sitemap must exclude noindex pages
+
+8.4 Tools requirements (v1)
+
+Ship at least two tools:
+
+Stay/Go Worksheet (scored or structured output)
+
+Severance/Runway Calculator
+
+Tools should:
+
+Work without login
+
+Be fast and mobile-friendly
+
+Have clear CTA to start Serious People session
+
+Emit PostHog events (see Analytics section)
+
+8.5 Analytics requirements
+
+PostHog events for SEO surface:
+
+seo_page_viewed (include slug and taxonomy dimensions)
+
+seo_cta_clicked (include destination)
+
+tool_started, tool_completed, tool_cta_clicked
+
+Funnel attribution:
+
+Carry UTM params from SEO/LP pages into the app checkout/session start.
+
+(Optional) Add a lightweight “SEO cohort” property to users who enter from /guides or /tools.
+
+9. UX/content requirements
+
+Guides should be skimmable:
+
+Clear headings, short paragraphs
+
+Simple “framework” visuals/sections (text-only in v1)
+
+CTA strategy:
+
+Exactly one primary CTA per page (avoid choice paralysis)
+
+Secondary links only as internal navigation (pillars/tools)
+
+Strong message match for /lp/* pages:
+
+Minimal nav, focused offer, tailored copy
+
+Default noindex until explicitly launched
+
+10. Milestones and phased delivery
+Phase 0 — Taxonomy + repo scaffolding
+
+Create /docs/seo_taxonomy_and_pillars.md
+
+Commit canonical JSON taxonomy file
+
+Add /seo/README.md
+
+Acceptance:
+
+Taxonomy exists; no behavior changes.
+
+Phase 1 — SEO build + serve a single guide page
+
+Add Astro in /seo
+
+Build one pillar guide page
+
+Express serves /guides/<slug> HTML
+
+Acceptance:
+
+Page is crawlable (view-source shows content); / unchanged.
+
+Phase 2 — Pillars + sitemap/robots + guides index
+
+Implement 8–12 pillar pages
+
+/guides index
+
+/robots.txt, /sitemap.xml, 404
+
+Acceptance:
+
+Sitemap/robots validate; pillars browsable.
+
+Phase 3 — Programmatic pages + quality gate
+
+Page composer + module library
+
+Generate first 25–50 pages from taxonomy
+
+Quality gate + sitemap excludes noindex
+
+Acceptance:
+
+Programmatic pages render; only high-quality are indexable.
+
+Phase 4 — Tools + LP routes + instrumentation
+
+Build 2 tools under /tools
+
+Add /lp/* pages (noindex)
+
+PostHog instrumentation
+
+Acceptance:
+
+Tools work; events fire; LP pages exist.
+
+Phase 5 — Optional /app mount (no migration)
+
+Serve SPA under /app
+
+Ensure routing/auth works
+
+Acceptance:
+
+/app mirrors existing app; / unchanged.
+
+Phase 6 — Flip / to marketing for logged-out users (optional)
+
+Logged out: / serves marketing HTML
+
+Logged in: / redirects to /app
+
+Acceptance:
+
+Returning users feel no disruption; homepage becomes SEO-capable.
+
+11. Risks and mitigations
+
+Risk: Thin/duplicate pSEO harms domain quality
+Mitigation: quality gate + small initial batch + module variants + manual review of top pages.
+
+Risk: Routing conflicts with SPA catch-all
+Mitigation: add explicit Express routes for /guides|/tools|/lp before SPA handler.
+
+Risk: Analytics attribution breaks across surfaces
+Mitigation: standard UTM pass-through and PostHog properties on session start.
+
+Risk: SEO surface looks disconnected from app
+Mitigation: shared minimal design tokens; consistent CTAs; link to /app later.
+
+12. Open questions (optional—answer in the taxonomy file)
+
+Final list of taxonomy values (roles/situations/goals) and initial page batch
+
+CTA choice: “Start session” vs “Try tool” as primary CTA per intent
+
+Whether to index tools pages or keep some as noindex until mature
+
+13. Deliverables checklist
+
+/docs/seo_taxonomy_and_pillars.md
+
+/seo Astro app + build scripts
+
+Express routing updates (serve /guides, /tools, /lp, robots, sitemap)
+
+Page composer + module library
+
+Quality gate + sitemap logic
+
+8–12 pillar pages
+
+25–50 programmatic pages
+
+2 tools pages
+
+PostHog events
+
+Optional /app mount + optional / flip

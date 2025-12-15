@@ -1,0 +1,436 @@
+# Serious People — SEO Taxonomy + Content Pillars (v1)
+
+This file is the source of truth for the Serious People SEO engine.
+
+It defines:
+- The **pillar pages** (handwritten, highest quality)
+- The **taxonomy** used to generate programmatic pages
+- The **initial v1 batch** of pages to generate (25–50, high intent only)
+- CTA rules and content module requirements so we don’t ship thin/duplicate pages
+- Paid-ads readiness: `/lp/*` landing pages mapped to intent clusters
+
+---
+
+## 0) Routing + page types
+
+We will ship three content surfaces (served as HTML, not SPA):
+
+- **Guides** (indexable): `/guides/*`
+- **Tools** (indexable): `/tools/*`
+- **Landing pages for paid ads** (default noindex): `/lp/*`
+
+Optional later:
+- App mounted at `/app/*` (SPA)
+
+---
+
+## 1) Positioning constraints for content
+
+Serious People is a structured, high-signal career decision session that produces concrete artifacts. Content should feel:
+- pragmatic, specific, operator-grade
+- not therapy, not vibes, not “manifest your future”
+- frameworks + scripts + examples > generic advice
+
+No fluff intros. Assume the reader is smart and stressed.
+
+---
+
+## 2) Pillar pages (8–12) — handwritten
+
+These are the “hubs” we will link to constantly. Each pillar should be strong enough to rank on its own.
+
+### Pillars list (v1)
+
+1. `/guides/stay-or-go-framework`
+   - Core decision framework + how to use it in 30–60 minutes
+
+2. `/guides/burnout-vs-misfit-vs-bad-manager`
+   - Diagnostic guide + next actions per diagnosis
+
+3. `/guides/how-to-resign-without-burning-bridges`
+   - The clean exit: timing, tone, scripts, common mistakes
+
+4. `/guides/severance-negotiation-playbook`
+   - Practical negotiation strategy + scripts + red lines
+
+5. `/guides/executive-job-search-is-different`
+   - How senior searches actually work; common traps; momentum plan
+
+6. `/guides/how-to-explain-your-departure`
+   - Narrative options (neutral, positive, planned transition) + examples
+
+7. `/guides/what-to-do-in-the-first-14-days`
+   - A tight plan to regain agency; decisions + actions + boundaries
+
+8. `/guides/how-to-talk-to-your-boss-about-changing-your-role`
+   - The internal pivot conversation; scripts; decision criteria
+
+9. `/guides/how-to-evaluate-an-offer-like-an-adult`
+   - Comp, scope, mandate, boss fit, decision rights
+
+10. `/guides/when-to-use-a-coach`
+   - Not “why coaching”; more like “what kind of help solves what problem”
+
+Optional extra pillars if we have bandwidth:
+11. `/guides/layoff-risk-plan`
+12. `/guides/toxic-boss-survival-or-exit`
+
+---
+
+## 3) Tools (conversion + link magnets)
+
+Tools should be genuinely useful and work without login.
+
+### Tools list (v1)
+
+1. `/tools/stay-or-go-worksheet`
+   - Inputs → score + recommended direction + next steps
+   - Export: copyable summary
+
+2. `/tools/severance-runway-calculator`
+   - Inputs → runway, risk flags, decision considerations
+   - Export: copyable summary
+
+Nice-to-have (v2):
+- `/tools/exit-message-generator` (resignation + all-hands variants)
+- `/tools/narrative-builder` (LinkedIn “about” + interview story outline)
+- `/tools/role-mandate-checklist` (boss fit + decision rights)
+
+---
+
+## 4) Taxonomy (for programmatic pages)
+
+We generate pages from a controlled set of dimensions. We intentionally keep this small in v1.
+
+### 4.1 Dimensions
+
+#### Roles (`role`)
+- vp-product
+- director-product
+- product-manager
+- director-engineering
+- engineering-manager
+- ops-leader
+- gm
+- founder
+
+#### Situations (`situation`)
+- stay-or-go
+- burnout
+- bad-manager
+- toxic-culture
+- severance
+- internal-pivot
+- job-search
+- offer-evaluation
+- resignation
+- layoff-risk
+
+#### Goals (`goal`)
+- decide
+- negotiate
+- narrate
+- plan
+- execute
+
+#### Seniority (`seniority`)
+- mid
+- senior
+- exec
+
+> Note: seniority is used mostly to vary examples + “what matters” sections. We don’t need a separate URL dimension for it in v1 unless we want it.
+
+### 4.2 URL scheme (v1)
+
+We’ll support two programmatic patterns:
+
+A) Situation-first (broad intent):
+- `/situations/{situation}`
+- `/situations/{situation}/{goal}`
+
+B) Role + situation (high-intent, better conversion):
+- `/roles/{role}/situations/{situation}`
+- `/roles/{role}/situations/{situation}/{goal}`
+
+We should start by generating only pattern B for the highest intent combinations.
+
+---
+
+## 5) CTA rules (SEO now + paid later)
+
+Each page gets **one primary CTA**. Secondary links are internal only.
+
+### CTA types
+- `cta_session`: Start the Serious People session (or intro flow)
+- `cta_tool`: Use a tool (worksheet/calculator)
+- `cta_email`: Optional email capture (only where it fits; avoid gating)
+
+### Default CTA mapping
+- If `situation` in (stay-or-go, burnout, bad-manager, toxic-culture, internal-pivot): **cta_session**
+- If `situation` in (severance, offer-evaluation): **cta_tool** first, then session as internal link
+- If `situation` in (job-search, resignation, layoff-risk): **cta_session** (with a “first 14 days” internal link)
+
+### Paid landing pages (`/lp/*`)
+- Default `noindex`
+- 1:1 message match to ad group (see section 10)
+
+---
+
+## 6) Content module requirements (to avoid thin pages)
+
+Every indexable page must contain these modules (minimum):
+
+1) **Framework** (“how to think about it”)
+2) **Common mistakes** (situation-specific, role-tinted)
+3) **Example vignette** (concrete scenario; anonymized)
+4) **What you’ll walk away with** (tie to artifacts)
+5) **CTA block** (single primary)
+6) **Related links** (6–10 internal links)
+
+### Required variation (important)
+For each situation, we need at least:
+- 2 variants of the framework module
+- 2 variants of mistakes module
+- 2 variants of vignettes per role cluster (product/eng/ops/executive)
+
+If a generated page reuses too much identical text, ship it with `noindex` until it passes the quality gate.
+
+---
+
+## 7) “Artifacts” language (what we promise)
+
+We should describe outputs consistently. Suggested language:
+
+- Decision snapshot (what’s true, what’s not, what matters)
+- Fork recommendation (stay vs go vs pivot, with rationale)
+- Risk map (what could go wrong, how to mitigate)
+- Conversation scripts (boss / partner / recruiter)
+- Action plan (14 days + 30 days)
+- Narrative outline (LinkedIn + interview story)
+
+---
+
+## 8) Initial programmatic batch (v1) — 50 pages
+
+We will generate these first. They skew toward high intent + roles that map to your audience.
+
+### 8.1 Role + situation pages (core)
+
+1. `/roles/vp-product/situations/stay-or-go`
+2. `/roles/vp-product/situations/burnout`
+3. `/roles/vp-product/situations/bad-manager`
+4. `/roles/vp-product/situations/toxic-culture`
+5. `/roles/vp-product/situations/severance`
+6. `/roles/vp-product/situations/internal-pivot`
+7. `/roles/vp-product/situations/job-search`
+8. `/roles/vp-product/situations/offer-evaluation`
+9. `/roles/vp-product/situations/resignation`
+10. `/roles/vp-product/situations/layoff-risk`
+
+11. `/roles/director-product/situations/stay-or-go`
+12. `/roles/director-product/situations/burnout`
+13. `/roles/director-product/situations/bad-manager`
+14. `/roles/director-product/situations/toxic-culture`
+15. `/roles/director-product/situations/severance`
+16. `/roles/director-product/situations/internal-pivot`
+17. `/roles/director-product/situations/job-search`
+18. `/roles/director-product/situations/offer-evaluation`
+19. `/roles/director-product/situations/resignation`
+20. `/roles/director-product/situations/layoff-risk`
+
+21. `/roles/director-engineering/situations/stay-or-go`
+22. `/roles/director-engineering/situations/burnout`
+23. `/roles/director-engineering/situations/bad-manager`
+24. `/roles/director-engineering/situations/toxic-culture`
+25. `/roles/director-engineering/situations/severance`
+26. `/roles/director-engineering/situations/internal-pivot`
+27. `/roles/director-engineering/situations/job-search`
+28. `/roles/director-engineering/situations/offer-evaluation`
+29. `/roles/director-engineering/situations/resignation`
+30. `/roles/director-engineering/situations/layoff-risk`
+
+31. `/roles/engineering-manager/situations/stay-or-go`
+32. `/roles/engineering-manager/situations/burnout`
+33. `/roles/engineering-manager/situations/bad-manager`
+34. `/roles/engineering-manager/situations/toxic-culture`
+35. `/roles/engineering-manager/situations/internal-pivot`
+36. `/roles/engineering-manager/situations/job-search`
+37. `/roles/engineering-manager/situations/offer-evaluation`
+38. `/roles/engineering-manager/situations/resignation`
+
+39. `/roles/ops-leader/situations/stay-or-go`
+40. `/roles/ops-leader/situations/burnout`
+41. `/roles/ops-leader/situations/bad-manager`
+42. `/roles/ops-leader/situations/toxic-culture`
+43. `/roles/ops-leader/situations/internal-pivot`
+44. `/roles/ops-leader/situations/job-search`
+45. `/roles/ops-leader/situations/offer-evaluation`
+46. `/roles/ops-leader/situations/resignation`
+
+47. `/roles/founder/situations/burnout`
+48. `/roles/founder/situations/stay-or-go`
+49. `/roles/founder/situations/toxic-culture`
+50. `/roles/founder/situations/internal-pivot`
+
+Notes:
+- We intentionally include fewer founder pages in v1 (different intent; risk of mismatched promise).
+- Severance for eng mgr/ops is real, but we’re prioritizing seniority where severance negotiation is more common.
+
+### 8.2 Optional “goal” variants (v1.1)
+After these 50 are stable, add goal pages for top combos:
+- `.../stay-or-go/decide`
+- `.../severance/negotiate`
+- `.../resignation/narrate`
+- `.../job-search/plan`
+
+Only ship goal variants if the modules clearly diverge.
+
+---
+
+## 9) Internal linking rules
+
+Each generated page should link to:
+- 1–2 relevant **pillars**
+- 1 relevant **tool**
+- 3–6 adjacent generated pages:
+  - same role, adjacent situations
+  - same situation, adjacent roles (limit this to avoid link spam)
+- `/guides/what-to-do-in-the-first-14-days` frequently (it’s a strong cross-cutting hub)
+
+Avoid giant tag clouds.
+
+---
+
+## 10) Paid ads readiness: initial `/lp/*` set (noindex by default)
+
+These are tightly scoped, message-matched pages intended for future search ads.
+
+1. `/lp/stay-or-go-session`
+2. `/lp/burnout-decision-session`
+3. `/lp/severance-negotiation`
+4. `/lp/resignation-script`
+5. `/lp/executive-job-search-plan`
+6. `/lp/internal-pivot-conversation`
+
+Rules:
+- Minimal nav
+- One primary CTA
+- Tight copy; no long educational sections
+- Keep them `noindex` unless we deliberately want them indexed
+
+---
+
+## 11) Machine-readable taxonomy (canonical)
+
+The SEO engine should commit a canonical file at:
+- `/seo/taxonomy/taxonomy.json`
+
+Suggested structure:
+
+```json
+{
+  "roles": [
+    {"key":"vp-product","label":"VP Product"},
+    {"key":"director-product","label":"Director of Product"},
+    {"key":"product-manager","label":"Product Manager"},
+    {"key":"director-engineering","label":"Director of Engineering"},
+    {"key":"engineering-manager","label":"Engineering Manager"},
+    {"key":"ops-leader","label":"Operations Leader"},
+    {"key":"gm","label":"General Manager"},
+    {"key":"founder","label":"Founder"}
+  ],
+  "situations": [
+    {"key":"stay-or-go","label":"Stay or go"},
+    {"key":"burnout","label":"Burnout"},
+    {"key":"bad-manager","label":"Bad manager"},
+    {"key":"toxic-culture","label":"Toxic culture"},
+    {"key":"severance","label":"Severance"},
+    {"key":"internal-pivot","label":"Internal pivot"},
+    {"key":"job-search","label":"Job search"},
+    {"key":"offer-evaluation","label":"Offer evaluation"},
+    {"key":"resignation","label":"Resignation"},
+    {"key":"layoff-risk","label":"Layoff risk"}
+  ],
+  "goals": [
+    {"key":"decide","label":"Decide"},
+    {"key":"negotiate","label":"Negotiate"},
+    {"key":"narrate","label":"Narrate"},
+    {"key":"plan","label":"Plan"},
+    {"key":"execute","label":"Execute"}
+  ],
+  "ctaRules": {
+    "stay-or-go":"cta_session",
+    "burnout":"cta_session",
+    "bad-manager":"cta_session",
+    "toxic-culture":"cta_session",
+    "internal-pivot":"cta_session",
+    "job-search":"cta_session",
+    "resignation":"cta_session",
+    "layoff-risk":"cta_session",
+    "severance":"cta_tool",
+    "offer-evaluation":"cta_tool"
+  }
+}
+The initial page list should also be committed:
+
+/seo/taxonomy/pages.json (array of route specs, including title templates and CTA type)
+
+12) Title + description templates (starter)
+We should generate titles that are varied but controlled.
+
+Title patterns
+{Situation} for {Role}: a practical framework
+
+How to handle {Situation} as a {Role}
+
+{Role} guide to {Situation}: decisions, scripts, next steps
+
+Meta description patterns
+“A no-fluff guide to {situation} for {role}—framework, common mistakes, examples, and scripts. Includes a 14-day plan and a clear next step.”
+
+Keep it human. Avoid keyword stuffing.
+
+13) Indexing + quality gate policy
+Default:
+
+Pillars: index
+
+Tools: index
+
+Programmatic: index only if it passes quality gate
+
+LP pages: noindex
+
+Quality gate minimums for indexable programmatic pages:
+
+Must include all required modules (section 6)
+
+Must exceed minimum unique content threshold
+
+Must not exceed similarity threshold vs closest neighbors
+
+If it fails, render normally but add:
+
+<meta name="robots" content="noindex,follow" />
+
+14) Editorial voice guardrails
+Make recommendations only when you can explain them
+
+Use concrete examples (vignettes) that feel real
+
+Favor scripts over slogans
+
+Be honest about tradeoffs: “If you do X, you’re betting on Y”
+
+No “follow your passion” energy
+
+15) Next edits (when we learn from real traffic)
+After Search Console shows impressions:
+
+Expand the situations that get traction
+
+Add goal-variant pages only where they truly diverge
+
+Improve top 5 pages with deeper examples and better scripts
+
+Prune low-quality / redundant pages aggressively
