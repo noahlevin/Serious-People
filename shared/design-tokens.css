@@ -1,0 +1,160 @@
+/**
+ * Serious People - Shared Design Tokens
+ * 
+ * This file contains design variables shared between the SPA and SEO pages.
+ * Import this in both client/src/styles/serious-people.css and seo/templates.
+ * 
+ * WSJ-inspired typography and color palette for a credible, professional feel.
+ */
+
+/* Google Fonts import */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap');
+
+:root {
+  /* ==========================================================================
+     Colors
+     ========================================================================== */
+  
+  /* Background colors */
+  --sp-bg: #faf9f6;
+  --sp-bg-elevated: #ffffff;
+  --sp-bg-muted: #f5f4f1;
+  
+  /* Text colors */
+  --sp-text: #1a1a1a;
+  --sp-text-secondary: #666666;
+  --sp-text-muted: #444444;
+  --sp-text-light: #888888;
+  
+  /* Border colors */
+  --sp-border: #d4d4d4;
+  --sp-border-light: #e5e5e5;
+  --sp-border-dark: #1a1a1a;
+  
+  /* Accent colors */
+  --sp-accent: #c41e3a;
+  --sp-accent-hover: #a01830;
+  --sp-link: #0066cc;
+  --sp-link-hover: #004499;
+  
+  /* ==========================================================================
+     Typography
+     ========================================================================== */
+  
+  /* Font families */
+  --sp-font-display: 'Playfair Display', Georgia, serif;
+  --sp-font-body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --sp-font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  
+  /* Font sizes - using a modular scale (1.25 ratio) */
+  --sp-text-xs: 0.75rem;    /* 12px */
+  --sp-text-sm: 0.875rem;   /* 14px */
+  --sp-text-base: 1rem;     /* 16px */
+  --sp-text-lg: 1.125rem;   /* 18px */
+  --sp-text-xl: 1.25rem;    /* 20px */
+  --sp-text-2xl: 1.5rem;    /* 24px */
+  --sp-text-3xl: 1.875rem;  /* 30px */
+  --sp-text-4xl: 2.25rem;   /* 36px */
+  --sp-text-5xl: 2.75rem;   /* 44px */
+  
+  /* Line heights */
+  --sp-leading-tight: 1.15;
+  --sp-leading-snug: 1.35;
+  --sp-leading-normal: 1.6;
+  --sp-leading-relaxed: 1.75;
+  
+  /* Letter spacing */
+  --sp-tracking-tight: -0.02em;
+  --sp-tracking-normal: 0;
+  --sp-tracking-wide: 0.05em;
+  --sp-tracking-wider: 0.1em;
+  
+  /* ==========================================================================
+     Spacing
+     ========================================================================== */
+  
+  --sp-space-xs: 0.25rem;   /* 4px */
+  --sp-space-sm: 0.5rem;    /* 8px */
+  --sp-space-md: 1rem;      /* 16px */
+  --sp-space-lg: 1.5rem;    /* 24px */
+  --sp-space-xl: 2rem;      /* 32px */
+  --sp-space-2xl: 3rem;     /* 48px */
+  --sp-space-3xl: 4rem;     /* 64px */
+  
+  /* ==========================================================================
+     Layout
+     ========================================================================== */
+  
+  /* Container widths */
+  --sp-container-sm: 640px;
+  --sp-container-md: 768px;
+  --sp-container-lg: 960px;
+  --sp-container-xl: 1140px;
+  
+  /* Content widths (for readable text) */
+  --sp-content-width: 680px;
+  --sp-content-width-wide: 800px;
+  
+  /* ==========================================================================
+     Borders & Shadows
+     ========================================================================== */
+  
+  --sp-radius-sm: 2px;
+  --sp-radius-md: 4px;
+  --sp-radius-lg: 8px;
+  
+  --sp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --sp-shadow-md: 0 2px 4px rgba(0, 0, 0, 0.08);
+  --sp-shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.1);
+  
+  /* ==========================================================================
+     Transitions
+     ========================================================================== */
+  
+  --sp-transition-fast: 150ms ease;
+  --sp-transition-normal: 250ms ease;
+  --sp-transition-slow: 400ms ease;
+}
+
+/* ==========================================================================
+   Utility Classes (shared)
+   ========================================================================== */
+
+/* Containers */
+.sp-container {
+  max-width: var(--sp-container-lg);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--sp-space-lg);
+  padding-right: var(--sp-space-lg);
+}
+
+.sp-container-narrow {
+  max-width: var(--sp-content-width);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--sp-space-lg);
+  padding-right: var(--sp-space-lg);
+}
+
+/* Typography utilities */
+.sp-display {
+  font-family: var(--sp-font-display);
+}
+
+.sp-body {
+  font-family: var(--sp-font-body);
+}
+
+/* Visually hidden (for accessibility) */
+.sp-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

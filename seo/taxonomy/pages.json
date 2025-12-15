@@ -1,0 +1,458 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-01-15",
+  "totalPages": 50,
+  
+  "pages": [
+    {
+      "id": 1,
+      "route": "/roles/vp-product/situations/stay-or-go",
+      "role": "vp-product",
+      "situation": "stay-or-go",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 2,
+      "route": "/roles/vp-product/situations/burnout",
+      "role": "vp-product",
+      "situation": "burnout",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 3,
+      "route": "/roles/vp-product/situations/bad-manager",
+      "role": "vp-product",
+      "situation": "bad-manager",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 4,
+      "route": "/roles/vp-product/situations/toxic-culture",
+      "role": "vp-product",
+      "situation": "toxic-culture",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 5,
+      "route": "/roles/vp-product/situations/severance",
+      "role": "vp-product",
+      "situation": "severance",
+      "cta": "cta_tool",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 6,
+      "route": "/roles/vp-product/situations/internal-pivot",
+      "role": "vp-product",
+      "situation": "internal-pivot",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 7,
+      "route": "/roles/vp-product/situations/job-search",
+      "role": "vp-product",
+      "situation": "job-search",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 8,
+      "route": "/roles/vp-product/situations/offer-evaluation",
+      "role": "vp-product",
+      "situation": "offer-evaluation",
+      "cta": "cta_tool",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 9,
+      "route": "/roles/vp-product/situations/resignation",
+      "role": "vp-product",
+      "situation": "resignation",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 10,
+      "route": "/roles/vp-product/situations/layoff-risk",
+      "role": "vp-product",
+      "situation": "layoff-risk",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 11,
+      "route": "/roles/director-product/situations/stay-or-go",
+      "role": "director-product",
+      "situation": "stay-or-go",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 12,
+      "route": "/roles/director-product/situations/burnout",
+      "role": "director-product",
+      "situation": "burnout",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 13,
+      "route": "/roles/director-product/situations/bad-manager",
+      "role": "director-product",
+      "situation": "bad-manager",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 14,
+      "route": "/roles/director-product/situations/toxic-culture",
+      "role": "director-product",
+      "situation": "toxic-culture",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 15,
+      "route": "/roles/director-product/situations/severance",
+      "role": "director-product",
+      "situation": "severance",
+      "cta": "cta_tool",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 16,
+      "route": "/roles/director-product/situations/internal-pivot",
+      "role": "director-product",
+      "situation": "internal-pivot",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 17,
+      "route": "/roles/director-product/situations/job-search",
+      "role": "director-product",
+      "situation": "job-search",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 18,
+      "route": "/roles/director-product/situations/offer-evaluation",
+      "role": "director-product",
+      "situation": "offer-evaluation",
+      "cta": "cta_tool",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 19,
+      "route": "/roles/director-product/situations/resignation",
+      "role": "director-product",
+      "situation": "resignation",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 20,
+      "route": "/roles/director-product/situations/layoff-risk",
+      "role": "director-product",
+      "situation": "layoff-risk",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 21,
+      "route": "/roles/director-engineering/situations/stay-or-go",
+      "role": "director-engineering",
+      "situation": "stay-or-go",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 22,
+      "route": "/roles/director-engineering/situations/burnout",
+      "role": "director-engineering",
+      "situation": "burnout",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 23,
+      "route": "/roles/director-engineering/situations/bad-manager",
+      "role": "director-engineering",
+      "situation": "bad-manager",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 24,
+      "route": "/roles/director-engineering/situations/toxic-culture",
+      "role": "director-engineering",
+      "situation": "toxic-culture",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 25,
+      "route": "/roles/director-engineering/situations/severance",
+      "role": "director-engineering",
+      "situation": "severance",
+      "cta": "cta_tool",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 26,
+      "route": "/roles/director-engineering/situations/internal-pivot",
+      "role": "director-engineering",
+      "situation": "internal-pivot",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 27,
+      "route": "/roles/director-engineering/situations/job-search",
+      "role": "director-engineering",
+      "situation": "job-search",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 28,
+      "route": "/roles/director-engineering/situations/offer-evaluation",
+      "role": "director-engineering",
+      "situation": "offer-evaluation",
+      "cta": "cta_tool",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 29,
+      "route": "/roles/director-engineering/situations/resignation",
+      "role": "director-engineering",
+      "situation": "resignation",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 30,
+      "route": "/roles/director-engineering/situations/layoff-risk",
+      "role": "director-engineering",
+      "situation": "layoff-risk",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 31,
+      "route": "/roles/engineering-manager/situations/stay-or-go",
+      "role": "engineering-manager",
+      "situation": "stay-or-go",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 32,
+      "route": "/roles/engineering-manager/situations/burnout",
+      "role": "engineering-manager",
+      "situation": "burnout",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 33,
+      "route": "/roles/engineering-manager/situations/bad-manager",
+      "role": "engineering-manager",
+      "situation": "bad-manager",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 34,
+      "route": "/roles/engineering-manager/situations/toxic-culture",
+      "role": "engineering-manager",
+      "situation": "toxic-culture",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 35,
+      "route": "/roles/engineering-manager/situations/internal-pivot",
+      "role": "engineering-manager",
+      "situation": "internal-pivot",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 36,
+      "route": "/roles/engineering-manager/situations/job-search",
+      "role": "engineering-manager",
+      "situation": "job-search",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 37,
+      "route": "/roles/engineering-manager/situations/offer-evaluation",
+      "role": "engineering-manager",
+      "situation": "offer-evaluation",
+      "cta": "cta_tool",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 38,
+      "route": "/roles/engineering-manager/situations/resignation",
+      "role": "engineering-manager",
+      "situation": "resignation",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 39,
+      "route": "/roles/ops-leader/situations/stay-or-go",
+      "role": "ops-leader",
+      "situation": "stay-or-go",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 40,
+      "route": "/roles/ops-leader/situations/burnout",
+      "role": "ops-leader",
+      "situation": "burnout",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 41,
+      "route": "/roles/ops-leader/situations/bad-manager",
+      "role": "ops-leader",
+      "situation": "bad-manager",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 42,
+      "route": "/roles/ops-leader/situations/toxic-culture",
+      "role": "ops-leader",
+      "situation": "toxic-culture",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 43,
+      "route": "/roles/ops-leader/situations/internal-pivot",
+      "role": "ops-leader",
+      "situation": "internal-pivot",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 44,
+      "route": "/roles/ops-leader/situations/job-search",
+      "role": "ops-leader",
+      "situation": "job-search",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 45,
+      "route": "/roles/ops-leader/situations/offer-evaluation",
+      "role": "ops-leader",
+      "situation": "offer-evaluation",
+      "cta": "cta_tool",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 46,
+      "route": "/roles/ops-leader/situations/resignation",
+      "role": "ops-leader",
+      "situation": "resignation",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 47,
+      "route": "/roles/founder/situations/burnout",
+      "role": "founder",
+      "situation": "burnout",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    },
+    {
+      "id": 48,
+      "route": "/roles/founder/situations/stay-or-go",
+      "role": "founder",
+      "situation": "stay-or-go",
+      "cta": "cta_session",
+      "titleTemplate": 2,
+      "index": true
+    },
+    {
+      "id": 49,
+      "route": "/roles/founder/situations/toxic-culture",
+      "role": "founder",
+      "situation": "toxic-culture",
+      "cta": "cta_session",
+      "titleTemplate": 0,
+      "index": true
+    },
+    {
+      "id": 50,
+      "route": "/roles/founder/situations/internal-pivot",
+      "role": "founder",
+      "situation": "internal-pivot",
+      "cta": "cta_session",
+      "titleTemplate": 1,
+      "index": true
+    }
+  ]
+}

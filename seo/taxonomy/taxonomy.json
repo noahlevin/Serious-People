@@ -1,0 +1,192 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-01-15",
+  
+  "roles": [
+    { "key": "vp-product", "label": "VP Product", "cluster": "product" },
+    { "key": "director-product", "label": "Director of Product", "cluster": "product" },
+    { "key": "product-manager", "label": "Product Manager", "cluster": "product" },
+    { "key": "director-engineering", "label": "Director of Engineering", "cluster": "engineering" },
+    { "key": "engineering-manager", "label": "Engineering Manager", "cluster": "engineering" },
+    { "key": "ops-leader", "label": "Operations Leader", "cluster": "ops" },
+    { "key": "gm", "label": "General Manager", "cluster": "exec" },
+    { "key": "founder", "label": "Founder", "cluster": "exec" }
+  ],
+  
+  "situations": [
+    { "key": "stay-or-go", "label": "Stay or go", "pillar": "/guides/stay-or-go-framework" },
+    { "key": "burnout", "label": "Burnout", "pillar": "/guides/burnout-vs-misfit-vs-bad-manager" },
+    { "key": "bad-manager", "label": "Bad manager", "pillar": "/guides/burnout-vs-misfit-vs-bad-manager" },
+    { "key": "toxic-culture", "label": "Toxic culture", "pillar": "/guides/toxic-boss-survival-or-exit" },
+    { "key": "severance", "label": "Severance", "pillar": "/guides/severance-negotiation-playbook" },
+    { "key": "internal-pivot", "label": "Internal pivot", "pillar": "/guides/how-to-talk-to-your-boss-about-changing-your-role" },
+    { "key": "job-search", "label": "Job search", "pillar": "/guides/executive-job-search-is-different" },
+    { "key": "offer-evaluation", "label": "Offer evaluation", "pillar": "/guides/how-to-evaluate-an-offer-like-an-adult" },
+    { "key": "resignation", "label": "Resignation", "pillar": "/guides/how-to-resign-without-burning-bridges" },
+    { "key": "layoff-risk", "label": "Layoff risk", "pillar": "/guides/layoff-risk-plan" }
+  ],
+  
+  "goals": [
+    { "key": "decide", "label": "Decide" },
+    { "key": "negotiate", "label": "Negotiate" },
+    { "key": "narrate", "label": "Narrate" },
+    { "key": "plan", "label": "Plan" },
+    { "key": "execute", "label": "Execute" }
+  ],
+  
+  "seniority": [
+    { "key": "mid", "label": "Mid-level" },
+    { "key": "senior", "label": "Senior" },
+    { "key": "exec", "label": "Executive" }
+  ],
+  
+  "ctaRules": {
+    "stay-or-go": "cta_session",
+    "burnout": "cta_session",
+    "bad-manager": "cta_session",
+    "toxic-culture": "cta_session",
+    "internal-pivot": "cta_session",
+    "job-search": "cta_session",
+    "resignation": "cta_session",
+    "layoff-risk": "cta_session",
+    "severance": "cta_tool",
+    "offer-evaluation": "cta_tool"
+  },
+  
+  "ctaTypes": {
+    "cta_session": {
+      "label": "Start Your Session",
+      "description": "Begin a structured coaching session",
+      "destination": "/interview"
+    },
+    "cta_tool": {
+      "label": "Try the Tool",
+      "description": "Use an interactive assessment",
+      "destinations": {
+        "severance": "/tools/severance-runway-calculator",
+        "offer-evaluation": "/tools/stay-or-go-worksheet"
+      }
+    },
+    "cta_email": {
+      "label": "Get the Guide",
+      "description": "Email capture for resource"
+    }
+  },
+  
+  "qualityThresholds": {
+    "pillars": {
+      "minWordCount": 1200,
+      "minUniqueModules": 5
+    },
+    "programmatic": {
+      "minWordCount": 700,
+      "minUniqueModules": 4
+    },
+    "maxSimilarityScore": 0.7,
+    "similarityExcludes": ["header", "footer", "cta", "relatedLinks"]
+  },
+  
+  "moduleTypes": [
+    "framework",
+    "mistakes",
+    "vignette",
+    "walkaway",
+    "cta",
+    "relatedLinks"
+  ],
+  
+  "pillars": [
+    {
+      "slug": "stay-or-go-framework",
+      "title": "The Stay-or-Go Decision Framework",
+      "route": "/guides/stay-or-go-framework"
+    },
+    {
+      "slug": "burnout-vs-misfit-vs-bad-manager",
+      "title": "Burnout vs. Misfit vs. Bad Manager: A Diagnostic Guide",
+      "route": "/guides/burnout-vs-misfit-vs-bad-manager"
+    },
+    {
+      "slug": "how-to-resign-without-burning-bridges",
+      "title": "How to Resign Without Burning Bridges",
+      "route": "/guides/how-to-resign-without-burning-bridges"
+    },
+    {
+      "slug": "severance-negotiation-playbook",
+      "title": "The Severance Negotiation Playbook",
+      "route": "/guides/severance-negotiation-playbook"
+    },
+    {
+      "slug": "executive-job-search-is-different",
+      "title": "Executive Job Search Is Different",
+      "route": "/guides/executive-job-search-is-different"
+    },
+    {
+      "slug": "how-to-explain-your-departure",
+      "title": "How to Explain Your Departure",
+      "route": "/guides/how-to-explain-your-departure"
+    },
+    {
+      "slug": "what-to-do-in-the-first-14-days",
+      "title": "What to Do in the First 14 Days After Leaving",
+      "route": "/guides/what-to-do-in-the-first-14-days"
+    },
+    {
+      "slug": "how-to-talk-to-your-boss-about-changing-your-role",
+      "title": "How to Talk to Your Boss About Changing Your Role",
+      "route": "/guides/how-to-talk-to-your-boss-about-changing-your-role"
+    },
+    {
+      "slug": "how-to-evaluate-an-offer-like-an-adult",
+      "title": "How to Evaluate an Offer Like an Adult",
+      "route": "/guides/how-to-evaluate-an-offer-like-an-adult"
+    },
+    {
+      "slug": "when-to-use-a-coach",
+      "title": "When to Use a Coach (And What Kind)",
+      "route": "/guides/when-to-use-a-coach"
+    },
+    {
+      "slug": "layoff-risk-plan",
+      "title": "The Layoff Risk Survival Plan",
+      "route": "/guides/layoff-risk-plan"
+    },
+    {
+      "slug": "toxic-boss-survival-or-exit",
+      "title": "Toxic Boss: Survive or Exit?",
+      "route": "/guides/toxic-boss-survival-or-exit"
+    }
+  ],
+  
+  "tools": [
+    {
+      "slug": "stay-or-go-worksheet",
+      "title": "Stay or Go Worksheet",
+      "route": "/tools/stay-or-go-worksheet",
+      "description": "Scored assessment with recommended direction and next steps"
+    },
+    {
+      "slug": "severance-runway-calculator",
+      "title": "Severance Runway Calculator",
+      "route": "/tools/severance-runway-calculator",
+      "description": "Calculate runway, risk flags, and decision considerations"
+    }
+  ],
+  
+  "landingPages": [
+    { "slug": "stay-or-go-session", "route": "/lp/stay-or-go-session", "index": false },
+    { "slug": "burnout-decision-session", "route": "/lp/burnout-decision-session", "index": false },
+    { "slug": "severance-negotiation", "route": "/lp/severance-negotiation", "index": false },
+    { "slug": "resignation-script", "route": "/lp/resignation-script", "index": false },
+    { "slug": "executive-job-search-plan", "route": "/lp/executive-job-search-plan", "index": false },
+    { "slug": "internal-pivot-conversation", "route": "/lp/internal-pivot-conversation", "index": false }
+  ],
+  
+  "titleTemplates": [
+    "{situation} for {role}: A Practical Framework",
+    "How to Handle {situation} as a {role}",
+    "{role} Guide to {situation}: Decisions, Scripts, Next Steps"
+  ],
+  
+  "metaDescriptionTemplate": "A no-fluff guide to {situation} for {role}—framework, common mistakes, examples, and scripts. Includes a 14-day plan and a clear next step."
+}
