@@ -1,0 +1,157 @@
+Here’s my take, point by point, plus what I’d change in the plan/PRD.
+
+1) EJS instead of Astro (early phases)
+
+This is the only one where I’m opinionated.
+
+EJS is a good Phase 1–2 move if your goal is “ship SEO pages this week” with minimum moving parts. It keeps:
+
+one runtime
+
+one server
+
+one build pipeline (or none for the SEO pages)
+
+fewer Replit surprises
+
+But: EJS becomes annoying once you want:
+
+programmatic generation with lots of shared components
+
+MD/MDX content authoring
+
+site-level features (sitemap generation from route manifests, content collections, partial hydration tools)
+
+My recommended decision:
+
+If you want to maximize speed and reduce deployment risk: do EJS for Phase 1–2.
+
+If you want this to be a reusable “drop-in SEO engine” for future products: Astro pays off earlier.
+
+Given your constraints (“vibe coding”, reuse later, one deployment), I’d take the compromise Replit suggested:
+
+✅ Adopt: EJS for Phase 1–2 (pillars + basics)
+✅ Plan: switch to Astro only if/when programmatic pages + tools start to feel painful in EJS
+⚠️ But: design Phase 0–3 so the content/taxonomy format stays the same either way (so the migration is just a renderer swap).
+
+PRD change: In Architecture, specify “Renderer v1 = EJS, renderer v2 optional = Astro” and explicitly state the abstraction boundary: taxonomy + content modules are renderer-agnostic.
+
+2) Clarify content module storage format
+
+Strong yes. This is the “engine” part.
+
+I’d tweak it slightly:
+
+Keep modules as .md with frontmatter metadata.
+
+Normalize on a schema that supports:
+
+type (framework/mistakes/vignette/etc.)
+
+role, situation, goal (optional arrays)
+
+variant
+
+tone (optional)
+
+minWords (optional)
+
+Add a deterministic selection rule: “pick variant by stable hash of slug so pages don’t reshuffle on rebuild.”
+
+Example frontmatter:
+
+---
+type: mistakes
+roles: [vp-product, director-product]
+situations: [stay-or-go]
+variant: v1
+---
+Content...
+
+
+PRD change: Add “Content module format” as a real section with schema + folder structure.
+
+3) Quality gate specifics in taxonomy
+
+Yes—with one adjustment: don’t hardcode 800 words globally.
+
+Some pages should be shorter (especially role+situation pages that are focused). I’d set:
+
+minWordCountPillar (e.g., 1200)
+
+minWordCountProgrammatic (e.g., 650–900)
+
+minUniqueModules (good)
+
+maxSimilarityScore (good)
+
+Also: similarity should be computed on rendered text minus boilerplate (header/footer/CTA) or it’ll be noisy.
+
+PRD change: Add thresholds + define what similarity is measured against.
+
+4) Shared CSS / design tokens
+
+Good idea, but keep it pragmatic.
+
+If you extract too much too early, you’ll waste time or accidentally break SPA styling. I’d do this:
+
+Create /shared/design-tokens.css with only:
+
+CSS variables (colors, spacing, typography)
+
+a couple of utility classes (container widths)
+
+Import it into both.
+
+Leave the rest separate until you’re happy.
+
+PRD change: “Shared tokens” are required; “shared components/styles” are not.
+
+5) Docs folder missing
+
+Yep—easy win. Add it explicitly to Phase 0 and create a small README so it doesn’t feel random.
+
+PRD change: Phase 0 includes creating /docs/ and writing the taxonomy file there.
+
+What I’d update in your plan (concretely)
+Update Phase 0
+
+Create /docs/
+
+Add /docs/seo_taxonomy_and_pillars.md
+
+Add /seo/taxonomy/taxonomy.json and /seo/taxonomy/pages.json
+
+Add /seo/content/modules/** scaffold + schema doc
+
+Add /shared/design-tokens.css (minimal variables)
+
+Update Phase 1–2 Renderer choice
+
+Implement SEO routes using EJS:
+
+/guides/* (pillars)
+
+/guides index
+
+/robots.txt, /sitemap.xml
+
+Content comes from markdown modules, rendered into EJS templates.
+
+Update Phase 3 (Programmatic)
+
+Keep EJS, generate programmatic pages from pages.json and module selection.
+
+Only consider Astro if:
+
+tool pages need partial hydration cleanly, or
+
+authoring workflow becomes painful, or
+
+you want nicer componentization.
+
+My one “you might regret this later” note
+
+If you stick with EJS long-term, the reusable “engine” becomes “an Express app plus templates,” which is fine—but less portable than an Astro/Next marketing package you can drop into any product. If reuse is a serious goal, just keep the separation clean:
+
+taxonomy + content modules + composer logic should not depend on EJS.
