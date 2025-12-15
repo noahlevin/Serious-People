@@ -67,6 +67,38 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 -   **Analytics:** PostHog for user behavior tracking.
 -   **PDF Generation:** Puppeteer for generating WSJ-styled PDFs of Serious Plan artifacts.
 
+## SEO Engine
+
+The SEO engine generates crawlable HTML pages for organic search traffic, served separately from the React SPA.
+
+### Architecture
+- **Renderer:** EJS templates (may migrate to Astro in future)
+- **Content format:** Markdown with YAML frontmatter (renderer-agnostic)
+- **Routes:** Served by Express before SPA catch-all
+
+### Current Routes (Phase 1)
+- `GET /guides` — Index of available guides
+- `GET /guides/:slug` — Individual pillar pages
+- `GET /robots.txt` — Search engine instructions
+- `GET /sitemap.xml` — XML sitemap
+
+### Key Files
+- `/seo/templates/` — EJS layout and page templates
+- `/seo/content/pillars/` — Markdown pillar content
+- `/seo/content/modules/` — Reusable content modules (Phase 3)
+- `/seo/taxonomy/` — JSON taxonomy and page definitions
+- `/server/seoController.ts` — Rendering logic and route handlers
+- `/docs/seo_taxonomy_and_pillars.md` — Full taxonomy specification
+
+### Available Pillars
+1. `/guides/stay-or-go-framework` — The Stay-or-Go Decision Framework
+
+### Quality Thresholds
+- Pillars: 1200+ words, 5+ unique modules
+- Programmatic: 700+ words, 4+ unique modules
+- Max similarity: 0.7
+
 ## Project Documentation
 
 - **RETROSPECTIVE.md** - Comprehensive retrospective covering what went well, what didn't, instructions for future agents, bug prevention checklists, and design patterns. Essential reading before making significant changes.
+- **docs/seo_taxonomy_and_pillars.md** - Complete SEO taxonomy specification, pillar definitions, and content module requirements.
