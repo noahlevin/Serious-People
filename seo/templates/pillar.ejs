@@ -24,4 +24,15 @@
     </ul>
   </section>
   <% } %>
+  
+  <% if (typeof relatedRolePages !== 'undefined' && relatedRolePages.length > 0) { %>
+  <section class="sp-related">
+    <h3>Role-Specific Guidance</h3>
+    <ul>
+      <% relatedRolePages.forEach(function(link) { %>
+      <li><a href="<%= link.href %>"><%= link.title %></a></li>
+      <% }); %>
+    </ul>
+  </section>
+  <% } %>
 </article>

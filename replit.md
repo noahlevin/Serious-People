@@ -77,13 +77,20 @@ The SEO engine generates crawlable HTML pages for organic search traffic, served
 - **Routes:** Served by Express before SPA catch-all
 
 ### Current Routes
+- `GET /resources` — Content hub linking all SEO content
 - `GET /guides` — Index of available guides
 - `GET /guides/:slug` — Individual pillar pages (12 pillars)
 - `GET /roles` — Index of role-specific guidance
 - `GET /roles/:role/situations/:situation` — Programmatic pages (50 pages)
 - `GET /tools/stay-or-go-calculator` — Interactive Stay-or-Go quiz
 - `GET /robots.txt` — Search engine instructions
-- `GET /sitemap.xml` — XML sitemap (66 URLs total)
+- `GET /sitemap.xml` — XML sitemap (67 URLs total)
+
+### Cross-Linking System
+Smart cross-links between pages for SEO and user navigation:
+- **Pillar pages** show: Related Guides (topic-based) + Role-Specific Guidance (situation-matched programmatic pages)
+- **Programmatic pages** show: Related Guides (situation-to-pillar mapping) + Adjacent Pages (same role OR same situation)
+- **Topic clusters**: decision, exit, job-search, internal, survival — used to match related pillars
 
 ### Key Files
 - `/seo/templates/` — EJS layout and page templates

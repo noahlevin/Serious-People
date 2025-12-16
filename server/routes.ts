@@ -4430,6 +4430,7 @@ FORMAT:
   // ==========================================================================
   app.get("/robots.txt", seoController.robots);
   app.get("/sitemap.xml", seoController.sitemap);
+  app.get("/resources", seoController.renderContentHub);
   app.get("/guides", seoController.renderGuidesIndex);
   app.get("/guides/:slug", seoController.renderGuide);
   app.get("/roles", seoController.renderRolesIndex);

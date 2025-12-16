@@ -480,12 +480,76 @@ const ALL_PILLARS = [
   { slug: "toxic-boss-survival-or-exit", title: "Toxic Boss: Survive or Exit?" },
 ];
 
-// Get related links for a pillar (returns other pillars, excluding self)
+// Topic clusters for smart cross-linking (expanded for better coverage)
+const PILLAR_TOPICS: Record<string, string[]> = {
+  "decision": ["stay-or-go-framework", "burnout-vs-misfit-vs-bad-manager", "when-to-use-a-coach", "how-to-evaluate-an-offer-like-an-adult"],
+  "exit": ["how-to-resign-without-burning-bridges", "severance-negotiation-playbook", "how-to-explain-your-departure", "what-to-do-in-the-first-14-days", "layoff-risk-plan"],
+  "job-search": ["executive-job-search-is-different", "how-to-evaluate-an-offer-like-an-adult", "how-to-explain-your-departure", "what-to-do-in-the-first-14-days"],
+  "internal": ["how-to-talk-to-your-boss-about-changing-your-role", "stay-or-go-framework", "when-to-use-a-coach"],
+  "survival": ["toxic-boss-survival-or-exit", "layoff-risk-plan", "burnout-vs-misfit-vs-bad-manager", "severance-negotiation-playbook"],
+  "negotiation": ["severance-negotiation-playbook", "how-to-evaluate-an-offer-like-an-adult", "how-to-talk-to-your-boss-about-changing-your-role"],
+};
+
+// Get topic for a pillar slug
+function getPillarTopics(slug: string): string[] {
+  const topics: string[] = [];
+  for (const [topic, slugs] of Object.entries(PILLAR_TOPICS)) {
+    if (slugs.includes(slug)) {
+      topics.push(topic);
+    }
+  }
+  return topics;
+}
+
+// Get related links for a pillar (smart topic-based, excluding self)
 function getRelatedLinks(currentSlug: string): Array<{ href: string; title: string }> {
-  return ALL_PILLARS
+  const currentTopics = getPillarTopics(currentSlug);
+  
+  // Score pillars by topic overlap
+  const scored = ALL_PILLARS
     .filter(p => p.slug !== currentSlug)
-    .slice(0, 5)
+    .map(p => {
+      const pTopics = getPillarTopics(p.slug);
+      const overlap = currentTopics.filter(t => pTopics.includes(t)).length;
+      return { ...p, score: overlap };
+    })
+    .sort((a, b) => b.score - a.score);
+  
+  // Return top 4 related pillars
+  return scored
+    .slice(0, 4)
     .map(p => ({ href: `/guides/${p.slug}`, title: p.title }));
+}
+
+// Get related programmatic pages for a pillar
+function getRelatedProgrammaticPages(pillarSlug: string): Array<{ href: string; title: string }> {
+  // Map pillars to relevant situations (comprehensive mapping)
+  const pillarToSituations: Record<string, string[]> = {
+    "stay-or-go-framework": ["stay-or-go", "burnout", "internal-pivot"],
+    "burnout-vs-misfit-vs-bad-manager": ["burnout", "bad-manager", "toxic-culture"],
+    "how-to-resign-without-burning-bridges": ["resignation", "severance"],
+    "severance-negotiation-playbook": ["severance", "layoff-risk", "resignation"],
+    "executive-job-search-is-different": ["job-search", "offer-evaluation"],
+    "how-to-explain-your-departure": ["resignation", "job-search", "severance"],
+    "what-to-do-in-the-first-14-days": ["resignation", "severance", "job-search"],
+    "how-to-talk-to-your-boss-about-changing-your-role": ["internal-pivot", "stay-or-go"],
+    "how-to-evaluate-an-offer-like-an-adult": ["offer-evaluation", "job-search"],
+    "when-to-use-a-coach": ["stay-or-go", "burnout", "internal-pivot"],
+    "layoff-risk-plan": ["layoff-risk", "severance", "job-search"],
+    "toxic-boss-survival-or-exit": ["toxic-culture", "bad-manager", "stay-or-go"],
+  };
+  
+  const relevantSituations = pillarToSituations[pillarSlug] || [];
+  if (relevantSituations.length === 0) return [];
+  
+  const allPages = getAllProgrammaticPages();
+  return allPages
+    .filter(p => relevantSituations.includes(p.situation))
+    .slice(0, 3)
+    .map(p => ({
+      href: `/roles/${p.role}/situations/${p.situation}`,
+      title: `${ROLES[p.role]}: ${SITUATIONS[p.situation]}`,
+    }));
 }
 
 // Render a pillar page
@@ -523,8 +587,9 @@ export async function renderGuide(req: Request, res: Response) {
     // Convert markdown to HTML
     const htmlContent = markdownToHtml(expandedMarkdown);
     
-    // Get related links
+    // Get related links (other pillars + role-specific pages)
     const relatedLinks = getRelatedLinks(safeSlug);
+    const relatedRolePages = getRelatedProgrammaticPages(safeSlug);
     
     // Prepare template data
     const canonicalUrl = `${getBaseUrl()}/guides/${safeSlug}`;
@@ -544,6 +609,7 @@ export async function renderGuide(req: Request, res: Response) {
       lede: frontmatter.lede || null,
       content: htmlContent,
       relatedLinks,
+      relatedRolePages,
       canonical: canonicalUrl,
       posthogKey: POSTHOG_KEY,
       pageType: "pillar",
@@ -665,6 +731,7 @@ export function sitemap(_req: Request, res: Response) {
   
   const pages = [
     { loc: "/", priority: "1.0" },
+    { loc: "/resources", priority: "0.9" },
     { loc: "/guides", priority: "0.9" },
     { loc: "/roles", priority: "0.8" },
     { loc: "/tools/stay-or-go-calculator", priority: "0.9" },
@@ -902,4 +969,144 @@ export async function renderStayOrGoCalculator(_req: Request, res: Response) {
     console.error("[SEO] Error rendering Stay-or-Go Calculator:", error);
     res.status(500).send("Error rendering calculator");
   }
+}
+
+// Render the SEO Content Hub page
+export async function renderContentHub(_req: Request, res: Response) {
+  const baseUrl = getBaseUrl();
+  const allPages = getAllProgrammaticPages();
+  
+  // Group programmatic pages by situation for better organization
+  const situationGroups: Record<string, Array<{ role: string; situation: string }>> = {};
+  for (const page of allPages) {
+    if (!situationGroups[page.situation]) {
+      situationGroups[page.situation] = [];
+    }
+    situationGroups[page.situation].push(page);
+  }
+  
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Career Resources Hub | Serious People</title>
+  <meta name="description" content="Complete career coaching resource library. Guides, frameworks, tools, and role-specific advice for executives navigating career transitions.">
+  <link rel="canonical" href="${baseUrl}/resources">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="${baseUrl}/resources">
+  <meta property="og:title" content="Career Resources Hub | Serious People">
+  <meta property="og:description" content="Complete career coaching resource library for executives and senior leaders.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Serif+4:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --sp-bg: #faf9f6;
+      --sp-text: #1a1a1a;
+      --sp-text-secondary: #666;
+      --sp-border: #d4d4d4;
+      --sp-accent: #2a5a3a;
+      --sp-font-display: 'Playfair Display', Georgia, serif;
+      --sp-font-body: 'Source Serif 4', Georgia, serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--sp-font-body); background: var(--sp-bg); color: var(--sp-text); line-height: 1.6; }
+    .header { text-align: center; padding: 1.5rem 1rem; border-bottom: 3px double var(--sp-text); }
+    .header-logo { font-family: var(--sp-font-display); font-size: 1.75rem; font-weight: 700; text-transform: uppercase; text-decoration: none; color: var(--sp-text); }
+    .main { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    h1 { font-family: var(--sp-font-display); font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .intro { color: var(--sp-text-secondary); margin-bottom: 2.5rem; font-size: 1.1rem; }
+    .section { margin-bottom: 3rem; }
+    .section-title { font-family: var(--sp-font-display); font-size: 1.75rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--sp-border); }
+    .section-subtitle { color: var(--sp-text-secondary); margin-bottom: 1rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .card { padding: 1rem; border: 1px solid var(--sp-border); background: #fff; }
+    .card a { font-family: var(--sp-font-display); font-size: 1.1rem; color: var(--sp-text); text-decoration: none; }
+    .card a:hover { text-decoration: underline; }
+    .card-desc { font-size: 0.9rem; color: var(--sp-text-secondary); margin-top: 0.25rem; }
+    .tool-card { background: var(--sp-accent); border-color: var(--sp-accent); }
+    .tool-card a { color: #fff; }
+    .tool-card .card-desc { color: rgba(255,255,255,0.8); }
+    .situation-section { margin-bottom: 1.5rem; }
+    .situation-title { font-family: var(--sp-font-display); font-size: 1.25rem; margin-bottom: 0.5rem; }
+    .role-list { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .role-item a { font-size: 0.9rem; color: var(--sp-text); text-decoration: none; padding: 0.25rem 0.5rem; background: #fff; border: 1px solid var(--sp-border); }
+    .role-item a:hover { background: var(--sp-text); color: var(--sp-bg); }
+    .footer { border-top: 3px double var(--sp-text); padding: 2rem; text-align: center; font-size: 0.8rem; color: var(--sp-text-secondary); }
+    .cta-section { text-align: center; padding: 2rem; background: #fff; border: 2px solid var(--sp-text); margin: 2rem 0; }
+    .cta-section h3 { font-family: var(--sp-font-display); margin-bottom: 0.5rem; }
+    .cta-button { display: inline-block; margin-top: 1rem; padding: 0.75rem 2rem; background: var(--sp-text); color: var(--sp-bg); text-decoration: none; font-family: var(--sp-font-body); }
+    .cta-button:hover { background: var(--sp-accent); }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <a href="/" class="header-logo">Serious People</a>
+  </header>
+  <main class="main">
+    <h1>Career Resources Hub</h1>
+    <p class="intro">Everything you need to navigate serious career decisions. Frameworks, scripts, and practical guidance—no fluff.</p>
+    
+    <!-- Interactive Tools -->
+    <section class="section">
+      <h2 class="section-title">Interactive Tools</h2>
+      <p class="section-subtitle">Quick assessments to clarify your thinking</p>
+      <div class="grid">
+        <div class="card tool-card">
+          <a href="/tools/stay-or-go-calculator">Stay-or-Go Calculator</a>
+          <p class="card-desc">A 2-minute quiz to help you decide whether to stay or leave</p>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Career Guides (Pillars) -->
+    <section class="section">
+      <h2 class="section-title">Career Guides</h2>
+      <p class="section-subtitle">In-depth frameworks for major career decisions</p>
+      <div class="grid">
+        ${ALL_PILLARS.map(p => `
+          <div class="card">
+            <a href="/guides/${p.slug}">${p.title}</a>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+    
+    <!-- Role-Specific Guidance -->
+    <section class="section">
+      <h2 class="section-title">Role-Specific Guidance</h2>
+      <p class="section-subtitle">Tailored advice for your role and situation</p>
+      ${Object.entries(situationGroups).map(([situation, pages]) => `
+        <div class="situation-section">
+          <h3 class="situation-title">${SITUATIONS[situation]}</h3>
+          <ul class="role-list">
+            ${pages.map(p => `
+              <li class="role-item">
+                <a href="/roles/${p.role}/situations/${p.situation}">${ROLES[p.role]}</a>
+              </li>
+            `).join("")}
+          </ul>
+        </div>
+      `).join("")}
+    </section>
+    
+    <!-- CTA -->
+    <div class="cta-section">
+      <h3>Ready for Personalized Guidance?</h3>
+      <p>Get a clear recommendation, conversation scripts, and a 14-day action plan.</p>
+      <a href="/interview" class="cta-button" data-testid="cta-start-session">Start Your Free Session</a>
+    </div>
+  </main>
+  <footer class="footer">
+    <p>&copy; ${new Date().getFullYear()} Serious People</p>
+  </footer>
+  ${getPostHogScript("hub", "resources", "Career Resources Hub")}
+</body>
+</html>
+  `;
+  
+  res.set("Content-Type", "text/html");
+  res.send(html);
 }
