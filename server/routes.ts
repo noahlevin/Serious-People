@@ -1841,7 +1841,10 @@ COMMUNICATION STYLE:
   app.get("/auth/google", (req, res, next) => {
     // Store promo code and base path in session before OAuth redirect
     const promoCode = req.query.promo as string | undefined;
-    const basePath = sanitizeBasePath(req.query.basePath as string | undefined);
+    const rawBasePath = req.query.basePath as string | undefined;
+    const basePath = sanitizeBasePath(rawBasePath);
+    
+    console.log(`[Google OAuth Start] rawBasePath="${rawBasePath}" sanitizedBasePath="${basePath}" sessionId=${req.sessionID}`);
     
     // Always store basePath (even if empty) to ensure consistent redirect behavior
     (req.session as any).pendingBasePath = basePath;
@@ -1851,6 +1854,7 @@ COMMUNICATION STYLE:
     
     req.session.save((err) => {
       if (err) console.error("Session save error for OAuth context:", err);
+      console.log(`[Google OAuth Start] Session saved with pendingBasePath="${(req.session as any).pendingBasePath}"`);
       passport.authenticate("google", { scope: ["email", "profile"] })(
         req,
         res,
@@ -1865,6 +1869,7 @@ COMMUNICATION STYLE:
     (req, res, next) => {
       // Get the stored base path for failure redirect
       const basePath = (req.session as any).pendingBasePath || "";
+      console.log(`[Google OAuth Callback] Auth middleware - pendingBasePath="${basePath}" sessionId=${req.sessionID}`);
       passport.authenticate("google", {
         failureRedirect: `${basePath}/login?error=google_auth_failed`,
       })(req, res, next);
@@ -1872,6 +1877,7 @@ COMMUNICATION STYLE:
     async (req, res) => {
       // Get the stored base path for redirects
       const basePath = (req.session as any).pendingBasePath || "";
+      console.log(`[Google OAuth Callback] Success handler - pendingBasePath="${basePath}" redirectTo="${basePath}/prepare" sessionId=${req.sessionID}`);
       
       // Check if there's a pending promo code to save
       const promoCode = (req.session as any).pendingPromoCode;
