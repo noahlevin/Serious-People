@@ -1,0 +1,220 @@
+You are working inside this repo. Your job is to output a complete Lovable Design Handoff Pack so a separate AI design/build tool (Lovable) can redesign the entire front-end without having access to logged-in pages.
+
+Constraints:
+
+You MUST touch every part of the front-end: landing page, marketing pages, SEO/programmatic content pages, auth pages, and all in-app pages (including logged-in-only routes).
+
+Lovable can browse the web to see public pages, but cannot log in or interact with the authenticated app.
+
+Therefore you must fully describe authenticated pages, states, and data requirements from the codebase.
+
+Do NOT actually change code. Only inspect and document.
+
+Output must be a single markdown document with clear headings and code excerpts only where necessary.
+
+Deliverable format: create a file named LOVABLE_HANDOFF.md in the repo root.
+
+In LOVABLE_HANDOFF.md, include the following sections with real, repo-specific details:
+
+Executive summary
+
+What the app is (1–2 paragraphs), who it’s for, and the primary user journey.
+
+What “design overhaul” means here (scope + what must not change functionally).
+
+Tech stack + rendering model
+
+Framework (Next.js/React/etc.), router type, SSR/SSG usage, styling system (Tailwind/CSS modules/etc.), component library (if any).
+
+Where the “frontend boundary” is (what’s considered UI vs backend).
+
+How environment variables affect UI.
+
+Navigation + Information architecture
+
+A complete sitemap table of ALL routes:
+
+Route path
+
+Public vs auth-required
+
+Page purpose
+
+Primary components used
+
+Data dependencies (API calls, server props, etc.)
+
+Key page states (empty/loading/error/success)
+
+Include both marketing + app routes.
+
+Design inventory (current UI surface audit)
+For each page/route group, document:
+
+Layout pattern (header/footer/sidebar)
+
+Typography hierarchy used
+
+Button/link styles
+
+Form patterns
+
+Card/table patterns
+
+Modal/drawer usage
+
+Alert/toast usage
+
+Empty states
+
+Error states
+
+Loading states (spinners/skeletons)
+
+Component catalog (source-of-truth list)
+
+List every reusable component (or every component directory) with:
+
+Component name
+
+File path
+
+Purpose
+
+Props (summarize)
+
+Variants/states
+
+Where it’s used (routes)
+
+Also list shared design tokens if present (colors, spacing, breakpoints).
+
+Auth + logged-in page simulation plan (critical)
+Since Lovable can’t log in, you must document:
+
+Auth flow screens and logic (login, magic link, callback, logout)
+
+Post-login “home” route and what it shows
+
+Any role-based UI differences
+
+All logged-in routes and their intended UI
+
+Provide “state snapshots” for each logged-in page:
+
+Example data shapes (JSON) the UI expects
+
+Screens: first-time user, typical user, power user
+
+Edge cases: no data, partial data, errors
+
+Data contract: frontend ↔ API
+
+Enumerate all endpoints the frontend calls (or all server actions), with:
+
+Method + path
+
+Auth requirements
+
+Request shape (example)
+
+Response shape (example)
+
+Common error responses
+
+Include any client-side caching/query library usage.
+
+SEO + programmatic content requirements
+
+Explain how SEO pages are generated today (routes, templates, content sources).
+
+List all indexable pages + canonical rules.
+
+Metadata strategy (title/description/open graph), including where code is.
+
+Sitemap generation (if any).
+
+Robots rules (if any).
+
+Structured data (JSON-LD) usage (if any).
+
+Internal linking patterns that must be preserved.
+
+Copy + content map
+
+Inventory of major copy blocks (hero, value props, FAQs, pricing, onboarding).
+
+Where copy lives (hardcoded vs CMS/markdown/db).
+
+Any content constraints (must keep exact wording for legal/pricing, etc.).
+
+Analytics + tracking hooks
+
+What analytics exists (if any), where events are fired, and “must not break” selectors/attributes.
+
+Any A/B testing hooks.
+
+Accessibility + responsiveness
+
+Current breakpoints/responsive patterns.
+
+Known a11y constraints (keyboard nav, focus states, color contrast).
+
+Required semantic structure for SEO/a11y.
+
+Non-goals + “do not break” list
+
+URLs must remain stable (unless explicitly listed otherwise).
+
+Auth/session must keep working.
+
+Payments/pricing pages must keep working.
+
+Any integration points that are fragile.
+
+A “Lovable-ready” design brief (what to build)
+Write a concise spec Lovable can execute:
+
+Desired vibe (adjectives)
+
+Visual references (leave placeholders like “[provide 3 links]”)
+
+Layout principles
+
+Component principles
+
+Motion/interaction principles
+
+What to standardize (buttons/forms/cards/tables)
+
+What to improve most (top 10 UI problems observed in repo)
+
+Appendix
+
+Any relevant file tree snippets:
+
+/pages or /app router structure
+
+/components
+
+/styles
+
+/public
+
+/seo or content directories
+
+Include minimal code excerpts only when necessary to show data shapes or routing logic.
+
+Implementation notes for you (Replit Agent):
+
+You must actually scan the repo to populate this with accurate paths and routes. Don’t invent.
+
+If a route is dynamic, list the pattern and examples.
+
+If you find TODOs/placeholder components, flag them.
+
+If content is behind auth, infer UI expectations by reading components and describing them.
+
+Keep it tight but complete—this is a handoff document for a builder AI.
+
+Now generate LOVABLE_HANDOFF.md with all required sections filled in with repo-specific details.
