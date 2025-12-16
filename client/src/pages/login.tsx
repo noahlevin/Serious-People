@@ -50,9 +50,12 @@ export default function Login() {
     mutationFn: async (email: string) => {
       // Get promo code from sessionStorage (captured from landing page URL)
       const promoCode = sessionStorage.getItem('sp_promo_code');
+      // Detect if running at /app base path
+      const basePath = window.location.pathname.startsWith('/app') ? '/app' : '';
       const response = await apiRequest("POST", "/auth/magic/start", { 
         email,
         promoCode: promoCode || undefined,
+        basePath: basePath || undefined,
       });
       return response.json();
     },
@@ -67,9 +70,14 @@ export default function Login() {
   };
   
   const handleGoogleLogin = () => {
-    // Pass promo code to Google OAuth flow via query parameter
+    // Pass promo code and base path to Google OAuth flow via query parameters
     const promoCode = sessionStorage.getItem('sp_promo_code');
-    const url = promoCode ? `/auth/google?promo=${encodeURIComponent(promoCode)}` : '/auth/google';
+    const basePath = window.location.pathname.startsWith('/app') ? '/app' : '';
+    const params = new URLSearchParams();
+    if (promoCode) params.set('promo', promoCode);
+    if (basePath) params.set('basePath', basePath);
+    const queryString = params.toString();
+    const url = queryString ? `/auth/google?${queryString}` : '/auth/google';
     window.location.href = url;
   };
 

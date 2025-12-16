@@ -1797,36 +1797,82 @@ COMMUNICATION STYLE:
     }
   });
 
+  // Sanitize basePath to prevent open redirect attacks
+  // Only allow empty string or paths starting with "/" that are safe internal paths
+  function sanitizeBasePath(basePath: string | undefined): string {
+    if (!basePath) return "";
+    
+    // Trim whitespace
+    let sanitized = basePath.trim();
+    
+    // Decode URL-encoded characters to catch encoded attacks
+    try {
+      sanitized = decodeURIComponent(sanitized);
+    } catch {
+      return ""; // Invalid encoding, reject
+    }
+    
+    // Reject if empty after processing
+    if (!sanitized) return "";
+    
+    // Must start with exactly one "/" and contain only safe characters
+    // Allow: /app, /app-v2, /app_v2, /my-app (alphanumeric, dash, underscore after leading /)
+    if (!/^\/[a-zA-Z0-9-_]+$/.test(sanitized)) {
+      // Special case: allow exactly "/" (root path) - but we don't want that, so reject
+      return "";
+    }
+    
+    // Extra safety checks - reject dangerous patterns
+    if (
+      sanitized.includes("://") ||    // Protocol
+      sanitized.includes("//") ||     // Double slashes
+      sanitized.includes("..") ||     // Path traversal
+      sanitized.includes("\\") ||     // Backslashes
+      sanitized.includes("@") ||      // Potential URL authority
+      sanitized.includes("%")         // Still has encoded chars after decode
+    ) {
+      return "";
+    }
+    
+    return sanitized;
+  }
+
   // GET /auth/google - Start Google OAuth flow
   app.get("/auth/google", (req, res, next) => {
-    // Store promo code in session before OAuth redirect
+    // Store promo code and base path in session before OAuth redirect
     const promoCode = req.query.promo as string | undefined;
+    const basePath = sanitizeBasePath(req.query.basePath as string | undefined);
+    
+    // Always store basePath (even if empty) to ensure consistent redirect behavior
+    (req.session as any).pendingBasePath = basePath;
     if (promoCode) {
       (req.session as any).pendingPromoCode = promoCode;
-      req.session.save((err) => {
-        if (err) console.error("Session save error for promo code:", err);
-        passport.authenticate("google", { scope: ["email", "profile"] })(
-          req,
-          res,
-          next,
-        );
-      });
-    } else {
+    }
+    
+    req.session.save((err) => {
+      if (err) console.error("Session save error for OAuth context:", err);
       passport.authenticate("google", { scope: ["email", "profile"] })(
         req,
         res,
         next,
       );
-    }
+    });
   });
 
   // GET /auth/google/callback - Google OAuth callback
   app.get(
     "/auth/google/callback",
-    passport.authenticate("google", {
-      failureRedirect: "/login?error=google_auth_failed",
-    }),
+    (req, res, next) => {
+      // Get the stored base path for failure redirect
+      const basePath = (req.session as any).pendingBasePath || "";
+      passport.authenticate("google", {
+        failureRedirect: `${basePath}/login?error=google_auth_failed`,
+      })(req, res, next);
+    },
     async (req, res) => {
+      // Get the stored base path for redirects
+      const basePath = (req.session as any).pendingBasePath || "";
+      
       // Check if there's a pending promo code to save
       const promoCode = (req.session as any).pendingPromoCode;
       if (promoCode && req.user) {
@@ -1841,13 +1887,16 @@ COMMUNICATION STYLE:
         }
         delete (req.session as any).pendingPromoCode;
       }
+      
+      // Clean up session data
+      delete (req.session as any).pendingBasePath;
 
       // Ensure session is saved before redirect (prevents race condition)
       req.session.save((err) => {
         if (err) {
           console.error("[Google callback] Session save error:", err);
         }
-        res.redirect("/prepare");
+        res.redirect(`${basePath}/prepare`);
       });
     },
   );
@@ -1855,7 +1904,7 @@ COMMUNICATION STYLE:
   // POST /auth/magic/start - Request magic link email
   app.post("/auth/magic/start", async (req, res) => {
     try {
-      const { email, promoCode } = req.body;
+      const { email, promoCode, basePath } = req.body;
 
       if (!email || typeof email !== "string") {
         return res.status(400).json({ error: "Email is required" });
@@ -1880,9 +1929,10 @@ COMMUNICATION STYLE:
         expiresAt,
       });
 
-      // Send email with magic link
+      // Send email with magic link (include basePath as query param for redirect after verification)
       const baseUrl = getBaseUrl();
-      const magicLinkUrl = `${baseUrl}/auth/magic/verify?token=${token}`;
+      const basePathParam = basePath ? `&basePath=${encodeURIComponent(basePath)}` : "";
+      const magicLinkUrl = `${baseUrl}/auth/magic/verify?token=${token}${basePathParam}`;
 
       const result = await sendMagicLinkEmail(email, magicLinkUrl);
 
@@ -1908,17 +1958,18 @@ COMMUNICATION STYLE:
   // GET /auth/magic/verify - Verify magic link and log in
   app.get("/auth/magic/verify", async (req, res) => {
     try {
-      const { token } = req.query;
+      const { token, basePath: basePathParam } = req.query;
+      const basePath = sanitizeBasePath(typeof basePathParam === "string" ? basePathParam : "");
 
       if (!token || typeof token !== "string") {
-        return res.redirect("/login?error=invalid_token");
+        return res.redirect(`${basePath}/login?error=invalid_token`);
       }
 
       const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
       const magicToken = await storage.getMagicLinkToken(tokenHash);
 
       if (!magicToken) {
-        return res.redirect("/login?error=expired_token");
+        return res.redirect(`${basePath}/login?error=expired_token`);
       }
 
       // Mark token as used
@@ -1952,20 +2003,21 @@ COMMUNICATION STYLE:
         (err) => {
           if (err) {
             console.error("Login error:", err);
-            return res.redirect("/login?error=login_failed");
+            return res.redirect(`${basePath}/login?error=login_failed`);
           }
           // Ensure session is saved before redirect (prevents race condition)
           req.session.save((saveErr) => {
             if (saveErr) {
               console.error("Session save error:", saveErr);
             }
-            res.redirect("/prepare");
+            res.redirect(`${basePath}/prepare`);
           });
         },
       );
     } catch (error: any) {
       console.error("Magic link verify error:", error);
-      res.redirect("/login?error=verification_failed");
+      const basePath = sanitizeBasePath(typeof req.query.basePath === "string" ? req.query.basePath : "");
+      res.redirect(`${basePath}/login?error=verification_failed`);
     }
   });
 
@@ -2089,7 +2141,10 @@ COMMUNICATION STYLE:
       const stripe = await getStripeClient();
       const priceId = await getProductPrice();
       const baseUrl = getBaseUrl();
-      const { promoCode: sessionPromoCode } = req.body || {};
+      const { promoCode: sessionPromoCode, basePath: clientBasePath } = req.body || {};
+      
+      // Use the base path from the client to maintain /app routing (sanitized for security)
+      const basePath = sanitizeBasePath(clientBasePath);
 
       // Get the price to check currency
       const price = await stripe.prices.retrieve(priceId);
@@ -2116,7 +2171,7 @@ COMMUNICATION STYLE:
         console.log(`Using session promo code: ${promoCode}`);
       }
 
-      // Build checkout session options
+      // Build checkout session options with base path for /app routing
       const sessionOptions: any = {
         mode: "payment",
         line_items: [
@@ -2125,8 +2180,8 @@ COMMUNICATION STYLE:
             quantity: 1,
           },
         ],
-        success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/interview`,
+        success_url: `${baseUrl}${basePath}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}${basePath}/interview`,
       };
 
       // If a promo code was found (from DB or session), look it up and apply it

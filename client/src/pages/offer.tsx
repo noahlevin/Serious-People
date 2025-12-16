@@ -212,10 +212,16 @@ export default function Offer() {
         promoCode = sessionStorage.getItem('sp_promo_code');
       }
 
+      // Detect if running at /app base path for Stripe redirect URLs
+      const basePath = window.location.pathname.startsWith('/app') ? '/app' : '';
+      
       const response = await fetch("/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ promoCode: promoCode || undefined }),
+        body: JSON.stringify({ 
+          promoCode: promoCode || undefined,
+          basePath: basePath || undefined,
+        }),
       });
 
       const data = await response.json();
