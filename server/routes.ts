@@ -1867,20 +1867,22 @@ COMMUNICATION STYLE:
   app.get(
     "/auth/google/callback",
     (req, res, next) => {
-      // Get the stored base path for failure redirect
+      // Get the stored base path and promo code BEFORE passport auth (which regenerates session)
+      // Store them on req object to survive session regeneration
       const basePath = (req.session as any).pendingBasePath || "";
+      const promoCode = (req.session as any).pendingPromoCode || "";
+      (req as any)._pendingBasePath = basePath;
+      (req as any)._pendingPromoCode = promoCode;
       console.log(`[Google OAuth Callback] Auth middleware - pendingBasePath="${basePath}" sessionId=${req.sessionID}`);
       passport.authenticate("google", {
         failureRedirect: `${basePath}/login?error=google_auth_failed`,
       })(req, res, next);
     },
     async (req, res) => {
-      // Get the stored base path for redirects
-      const basePath = (req.session as any).pendingBasePath || "";
-      console.log(`[Google OAuth Callback] Success handler - pendingBasePath="${basePath}" redirectTo="${basePath}/prepare" sessionId=${req.sessionID}`);
-      
-      // Check if there's a pending promo code to save
-      const promoCode = (req.session as any).pendingPromoCode;
+      // Get base path from req object (survives session regeneration)
+      const basePath = (req as any)._pendingBasePath || "";
+      const promoCode = (req as any)._pendingPromoCode || "";
+      console.log(`[Google OAuth Callback] Success handler - basePath="${basePath}" redirectTo="${basePath}/prepare" sessionId=${req.sessionID}`);
       if (promoCode && req.user) {
         const user = req.user as any;
         // Get full user record to check if they already have a promo code
