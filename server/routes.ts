@@ -4432,6 +4432,8 @@ FORMAT:
   app.get("/sitemap.xml", seoController.sitemap);
   app.get("/guides", seoController.renderGuidesIndex);
   app.get("/guides/:slug", seoController.renderGuide);
+  app.get("/roles", seoController.renderRolesIndex);
+  app.get("/roles/:role/situations/:situation", seoController.renderProgrammaticPage);
 
   return httpServer;
 }

@@ -76,19 +76,28 @@ The SEO engine generates crawlable HTML pages for organic search traffic, served
 - **Content format:** Markdown with YAML frontmatter (renderer-agnostic)
 - **Routes:** Served by Express before SPA catch-all
 
-### Current Routes (Phase 1)
+### Current Routes
 - `GET /guides` — Index of available guides
-- `GET /guides/:slug` — Individual pillar pages
+- `GET /guides/:slug` — Individual pillar pages (12 pillars)
+- `GET /roles` — Index of role-specific guidance
+- `GET /roles/:role/situations/:situation` — Programmatic pages (50 pages)
 - `GET /robots.txt` — Search engine instructions
-- `GET /sitemap.xml` — XML sitemap
+- `GET /sitemap.xml` — XML sitemap (65 URLs total)
 
 ### Key Files
 - `/seo/templates/` — EJS layout and page templates
 - `/seo/content/pillars/` — Markdown pillar content
-- `/seo/content/modules/` — Reusable content modules (Phase 3)
-- `/seo/taxonomy/` — JSON taxonomy and page definitions
+- `/seo/content/modules/` — Reusable content modules
+- `/seo/content/programmatic/` — Content for programmatic pages (frameworks, mistakes, vignettes, walkaway)
 - `/server/seoController.ts` — Rendering logic and route handlers
 - `/docs/seo_taxonomy_and_pillars.md` — Full taxonomy specification
+
+### Programmatic Pages (50 total)
+Role + situation combinations for targeted SEO. Pages are composed from reusable content modules:
+- **Roles:** VP Product, Director of Product, Director of Engineering, Engineering Manager, Ops Leader, Founder
+- **Situations:** Stay or Go, Burnout, Bad Manager, Toxic Culture, Severance, Internal Pivot, Job Search, Offer Evaluation, Resignation, Layoff Risk
+- **Page Structure:** Framework → Mistakes → Vignette → Walkaway → CTA
+- **Quality Threshold:** 700+ words (pages below threshold get noindex)
 
 ### Available Pillars (12 total)
 1. `/guides/stay-or-go-framework` — The Stay-or-Go Decision Framework

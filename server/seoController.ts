@@ -160,6 +160,175 @@ function parseFrontmatter(content: string): { data: Record<string, string>; cont
 const templatesDir = path.resolve(process.cwd(), "seo/templates");
 const pillarsDir = path.resolve(process.cwd(), "seo/content/pillars");
 const modulesDir = path.resolve(process.cwd(), "seo/content/modules");
+const programmaticDir = path.resolve(process.cwd(), "seo/content/programmatic");
+
+// Taxonomy for programmatic pages
+const ROLES: Record<string, string> = {
+  "vp-product": "VP Product",
+  "director-product": "Director of Product",
+  "product-manager": "Product Manager",
+  "director-engineering": "Director of Engineering",
+  "engineering-manager": "Engineering Manager",
+  "ops-leader": "Operations Leader",
+  "gm": "General Manager",
+  "founder": "Founder",
+};
+
+const SITUATIONS: Record<string, string> = {
+  "stay-or-go": "Stay or Go",
+  "burnout": "Burnout",
+  "bad-manager": "Bad Manager",
+  "toxic-culture": "Toxic Culture",
+  "severance": "Severance",
+  "internal-pivot": "Internal Pivot",
+  "job-search": "Job Search",
+  "offer-evaluation": "Offer Evaluation",
+  "resignation": "Resignation",
+  "layoff-risk": "Layoff Risk",
+};
+
+// Map roles to vignette files
+const ROLE_VIGNETTES: Record<string, string> = {
+  "vp-product": "vp-product",
+  "director-product": "director-product",
+  "product-manager": "director-product", // share with director
+  "director-engineering": "engineering-leader",
+  "engineering-manager": "engineering-leader",
+  "ops-leader": "ops-leader",
+  "gm": "ops-leader", // share with ops
+  "founder": "founder",
+};
+
+// Map roles to mistakes files
+const ROLE_MISTAKES: Record<string, string> = {
+  "vp-product": "product-leadership",
+  "director-product": "product-leadership",
+  "product-manager": "product-leadership",
+  "director-engineering": "engineering-leadership",
+  "engineering-manager": "engineering-leadership",
+  "ops-leader": "ops-leadership",
+  "gm": "ops-leadership",
+  "founder": "founder-exec",
+};
+
+// Map situations to relevant pillar links
+const SITUATION_PILLARS: Record<string, string[]> = {
+  "stay-or-go": ["stay-or-go-framework", "burnout-vs-misfit-vs-bad-manager"],
+  "burnout": ["burnout-vs-misfit-vs-bad-manager", "stay-or-go-framework"],
+  "bad-manager": ["toxic-boss-survival-or-exit", "stay-or-go-framework"],
+  "toxic-culture": ["toxic-boss-survival-or-exit", "stay-or-go-framework"],
+  "severance": ["severance-negotiation-playbook", "what-to-do-in-the-first-14-days"],
+  "internal-pivot": ["how-to-talk-to-your-boss-about-changing-your-role", "stay-or-go-framework"],
+  "job-search": ["executive-job-search-is-different", "how-to-explain-your-departure"],
+  "offer-evaluation": ["how-to-evaluate-an-offer-like-an-adult", "executive-job-search-is-different"],
+  "resignation": ["how-to-resign-without-burning-bridges", "what-to-do-in-the-first-14-days"],
+  "layoff-risk": ["layoff-risk-plan", "severance-negotiation-playbook"],
+};
+
+// Get all programmatic pages for sitemap
+function getAllProgrammaticPages(): Array<{ role: string; situation: string }> {
+  const pages: Array<{ role: string; situation: string }> = [];
+  
+  // Based on the spec, generate pages for specific combinations
+  const rolePages: Record<string, string[]> = {
+    "vp-product": ["stay-or-go", "burnout", "bad-manager", "toxic-culture", "severance", "internal-pivot", "job-search", "offer-evaluation", "resignation", "layoff-risk"],
+    "director-product": ["stay-or-go", "burnout", "bad-manager", "toxic-culture", "severance", "internal-pivot", "job-search", "offer-evaluation", "resignation", "layoff-risk"],
+    "director-engineering": ["stay-or-go", "burnout", "bad-manager", "toxic-culture", "severance", "internal-pivot", "job-search", "offer-evaluation", "resignation", "layoff-risk"],
+    "engineering-manager": ["stay-or-go", "burnout", "bad-manager", "toxic-culture", "internal-pivot", "job-search", "offer-evaluation", "resignation"],
+    "ops-leader": ["stay-or-go", "burnout", "bad-manager", "toxic-culture", "internal-pivot", "job-search", "offer-evaluation", "resignation"],
+    "founder": ["burnout", "stay-or-go", "toxic-culture", "internal-pivot"],
+  };
+  
+  for (const [role, situations] of Object.entries(rolePages)) {
+    for (const situation of situations) {
+      pages.push({ role, situation });
+    }
+  }
+  
+  return pages;
+}
+
+// Cache for programmatic content
+const programmaticCache: Record<string, string> = {};
+
+// Load a programmatic content file
+function loadProgrammaticContent(type: string, name: string): string {
+  const cacheKey = `${type}/${name}`;
+  if (programmaticCache[cacheKey]) {
+    return programmaticCache[cacheKey];
+  }
+  
+  const filePath = path.join(programmaticDir, type, `${name}.md`);
+  if (!fs.existsSync(filePath)) {
+    console.warn(`[SEO] Programmatic content not found: ${cacheKey}`);
+    return "";
+  }
+  
+  const rawContent = fs.readFileSync(filePath, "utf-8");
+  const { content } = parseFrontmatter(rawContent);
+  programmaticCache[cacheKey] = content;
+  return content;
+}
+
+// Select framework variant based on stable hash
+function selectVariant(slug: string, maxVariants: number): number {
+  let hash = 0;
+  for (let i = 0; i < slug.length; i++) {
+    hash = ((hash << 5) - hash) + slug.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return (Math.abs(hash) % maxVariants) + 1;
+}
+
+// Compose a programmatic page from modules
+function composeProgrammaticPage(role: string, situation: string): { content: string; wordCount: number } {
+  const sections: string[] = [];
+  
+  // 1. Framework section (select variant deterministically)
+  const variant = selectVariant(`${role}-${situation}`, 2);
+  let framework = loadProgrammaticContent("frameworks", `${situation}-v${variant}`);
+  if (!framework) {
+    framework = loadProgrammaticContent("frameworks", `${situation}-v1`);
+  }
+  if (framework) {
+    sections.push(framework);
+  }
+  
+  // 2. Mistakes section (role-specific)
+  const mistakesFile = ROLE_MISTAKES[role];
+  if (mistakesFile) {
+    const mistakes = loadProgrammaticContent("mistakes", mistakesFile);
+    if (mistakes) {
+      sections.push(mistakes);
+    }
+  }
+  
+  // 3. Vignette section (role cluster)
+  const vignetteFile = ROLE_VIGNETTES[role];
+  if (vignetteFile) {
+    const vignette = loadProgrammaticContent("vignettes", vignetteFile);
+    if (vignette) {
+      sections.push(vignette);
+    }
+  }
+  
+  // 4. Walkaway section
+  const walkaway = loadProgrammaticContent("walkaway", "default");
+  if (walkaway) {
+    sections.push(walkaway);
+  }
+  
+  // 5. CTA
+  const cta = loadModule("cta-coaching");
+  if (cta && !cta.includes("Module not found")) {
+    sections.push(cta);
+  }
+  
+  const content = sections.join("\n\n---\n\n");
+  const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+  
+  return { content, wordCount };
+}
 
 // Load and cache modules
 const moduleCache: Record<string, string> = {};
@@ -368,11 +537,15 @@ Sitemap: ${baseUrl}/sitemap.xml
 export function sitemap(_req: Request, res: Response) {
   const baseUrl = getBaseUrl();
   
-  // Static pages and all pillars
+  // Static pages, pillars, and programmatic pages
+  const programmaticPages = getAllProgrammaticPages();
+  
   const pages = [
     { loc: "/", priority: "1.0" },
     { loc: "/guides", priority: "0.9" },
+    { loc: "/roles", priority: "0.8" },
     ...ALL_PILLARS.map(p => ({ loc: `/guides/${p.slug}`, priority: "0.8" })),
+    ...programmaticPages.map(p => ({ loc: `/roles/${p.role}/situations/${p.situation}`, priority: "0.6" })),
   ];
   
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -385,4 +558,176 @@ ${pages.map((p) => `  <url>
   
   res.set("Content-Type", "application/xml");
   res.send(xml);
+}
+
+// Render a programmatic page
+export async function renderProgrammaticPage(req: Request, res: Response) {
+  const { role, situation } = req.params;
+  
+  // Validate role and situation
+  if (!ROLES[role] || !SITUATIONS[situation]) {
+    return res.status(404).send(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>Page Not Found | Serious People</title></head>
+      <body style="font-family: Georgia, serif; max-width: 600px; margin: 4rem auto; text-align: center;">
+        <h1>Page Not Found</h1>
+        <p>The page you're looking for doesn't exist.</p>
+        <p><a href="/roles">Browse all roles</a> or <a href="/guides">view our guides</a>.</p>
+      </body>
+      </html>
+    `);
+  }
+  
+  try {
+    const roleLabel = ROLES[role];
+    const situationLabel = SITUATIONS[situation];
+    
+    // Compose the page content
+    const { content: markdown, wordCount } = composeProgrammaticPage(role, situation);
+    
+    // Convert to HTML
+    const htmlContent = markdownToHtml(markdown);
+    
+    // Get related pillar links
+    const pillarSlugs = SITUATION_PILLARS[situation] || [];
+    const relatedLinks = pillarSlugs.map(slug => {
+      const pillar = ALL_PILLARS.find(p => p.slug === slug);
+      return pillar ? { href: `/guides/${slug}`, title: pillar.title } : null;
+    }).filter(Boolean) as Array<{ href: string; title: string }>;
+    
+    // Get adjacent pages (same role, different situations OR same situation, different roles)
+    const allPages = getAllProgrammaticPages();
+    const adjacentPages = allPages
+      .filter(p => (p.role === role && p.situation !== situation) || (p.situation === situation && p.role !== role))
+      .slice(0, 4)
+      .map(p => ({
+        href: `/roles/${p.role}/situations/${p.situation}`,
+        title: `${ROLES[p.role]}: ${SITUATIONS[p.situation]}`,
+      }));
+    
+    // Title patterns
+    const title = `${situationLabel} for ${roleLabel}: A Practical Framework`;
+    const description = `A no-fluff guide to ${situationLabel.toLowerCase()} for ${roleLabel}—framework, common mistakes, examples, and scripts. Includes a 14-day plan and a clear next step.`;
+    const lede = `Practical guidance for ${roleLabel} professionals facing ${situationLabel.toLowerCase()} situations.`;
+    
+    // Check quality threshold (700 words minimum for programmatic)
+    const shouldIndex = wordCount >= 700;
+    
+    // Prepare template data
+    const templateData = {
+      title,
+      description,
+      lede,
+      content: htmlContent,
+      relatedLinks,
+      adjacentPages,
+      canonical: `${getBaseUrl()}/roles/${role}/situations/${situation}`,
+      noindex: !shouldIndex,
+    };
+    
+    // Render the programmatic template
+    const programmaticTemplatePath = path.join(templatesDir, "programmatic.ejs");
+    const pageHtml = await ejs.renderFile(programmaticTemplatePath, templateData);
+    
+    // Render the layout with the page content
+    const layoutTemplatePath = path.join(templatesDir, "layout.ejs");
+    const fullHtml = await ejs.renderFile(layoutTemplatePath, {
+      ...templateData,
+      body: pageHtml,
+    });
+    
+    res.set("Content-Type", "text/html");
+    res.send(fullHtml);
+  } catch (error) {
+    console.error(`[SEO] Error rendering programmatic page ${role}/${situation}:`, error);
+    res.status(500).send("Error rendering page");
+  }
+}
+
+// Render the roles index page
+export async function renderRolesIndex(_req: Request, res: Response) {
+  const baseUrl = getBaseUrl();
+  
+  const allPages = getAllProgrammaticPages();
+  
+  // Group by role
+  const roleGroups: Record<string, string[]> = {};
+  for (const page of allPages) {
+    if (!roleGroups[page.role]) {
+      roleGroups[page.role] = [];
+    }
+    roleGroups[page.role].push(page.situation);
+  }
+  
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Career Guidance by Role | Serious People</title>
+  <meta name="description" content="Role-specific career guidance for executives and senior leaders. Practical frameworks for every situation.">
+  <link rel="canonical" href="${baseUrl}/roles">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="${baseUrl}/roles">
+  <meta property="og:title" content="Career Guidance by Role | Serious People">
+  <meta property="og:description" content="Role-specific career guidance for executives and senior leaders.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Serif+4:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --sp-bg: #faf9f6;
+      --sp-text: #1a1a1a;
+      --sp-text-secondary: #666;
+      --sp-border: #d4d4d4;
+      --sp-font-display: 'Playfair Display', Georgia, serif;
+      --sp-font-body: 'Source Serif 4', Georgia, serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--sp-font-body); background: var(--sp-bg); color: var(--sp-text); line-height: 1.6; }
+    .header { text-align: center; padding: 1.5rem 1rem; border-bottom: 3px double var(--sp-text); }
+    .header-logo { font-family: var(--sp-font-display); font-size: 1.75rem; font-weight: 700; text-transform: uppercase; text-decoration: none; color: var(--sp-text); }
+    .main { max-width: 680px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    h1 { font-family: var(--sp-font-display); font-size: 2.5rem; margin-bottom: 1rem; }
+    .intro { color: var(--sp-text-secondary); margin-bottom: 2rem; }
+    .role-section { margin-bottom: 2rem; }
+    .role-title { font-family: var(--sp-font-display); font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .situation-list { list-style: none; margin-left: 1rem; }
+    .situation-item { padding: 0.25rem 0; }
+    .situation-item a { color: var(--sp-text); text-decoration: none; }
+    .situation-item a:hover { text-decoration: underline; }
+    .footer { border-top: 3px double var(--sp-text); padding: 2rem; text-align: center; font-size: 0.8rem; color: var(--sp-text-secondary); }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <a href="/" class="header-logo">Serious People</a>
+  </header>
+  <main class="main">
+    <h1>Career Guidance by Role</h1>
+    <p class="intro">Find guidance tailored to your specific role and situation.</p>
+    ${Object.entries(roleGroups).map(([role, situations]) => `
+      <section class="role-section">
+        <h2 class="role-title">${ROLES[role]}</h2>
+        <ul class="situation-list">
+          ${situations.map(sit => `
+            <li class="situation-item">
+              <a href="/roles/${role}/situations/${sit}">${SITUATIONS[sit]}</a>
+            </li>
+          `).join("")}
+        </ul>
+      </section>
+    `).join("")}
+  </main>
+  <footer class="footer">
+    <p>&copy; ${new Date().getFullYear()} Serious People</p>
+  </footer>
+</body>
+</html>
+  `;
+  
+  res.set("Content-Type", "text/html");
+  res.send(html);
 }
