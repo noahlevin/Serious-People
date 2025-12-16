@@ -176,6 +176,8 @@ The SPA is now served at both / (root) and /app:
 - **Auth:** Session-based authentication works at both paths, cookies shared
 - **API Routes:** All /api/* and /auth/* routes work identically from either path
 - **Purpose:** Enables future Phase 6 (flip / to marketing for logged-out users) without disrupting existing users
+- **Base Path Preservation:** Authentication (Google OAuth, magic links) and Stripe checkout preserve the /app base path in all redirects
+- **Security:** `sanitizeBasePath()` function in `server/routes.ts` prevents open redirect attacks. Only allows single-segment paths like `/app` (regex: `/^\/[a-zA-Z0-9-_]+$/`). If multi-level paths like `/app/v2` are needed in the future, update the regex accordingly.
 
 ## Project Documentation
 
