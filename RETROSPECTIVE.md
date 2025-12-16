@@ -395,9 +395,21 @@ SyntaxError: Unexpected token ` in JSON at position 0
    
    **Note:** The current implementation uses this exact pattern (template strings with sanitized basePath). There is no separate redirect helper function.
 
-3. **Handle empty base path correctly** - `sanitizeBasePath()` returns empty string `""` for root paths, so `${basePath}/destination` correctly becomes `/destination` at root and `/app/destination` at /app.
+3. **Passport.js session regeneration** - Passport regenerates sessions after successful OAuth authentication (security feature). Any data stored in `req.session` before `passport.authenticate()` will be lost. Solution: capture session data in the middleware BEFORE authentication and store it on the `req` object:
+   ```typescript
+   // In the first middleware (before passport.authenticate):
+   const basePath = (req.session as any).pendingBasePath || "";
+   (req as any)._pendingBasePath = basePath; // Survives session regeneration
+   passport.authenticate("google", { ... })(req, res, next);
+   
+   // In the success handler (after authentication):
+   const basePath = (req as any)._pendingBasePath || ""; // Read from req object
+   res.redirect(`${basePath}/prepare`);
+   ```
 
-4. **Client passes base path** - Frontend code must detect and pass basePath to API calls that trigger redirects:
+4. **Handle empty base path correctly** - `sanitizeBasePath()` returns empty string `""` for root paths, so `${basePath}/destination` correctly becomes `/destination` at root and `/app/destination` at /app.
+
+5. **Client passes base path** - Frontend code must detect and pass basePath to API calls that trigger redirects:
    ```typescript
    const basePath = window.location.pathname.startsWith('/app') ? '/app' : '';
    fetch('/api/checkout', { 
@@ -406,13 +418,13 @@ SyntaxError: Unexpected token ` in JSON at position 0
    });
    ```
 
-5. **Security is critical** - The `sanitizeBasePath()` function:
+6. **Security is critical** - The `sanitizeBasePath()` function:
    - Trims whitespace and URL-decodes input
    - Only allows single-segment paths matching `/^\/[a-zA-Z0-9-_]+$/`
    - Rejects protocols, path traversal, double slashes, backslashes
    - If multi-level paths like `/app/v2` are needed, update the regex
 
-6. **Wouter handles client routing** - The `<Router base={basePath}>` component handles all client-side navigation. Links and `setLocation` calls are relative to the base.
+7. **Wouter handles client routing** - The `<Router base={basePath}>` component handles all client-side navigation. Links and `setLocation` calls are relative to the base.
 
 ---
 

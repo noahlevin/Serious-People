@@ -1841,10 +1841,7 @@ COMMUNICATION STYLE:
   app.get("/auth/google", (req, res, next) => {
     // Store promo code and base path in session before OAuth redirect
     const promoCode = req.query.promo as string | undefined;
-    const rawBasePath = req.query.basePath as string | undefined;
-    const basePath = sanitizeBasePath(rawBasePath);
-    
-    console.log(`[Google OAuth Start] rawBasePath="${rawBasePath}" sanitizedBasePath="${basePath}" sessionId=${req.sessionID}`);
+    const basePath = sanitizeBasePath(req.query.basePath as string | undefined);
     
     // Always store basePath (even if empty) to ensure consistent redirect behavior
     (req.session as any).pendingBasePath = basePath;
@@ -1854,7 +1851,6 @@ COMMUNICATION STYLE:
     
     req.session.save((err) => {
       if (err) console.error("Session save error for OAuth context:", err);
-      console.log(`[Google OAuth Start] Session saved with pendingBasePath="${(req.session as any).pendingBasePath}"`);
       passport.authenticate("google", { scope: ["email", "profile"] })(
         req,
         res,
@@ -1873,7 +1869,6 @@ COMMUNICATION STYLE:
       const promoCode = (req.session as any).pendingPromoCode || "";
       (req as any)._pendingBasePath = basePath;
       (req as any)._pendingPromoCode = promoCode;
-      console.log(`[Google OAuth Callback] Auth middleware - pendingBasePath="${basePath}" sessionId=${req.sessionID}`);
       passport.authenticate("google", {
         failureRedirect: `${basePath}/login?error=google_auth_failed`,
       })(req, res, next);
@@ -1882,7 +1877,6 @@ COMMUNICATION STYLE:
       // Get base path from req object (survives session regeneration)
       const basePath = (req as any)._pendingBasePath || "";
       const promoCode = (req as any)._pendingPromoCode || "";
-      console.log(`[Google OAuth Callback] Success handler - basePath="${basePath}" redirectTo="${basePath}/prepare" sessionId=${req.sessionID}`);
       if (promoCode && req.user) {
         const user = req.user as any;
         // Get full user record to check if they already have a promo code
