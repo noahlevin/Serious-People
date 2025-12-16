@@ -3,6 +3,30 @@ import ejs from "ejs";
 import path from "path";
 import fs from "fs";
 
+// PostHog key for analytics (from environment)
+const POSTHOG_KEY = process.env.VITE_POSTHOG_KEY || "";
+
+// Generate PostHog tracking script for inline HTML pages
+function getPostHogScript(pageType: string, pageSlug: string, pageTitle: string): string {
+  if (!POSTHOG_KEY) return "";
+  return `
+  <script>
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init('${POSTHOG_KEY}', {
+      api_host: 'https://us.i.posthog.com',
+      person_profiles: 'identified_only',
+      capture_pageview: true,
+      capture_pageleave: true,
+      autocapture: false
+    });
+    posthog.capture('seo_page_view', {
+      page_type: '${pageType}',
+      page_slug: '${pageSlug}',
+      page_title: '${pageTitle}'
+    });
+  </script>`;
+}
+
 // Get base URL for canonical links
 function getBaseUrl(): string {
   if (process.env.BASE_URL) {
@@ -428,6 +452,9 @@ export async function renderGuide(req: Request, res: Response) {
       content: htmlContent,
       relatedLinks,
       canonical: `${getBaseUrl()}/guides/${safeSlug}`,
+      posthogKey: POSTHOG_KEY,
+      pageType: "pillar",
+      pageSlug: safeSlug,
     };
     
     // Render the pillar template
@@ -513,6 +540,7 @@ export async function renderGuidesIndex(_req: Request, res: Response) {
   <footer class="footer">
     <p>&copy; ${new Date().getFullYear()} Serious People</p>
   </footer>
+  ${getPostHogScript("index", "guides", "Career Guides")}
 </body>
 </html>
   `;
@@ -624,6 +652,9 @@ export async function renderProgrammaticPage(req: Request, res: Response) {
       adjacentPages,
       canonical: `${getBaseUrl()}/roles/${role}/situations/${situation}`,
       noindex: !shouldIndex,
+      posthogKey: POSTHOG_KEY,
+      pageType: "programmatic",
+      pageSlug: `${role}/${situation}`,
     };
     
     // Render the programmatic template
@@ -724,6 +755,7 @@ export async function renderRolesIndex(_req: Request, res: Response) {
   <footer class="footer">
     <p>&copy; ${new Date().getFullYear()} Serious People</p>
   </footer>
+  ${getPostHogScript("index", "roles", "Career Guidance by Role")}
 </body>
 </html>
   `;
