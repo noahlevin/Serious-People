@@ -163,6 +163,20 @@ Available modules:
 - Programmatic: 700+ words, 4+ unique modules
 - Max similarity: 0.7
 
+### Phase 4 Gaps (Not Built)
+Items from the PRD that were deferred:
+- Second tool page under /tools (only built Stay-or-Go Calculator, PRD called for 2 tools)
+- /lp/* landing pages for paid ads (noindex pages for campaign traffic)
+
+### Phase 5: /app Mount (Completed)
+The SPA is now served at both / (root) and /app:
+- **Root (/):** Original SPA serving, unchanged behavior
+- **/app/*:** Same SPA with /app base path, mirrors all functionality
+- **Routing:** Client-side wouter router auto-detects /app base path and adjusts routes
+- **Auth:** Session-based authentication works at both paths, cookies shared
+- **API Routes:** All /api/* and /auth/* routes work identically from either path
+- **Purpose:** Enables future Phase 6 (flip / to marketing for logged-out users) without disrupting existing users
+
 ## Project Documentation
 
 - **RETROSPECTIVE.md** - Comprehensive retrospective covering what went well, what didn't, instructions for future agents, bug prevention checklists, and design patterns. Essential reading before making significant changes.
