@@ -108,6 +108,13 @@ SEO pages include PostHog tracking for user behavior analysis:
 - **Implementation:** PostHog script injected via layout.ejs for template pages, inline for index pages
 - **Key:** Uses VITE_POSTHOG_KEY environment variable
 
+### Structured Data (JSON-LD)
+All SEO pages include JSON-LD structured data for rich search results:
+- **Article schema** — Pillar pages and programmatic pages (headline, description, author, publisher, dates)
+- **WebPage schema** — Interactive tools like the Stay-or-Go Calculator
+- **Organization schema** — Included on all layout-based pages (name, URL, description)
+- **Implementation:** Generated in seoController.ts, injected via headExtra and organizationSchema variables
+
 ### Available Pillars (12 total)
 1. `/guides/stay-or-go-framework` — The Stay-or-Go Decision Framework
 2. `/guides/burnout-vs-misfit-vs-bad-manager` — Burnout vs. Misfit vs. Bad Manager

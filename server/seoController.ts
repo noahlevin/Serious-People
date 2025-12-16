@@ -38,6 +38,88 @@ function getBaseUrl(): string {
   return "http://localhost:5000";
 }
 
+// Generate JSON-LD Article schema for pillar pages
+function generateArticleSchema(options: {
+  title: string;
+  description: string;
+  url: string;
+  datePublished?: string;
+  dateModified?: string;
+}): string {
+  const baseUrl = getBaseUrl();
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": options.title,
+    "description": options.description,
+    "url": options.url,
+    "author": {
+      "@type": "Organization",
+      "name": "Serious People",
+      "url": baseUrl
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Serious People",
+      "url": baseUrl,
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${baseUrl}/logo.png`
+      }
+    },
+    "datePublished": options.datePublished || "2024-12-01",
+    "dateModified": options.dateModified || new Date().toISOString().split("T")[0],
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": options.url
+    },
+    "inLanguage": "en-US"
+  };
+  
+  return `<script type="application/ld+json">${JSON.stringify(schema, null, 0)}</script>`;
+}
+
+// Generate JSON-LD WebPage schema for tools
+function generateWebPageSchema(options: {
+  title: string;
+  description: string;
+  url: string;
+}): string {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": options.title,
+    "description": options.description,
+    "url": options.url,
+    "isPartOf": {
+      "@type": "WebSite",
+      "name": "Serious People",
+      "url": getBaseUrl()
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Serious People",
+      "url": getBaseUrl()
+    }
+  };
+  
+  return `<script type="application/ld+json">${JSON.stringify(schema, null, 0)}</script>`;
+}
+
+// Generate JSON-LD Organization schema (for inclusion in layout)
+function generateOrganizationSchema(): string {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Serious People",
+    "url": getBaseUrl(),
+    "description": "Career coaching for executives and senior leaders facing serious career decisions.",
+    "sameAs": []
+  };
+  
+  return `<script type="application/ld+json">${JSON.stringify(schema, null, 0)}</script>`;
+}
+
 // Simple markdown to HTML converter (no external dependencies)
 function markdownToHtml(markdown: string): string {
   let html = markdown;
@@ -445,16 +527,29 @@ export async function renderGuide(req: Request, res: Response) {
     const relatedLinks = getRelatedLinks(safeSlug);
     
     // Prepare template data
+    const canonicalUrl = `${getBaseUrl()}/guides/${safeSlug}`;
+    const title = frontmatter.title || "Guide";
+    const description = frontmatter.description || "A career coaching guide from Serious People.";
+    
+    // Generate Article schema for structured data
+    const articleSchema = generateArticleSchema({
+      title,
+      description,
+      url: canonicalUrl,
+    });
+    
     const templateData = {
-      title: frontmatter.title || "Guide",
-      description: frontmatter.description || "A career coaching guide from Serious People.",
+      title,
+      description,
       lede: frontmatter.lede || null,
       content: htmlContent,
       relatedLinks,
-      canonical: `${getBaseUrl()}/guides/${safeSlug}`,
+      canonical: canonicalUrl,
       posthogKey: POSTHOG_KEY,
       pageType: "pillar",
       pageSlug: safeSlug,
+      headExtra: articleSchema,
+      organizationSchema: generateOrganizationSchema(),
     };
     
     // Render the pillar template
@@ -643,6 +738,16 @@ export async function renderProgrammaticPage(req: Request, res: Response) {
     // Check quality threshold (700 words minimum for programmatic)
     const shouldIndex = wordCount >= 700;
     
+    // Generate canonical URL
+    const canonicalUrl = `${getBaseUrl()}/roles/${role}/situations/${situation}`;
+    
+    // Generate Article schema for structured data
+    const articleSchema = generateArticleSchema({
+      title,
+      description,
+      url: canonicalUrl,
+    });
+    
     // Prepare template data
     const templateData = {
       title,
@@ -651,11 +756,13 @@ export async function renderProgrammaticPage(req: Request, res: Response) {
       content: htmlContent,
       relatedLinks,
       adjacentPages,
-      canonical: `${getBaseUrl()}/roles/${role}/situations/${situation}`,
+      canonical: canonicalUrl,
       noindex: !shouldIndex,
       posthogKey: POSTHOG_KEY,
       pageType: "programmatic",
       pageSlug: `${role}/${situation}`,
+      headExtra: articleSchema,
+      organizationSchema: generateOrganizationSchema(),
     };
     
     // Render the programmatic template
@@ -770,11 +877,23 @@ export async function renderStayOrGoCalculator(_req: Request, res: Response) {
   const baseUrl = getBaseUrl();
   const templatesDir = path.join(process.cwd(), "seo", "templates");
   
+  const canonicalUrl = `${baseUrl}/tools/stay-or-go-calculator`;
+  const title = "Should You Stay or Go? Career Decision Calculator";
+  const description = "A 2-minute quiz to help you decide whether to stay at your current job or explore new opportunities. Get a personalized recommendation based on your situation.";
+  
+  // Generate WebPage schema for structured data
+  const webPageSchema = generateWebPageSchema({
+    title,
+    description,
+    url: canonicalUrl,
+  });
+  
   try {
     const templatePath = path.join(templatesDir, "stay-or-go-calculator.ejs");
     const html = await ejs.renderFile(templatePath, {
-      canonical: `${baseUrl}/tools/stay-or-go-calculator`,
+      canonical: canonicalUrl,
       posthogKey: POSTHOG_KEY,
+      structuredData: webPageSchema,
     });
     
     res.set("Content-Type", "text/html");
