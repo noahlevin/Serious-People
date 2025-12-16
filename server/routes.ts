@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import path from "path";
 import express from "express";
 import crypto from "crypto";
+import ejs from "ejs";
 import passport from "passport";
 import { getStripeClient } from "./stripeClient";
 import { storage } from "./storage";
@@ -4485,6 +4486,64 @@ FORMAT:
   // ==========================================================================
   // SEO Routes (served before SPA catch-all)
   // ==========================================================================
+  
+  // Marketing landing page at root - serves static for logged-out, redirects logged-in to /app
+  app.get("/", async (req, res, next) => {
+    // Check if user is authenticated
+    if (req.isAuthenticated() && req.user) {
+      try {
+        // Get user's journey state to determine where to redirect
+        const journeyState = await storage.getJourneyState(req.user.id);
+        
+        if (journeyState) {
+          const currentStep = getCurrentJourneyStep(journeyState);
+          const currentPath = getStepPath(currentStep);
+          // Redirect to /app + their journey path
+          return res.redirect(`/app${currentPath}`);
+        } else {
+          // No journey state yet - redirect to /app (SPA will handle routing)
+          return res.redirect("/app");
+        }
+      } catch (error) {
+        console.error("[Landing] Error getting journey state:", error);
+        // Fall through to serve landing page if error
+      }
+    }
+    
+    // Serve static marketing landing page for logged-out users
+    try {
+      const templatePath = path.join(process.cwd(), "seo", "templates", "landing.ejs");
+      const baseUrl = getBaseUrl();
+      const posthogKey = process.env.VITE_POSTHOG_KEY || "";
+      
+      // Get pricing for display
+      let price = 19; // Default price
+      try {
+        const stripe = await getStripeClient();
+        const priceId = await getProductPrice();
+        const priceData = await stripe.prices.retrieve(priceId);
+        if (priceData.unit_amount) {
+          price = priceData.unit_amount / 100;
+        }
+      } catch (priceError) {
+        console.error("[Landing] Error getting price:", priceError);
+      }
+      
+      const html = await ejs.renderFile(templatePath, {
+        baseUrl,
+        price,
+        posthogKey,
+      });
+      
+      res.set("Content-Type", "text/html");
+      res.send(html);
+    } catch (error) {
+      console.error("[Landing] Error rendering landing page:", error);
+      // Fall through to SPA if template fails
+      next();
+    }
+  });
+  
   app.get("/robots.txt", seoController.robots);
   app.get("/sitemap.xml", seoController.sitemap);
   app.get("/resources", seoController.renderContentHub);

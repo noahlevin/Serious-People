@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Serious People - Career Coaching</title>
+  <meta name="description" content="Turn career uncertainty into a decision you trust. Serious People helps you think clearly and act decisively on major career decisions.">
+  
+  <link rel="canonical" href="<%= baseUrl %>/">
+  
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="<%= baseUrl %>/">
+  <meta property="og:title" content="Serious People - Career Coaching">
+  <meta property="og:description" content="Turn career uncertainty into a decision you trust. Serious People helps you think clearly and act decisively on major career decisions.">
+  <meta property="og:site_name" content="Serious People">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:image" content="<%= baseUrl %>/logo.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Serious People - Career Coaching">
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@seriouspeople">
+  <meta name="twitter:title" content="Serious People - Career Coaching">
+  <meta name="twitter:description" content="Turn career uncertainty into a decision you trust. Serious People helps you think clearly and act decisively on major career decisions.">
+  <meta name="twitter:image" content="<%= baseUrl %>/logo.png">
+  
+  <link rel="icon" type="image/png" href="/favicon.png">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --sp-bg: #faf9f6;
+      --sp-text: #1a1a1a;
+      --sp-text-secondary: #666;
+      --sp-text-muted: #444;
+      --sp-border: #d4d4d4;
+      --sp-border-light: #e5e5e5;
+      --sp-font-display: 'Playfair Display', Georgia, serif;
+      --sp-font-body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    }
+    
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    .sp-landing-page {
+      font-family: var(--sp-font-body);
+      background: var(--sp-bg);
+      color: var(--sp-text);
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+    
+    .sp-landing-container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+    
+    .sp-landing-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .sp-landing-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-family: var(--sp-font-display);
+      font-size: 1.125rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      text-decoration: none;
+      color: inherit;
+    }
+    
+    .sp-landing-logo .sp-logo-icon {
+      width: 32px;
+      height: 32px;
+    }
+    
+    .sp-landing-nav {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    
+    .sp-landing-nav-link {
+      font-family: var(--sp-font-body);
+      font-size: 0.9rem;
+      color: var(--sp-text-secondary);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    
+    .sp-landing-nav-link:hover {
+      color: var(--sp-text);
+    }
+    
+    .sp-landing-login-link {
+      font-family: var(--sp-font-body);
+      font-size: 0.9rem;
+      color: var(--sp-text-secondary);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    
+    .sp-landing-login-link:hover {
+      color: var(--sp-text);
+    }
+    
+    .sp-landing-hero {
+      padding-bottom: 4rem;
+      border-bottom: 1px solid var(--sp-border);
+    }
+    
+    .sp-landing-hero-content {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 0;
+      text-align: center;
+    }
+    
+    .sp-landing-headline {
+      font-family: var(--sp-font-display);
+      font-size: 2.75rem;
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      color: var(--sp-text);
+    }
+    
+    .sp-landing-headline .sp-headline-static {
+      display: inline;
+    }
+    
+    .sp-landing-headline .sp-headline-dynamic {
+      display: inline;
+    }
+    
+    .sp-landing-headline .sp-typewriter-text {
+      display: inline;
+      border-right: 2px solid var(--sp-text);
+      animation: sp-blink 0.7s step-end infinite;
+    }
+    
+    @keyframes sp-blink {
+      from, to { border-color: transparent; }
+      50% { border-color: var(--sp-text); }
+    }
+    
+    .sp-landing-subhead {
+      font-family: var(--sp-font-body);
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--sp-text-secondary);
+      margin-bottom: 2rem;
+      max-width: 320px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .sp-landing-cta-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .sp-landing-cta-primary {
+      display: inline-block;
+      font-family: var(--sp-font-body);
+      font-size: 1rem;
+      font-weight: 500;
+      background: var(--sp-text);
+      color: var(--sp-bg);
+      border: none;
+      padding: 0.875rem 2rem;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+      text-decoration: none;
+    }
+    
+    .sp-landing-cta-primary:hover {
+      opacity: 0.85;
+    }
+    
+    .sp-landing-cta-secondary {
+      font-family: var(--sp-font-body);
+      font-size: 0.9rem;
+      color: var(--sp-text-secondary);
+      text-decoration: none;
+    }
+    
+    .sp-landing-cta-secondary:hover {
+      color: var(--sp-text);
+    }
+    
+    .sp-landing-reassurance {
+      font-size: 0.85rem;
+      color: var(--sp-text-muted);
+      margin-top: 0.5rem;
+    }
+    
+    .sp-landing-section {
+      padding: 4rem 0;
+    }
+    
+    .sp-landing-section-alt {
+      background: #f5f4f0;
+    }
+    
+    .sp-landing-section-title {
+      font-family: var(--sp-font-display);
+      font-size: 1.75rem;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 1.5rem;
+      color: var(--sp-text);
+    }
+    
+    .sp-landing-section-intro {
+      font-size: 1.05rem;
+      color: var(--sp-text-secondary);
+      margin-bottom: 2rem;
+    }
+    
+    .sp-landing-quote-box {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1.25rem;
+      border: 1px solid var(--sp-border);
+      border-radius: 4px;
+      background: #ffffff;
+      max-width: 450px;
+      margin: 0 auto;
+    }
+    
+    .sp-landing-quote-image {
+      width: auto;
+      height: auto;
+      max-width: 75px;
+      flex-shrink: 0;
+    }
+    
+    .sp-landing-quote {
+      font-family: var(--sp-font-display);
+      font-size: 1rem;
+      font-style: italic;
+      color: var(--sp-text);
+      margin: 0;
+      border: none;
+      padding: 0;
+      background: transparent;
+      line-height: 1.3;
+    }
+    
+    .sp-landing-quote p {
+      margin-bottom: 0.25rem;
+    }
+    
+    .sp-landing-quote cite {
+      font-size: 0.85rem;
+      font-style: normal;
+      color: var(--sp-text-secondary);
+      letter-spacing: 0.05em;
+    }
+    
+    .sp-landing-scenarios {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .sp-landing-scenario {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--sp-border-light);
+      font-size: 1.05rem;
+    }
+    
+    .sp-landing-scenario:last-child {
+      border-bottom: none;
+    }
+    
+    .sp-landing-scenario-bullet {
+      color: var(--sp-text-secondary);
+      flex-shrink: 0;
+    }
+    
+    .sp-landing-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+    }
+    
+    .sp-landing-step {
+      position: relative;
+      padding-left: 3.5rem;
+    }
+    
+    .sp-landing-step-number {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2.5rem;
+      height: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--sp-font-body);
+      font-size: 1.1rem;
+      font-weight: 800;
+      line-height: 1;
+      border: 2px solid var(--sp-text);
+      border-radius: 50%;
+    }
+    
+    .sp-landing-step h3 {
+      font-family: var(--sp-font-display);
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    
+    .sp-landing-step p {
+      font-size: 1rem;
+      color: var(--sp-text-secondary);
+      line-height: 1.7;
+    }
+    
+    .sp-landing-artifacts {
+      display: grid;
+      gap: 1.5rem;
+    }
+    
+    .sp-landing-artifact {
+      padding: 1.5rem;
+      border: 1px solid var(--sp-border);
+      background: #fff;
+    }
+    
+    .sp-landing-artifact h3 {
+      font-family: var(--sp-font-display);
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    
+    .sp-landing-artifact p {
+      font-size: 0.95rem;
+      color: var(--sp-text-secondary);
+      line-height: 1.6;
+      margin: 0;
+    }
+    
+    .sp-landing-comparisons {
+      display: grid;
+      gap: 2rem;
+    }
+    
+    .sp-landing-comparison h3 {
+      font-family: var(--sp-font-display);
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--sp-text);
+    }
+    
+    .sp-landing-comparison p {
+      font-size: 0.95rem;
+      color: var(--sp-text-secondary);
+      line-height: 1.6;
+      margin: 0;
+    }
+    
+    .sp-landing-centered-text {
+      text-align: center;
+    }
+    
+    .sp-landing-centered-text p {
+      max-width: 600px;
+      margin: 0 auto 1.25rem;
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: var(--sp-text-secondary);
+    }
+    
+    .sp-landing-faq {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    
+    .sp-landing-faq-item {
+      border-bottom: 1px solid var(--sp-border);
+    }
+    
+    .sp-landing-faq-question {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding: 1.25rem 0;
+      background: transparent;
+      border: none;
+      font-family: var(--sp-font-display);
+      font-size: 1.05rem;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+      color: var(--sp-text);
+    }
+    
+    .sp-landing-faq-icon {
+      font-size: 1.25rem;
+      color: var(--sp-text-secondary);
+      transition: transform 0.2s ease;
+    }
+    
+    .sp-landing-faq-answer {
+      padding-bottom: 1.25rem;
+      display: none;
+    }
+    
+    .sp-landing-faq-item.sp-landing-faq-open .sp-landing-faq-answer {
+      display: block;
+    }
+    
+    .sp-landing-faq-answer p {
+      font-size: 0.95rem;
+      color: var(--sp-text-secondary);
+      line-height: 1.7;
+      margin: 0;
+    }
+    
+    .sp-landing-final-cta {
+      padding: 5rem 0;
+      border-top: 1px solid var(--sp-border);
+    }
+    
+    .sp-landing-final-cta .sp-landing-section-title {
+      margin-bottom: 1rem;
+    }
+    
+    .sp-landing-contact {
+      margin-top: 2rem;
+      font-size: 0.9rem;
+      color: var(--sp-text-secondary);
+    }
+    
+    .sp-landing-contact a {
+      color: var(--sp-text);
+      text-decoration: underline;
+    }
+    
+    .sp-landing-footer {
+      padding: 2rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--sp-text-secondary);
+      border-top: 1px solid var(--sp-border);
+    }
+    
+    .sp-landing-footer-nav {
+      margin-top: 0.75rem;
+    }
+    
+    .sp-landing-footer-nav a {
+      color: var(--sp-text-secondary);
+      text-decoration: none;
+      margin: 0 0.5rem;
+    }
+    
+    .sp-landing-footer-nav a:hover {
+      color: var(--sp-text);
+    }
+    
+    @media (max-width: 768px) {
+      .sp-landing-headline {
+        font-size: 2rem;
+      }
+      
+      .sp-landing-subhead {
+        font-size: 1rem;
+      }
+      
+      .sp-landing-section {
+        padding: 3rem 0;
+      }
+      
+      .sp-landing-section-title {
+        font-size: 1.5rem;
+      }
+      
+      .sp-landing-quote-box {
+        padding: 0.75rem 0.75rem;
+        gap: 0.75rem;
+      }
+      
+      .sp-landing-quote {
+        font-size: 0.85rem;
+      }
+      
+      .sp-landing-quote cite {
+        font-size: 0.75rem;
+      }
+      
+      .sp-landing-step {
+        padding-left: 3rem;
+      }
+      
+      .sp-landing-step-number {
+        width: 2rem;
+        height: 2rem;
+        font-size: 1rem;
+      }
+      
+      .sp-landing-nav {
+        display: none;
+      }
+    }
+    
+    @media (min-width: 768px) {
+      .sp-landing-artifacts {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .sp-landing-comparisons {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+  
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Serious People",
+    "url": "<%= baseUrl %>",
+    "description": "Career coaching for serious decisions"
+  }
+  </script>
+</head>
+<body>
+  <div class="sp-landing-page">
+    <header class="sp-landing-hero">
+      <div class="sp-landing-header-bar">
+        <a href="/" class="sp-landing-logo">
+          <img src="/favicon.png" alt="Serious People" class="sp-logo-icon">
+          <span>Serious People</span>
+        </a>
+        <nav class="sp-landing-nav">
+          <a href="/guides" class="sp-landing-nav-link">Guides</a>
+          <a href="/resources" class="sp-landing-nav-link">Resources</a>
+          <a href="/app/login" class="sp-landing-login-link" data-testid="link-login">Log in</a>
+        </nav>
+      </div>
+      
+      <div class="sp-landing-hero-content">
+        <h1 class="sp-landing-headline">
+          <span class="sp-headline-static">Turn</span>
+          <br>
+          <span class="sp-headline-static">"</span><span class="sp-headline-dynamic"><span class="sp-typewriter-text" id="typewriter"></span></span><span class="sp-headline-static">"</span>
+          <br>
+          <span class="sp-headline-static">into a decision you trust.</span>
+        </h1>
+        <p class="sp-landing-subhead">
+          <strong>Serious People</strong> helps you think clearly and act decisively on major career decisions.
+        </p>
+        
+        <div class="sp-landing-cta-group">
+          <a href="/app/login" class="sp-landing-cta-primary" data-testid="button-start-interview">
+            Start the free interview
+          </a>
+          <a href="/app/login" class="sp-landing-cta-secondary" data-testid="link-resume">
+            Already started? Log back in
+          </a>
+        </div>
+        
+        <p class="sp-landing-reassurance">
+          Free interview takes 5-10 minutes. Full coaching session is $<%= price %>.
+        </p>
+      </div>
+    </header>
+
+    <section class="sp-landing-section sp-landing-section-alt">
+      <div class="sp-landing-container">
+        <div class="sp-landing-quote-box">
+          <img src="/logan-roy.png" alt="Logan Roy" class="sp-landing-quote-image">
+          <blockquote class="sp-landing-quote">
+            <p>"I love you, but you are not serious people."</p>
+            <cite>- Logan Roy, Waystar Royco</cite>
+          </blockquote>
+        </div>
+      </div>
+    </section>
+
+    <section class="sp-landing-section">
+      <div class="sp-landing-container">
+        <h2 class="sp-landing-section-title">
+          This is for the decisions that keep you up at night.
+        </h2>
+        <ul class="sp-landing-scenarios">
+          <li class="sp-landing-scenario">
+            <span class="sp-landing-scenario-bullet">&#8226;</span>
+            <span>You're on the fence about quitting and don't want to make a decision you'll regret.</span>
+          </li>
+          <li class="sp-landing-scenario">
+            <span class="sp-landing-scenario-bullet">&#8226;</span>
+            <span>Your role has drifted into something you never signed up for. You need to renegotiate-or leave.</span>
+          </li>
+          <li class="sp-landing-scenario">
+            <span class="sp-landing-scenario-bullet">&#8226;</span>
+            <span>You're stuck in a bad dynamic with your boss and can't tell if it's fixable.</span>
+          </li>
+          <li class="sp-landing-scenario">
+            <span class="sp-landing-scenario-bullet">&#8226;</span>
+            <span>You're about to have a hard conversation with your partner about money, risk, and timing.</span>
+          </li>
+          <li class="sp-landing-scenario">
+            <span class="sp-landing-scenario-bullet">&#8226;</span>
+            <span>You've written a dozen draft emails in your head. None of them feel right.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="sp-landing-section sp-landing-section-alt">
+      <div class="sp-landing-container">
+        <h2 class="sp-landing-section-title">Here's what happens.</h2>
+        
+        <div class="sp-landing-steps">
+          <div class="sp-landing-step">
+            <div class="sp-landing-step-number">1</div>
+            <h3>Free coaching interview (5-10 min)</h3>
+            <p>
+              You answer the questions a good career coach would ask: What's actually happening? What have you tried? What's at stake? By the end, you'll see a plain-language coaching plan tailored to your situation. Review it, adjust it, then decide if you want to continue.
+            </p>
+          </div>
+          
+          <div class="sp-landing-step">
+            <div class="sp-landing-step-number">2</div>
+            <h3>Guided working session (~30 min)</h3>
+            <p>
+              Your coach walks you through three modules. First, you go deep on what's really going on-the stuff you haven't fully articulated, even to yourself. Then you map your options, constraints, and trade-offs. Finally, you turn your thinking into a concrete plan with real next steps.
+            </p>
+          </div>
+          
+          <div class="sp-landing-step">
+            <div class="sp-landing-step-number">3</div>
+            <h3>Your Serious Plan (instant)</h3>
+            <p>
+              You leave with a set of documents you can actually use. Decision summary. Conversation scripts. A 30-90 day action plan. A risk map for what could go wrong. No inspirational posters. No vague frameworks. Just clear language you can copy into an email tonight.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sp-landing-section">
+      <div class="sp-landing-container">
+        <h2 class="sp-landing-section-title">What you actually get.</h2>
+        <p class="sp-landing-section-intro">
+          Every Serious Plan is different because every situation is different. But yours will include artifacts like these:
+        </p>
+        
+        <div class="sp-landing-artifacts">
+          <div class="sp-landing-artifact">
+            <h3>Decision Snapshot</h3>
+            <p>A one-page summary of your situation, your options, and the trade-offs. This is the map you keep coming back to when you're second-guessing yourself at 2am.</p>
+          </div>
+          <div class="sp-landing-artifact">
+            <h3>Conversation Scripts</h3>
+            <p>Word-for-word scripts for the conversations that matter most-your manager, your partner, HR, mentors. Clear, honest, non-destructive.</p>
+          </div>
+          <div class="sp-landing-artifact">
+            <h3>Action Plan (30-90 days)</h3>
+            <p>Concrete next moves with timing. What to try first. What to document. How to know if things are actually improving. When to draw a line.</p>
+          </div>
+          <div class="sp-landing-artifact">
+            <h3>Risk Map</h3>
+            <p>A candid look at what could go wrong-whether you stay, reshape the role, or leave. Includes "if X happens, say Y" playbooks so you're not improvising when it counts.</p>
+          </div>
+          <div class="sp-landing-artifact">
+            <h3>Resources & Prompts</h3>
+            <p>Curated exercises and reflection prompts based on your exact situation. Not a generic reading list.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sp-landing-section sp-landing-section-alt">
+      <div class="sp-landing-container">
+        <h2 class="sp-landing-section-title">
+          Why people pay $<%= price %> for this instead of just thinking it through.
+        </h2>
+        
+        <div class="sp-landing-comparisons">
+          <div class="sp-landing-comparison">
+            <h3>vs. Journaling or venting to friends</h3>
+            <p>Your friends will validate you. Journaling helps you process. Neither will give you a script for Monday's meeting or a 90-day plan. Serious People turns feelings into a document you can act on.</p>
+          </div>
+          <div class="sp-landing-comparison">
+            <h3>vs. Generic AI (ChatGPT, etc.)</h3>
+            <p>Most AI tools act like polite yes-men-they validate your first idea and dress it up in nicer words. Serious People follows a structured coaching curriculum. It will push back on fuzzy thinking, ask harder questions, and sometimes disagree with you.</p>
+          </div>
+          <div class="sp-landing-comparison">
+            <h3>vs. A human career coach</h3>
+            <p>A good coach costs $200-500/hour and takes weeks to book. Serious People works on your schedule. It's not a replacement for deep, ongoing coaching-but it's a powerful starting point.</p>
+          </div>
+          <div class="sp-landing-comparison">
+            <h3>vs. Doing nothing</h3>
+            <p>You already know how that goes. The situation festers. You make a reactive decision when you're fed up instead of a strategic one when you're clear. Serious People is the forcing function that gets you unstuck.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sp-landing-section">
+      <div class="sp-landing-container sp-landing-centered-text">
+        <h2 class="sp-landing-section-title">This is for people who are ready to decide.</h2>
+        
+        <p>
+          If you're mid-career or senior, your choices affect real money and real people, and you want to walk away with a plan-not just reassurance-this will help.
+        </p>
+        
+        <p>
+          If you're looking for therapy, legal advice, or someone to make the decision for you, this isn't that. If you're not planning to actually have the conversations this prepares you for, save your money.
+        </p>
+      </div>
+    </section>
+
+    <section class="sp-landing-section sp-landing-section-alt">
+      <div class="sp-landing-container">
+        <h2 class="sp-landing-section-title">Questions people ask before getting serious.</h2>
+        
+        <div class="sp-landing-faq">
+          <div class="sp-landing-faq-item">
+            <button class="sp-landing-faq-question" data-testid="button-faq-0" aria-expanded="false">
+              <span>How much does this cost?</span>
+              <span class="sp-landing-faq-icon">+</span>
+            </button>
+            <div class="sp-landing-faq-answer">
+              <p>The interview is completely free. You'll see your personalized coaching plan before paying anything. The full coaching session and Serious Plan cost $<%= price %>-less than an hour with a human coach.</p>
+            </div>
+          </div>
+          <div class="sp-landing-faq-item">
+            <button class="sp-landing-faq-question" data-testid="button-faq-1" aria-expanded="false">
+              <span>Is this really "just AI"?</span>
+              <span class="sp-landing-faq-icon">+</span>
+            </button>
+            <div class="sp-landing-faq-answer">
+              <p>Serious People is AI-powered, but it's not a generic chatbot. It uses large language models guided by a specific coaching philosophy: ask hard questions, reflect back what it hears, push toward clear decisions. It won't pretend to be human, but it will behave like an experienced, no-nonsense coach-one that knows when to slow you down and when to back your instincts.</p>
+            </div>
+          </div>
+          <div class="sp-landing-faq-item">
+            <button class="sp-landing-faq-question" data-testid="button-faq-2" aria-expanded="false">
+              <span>Will my information be private?</span>
+              <span class="sp-landing-faq-icon">+</span>
+            </button>
+            <div class="sp-landing-faq-answer">
+              <p>Yes. Your interview and plan are stored securely and used only to generate your Serious Plan. We don't sell or share your stories with anyone.</p>
+            </div>
+          </div>
+          <div class="sp-landing-faq-item">
+            <button class="sp-landing-faq-question" data-testid="button-faq-3" aria-expanded="false">
+              <span>How long does this take?</span>
+              <span class="sp-landing-faq-icon">+</span>
+            </button>
+            <div class="sp-landing-faq-answer">
+              <p>Most people finish the free interview in 5-10 minutes. The full coaching session takes about 30 minutes. Your Serious Plan is generated within a few minutes after that.</p>
+            </div>
+          </div>
+          <div class="sp-landing-faq-item">
+            <button class="sp-landing-faq-question" data-testid="button-faq-4" aria-expanded="false">
+              <span>Does this replace working with a human coach?</span>
+              <span class="sp-landing-faq-icon">+</span>
+            </button>
+            <div class="sp-landing-faq-answer">
+              <p>It doesn't have to. Serious People is a great first step-or a complement to human coaching. You can start right now, on your own schedule, without committing to a multi-session package. If you decide to work with a coach later, your Serious Plan becomes a powerful starting brief.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sp-landing-section sp-landing-final-cta">
+      <div class="sp-landing-container sp-landing-centered-text">
+        <h2 class="sp-landing-section-title">Ready to get serious?</h2>
+        <p>
+          The free interview takes 5-10 minutes. You'll see your coaching plan before you pay anything.
+        </p>
+        
+        <div class="sp-landing-cta-group">
+          <a href="/app/login" class="sp-landing-cta-primary" data-testid="button-start-interview-bottom">
+            Start the free interview
+          </a>
+        </div>
+        
+        <p class="sp-landing-contact">
+          Questions? Email <a href="mailto:hello@seriouspeople.app">hello@seriouspeople.app</a>
+        </p>
+      </div>
+    </section>
+
+    <footer class="sp-landing-footer">
+      <p>&copy; Serious People Career Coaching</p>
+      <nav class="sp-landing-footer-nav">
+        <a href="/guides">Guides</a>
+        <a href="/resources">Resources</a>
+        <a href="/app/login">Log in</a>
+      </nav>
+    </footer>
+  </div>
+
+  <script>
+    // Typewriter effect
+    const rotatingQuestions = [
+      "should I quit?",
+      "is this fixable?",
+      "what do I even want?",
+      "how do I say this?",
+      "am I overreacting?",
+      "is it worth the risk?"
+    ];
+    
+    let phraseIndex = 0;
+    let charIndex = 0;
+    let isDeleting = false;
+    const typewriter = document.getElementById('typewriter');
+    
+    function type() {
+      const currentPhrase = rotatingQuestions[phraseIndex];
+      
+      if (isDeleting) {
+        charIndex--;
+        typewriter.textContent = currentPhrase.substring(0, charIndex);
+        
+        if (charIndex === 0) {
+          isDeleting = false;
+          phraseIndex = (phraseIndex + 1) % rotatingQuestions.length;
+          return setTimeout(type, 300);
+        }
+        
+        return setTimeout(type, 40);
+      } else {
+        charIndex++;
+        typewriter.textContent = currentPhrase.substring(0, charIndex);
+        
+        if (charIndex === currentPhrase.length) {
+          return setTimeout(function() {
+            isDeleting = true;
+            type();
+          }, 2000);
+        }
+        
+        return setTimeout(type, 80);
+      }
+    }
+    
+    type();
+    
+    // FAQ accordion
+    document.querySelectorAll('.sp-landing-faq-question').forEach(function(button) {
+      button.addEventListener('click', function() {
+        const item = this.closest('.sp-landing-faq-item');
+        const isOpen = item.classList.contains('sp-landing-faq-open');
+        
+        // Close all
+        document.querySelectorAll('.sp-landing-faq-item').forEach(function(i) {
+          i.classList.remove('sp-landing-faq-open');
+          i.querySelector('.sp-landing-faq-icon').textContent = '+';
+          i.querySelector('.sp-landing-faq-question').setAttribute('aria-expanded', 'false');
+        });
+        
+        // Open clicked one if it was closed
+        if (!isOpen) {
+          item.classList.add('sp-landing-faq-open');
+          this.querySelector('.sp-landing-faq-icon').textContent = '-';
+          this.setAttribute('aria-expanded', 'true');
+        }
+      });
+    });
+    
+    // Capture promo code from URL
+    (function() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var promoCode = urlParams.get('promo');
+      if (promoCode) {
+        sessionStorage.setItem('sp_promo_code', promoCode);
+      }
+    })();
+  </script>
+  
+  <% if (typeof posthogKey !== 'undefined' && posthogKey) { %>
+  <script>
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init('<%= posthogKey %>', {
+      api_host: 'https://us.i.posthog.com',
+      person_profiles: 'identified_only',
+      capture_pageview: true,
+      capture_pageleave: true,
+      autocapture: false
+    });
+    posthog.capture('seo_page_view', {
+      page_type: 'landing',
+      page_slug: '',
+      page_title: 'Serious People - Career Coaching'
+    });
+    document.querySelectorAll('.sp-landing-cta-primary, a[href="/app/login"]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        posthog.capture('seo_cta_click', {
+          page_type: 'landing',
+          page_slug: '',
+          cta_href: btn.getAttribute('href')
+        });
+      });
+    });
+  </script>
+  <% } %>
+</body>
+</html>

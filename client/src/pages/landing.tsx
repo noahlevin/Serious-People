@@ -211,15 +211,19 @@ export default function Landing() {
             <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
             <span>Serious People</span>
           </div>
-          {isAuthenticated ? (
-            <Link href={getJourneyPath()} className="sp-landing-login-link" data-testid="link-continue">
-              Continue →
-            </Link>
-          ) : (
-            <Link href="/login" className="sp-landing-login-link" data-testid="link-login">
-              Log in →
-            </Link>
-          )}
+          <nav className="sp-landing-nav">
+            <a href="/guides" className="sp-landing-nav-link">Guides</a>
+            <a href="/resources" className="sp-landing-nav-link">Resources</a>
+            {isAuthenticated ? (
+              <Link href={getJourneyPath()} className="sp-landing-login-link" data-testid="link-continue">
+                Continue →
+              </Link>
+            ) : (
+              <Link href="/login" className="sp-landing-login-link" data-testid="link-login">
+                Log in →
+              </Link>
+            )}
+          </nav>
         </div>
         
         <div className="sp-landing-hero-content">
@@ -436,6 +440,11 @@ export default function Landing() {
       {/* FOOTER */}
       <footer className="sp-landing-footer">
         <p>© Serious People Career Coaching</p>
+        <nav className="sp-landing-footer-nav">
+          <a href="/guides">Guides</a>
+          <a href="/resources">Resources</a>
+          <Link href="/login">Log in</Link>
+        </nav>
       </footer>
     </div>
   );

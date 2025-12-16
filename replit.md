@@ -169,15 +169,27 @@ Items from the PRD that were deferred:
 - /lp/* landing pages for paid ads (noindex pages for campaign traffic)
 
 ### Phase 5: /app Mount (Completed)
-The SPA is now served at both / (root) and /app:
-- **Root (/):** Original SPA serving, unchanged behavior
-- **/app/*:** Same SPA with /app base path, mirrors all functionality
+The SPA is served at /app with preserved session handling:
+- **/app/*:** React SPA with /app base path
 - **Routing:** Client-side wouter router auto-detects /app base path and adjusts routes
-- **Auth:** Session-based authentication works at both paths, cookies shared
-- **API Routes:** All /api/* and /auth/* routes work identically from either path
-- **Purpose:** Enables future Phase 6 (flip / to marketing for logged-out users) without disrupting existing users
+- **Auth:** Session-based authentication works, cookies shared across paths
+- **API Routes:** All /api/* and /auth/* routes work identically
 - **Base Path Preservation:** Authentication (Google OAuth, magic links) and Stripe checkout preserve the /app base path in all redirects
-- **Security:** `sanitizeBasePath()` function in `server/routes.ts` prevents open redirect attacks. Only allows single-segment paths like `/app` (regex: `/^\/[a-zA-Z0-9-_]+$/`). If multi-level paths like `/app/v2` are needed in the future, update the regex accordingly.
+- **Security:** `sanitizeBasePath()` function in `server/routes.ts` prevents open redirect attacks. Only allows single-segment paths like `/app` (regex: `/^\/[a-zA-Z0-9-_]+$/`).
+
+### Phase 6: Marketing Site at Root (Completed)
+Root path (/) now serves static marketing content to logged-out users:
+- **Root (/) - Logged Out:** Static EJS landing page (`seo/templates/landing.ejs`) mirroring the React landing page design
+- **Root (/) - Logged In:** Server-side redirect to user's current journey step at /app/*
+- **Static Landing Features:**
+  - Typewriter animation for hero headline
+  - Dynamic pricing from Stripe
+  - PostHog analytics tracking
+  - FAQ accordion
+  - Navigation links to /guides and /resources
+  - All CTAs link to /app/login
+- **Edge Case Handling:** Users without journey state (fresh accounts) redirect to /app, letting the SPA determine their first destination
+- **React Landing Updates:** Added header navigation links to SEO content (/guides, /resources)
 
 ## Project Documentation
 
