@@ -12,16 +12,33 @@
   <link rel="canonical" href="<%= canonical %>">
   
   <!-- Open Graph / Facebook -->
-  <meta property="og:type" content="article">
+  <meta property="og:type" content="<%= typeof ogType !== 'undefined' ? ogType : 'article' %>">
   <meta property="og:url" content="<%= canonical %>">
   <meta property="og:title" content="<%= title %> | Serious People">
   <meta property="og:description" content="<%= description %>">
   <meta property="og:site_name" content="Serious People">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:image" content="<%= typeof ogImage !== 'undefined' ? ogImage : (canonical.replace(/\/(guides|roles|tools)\/.*$/, '') + '/logo.png') %>">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Serious People - Career Coaching">
+  <% if (typeof publishedDate !== 'undefined') { %>
+  <meta property="article:published_time" content="<%= publishedDate %>">
+  <% } %>
+  <% if (typeof modifiedDate !== 'undefined') { %>
+  <meta property="article:modified_time" content="<%= modifiedDate %>">
+  <% } %>
+  <meta property="article:author" content="Serious People">
+  <meta property="article:section" content="Career Advice">
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@seriouspeople">
+  <meta name="twitter:creator" content="@seriouspeople">
   <meta name="twitter:title" content="<%= title %> | Serious People">
   <meta name="twitter:description" content="<%= description %>">
+  <meta name="twitter:image" content="<%= typeof ogImage !== 'undefined' ? ogImage : (canonical.replace(/\/(guides|roles|tools)\/.*$/, '') + '/logo.png') %>">
+  <meta name="twitter:image:alt" content="Serious People - Career Coaching">
   
   <!-- Robots -->
   <% if (typeof noindex !== 'undefined' && noindex) { %>
@@ -362,6 +379,38 @@
           });
         });
       });
+      
+      // Scroll depth tracking
+      var scrollDepthsTracked = {};
+      var scrollThresholds = [25, 50, 75, 90, 100];
+      
+      function getScrollPercent() {
+        var h = document.documentElement;
+        var b = document.body;
+        var st = 'scrollTop';
+        var sh = 'scrollHeight';
+        return Math.round((h[st] || b[st]) / ((h[sh] || b[sh]) - h.clientHeight) * 100);
+      }
+      
+      function trackScrollDepth() {
+        var scrollPercent = getScrollPercent();
+        scrollThresholds.forEach(function(threshold) {
+          if (scrollPercent >= threshold && !scrollDepthsTracked[threshold]) {
+            scrollDepthsTracked[threshold] = true;
+            posthog.capture('seo_scroll_depth', {
+              page_type: '<%= typeof pageType !== "undefined" ? pageType : "pillar" %>',
+              page_slug: '<%= typeof pageSlug !== "undefined" ? pageSlug : "" %>',
+              depth_percent: threshold
+            });
+          }
+        });
+      }
+      
+      var scrollTimeout;
+      window.addEventListener('scroll', function() {
+        if (scrollTimeout) clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(trackScrollDepth, 100);
+      }, { passive: true });
     });
   </script>
   <% } %>

@@ -14,10 +14,19 @@
   <meta property="og:title" content="Stay or Go Calculator | Serious People">
   <meta property="og:description" content="Should you stay at your job or leave? Take this 2-minute assessment to find out.">
   <meta property="og:site_name" content="Serious People">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:image" content="<%= canonical.replace(/\/tools\/.*$/, '') %>/logo.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Serious People - Stay or Go Calculator">
   
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@seriouspeople">
+  <meta name="twitter:creator" content="@seriouspeople">
   <meta name="twitter:title" content="Stay or Go Calculator | Serious People">
   <meta name="twitter:description" content="Should you stay at your job or leave? Take this 2-minute assessment to find out.">
+  <meta name="twitter:image" content="<%= canonical.replace(/\/tools\/.*$/, '') %>/logo.png">
+  <meta name="twitter:image:alt" content="Serious People - Stay or Go Calculator">
   
   <% if (typeof structuredData !== 'undefined') { %>
   <%- structuredData %>
@@ -502,6 +511,40 @@
       page_slug: 'stay-or-go-calculator',
       page_title: 'Stay or Go Calculator'
     });
+    
+    // Scroll depth tracking
+    (function() {
+      var scrollDepthsTracked = {};
+      var scrollThresholds = [25, 50, 75, 90, 100];
+      
+      function getScrollPercent() {
+        var h = document.documentElement;
+        var b = document.body;
+        var st = 'scrollTop';
+        var sh = 'scrollHeight';
+        return Math.round((h[st] || b[st]) / ((h[sh] || b[sh]) - h.clientHeight) * 100);
+      }
+      
+      function trackScrollDepth() {
+        var scrollPercent = getScrollPercent();
+        scrollThresholds.forEach(function(threshold) {
+          if (scrollPercent >= threshold && !scrollDepthsTracked[threshold]) {
+            scrollDepthsTracked[threshold] = true;
+            posthog.capture('seo_scroll_depth', {
+              page_type: 'tool',
+              page_slug: 'stay-or-go-calculator',
+              depth_percent: threshold
+            });
+          }
+        });
+      }
+      
+      var scrollTimeout;
+      window.addEventListener('scroll', function() {
+        if (scrollTimeout) clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(trackScrollDepth, 100);
+      }, { passive: true });
+    })();
   </script>
   <% } %>
   

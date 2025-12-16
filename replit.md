@@ -112,8 +112,16 @@ SEO pages include PostHog tracking for user behavior analysis:
 - **Events:**
   - `seo_page_view` — Fired on every SEO page load (page_type, page_slug, page_title)
   - `seo_cta_click` — Fired when CTA buttons or /interview links are clicked
+  - `seo_scroll_depth` — Fired at 25%, 50%, 75%, 90%, 100% scroll thresholds (page_type, page_slug, depth_percent)
 - **Implementation:** PostHog script injected via layout.ejs for template pages, inline for index pages
 - **Key:** Uses VITE_POSTHOG_KEY environment variable
+
+### Open Graph & Social Sharing
+All SEO pages include comprehensive Open Graph and Twitter Card meta tags:
+- **OG Tags:** og:type, og:url, og:title, og:description, og:site_name, og:locale, og:image (with dimensions and alt text), article:published_time, article:author, article:section
+- **Twitter Tags:** twitter:card (summary_large_image), twitter:site, twitter:creator, twitter:title, twitter:description, twitter:image
+- **Image:** Falls back to /logo.png for all pages
+- **Canonical URLs:** All pages include proper canonical URLs
 
 ### Structured Data (JSON-LD)
 All SEO pages include JSON-LD structured data for rich search results:
