@@ -14,6 +14,8 @@ This document captures lessons learned from building the Serious People career c
 4. [Bug Prevention Checklist](#bug-prevention-checklist)
 5. [Design Patterns That Work](#design-patterns-that-work)
 6. [Future Improvements / Technical Debt](#future-improvements--technical-debt)
+7. [SEO Architecture](#seo-architecture)
+8. [/app Mount Architecture](#app-mount-architecture)
 
 ---
 
@@ -359,6 +361,59 @@ SyntaxError: Unexpected token ` in JSON at position 0
 
 4. **Keep required fields minimal** - Only enforce what's truly required.
 
+### When Working with SEO Pages
+
+1. **Understand the separation** - SEO pages are EJS-rendered HTML, completely separate from the React SPA.
+
+2. **Route priority matters** - SEO routes are defined BEFORE the SPA catch-all in `server/routes.ts`. Order matters!
+
+3. **Content lives in Markdown** - Edit content in `/seo/content/`, not in templates or controllers.
+
+4. **Use modules for reusable content** - Create a module in `/seo/content/modules/` and include with `{{module:module-id}}`.
+
+5. **Quality thresholds exist** - Pages below word count thresholds get `noindex`. Check `seoController.ts` for thresholds.
+
+6. **Cross-linking is automatic** - The system generates related links based on topic clusters. Update topic mappings if adding new content.
+
+7. **Test with search engine tools** - Verify pages are crawlable, have correct meta tags, and structured data is valid.
+
+### When Working with /app Mount
+
+1. **Test both paths** - Always verify features work at both `/` and `/app/` base paths.
+
+2. **Always use sanitizeBasePath()** - This function in `server/routes.ts` (around line 1802) sanitizes user input to prevent open redirects:
+   ```typescript
+   // CORRECT: Always sanitize, then concatenate
+   const basePath = sanitizeBasePath(req.query.basePath);
+   // basePath will be "" (empty string) for root, or "/app" - never external URLs
+   res.redirect(`${basePath}/destination`);
+   // Results in: "/" at root, or "/app/destination" when at /app
+   
+   // WRONG: Never use raw input directly
+   res.redirect(`${req.query.basePath}/destination`); // Security vulnerability!
+   ```
+   
+   **Note:** The current implementation uses this exact pattern (template strings with sanitized basePath). There is no separate redirect helper function.
+
+3. **Handle empty base path correctly** - `sanitizeBasePath()` returns empty string `""` for root paths, so `${basePath}/destination` correctly becomes `/destination` at root and `/app/destination` at /app.
+
+4. **Client passes base path** - Frontend code must detect and pass basePath to API calls that trigger redirects:
+   ```typescript
+   const basePath = window.location.pathname.startsWith('/app') ? '/app' : '';
+   fetch('/api/checkout', { 
+     method: 'POST',
+     body: JSON.stringify({ basePath }) 
+   });
+   ```
+
+5. **Security is critical** - The `sanitizeBasePath()` function:
+   - Trims whitespace and URL-decodes input
+   - Only allows single-segment paths matching `/^\/[a-zA-Z0-9-_]+$/`
+   - Rejects protocols, path traversal, double slashes, backslashes
+   - If multi-level paths like `/app/v2` are needed, update the regex
+
+6. **Wouter handles client routing** - The `<Router base={basePath}>` component handles all client-side navigation. Links and `setLocation` calls are relative to the base.
+
 ---
 
 ## Bug Prevention Checklist
@@ -398,6 +453,24 @@ Use this checklist when building similar features:
 - [ ] Unique constraints where needed?
 - [ ] Nullable fields have defaults in Zod?
 - [ ] No schema changes that would break existing data?
+
+### SEO Pages
+- [ ] Route defined before SPA catch-all?
+- [ ] Page has unique title and meta description?
+- [ ] Open Graph tags present?
+- [ ] JSON-LD structured data valid? (pillar and programmatic pages)
+- [ ] Canonical URL set correctly?
+- [ ] Word count above quality threshold? (1200+ for pillars, 700+ for programmatic)
+- [ ] Cross-links generated correctly? (pillar and programmatic pages only)
+- [ ] PostHog tracking events firing?
+
+### /app Base Path
+- [ ] Feature tested at both `/` and `/app/`?
+- [ ] Server redirects use `sanitizeBasePath()`?
+- [ ] Client passes basePath to redirect-triggering APIs?
+- [ ] No hardcoded paths that bypass base path?
+- [ ] Authentication flows preserve base path?
+- [ ] Payment flows preserve base path?
 
 ---
 
@@ -605,6 +678,216 @@ export function buildPrompt(template: string, includes: string[]): string {
 - Easy to update persona across all prompts
 - Smaller, more focused prompt files
 - Easier testing of individual components
+
+### 4. SEO Static Site Generation
+
+Currently, SEO pages are rendered on-demand with EJS. Future improvement:
+
+**Recommended pattern:**
+- Migrate to Astro or similar static site generator
+- Pre-render all SEO pages at build time
+- Serve from CDN for faster page loads
+- Keep content in Markdown with YAML frontmatter (already compatible)
+
+**Benefits:**
+- Faster page loads (no server rendering)
+- Better Core Web Vitals scores
+- Reduced server load
+- Easier to cache at CDN level
+
+### 5. Phase 6: Root as Marketing Site
+
+The `/app` mount is preparation for flipping the root to a static marketing site:
+
+**Recommended approach:**
+1. Build static marketing pages (can use same EJS/Astro approach as SEO)
+2. Update Express to serve marketing at `/` for logged-out users
+3. Redirect logged-in users from `/` to `/app`
+4. Update all marketing CTAs to point to `/app/interview`
+
+**Considerations:**
+- Session cookie still works at both paths
+- API routes remain at `/api/*` (no base path)
+- Ensure SEO pages have correct CTAs pointing to `/app`
+
+---
+
+## SEO Architecture
+
+### Overview
+
+The SEO engine serves static HTML pages for search engine crawlers, separate from the React SPA. This architecture allows for:
+- Crawlable content for organic search traffic
+- Fast page loads for SEO pages
+- Separation of concerns between marketing content and application
+
+### Key Design Decisions
+
+**1. EJS Templates over React SSR**
+
+We chose EJS templates for SEO pages because:
+- Simple server-side rendering without build complexity
+- No hydration overhead for static content
+- Easy to migrate to Astro or another static site generator later
+- Clear separation from SPA codebase
+
+**2. Markdown with YAML Frontmatter**
+
+Content is stored as Markdown files with YAML frontmatter:
+```yaml
+---
+title: "The Stay-or-Go Decision Framework"
+description: "A systematic approach to career decisions"
+topic: decision
+---
+
+# Content here...
+```
+
+Benefits:
+- Renderer-agnostic (can switch from EJS to Astro)
+- Easy for non-developers to edit
+- Version-controlled content
+- Clear metadata structure
+
+**3. Modular Content System**
+
+Reusable content blocks can be included in any page:
+```markdown
+{{module:cta-coaching}}
+{{module:warning-burnout-signs}}
+```
+
+This prevents duplication and ensures consistency across pages.
+
+**4. Programmatic Pages**
+
+Role + situation combinations generate 50+ targeted pages:
+- `/roles/vp-product/situations/burnout`
+- `/roles/eng-manager/situations/bad-manager`
+
+Each page is composed from content modules (framework, mistakes, vignette, walkaway) to ensure uniqueness while maintaining quality.
+
+### File Structure
+
+```
+seo/
+├── templates/
+│   ├── layout.ejs           # Base layout with header/footer
+│   ├── pillar.ejs           # Pillar page template
+│   ├── programmatic.ejs     # Role-situation page template
+│   └── tool.ejs             # Interactive tool template
+├── content/
+│   ├── pillars/             # 12 pillar guide markdown files
+│   ├── modules/             # Reusable content modules
+│   └── programmatic/        # Content for programmatic pages
+│       ├── frameworks/      # Decision frameworks by role
+│       ├── mistakes/        # Common mistakes by situation
+│       ├── vignettes/       # Story examples
+│       └── walkaway/        # Walkaway signals
+server/
+└── seoController.ts         # Route handlers and rendering logic
+```
+
+### Quality Thresholds
+
+- **Pillar pages:** 1200+ words, 5+ unique modules
+- **Programmatic pages:** 700+ words, 4+ unique modules
+- Pages below threshold receive `noindex` meta tag
+
+### Structured Data (JSON-LD)
+
+JSON-LD structured data is implemented for:
+- **Pillar pages:** Article schema with headline, description, author, publisher, dates
+- **Programmatic pages:** Article schema with role and situation context
+- **Tool pages:** WebPage schema (e.g., Stay-or-Go Calculator)
+
+Generated in `seoController.ts` via `articleSchema()`, `webPageSchema()`, and `organizationSchema()` functions.
+
+### Cross-Linking Strategy
+
+Smart cross-links are generated for pillar and programmatic pages:
+- Pillar → Related pillars (topic-based)
+- Pillar → Programmatic pages (situation-matched)
+- Programmatic → Related pillars (situation-to-topic mapping)
+- Programmatic → Adjacent pages (same role OR same situation)
+
+**Note:** Index pages (`/guides`, `/roles`, `/resources`) and tool pages do not have automatic cross-links.
+
+---
+
+## /app Mount Architecture
+
+### Purpose
+
+The SPA can be served at both `/` (root) and `/app`:
+- **Current state:** Both paths serve the same SPA
+- **Future state:** Root becomes static marketing, `/app` serves the application
+
+This enables migrating the root to a marketing site without breaking existing user flows.
+
+### Implementation Details
+
+**1. Router Base Path Detection**
+
+```typescript
+// client/src/App.tsx
+const basePath = window.location.pathname.startsWith('/app') ? '/app' : '';
+
+<Router base={basePath}>
+  {/* Routes are relative to base */}
+</Router>
+```
+
+**2. Server Route Mounting**
+
+```typescript
+// server/routes.ts
+// SPA catch-all serves for both root and /app
+app.get('*', (req, res) => {
+  // SEO routes handled first, then SPA
+});
+```
+
+**3. Base Path Preservation in Redirects**
+
+Authentication and payment flows must preserve the base path:
+- Google OAuth stores basePath in session, uses in callback redirect
+- Magic links include basePath in verification URL
+- Stripe checkout passes basePath in success/cancel URLs
+
+**4. Security: Open Redirect Prevention**
+
+The `sanitizeBasePath()` function prevents open redirect attacks:
+```typescript
+function sanitizeBasePath(basePath: string | undefined): string {
+  if (!basePath) return "";
+  let sanitized = basePath.trim();
+  try {
+    sanitized = decodeURIComponent(sanitized);
+  } catch {
+    return "";
+  }
+  // Only allow single-segment paths like /app
+  if (!/^\/[a-zA-Z0-9-_]+$/.test(sanitized)) {
+    return "";
+  }
+  // Reject dangerous patterns
+  if (sanitized.includes("://") || sanitized.includes("..")) {
+    return "";
+  }
+  return sanitized;
+}
+```
+
+**Important:** Current regex only allows single-segment paths (`/app`). If multi-level paths like `/app/v2` are needed, update the regex.
+
+### Testing Considerations
+
+When testing authentication flows:
+1. Test at both `/login` and `/app/login`
+2. Verify redirects go to correct base path
+3. Test with malicious basePath values to verify sanitization
 
 ---
 
