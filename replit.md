@@ -99,6 +99,14 @@ Role + situation combinations for targeted SEO. Pages are composed from reusable
 - **Page Structure:** Framework → Mistakes → Vignette → Walkaway → CTA
 - **Quality Threshold:** 700+ words (pages below threshold get noindex)
 
+### SEO Analytics (PostHog)
+SEO pages include PostHog tracking for user behavior analysis:
+- **Events:**
+  - `seo_page_view` — Fired on every SEO page load (page_type, page_slug, page_title)
+  - `seo_cta_click` — Fired when CTA buttons or /interview links are clicked
+- **Implementation:** PostHog script injected via layout.ejs for template pages, inline for index pages
+- **Key:** Uses VITE_POSTHOG_KEY environment variable
+
 ### Available Pillars (12 total)
 1. `/guides/stay-or-go-framework` — The Stay-or-Go Decision Framework
 2. `/guides/burnout-vs-misfit-vs-bad-manager` — Burnout vs. Misfit vs. Bad Manager
