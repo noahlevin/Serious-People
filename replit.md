@@ -81,8 +81,9 @@ The SEO engine generates crawlable HTML pages for organic search traffic, served
 - `GET /guides/:slug` — Individual pillar pages (12 pillars)
 - `GET /roles` — Index of role-specific guidance
 - `GET /roles/:role/situations/:situation` — Programmatic pages (50 pages)
+- `GET /tools/stay-or-go-calculator` — Interactive Stay-or-Go quiz
 - `GET /robots.txt` — Search engine instructions
-- `GET /sitemap.xml` — XML sitemap (65 URLs total)
+- `GET /sitemap.xml` — XML sitemap (66 URLs total)
 
 ### Key Files
 - `/seo/templates/` — EJS layout and page templates

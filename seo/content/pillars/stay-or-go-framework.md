@@ -5,6 +5,8 @@ description: A structured approach to deciding whether to stay at your current j
 lede: You're not lazy. You're not ungrateful. You're facing a decision that will shape the next chapter of your career—and you deserve a clear way to think about it.
 ---
 
+**Not sure where you stand?** [Take the Stay-or-Go Calculator](/tools/stay-or-go-calculator) — a 2-minute quiz that scores your situation and gives you a personalized recommendation.
+
 ## The Problem With How We Usually Make This Decision
 
 Most people spend months or years stuck in a loop: some days convinced they should leave, other days talking themselves into staying. They poll friends, read job listings at 2 AM, and oscillate between panic and paralysis.

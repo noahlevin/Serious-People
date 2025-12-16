@@ -572,6 +572,7 @@ export function sitemap(_req: Request, res: Response) {
     { loc: "/", priority: "1.0" },
     { loc: "/guides", priority: "0.9" },
     { loc: "/roles", priority: "0.8" },
+    { loc: "/tools/stay-or-go-calculator", priority: "0.9" },
     ...ALL_PILLARS.map(p => ({ loc: `/guides/${p.slug}`, priority: "0.8" })),
     ...programmaticPages.map(p => ({ loc: `/roles/${p.role}/situations/${p.situation}`, priority: "0.6" })),
   ];
@@ -762,4 +763,24 @@ export async function renderRolesIndex(_req: Request, res: Response) {
   
   res.set("Content-Type", "text/html");
   res.send(html);
+}
+
+// Render the Stay-or-Go Calculator tool
+export async function renderStayOrGoCalculator(_req: Request, res: Response) {
+  const baseUrl = getBaseUrl();
+  const templatesDir = path.join(process.cwd(), "seo", "templates");
+  
+  try {
+    const templatePath = path.join(templatesDir, "stay-or-go-calculator.ejs");
+    const html = await ejs.renderFile(templatePath, {
+      canonical: `${baseUrl}/tools/stay-or-go-calculator`,
+      posthogKey: POSTHOG_KEY,
+    });
+    
+    res.set("Content-Type", "text/html");
+    res.send(html);
+  } catch (error) {
+    console.error("[SEO] Error rendering Stay-or-Go Calculator:", error);
+    res.status(500).send("Error rendering calculator");
+  }
 }

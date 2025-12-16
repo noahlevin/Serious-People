@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Stay or Go Calculator | Serious People</title>
+  <meta name="description" content="A quick diagnostic to help you decide whether to stay at your current job or start looking for something new. Answer 7 questions and get a personalized recommendation.">
+  
+  <link rel="canonical" href="<%= canonical %>">
+  
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="<%= canonical %>">
+  <meta property="og:title" content="Stay or Go Calculator | Serious People">
+  <meta property="og:description" content="Should you stay at your job or leave? Take this 2-minute assessment to find out.">
+  <meta property="og:site_name" content="Serious People">
+  
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Stay or Go Calculator | Serious People">
+  <meta name="twitter:description" content="Should you stay at your job or leave? Take this 2-minute assessment to find out.">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --sp-bg: #faf9f6;
+      --sp-bg-elevated: #ffffff;
+      --sp-text: #1a1a1a;
+      --sp-text-secondary: #666666;
+      --sp-text-muted: #888888;
+      --sp-border: #d4d4d4;
+      --sp-border-light: #e5e5e5;
+      --sp-accent: #c41e3a;
+      --sp-accent-hover: #a01830;
+      --sp-success: #2d6a4f;
+      --sp-warning: #b86e00;
+      --sp-font-display: 'Playfair Display', Georgia, serif;
+      --sp-font-body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    }
+    
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    body {
+      font-family: var(--sp-font-body);
+      background: var(--sp-bg);
+      color: var(--sp-text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    
+    .sp-header {
+      text-align: center;
+      padding: 1.5rem 1rem;
+      border-bottom: 3px double var(--sp-text);
+      margin-bottom: 2rem;
+    }
+    
+    .sp-header-logo {
+      font-family: var(--sp-font-display);
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+      color: var(--sp-text);
+      text-decoration: none;
+    }
+    
+    .sp-header-nav {
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    
+    .sp-header-nav a {
+      color: var(--sp-text-secondary);
+      text-decoration: none;
+      margin: 0 1rem;
+    }
+    
+    .sp-header-nav a:hover {
+      color: var(--sp-text);
+    }
+    
+    .sp-main {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 1.5rem 4rem;
+    }
+    
+    .calculator-intro {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    
+    .calculator-intro h1 {
+      font-family: var(--sp-font-display);
+      font-size: 2.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 1rem;
+    }
+    
+    .calculator-intro p {
+      color: var(--sp-text-secondary);
+      font-size: 1.1rem;
+    }
+    
+    .progress-bar {
+      background: var(--sp-border-light);
+      height: 6px;
+      border-radius: 3px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      background: var(--sp-text);
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    
+    .question-container {
+      display: none;
+    }
+    
+    .question-container.active {
+      display: block;
+    }
+    
+    .question-number {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--sp-text-muted);
+      margin-bottom: 0.5rem;
+    }
+    
+    .question-text {
+      font-family: var(--sp-font-display);
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      line-height: 1.3;
+    }
+    
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .option {
+      background: var(--sp-bg-elevated);
+      border: 1px solid var(--sp-border);
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: var(--sp-font-body);
+      font-size: 1rem;
+      text-align: left;
+      color: var(--sp-text);
+    }
+    
+    .option:hover {
+      border-color: var(--sp-text);
+      background: var(--sp-bg);
+    }
+    
+    .option.selected {
+      border-color: var(--sp-text);
+      background: var(--sp-text);
+      color: var(--sp-bg);
+    }
+    
+    .nav-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 2rem;
+      gap: 1rem;
+    }
+    
+    .nav-btn {
+      font-family: var(--sp-font-body);
+      font-size: 0.95rem;
+      padding: 0.875rem 1.5rem;
+      border: 1px solid var(--sp-border);
+      background: var(--sp-bg-elevated);
+      color: var(--sp-text);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .nav-btn:hover:not(:disabled) {
+      border-color: var(--sp-text);
+    }
+    
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    
+    .nav-btn.primary {
+      background: var(--sp-text);
+      color: var(--sp-bg);
+      border-color: var(--sp-text);
+    }
+    
+    .nav-btn.primary:hover:not(:disabled) {
+      background: var(--sp-accent);
+      border-color: var(--sp-accent);
+    }
+    
+    /* Results */
+    .results-container {
+      display: none;
+      text-align: center;
+    }
+    
+    .results-container.active {
+      display: block;
+    }
+    
+    .result-score {
+      font-family: var(--sp-font-display);
+      font-size: 4rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    
+    .result-score.stay {
+      color: var(--sp-success);
+    }
+    
+    .result-score.uncertain {
+      color: var(--sp-warning);
+    }
+    
+    .result-score.go {
+      color: var(--sp-accent);
+    }
+    
+    .result-label {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+    
+    .result-explanation {
+      color: var(--sp-text-secondary);
+      margin-bottom: 2rem;
+      line-height: 1.7;
+    }
+    
+    .score-breakdown {
+      background: var(--sp-bg-elevated);
+      border: 1px solid var(--sp-border);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      text-align: left;
+    }
+    
+    .score-breakdown h3 {
+      font-family: var(--sp-font-display);
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .score-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--sp-border-light);
+    }
+    
+    .score-item:last-child {
+      border-bottom: none;
+    }
+    
+    .score-item .label {
+      color: var(--sp-text-secondary);
+    }
+    
+    .score-item .value {
+      font-weight: 600;
+    }
+    
+    .score-item .value.high {
+      color: var(--sp-success);
+    }
+    
+    .score-item .value.medium {
+      color: var(--sp-warning);
+    }
+    
+    .score-item .value.low {
+      color: var(--sp-accent);
+    }
+    
+    .next-steps {
+      background: var(--sp-bg-elevated);
+      border: 1px solid var(--sp-border);
+      padding: 1.5rem;
+      text-align: left;
+    }
+    
+    .next-steps h3 {
+      font-family: var(--sp-font-display);
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .next-steps ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .next-steps li {
+      margin-bottom: 0.75rem;
+    }
+    
+    .next-steps a {
+      color: var(--sp-text);
+      text-decoration: none;
+      border-bottom: 1px solid var(--sp-border-light);
+    }
+    
+    .next-steps a:hover {
+      border-bottom-color: var(--sp-accent);
+      color: var(--sp-accent);
+    }
+    
+    .cta-box {
+      background: var(--sp-text);
+      color: var(--sp-bg);
+      padding: 2rem;
+      margin-top: 2rem;
+      text-align: center;
+    }
+    
+    .cta-box h3 {
+      font-family: var(--sp-font-display);
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .cta-box p {
+      opacity: 0.9;
+      margin-bottom: 1.25rem;
+    }
+    
+    .cta-box a {
+      display: inline-block;
+      background: var(--sp-bg);
+      color: var(--sp-text);
+      padding: 0.875rem 2rem;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    
+    .cta-box a:hover {
+      background: var(--sp-accent);
+      color: #fff;
+    }
+    
+    .restart-btn {
+      margin-top: 2rem;
+      font-family: var(--sp-font-body);
+      font-size: 0.9rem;
+      padding: 0.75rem 1.5rem;
+      border: 1px solid var(--sp-border);
+      background: transparent;
+      color: var(--sp-text-secondary);
+      cursor: pointer;
+    }
+    
+    .restart-btn:hover {
+      border-color: var(--sp-text);
+      color: var(--sp-text);
+    }
+    
+    .sp-footer {
+      border-top: 3px double var(--sp-text);
+      padding: 2rem 1rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--sp-text-secondary);
+    }
+    
+    .sp-footer a {
+      color: var(--sp-text-secondary);
+      text-decoration: none;
+    }
+    
+    .sp-footer a:hover {
+      color: var(--sp-text);
+    }
+    
+    @media (max-width: 640px) {
+      .calculator-intro h1 {
+        font-size: 1.75rem;
+      }
+      
+      .question-text {
+        font-size: 1.25rem;
+      }
+      
+      .result-score {
+        font-size: 3rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="sp-header">
+    <a href="/" class="sp-header-logo">Serious People</a>
+    <nav class="sp-header-nav">
+      <a href="/guides">Guides</a>
+      <a href="/tools/stay-or-go-calculator">Calculator</a>
+      <a href="/interview">Start Session</a>
+    </nav>
+  </header>
+  
+  <main class="sp-main">
+    <div class="calculator-intro" id="intro">
+      <h1>Should You Stay or Go?</h1>
+      <p>Answer 7 quick questions to get a personalized recommendation. Takes about 2 minutes.</p>
+    </div>
+    
+    <div class="progress-bar" id="progress-bar">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+    
+    <div id="quiz-container">
+      <!-- Questions will be rendered here by JavaScript -->
+    </div>
+    
+    <div class="results-container" id="results">
+      <div class="result-score" id="result-score"></div>
+      <div class="result-label" id="result-label"></div>
+      <p class="result-explanation" id="result-explanation"></p>
+      
+      <div class="score-breakdown" id="score-breakdown">
+        <h3>Your Score Breakdown</h3>
+        <div id="breakdown-items"></div>
+      </div>
+      
+      <div class="next-steps" id="next-steps">
+        <h3>Recommended Reading</h3>
+        <ul id="recommended-links"></ul>
+      </div>
+      
+      <div class="cta-box">
+        <h3>Want Personalized Guidance?</h3>
+        <p>Get tailored advice for your specific situation with our AI-powered coaching interview.</p>
+        <a href="/interview" data-testid="link-cta-interview">Start Your Free Interview</a>
+      </div>
+      
+      <button class="restart-btn" id="restart-btn" data-testid="button-restart-quiz">Take the Quiz Again</button>
+    </div>
+  </main>
+  
+  <footer class="sp-footer">
+    <p>&copy; <%= new Date().getFullYear() %> Serious People. Career coaching for serious decisions.</p>
+    <p style="margin-top: 0.5rem;">
+      <a href="/">Home</a> &middot; 
+      <a href="/guides">Guides</a> &middot; 
+      <a href="/interview">Start Session</a>
+    </p>
+  </footer>
+  
+  <% if (posthogKey) { %>
+  <script>
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init('<%= posthogKey %>', {
+      api_host: 'https://us.i.posthog.com',
+      person_profiles: 'identified_only',
+      capture_pageview: true,
+      capture_pageleave: true,
+      autocapture: false
+    });
+    posthog.capture('seo_page_view', {
+      page_type: 'tool',
+      page_slug: 'stay-or-go-calculator',
+      page_title: 'Stay or Go Calculator'
+    });
+  </script>
+  <% } %>
+  
+  <script>
+    (function() {
+      var questions = [
+        {
+          id: 'growth',
+          text: 'How would you rate your opportunities for growth and advancement?',
+          options: [
+            { text: 'Excellent — clear path forward', score: 5 },
+            { text: 'Good — some opportunities available', score: 4 },
+            { text: 'Limited — not much room to grow', score: 2 },
+            { text: 'None — I\'ve hit a ceiling', score: 1 }
+          ]
+        },
+        {
+          id: 'manager',
+          text: 'How is your relationship with your direct manager?',
+          options: [
+            { text: 'Great — they support and develop me', score: 5 },
+            { text: 'Fine — no major issues', score: 3 },
+            { text: 'Strained — regular friction', score: 2 },
+            { text: 'Toxic — actively harmful to my wellbeing', score: 0 }
+          ]
+        },
+        {
+          id: 'compensation',
+          text: 'How do you feel about your total compensation?',
+          options: [
+            { text: 'Well paid — above market rate', score: 5 },
+            { text: 'Fair — in line with market', score: 4 },
+            { text: 'Underpaid — below what I could get elsewhere', score: 2 },
+            { text: 'Significantly underpaid — being taken advantage of', score: 1 }
+          ]
+        },
+        {
+          id: 'energy',
+          text: 'How do you feel on Sunday night thinking about Monday?',
+          options: [
+            { text: 'Energized — looking forward to the week', score: 5 },
+            { text: 'Neutral — it\'s fine', score: 3 },
+            { text: 'Anxious — dread creeping in', score: 1 },
+            { text: 'Depressed — can\'t face another week', score: 0 }
+          ]
+        },
+        {
+          id: 'values',
+          text: 'How aligned is the company with your personal values?',
+          options: [
+            { text: 'Strongly aligned — proud to work here', score: 5 },
+            { text: 'Mostly aligned — a few disagreements', score: 4 },
+            { text: 'Misaligned — frequent value conflicts', score: 2 },
+            { text: 'Completely opposed — compromising my integrity', score: 0 }
+          ]
+        },
+        {
+          id: 'impact',
+          text: 'Do you feel your work matters and is recognized?',
+          options: [
+            { text: 'Yes — my contributions are valued', score: 5 },
+            { text: 'Somewhat — recognized occasionally', score: 3 },
+            { text: 'Rarely — my work goes unnoticed', score: 2 },
+            { text: 'Never — I feel invisible or undermined', score: 0 }
+          ]
+        },
+        {
+          id: 'alternatives',
+          text: 'How confident are you in finding a better opportunity?',
+          options: [
+            { text: 'Very confident — strong market position', score: 5 },
+            { text: 'Somewhat confident — would take some effort', score: 4 },
+            { text: 'Uncertain — concerned about my options', score: 2 },
+            { text: 'Not confident — worried about job security', score: 1 }
+          ]
+        }
+      ];
+      
+      var currentQuestion = 0;
+      var answers = {};
+      
+      var quizContainer = document.getElementById('quiz-container');
+      var resultsContainer = document.getElementById('results');
+      var progressFill = document.getElementById('progress-fill');
+      var progressBar = document.getElementById('progress-bar');
+      var intro = document.getElementById('intro');
+      
+      function renderQuestion(index) {
+        var q = questions[index];
+        var html = '<div class="question-container active">';
+        html += '<div class="question-number">Question ' + (index + 1) + ' of ' + questions.length + '</div>';
+        html += '<div class="question-text">' + q.text + '</div>';
+        html += '<div class="options">';
+        
+        q.options.forEach(function(opt, i) {
+          var selected = answers[q.id] === i ? 'selected' : '';
+          html += '<button class="option ' + selected + '" data-question="' + q.id + '" data-index="' + i + '" data-score="' + opt.score + '" data-testid="option-' + q.id + '-' + i + '">' + opt.text + '</button>';
+        });
+        
+        html += '</div>';
+        html += '<div class="nav-buttons">';
+        html += '<button class="nav-btn" id="prev-btn" ' + (index === 0 ? 'disabled' : '') + ' data-testid="button-prev">Back</button>';
+        
+        if (index === questions.length - 1) {
+          html += '<button class="nav-btn primary" id="next-btn" ' + (answers[q.id] === undefined ? 'disabled' : '') + ' data-testid="button-results">See Results</button>';
+        } else {
+          html += '<button class="nav-btn primary" id="next-btn" ' + (answers[q.id] === undefined ? 'disabled' : '') + ' data-testid="button-next">Next</button>';
+        }
+        
+        html += '</div></div>';
+        
+        quizContainer.innerHTML = html;
+        updateProgress();
+        
+        // Attach event listeners
+        document.querySelectorAll('.option').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var qId = this.getAttribute('data-question');
+            var idx = parseInt(this.getAttribute('data-index'));
+            var score = parseInt(this.getAttribute('data-score'));
+            
+            answers[qId] = idx;
+            answers[qId + '_score'] = score;
+            
+            document.querySelectorAll('.option').forEach(function(o) { o.classList.remove('selected'); });
+            this.classList.add('selected');
+            document.getElementById('next-btn').disabled = false;
+          });
+        });
+        
+        document.getElementById('prev-btn').addEventListener('click', function() {
+          if (currentQuestion > 0) {
+            currentQuestion--;
+            renderQuestion(currentQuestion);
+          }
+        });
+        
+        document.getElementById('next-btn').addEventListener('click', function() {
+          if (currentQuestion < questions.length - 1) {
+            currentQuestion++;
+            renderQuestion(currentQuestion);
+          } else {
+            showResults();
+          }
+        });
+      }
+      
+      function updateProgress() {
+        var progress = ((currentQuestion + 1) / questions.length) * 100;
+        progressFill.style.width = progress + '%';
+      }
+      
+      function showResults() {
+        quizContainer.style.display = 'none';
+        progressBar.style.display = 'none';
+        intro.style.display = 'none';
+        resultsContainer.classList.add('active');
+        
+        // Calculate total score
+        var totalScore = 0;
+        var maxScore = questions.length * 5;
+        var breakdown = [];
+        
+        questions.forEach(function(q) {
+          var score = answers[q.id + '_score'] || 0;
+          totalScore += score;
+          breakdown.push({
+            label: q.id.charAt(0).toUpperCase() + q.id.slice(1),
+            score: score,
+            max: 5
+          });
+        });
+        
+        var percentage = Math.round((totalScore / maxScore) * 100);
+        
+        // Determine recommendation
+        var scoreEl = document.getElementById('result-score');
+        var labelEl = document.getElementById('result-label');
+        var explanationEl = document.getElementById('result-explanation');
+        var linksEl = document.getElementById('recommended-links');
+        
+        scoreEl.textContent = percentage + '%';
+        
+        var recommendation, explanation, links;
+        
+        if (percentage >= 70) {
+          scoreEl.className = 'result-score stay';
+          recommendation = 'Lean Stay';
+          explanation = 'Your score suggests you\'re in a relatively good position at your current role. While no job is perfect, the fundamentals appear solid. Consider what specific improvements would make it even better, and whether those are achievable where you are.';
+          links = [
+            { href: '/guides/how-to-talk-to-your-boss-about-changing-your-role', text: 'How to Talk to Your Boss About Changing Your Role' },
+            { href: '/guides/stay-or-go-framework', text: 'The Stay-or-Go Decision Framework' }
+          ];
+        } else if (percentage >= 45) {
+          scoreEl.className = 'result-score uncertain';
+          recommendation = 'Time to Evaluate';
+          explanation = 'Your score indicates mixed signals—some things are working, others aren\'t. This is the hardest position to be in. You need more clarity on what\'s driving your dissatisfaction and whether it\'s fixable. Don\'t make a rash decision, but don\'t ignore the warning signs either.';
+          links = [
+            { href: '/guides/stay-or-go-framework', text: 'The Stay-or-Go Decision Framework' },
+            { href: '/guides/burnout-vs-misfit-vs-bad-manager', text: 'Burnout vs. Misfit vs. Bad Manager' },
+            { href: '/guides/when-to-use-a-coach', text: 'When to Use a Coach' }
+          ];
+        } else {
+          scoreEl.className = 'result-score go';
+          recommendation = 'Consider Leaving';
+          explanation = 'Your score suggests significant challenges in your current role. Multiple factors are working against you. While leaving isn\'t always the answer, staying in a situation this difficult rarely improves without major intervention. Start preparing your options.';
+          links = [
+            { href: '/guides/executive-job-search-is-different', text: 'Executive Job Search Is Different' },
+            { href: '/guides/how-to-explain-your-departure', text: 'How to Explain Your Departure' },
+            { href: '/guides/how-to-resign-without-burning-bridges', text: 'How to Resign Without Burning Bridges' }
+          ];
+        }
+        
+        labelEl.textContent = recommendation;
+        explanationEl.textContent = explanation;
+        
+        linksEl.innerHTML = links.map(function(l) {
+          return '<li><a href="' + l.href + '">' + l.text + '</a></li>';
+        }).join('');
+        
+        // Render breakdown
+        var breakdownHtml = breakdown.map(function(item) {
+          var valueClass = item.score >= 4 ? 'high' : (item.score >= 2 ? 'medium' : 'low');
+          return '<div class="score-item"><span class="label">' + item.label + '</span><span class="value ' + valueClass + '">' + item.score + '/' + item.max + '</span></div>';
+        }).join('');
+        
+        document.getElementById('breakdown-items').innerHTML = breakdownHtml;
+        
+        // Track completion
+        if (typeof posthog !== 'undefined') {
+          posthog.capture('quiz_completed', {
+            quiz_name: 'stay-or-go-calculator',
+            total_score: percentage,
+            recommendation: recommendation,
+            breakdown: breakdown.reduce(function(acc, item) {
+              acc[item.label.toLowerCase()] = item.score;
+              return acc;
+            }, {})
+          });
+        }
+      }
+      
+      // Restart button
+      document.getElementById('restart-btn').addEventListener('click', function() {
+        currentQuestion = 0;
+        answers = {};
+        quizContainer.style.display = 'block';
+        progressBar.style.display = 'block';
+        intro.style.display = 'block';
+        resultsContainer.classList.remove('active');
+        renderQuestion(0);
+        
+        if (typeof posthog !== 'undefined') {
+          posthog.capture('quiz_restarted', { quiz_name: 'stay-or-go-calculator' });
+        }
+      });
+      
+      // Track CTA clicks
+      document.querySelectorAll('.cta-box a, a[href="/interview"]').forEach(function(link) {
+        link.addEventListener('click', function() {
+          if (typeof posthog !== 'undefined') {
+            posthog.capture('seo_cta_click', {
+              page_type: 'tool',
+              page_slug: 'stay-or-go-calculator',
+              cta_href: this.getAttribute('href')
+            });
+          }
+        });
+      });
+      
+      // Start the quiz
+      renderQuestion(0);
+      
+      if (typeof posthog !== 'undefined') {
+        posthog.capture('quiz_started', { quiz_name: 'stay-or-go-calculator' });
+      }
+    })();
+  </script>
+</body>
+</html>
