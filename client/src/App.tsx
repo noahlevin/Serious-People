@@ -18,6 +18,8 @@ import CareerBrief from "@/pages/career-brief";
 import SeriousPlan from "@/pages/serious-plan";
 import CoachChat from "@/pages/coach-chat";
 import CoachLetter from "@/pages/coach-letter";
+import HowItWorks from "@/pages/how-it-works";
+import Pricing from "@/pages/pricing";
 import NotFound from "@/pages/not-found";
 
 // Detect if running at /app base path (Phase 5: optional /app mount)
@@ -43,6 +45,8 @@ function AppRoutes() {
       <Route path="/serious-plan" component={SeriousPlan} />
       <Route path="/coach-chat" component={CoachChat} />
       <Route path="/coach-letter" component={CoachLetter} />
+      <Route path="/how-it-works" component={HowItWorks} />
+      <Route path="/pricing" component={Pricing} />
       <Route component={NotFound} />
     </Switch>
   );
