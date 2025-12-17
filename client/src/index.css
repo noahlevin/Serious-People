@@ -524,3 +524,85 @@
   );
   animation: shimmer 2s infinite;
 }
+
+/* ============================================
+   CHAT COMPONENT STYLES
+   ============================================ */
+.chat-bubble {
+  /* Base chat bubble styles */
+}
+
+.chat-bubble ul.chat-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0;
+}
+
+.chat-bubble ul.chat-list li {
+  position: relative;
+  padding-left: 1.25rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.chat-bubble ul.chat-list li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: hsl(var(--primary));
+}
+
+.chat-bubble b, .chat-bubble strong {
+  font-weight: 600;
+  color: inherit;
+}
+
+.chat-bubble i, .chat-bubble em {
+  font-style: italic;
+}
+
+.chat-bubble hr {
+  border: none;
+  height: 1px;
+  background: hsl(var(--border));
+  margin: 1rem 0;
+}
+
+/* Typewriter cursor animation */
+.sp-typewriter-text::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background-color: hsl(var(--foreground));
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: typewriter-blink 0.8s infinite;
+}
+
+/* ============================================
+   LAYOUT UTILITIES
+   ============================================ */
+.max-w-content {
+  max-width: 680px;
+}
+
+.max-w-content-wide {
+  max-width: 1080px;
+}
+
+.max-w-container {
+  max-width: 1280px;
+}
+
+.py-section {
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+}
+
+@media (max-width: 768px) {
+  .py-section {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+}
