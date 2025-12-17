@@ -30,18 +30,24 @@
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&display=swap" rel="stylesheet">
   
   <style>
     :root {
-      --sp-bg: #faf9f6;
-      --sp-text: #1a1a1a;
-      --sp-text-secondary: #666;
-      --sp-text-muted: #444;
-      --sp-border: #d4d4d4;
-      --sp-border-light: #e5e5e5;
+      --sp-bg: #FAF8F5;
+      --sp-bg-alt: #F5F3F0;
+      --sp-text: #1C1917;
+      --sp-text-secondary: #57534E;
+      --sp-text-muted: #78716C;
+      --sp-border: #E7E5E4;
+      --sp-border-light: #F5F5F4;
+      --sp-primary: #4A5548;
+      --sp-primary-light: rgba(74, 85, 72, 0.1);
+      --sp-accent: #C4A484;
+      --sp-accent-light: rgba(196, 164, 132, 0.15);
+      --sp-card: #FFFFFF;
       --sp-font-display: 'Playfair Display', Georgia, serif;
-      --sp-font-body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+      --sp-font-body: 'Inter', system-ui, sans-serif;
     }
     
     *, *::before, *::after {
@@ -118,13 +124,14 @@
     .sp-landing-login-link {
       font-family: var(--sp-font-body);
       font-size: 0.9rem;
-      color: var(--sp-text-secondary);
+      color: var(--sp-primary);
       text-decoration: none;
       transition: color 0.2s ease;
+      font-weight: 500;
     }
     
     .sp-landing-login-link:hover {
-      color: var(--sp-text);
+      color: #3d4a3c;
     }
     
     .sp-landing-hero {
@@ -192,28 +199,32 @@
       font-family: var(--sp-font-body);
       font-size: 1rem;
       font-weight: 500;
-      background: var(--sp-text);
-      color: var(--sp-bg);
+      background: var(--sp-primary);
+      color: #fff;
       border: none;
       padding: 0.875rem 2rem;
+      border-radius: 6px;
       cursor: pointer;
-      transition: opacity 0.2s ease;
+      transition: all 0.2s ease;
       text-decoration: none;
     }
     
     .sp-landing-cta-primary:hover {
-      opacity: 0.85;
+      background: #3d4a3c;
+      transform: translateY(-1px);
     }
     
     .sp-landing-cta-secondary {
       font-family: var(--sp-font-body);
       font-size: 0.9rem;
-      color: var(--sp-text-secondary);
+      color: var(--sp-primary);
       text-decoration: none;
+      transition: color 0.2s ease;
     }
     
     .sp-landing-cta-secondary:hover {
-      color: var(--sp-text);
+      color: #3d4a3c;
+      text-decoration: underline;
     }
     
     .sp-landing-reassurance {
@@ -227,7 +238,7 @@
     }
     
     .sp-landing-section-alt {
-      background: #f5f4f0;
+      background: var(--sp-bg-alt);
     }
     
     .sp-landing-section-title {
@@ -249,12 +260,13 @@
       display: flex;
       align-items: center;
       gap: 1rem;
-      padding: 0.75rem 1.25rem;
+      padding: 1rem 1.5rem;
       border: 1px solid var(--sp-border);
-      border-radius: 4px;
-      background: #ffffff;
+      border-radius: 8px;
+      background: var(--sp-card);
       max-width: 450px;
       margin: 0 auto;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
     
     .sp-landing-quote-image {
@@ -306,8 +318,9 @@
     }
     
     .sp-landing-scenario-bullet {
-      color: var(--sp-text-secondary);
+      color: var(--sp-primary);
       flex-shrink: 0;
+      font-size: 1.25rem;
     }
     
     .sp-landing-steps {
@@ -330,11 +343,12 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: var(--sp-font-body);
+      font-family: var(--sp-font-display);
       font-size: 1.1rem;
-      font-weight: 800;
+      font-weight: 700;
       line-height: 1;
-      border: 2px solid var(--sp-text);
+      background: var(--sp-primary);
+      color: #fff;
       border-radius: 50%;
     }
     
@@ -359,7 +373,13 @@
     .sp-landing-artifact {
       padding: 1.5rem;
       border: 1px solid var(--sp-border);
-      background: #fff;
+      border-radius: 8px;
+      background: var(--sp-card);
+      transition: box-shadow 0.2s ease;
+    }
+    
+    .sp-landing-artifact:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
     }
     
     .sp-landing-artifact h3 {
