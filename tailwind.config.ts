@@ -2,13 +2,23 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
+  content: [
+    "./client/index.html",
+    "./client/src/**/*.{js,jsx,ts,tsx}",
+
+    // IMPORTANT: include SEO templates + content so Tailwind generates classes used there
+    "./seo/**/*.{ejs,html,md}",
+    "./seo/**/*.{js,ts}",
+
+    // optional but safe if you use Tailwind classes in shared/components
+    "./shared/**/*.{js,jsx,ts,tsx}",
+  ],
   theme: {
     extend: {
       borderRadius: {
-        lg: ".5625rem", /* 9px */
-        md: ".375rem", /* 6px */
-        sm: ".1875rem", /* 3px */
+        lg: ".5625rem" /* 9px */,
+        md: ".375rem" /* 6px */,
+        sm: ".1875rem" /* 3px */,
       },
       colors: {
         // Flat / base colors (regular buttons)
@@ -73,7 +83,7 @@ export default {
         "sidebar-accent": {
           DEFAULT: "hsl(var(--sidebar-accent) / <alpha-value>)",
           foreground: "hsl(var(--sidebar-accent-foreground) / <alpha-value>)",
-          border: "var(--sidebar-accent-border)"
+          border: "var(--sidebar-accent-border)",
         },
         status: {
           online: "rgb(34 197 94)",
@@ -81,12 +91,52 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+
+        // Lovable palette tokens (we’ll define these CSS vars in Step 4)
+        terracotta: "hsl(var(--terracotta) / <alpha-value>)",
+        "sage-wash": "hsl(var(--sage-wash) / <alpha-value>)",
+        "sage-light": "hsl(var(--sage-light) / <alpha-value>)",
+        "sage-medium": "hsl(var(--sage-medium) / <alpha-value>)",
       },
+
+      // Lovable spacing + widths as tokens (again: Step 4 will define the CSS vars)
+      spacing: {
+        "sp-xs": "var(--sp-xs)",
+        "sp-sm": "var(--sp-sm)",
+        "sp-md": "var(--sp-md)",
+        "sp-lg": "var(--sp-lg)",
+        "sp-xl": "var(--sp-xl)",
+        "sp-2xl": "var(--sp-2xl)",
+      },
+      maxWidth: {
+        "content-narrow": "var(--content-narrow)",
+        "content-medium": "var(--content-medium)",
+        "content-wide": "var(--content-wide)",
+      },
+
       fontFamily: {
+        // existing shadcn-style tokens
         sans: ["var(--font-sans)"],
         serif: ["var(--font-serif)"],
         mono: ["var(--font-mono)"],
+
+        // Lovable typography tokens (work even if you don’t set vars yet)
+        display: [
+          "var(--font-display)",
+          "Playfair Display",
+          "ui-serif",
+          "serif",
+        ],
+        body: [
+          "var(--font-body)",
+          "Inter",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
+        chat: ["var(--font-chat)", "Lora", "ui-serif", "serif"],
       },
+
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -96,10 +146,29 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+
+        // Lovable motion primitives
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "fade-in-up": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "slide-in-right": {
+          from: { opacity: "0", transform: "translateX(12px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+
+        // Lovable motion primitives
+        "fade-in": "fade-in 200ms ease-out",
+        "fade-in-up": "fade-in-up 240ms ease-out",
+        "slide-in-right": "slide-in-right 240ms ease-out",
       },
     },
   },
