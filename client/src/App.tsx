@@ -21,10 +21,12 @@ import CoachLetter from "@/pages/coach-letter";
 import NotFound from "@/pages/not-found";
 import LovableSmoke from "@/pages/lovable-smoke";
 
-
 // Detect if running at /app base path (Phase 5: optional /app mount)
 function getBasePath(): string {
-  if (typeof window !== "undefined" && window.location.pathname.startsWith("/app")) {
+  if (
+    typeof window !== "undefined" &&
+    window.location.pathname.startsWith("/app")
+  ) {
     return "/app";
   }
   return "";
@@ -45,15 +47,15 @@ function AppRoutes() {
       <Route path="/serious-plan" component={SeriousPlan} />
       <Route path="/coach-chat" component={CoachChat} />
       <Route path="/coach-letter" component={CoachLetter} />
-      <Route component={NotFound} />
       <Route path="/__lovable" component={LovableSmoke} />
+      <Route component={NotFound} />
     </Switch>
   );
 }
 
 function Router() {
   const base = useMemo(() => getBasePath(), []);
-  
+
   if (base) {
     return (
       <WouterRouter base={base}>
@@ -61,7 +63,7 @@ function Router() {
       </WouterRouter>
     );
   }
-  
+
   return <AppRoutes />;
 }
 
