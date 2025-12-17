@@ -4,14 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
 import { formatContent } from "@/components/ChatComponents";
-import { FileText, MessageCircle } from "lucide-react";
-import "@/styles/serious-people.css";
+import { FileText, MessageCircle, ArrowLeft } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 function parseMarkdownInline(text: string): (string | JSX.Element)[] | string {
   const parts: (string | JSX.Element)[] = [];
   let lastIndex = 0;
-  // Match bold-wrapped links first, then regular links, then bold, italic, and bare URLs
-  // Order matters: more specific patterns first
   const regex = /\*\*\[(.+?)\]\((.+?)\)\*\*|\[(.+?)\]\((.+?)\)|\*\*(.+?)\*\*|\*(.+?)\*|(https?:\/\/[^\s)]+)/g;
   let match;
   let keyCounter = 0;
@@ -22,29 +22,24 @@ function parseMarkdownInline(text: string): (string | JSX.Element)[] | string {
     }
     
     if (match[1] && match[2]) {
-      // Bold-wrapped markdown link **[text](url)**
       parts.push(
-        <a key={`link-${keyCounter++}`} href={match[2]} target="_blank" rel="noopener noreferrer" className="sp-artifact-link">
+        <a key={`link-${keyCounter++}`} href={match[2]} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:text-primary-hover">
           <strong>{match[1]}</strong>
         </a>
       );
     } else if (match[3] && match[4]) {
-      // Regular markdown link [text](url)
       parts.push(
-        <a key={`link-${keyCounter++}`} href={match[4]} target="_blank" rel="noopener noreferrer" className="sp-artifact-link">
+        <a key={`link-${keyCounter++}`} href={match[4]} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:text-primary-hover">
           {match[3]}
         </a>
       );
     } else if (match[5]) {
-      // Bold text **text**
       parts.push(<strong key={`bold-${keyCounter++}`}>{match[5]}</strong>);
     } else if (match[6]) {
-      // Italic text *text*
       parts.push(<em key={`italic-${keyCounter++}`}>{match[6]}</em>);
     } else if (match[7]) {
-      // Bare URL - make it clickable
       parts.push(
-        <a key={`url-${keyCounter++}`} href={match[7]} target="_blank" rel="noopener noreferrer" className="sp-artifact-link">
+        <a key={`url-${keyCounter++}`} href={match[7]} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:text-primary-hover">
           {match[7]}
         </a>
       );
@@ -60,10 +55,8 @@ function parseMarkdownInline(text: string): (string | JSX.Element)[] | string {
   return parts.length > 0 ? parts : text;
 }
 
-// Preprocess content to fix broken markdown links (where ] and ( are on separate lines)
 function preprocessMarkdownContent(content: string | null | undefined): string {
   if (!content) return '';
-  // Join lines where a link title ends with ] on one line and ( starts on the next
   return content.replace(/\]\s*\n\s*\(/g, '](');
 }
 
@@ -108,19 +101,20 @@ type ViewMode = 'overview' | 'artifact';
 
 function ArtifactSkeleton() {
   return (
-    <div className="sp-artifact-card sp-artifact-skeleton" data-testid="artifact-skeleton">
-      <div className="sp-artifact-card-header">
-        <div className="sp-skeleton-line sp-skeleton-short"></div>
-      </div>
-      <div className="sp-skeleton-line sp-skeleton-title"></div>
-      <div className="sp-skeleton-line sp-skeleton-text"></div>
-      <div className="sp-skeleton-line sp-skeleton-text-short"></div>
-    </div>
+    <Card className="animate-pulse" data-testid="artifact-skeleton">
+      <CardHeader className="space-y-3">
+        <div className="h-4 w-20 bg-muted rounded" />
+        <div className="h-6 w-3/4 bg-muted rounded" />
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="h-4 w-full bg-muted rounded" />
+        <div className="h-4 w-2/3 bg-muted rounded" />
+      </CardContent>
+    </Card>
   );
 }
 
 function TranscriptRenderer({ artifact }: { artifact: Artifact }) {
-  // Parse contentRaw if it contains transcript data (stored as JSON string)
   let parsedData: { messages?: { role: string; content: string }[]; summary?: string } = {};
   if (artifact.contentRaw) {
     try {
@@ -134,35 +128,45 @@ function TranscriptRenderer({ artifact }: { artifact: Artifact }) {
   const summary = parsedData.summary || artifact.metadata?.summary || artifact.whyImportant;
 
   return (
-    <div className="sp-transcript-container">
+    <div className="space-y-8">
       {summary && (
-        <div className="sp-transcript-summary" data-testid="text-transcript-summary">
-          <h3 className="sp-artifact-h3">Summary</h3>
+        <div className="bg-sage-wash p-6 rounded-lg border border-border" data-testid="text-transcript-summary">
+          <h3 className="font-serif text-lg font-semibold text-foreground mb-3">Summary</h3>
           <div 
-            className="sp-body sp-formatted-content"
+            className="font-sans text-foreground leading-relaxed prose prose-sm max-w-none"
             dangerouslySetInnerHTML={{ __html: formatContent(summary) }}
           />
         </div>
       )}
-      <div className="sp-transcript-messages">
-        <h3 className="sp-artifact-h3">Conversation</h3>
+      <div className="space-y-4">
+        <h3 className="font-serif text-lg font-semibold text-foreground">Conversation</h3>
         {messages.map((msg, idx) => (
           <div 
             key={idx} 
-            className={`sp-transcript-message sp-transcript-${msg.role}`}
+            className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
             data-testid={`transcript-message-${idx}`}
           >
-            <div className="sp-transcript-role">
+            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+              msg.role === 'assistant' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
+            }`}>
               {msg.role === 'assistant' ? (
                 <MessageCircle size={16} />
               ) : (
-                <span className="sp-transcript-user-icon">You</span>
+                <span className="text-xs font-medium">You</span>
               )}
             </div>
             <div 
-              className="sp-transcript-content sp-formatted-content"
-              dangerouslySetInnerHTML={{ __html: formatContent(msg.content) }}
-            />
+              className={`flex-1 p-4 rounded-lg ${
+                msg.role === 'assistant' 
+                  ? 'bg-card border border-border' 
+                  : 'bg-primary text-primary-foreground'
+              }`}
+            >
+              <div 
+                className="prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: formatContent(msg.content) }}
+              />
+            </div>
           </div>
         ))}
       </div>
@@ -213,19 +217,15 @@ export default function SeriousPlanPage() {
     setSelectedArtifact(artifact);
     setViewMode('artifact');
     window.scrollTo(0, 0);
-    // Push state so browser back button returns to overview
     window.history.pushState({ artifactView: true, artifactId: artifact.id }, '', window.location.pathname);
   };
 
   const handleBackToOverview = () => {
-    // Use history.back() to properly integrate with browser navigation
     window.history.back();
   };
   
-  // Handle browser back button
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      // If we're in artifact view and user hits back, return to overview
       if (viewMode === 'artifact') {
         setSelectedArtifact(null);
         setViewMode('overview');
@@ -239,9 +239,9 @@ export default function SeriousPlanPage() {
 
   if (authLoading) {
     return (
-      <div className="sp-page">
-        <div className="sp-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
-          <p className="sp-body">Loading...</p>
+      <div className="min-h-screen bg-background">
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <p className="font-sans text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -249,18 +249,18 @@ export default function SeriousPlanPage() {
 
   if (planLoading) {
     return (
-      <div className="sp-page">
-        <header className="sp-success-header">
-          <div className="sp-header-content">
-            <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-              <span className="sp-logo">Serious People</span>
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-50 bg-background border-b border-border">
+          <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-3 no-underline" data-testid="link-home">
+              <img src="/favicon.png" alt="Serious People" className="w-9 h-9 rounded border border-border" />
+              <span className="font-serif text-lg font-bold text-foreground uppercase tracking-wide">Serious People</span>
             </Link>
             <UserMenu />
           </div>
         </header>
-        <div className="sp-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
-          <p className="sp-body">Loading your Serious Plan...</p>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <p className="font-sans text-muted-foreground">Loading your Serious Plan...</p>
         </div>
       </div>
     );
@@ -268,28 +268,28 @@ export default function SeriousPlanPage() {
 
   if (!plan) {
     return (
-      <div className="sp-page">
-        <header className="sp-success-header">
-          <div className="sp-header-content">
-            <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-              <span className="sp-logo">Serious People</span>
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-50 bg-background border-b border-border">
+          <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-3 no-underline" data-testid="link-home">
+              <img src="/favicon.png" alt="Serious People" className="w-9 h-9 rounded border border-border" />
+              <span className="font-serif text-lg font-bold text-foreground uppercase tracking-wide">Serious People</span>
             </Link>
             <UserMenu />
           </div>
         </header>
-        <main className="sp-container">
-          <div className="sp-graduation-note">
-            <h1 className="sp-headline" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+        <main className="max-w-4xl mx-auto px-6 py-16">
+          <Card className="text-center p-12">
+            <h1 className="font-serif text-2xl font-bold text-foreground mb-6">
               Preparing Your Plan
             </h1>
-            <div className="sp-generating-indicator">
-              <div className="sp-spinner"></div>
-              <p className="sp-body" style={{ marginTop: '1rem' }}>
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="font-sans text-muted-foreground">
                 Your coach is crafting personalized artifacts for your situation...
               </p>
             </div>
-          </div>
+          </Card>
         </main>
       </div>
     );
@@ -299,40 +299,47 @@ export default function SeriousPlanPage() {
     const isTranscript = selectedArtifact.type === 'transcript';
     
     return (
-      <div className="sp-page">
-        <header className="sp-success-header">
-          <div className="sp-header-content">
-            <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-              <span className="sp-logo">Serious People</span>
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-50 bg-background border-b border-border">
+          <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-3 no-underline" data-testid="link-home">
+              <img src="/favicon.png" alt="Serious People" className="w-9 h-9 rounded border border-border" />
+              <span className="font-serif text-lg font-bold text-foreground uppercase tracking-wide">Serious People</span>
             </Link>
             <UserMenu />
           </div>
         </header>
-        <main className="sp-container">
-          <div className="sp-artifact-view" data-testid={`artifact-${selectedArtifact.artifactKey}`}>
-            <button 
-              className="sp-back-button"
+        <main className="max-w-3xl mx-auto px-6 py-8">
+          <div data-testid={`artifact-${selectedArtifact.artifactKey}`}>
+            <Button 
+              variant="ghost"
               onClick={handleBackToOverview}
               data-testid="button-back"
+              className="mb-6 gap-2"
             >
-              ← Back to Plan
-            </button>
+              <ArrowLeft size={16} />
+              Back to Plan
+            </Button>
 
-            <article className="sp-artifact-document">
-              <header className="sp-artifact-doc-header">
-                <div className="sp-wsj-header-line"></div>
-                <span className={`sp-importance-tag sp-tag-${selectedArtifact.importanceLevel === 'must_read' ? 'essential' : selectedArtifact.importanceLevel}`}>
+            <article className="bg-card border border-card-border rounded-xl p-8 md:p-12">
+              <header className="mb-8 pb-8 border-b border-border text-center">
+                <div className="w-16 h-px bg-foreground mx-auto mb-6" />
+                <Badge 
+                  variant={selectedArtifact.importanceLevel === 'must_read' ? 'default' : 'secondary'}
+                  className="mb-4"
+                >
                   {selectedArtifact.importanceLevel === 'must_read' ? 'Essential' : 
                    selectedArtifact.importanceLevel === 'recommended' ? 'Recommended' :
                    selectedArtifact.importanceLevel === 'bonus' ? 'Bonus' : 'Reference'}
-                </span>
-                <h1 className="sp-artifact-doc-title">{selectedArtifact.title}</h1>
-                <div className="sp-wsj-header-line"></div>
+                </Badge>
+                <h1 className="font-serif text-2xl md:text-3xl font-bold text-foreground">
+                  {selectedArtifact.title}
+                </h1>
+                <div className="w-16 h-px bg-foreground mx-auto mt-6" />
               </header>
 
               {selectedArtifact.whyImportant && !isTranscript && (
-                <div className="sp-artifact-intro">
+                <div className="bg-terracotta-wash text-foreground p-6 rounded-lg mb-8 font-sans text-body leading-relaxed italic border-l-4 border-terracotta">
                   {selectedArtifact.whyImportant}
                 </div>
               )}
@@ -340,33 +347,33 @@ export default function SeriousPlanPage() {
               {isTranscript ? (
                 <TranscriptRenderer artifact={selectedArtifact} />
               ) : !selectedArtifact.contentRaw ? (
-                <div className="sp-artifact-body" data-testid="text-artifact-content">
-                  <p className="sp-artifact-p" style={{ color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+                <div data-testid="text-artifact-content">
+                  <p className="font-sans text-muted-foreground italic">
                     This artifact is still being generated. Please check back in a moment.
                   </p>
                 </div>
               ) : (
-                <div className="sp-artifact-body" data-testid="text-artifact-content">
+                <div className="prose prose-lg max-w-none" data-testid="text-artifact-content">
                   {preprocessMarkdownContent(selectedArtifact.contentRaw).split('\n').map((line, i) => {
                     if (line.startsWith('### ')) {
-                      return <h3 key={i} className="sp-artifact-h3">{parseMarkdownInline(line.replace('### ', ''))}</h3>;
+                      return <h3 key={i} className="font-serif text-lg font-semibold text-foreground mt-8 mb-4">{parseMarkdownInline(line.replace('### ', ''))}</h3>;
                     }
                     if (line.startsWith('## ')) {
-                      return <h2 key={i} className="sp-artifact-h2">{parseMarkdownInline(line.replace('## ', ''))}</h2>;
+                      return <h2 key={i} className="font-serif text-xl font-bold text-foreground mt-10 mb-4">{parseMarkdownInline(line.replace('## ', ''))}</h2>;
                     }
                     if (line.startsWith('# ')) {
-                      return <h1 key={i} className="sp-artifact-h1">{parseMarkdownInline(line.replace('# ', ''))}</h1>;
+                      return <h1 key={i} className="font-serif text-2xl font-bold text-foreground mt-12 mb-6">{parseMarkdownInline(line.replace('# ', ''))}</h1>;
                     }
                     if (line.startsWith('- ')) {
-                      return <li key={i} className="sp-artifact-li">{parseMarkdownInline(line.replace('- ', ''))}</li>;
+                      return <li key={i} className="font-sans text-foreground leading-relaxed ml-4">{parseMarkdownInline(line.replace('- ', ''))}</li>;
                     }
                     if (line.startsWith('**') && line.endsWith('**')) {
-                      return <p key={i} className="sp-artifact-bold">{line.replace(/\*\*/g, '')}</p>;
+                      return <p key={i} className="font-sans font-semibold text-foreground">{line.replace(/\*\*/g, '')}</p>;
                     }
                     if (line.trim() === '') {
-                      return <div key={i} className="sp-artifact-spacer" />;
+                      return <div key={i} className="h-4" />;
                     }
-                    return <p key={i} className="sp-artifact-p">{parseMarkdownInline(line)}</p>;
+                    return <p key={i} className="font-sans text-foreground leading-relaxed mb-4">{parseMarkdownInline(line)}</p>;
                   })}
                 </div>
               )}
@@ -399,79 +406,93 @@ export default function SeriousPlanPage() {
     const isTranscript = artifact.type === 'transcript';
     
     return (
-      <div 
+      <Card 
         key={artifact.id} 
-        className={`sp-artifact-card ${isEssential ? 'sp-artifact-premium' : ''}`}
+        className={`cursor-pointer hover-elevate transition-all duration-200 ${isEssential ? 'ring-2 ring-primary/20' : ''}`}
         onClick={() => handleViewArtifact(artifact)}
         data-testid={`card-artifact-${artifact.artifactKey}`}
       >
-        <div className="sp-artifact-card-header">
-          <span className="sp-artifact-number">{String(index + 1).padStart(2, '0')}</span>
-          {isEssential ? (
-            <span className="sp-importance-tag sp-tag-essential">Essential</span>
-          ) : (
-            <span className="sp-importance-tag sp-tag-recommended">
-              {artifact.importanceLevel === 'bonus' ? 'Bonus' : 'Additional'}
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="font-serif text-2xl font-bold text-muted-foreground">
+              {String(index + 1).padStart(2, '0')}
             </span>
-          )}
-        </div>
-        <h3 className="sp-artifact-title">
-          {isTranscript && <MessageCircle size={16} style={{ marginRight: '0.5rem', display: 'inline' }} />}
-          {artifact.title}
-        </h3>
-        <p className="sp-artifact-preview">{artifact.whyImportant}</p>
-        <div className="sp-artifact-read-more">
-          {isTranscript ? 'View Transcript →' : 'Read →'}
-        </div>
-      </div>
+            <Badge variant={isEssential ? 'default' : 'secondary'}>
+              {isEssential ? 'Essential' : artifact.importanceLevel === 'bonus' ? 'Bonus' : 'Additional'}
+            </Badge>
+          </div>
+          <CardTitle className="font-serif text-lg font-semibold leading-tight flex items-center gap-2">
+            {isTranscript && <MessageCircle size={16} className="flex-shrink-0" />}
+            {artifact.title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="font-sans text-sm text-muted-foreground leading-relaxed mb-4 line-clamp-2">
+            {artifact.whyImportant}
+          </p>
+          <span className="font-sans text-sm font-medium text-primary">
+            {isTranscript ? 'View Transcript →' : 'Read →'}
+          </span>
+        </CardContent>
+      </Card>
     );
   };
 
   return (
-    <div className="sp-page">
-      <header className="sp-success-header">
-        <div className="sp-header-content">
-          <Link href="/" className="sp-logo-link" data-testid="link-home">
-            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-            <span className="sp-logo">Serious People</span>
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-50 bg-background border-b border-border">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 no-underline" data-testid="link-home">
+            <img src="/favicon.png" alt="Serious People" className="w-9 h-9 rounded border border-border" />
+            <span className="font-serif text-lg font-bold text-foreground uppercase tracking-wide">Serious People</span>
           </Link>
           <UserMenu />
         </div>
       </header>
-      <main className="sp-container">
-        <div className="sp-plan-overview" data-testid="plan-overview">
-          <div className="sp-plan-header">
-            <div className="sp-wsj-header-line"></div>
-            <h1 className="sp-plan-main-title">Your Serious Plan</h1>
-            <p className="sp-plan-subtitle">
+      <main className="max-w-4xl mx-auto px-6 py-8">
+        <div data-testid="plan-overview">
+          <div className="text-center mb-12">
+            <div className="w-16 h-px bg-foreground mx-auto mb-6" />
+            <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground mb-3">
+              Your Serious Plan
+            </h1>
+            <p className="font-sans text-muted-foreground">
               {plan?.artifacts?.length || 0} personalized artifacts prepared for you
               {anyGenerating && ' (some still generating...)'}
             </p>
-            <div className="sp-wsj-header-line"></div>
+            <div className="w-16 h-px bg-foreground mx-auto mt-6" />
           </div>
 
           {essentialArtifacts.length > 0 && (
-            <div className="sp-artifact-section" data-testid="section-essential">
-              <div className="sp-section-header">
-                <span className="sp-section-label">Essential</span>
-                <h2 className="sp-section-title">Start Here</h2>
+            <section className="mb-12" data-testid="section-essential">
+              <div className="mb-6">
+                <span className="font-sans text-xs font-semibold uppercase tracking-widest text-primary">
+                  Essential
+                </span>
+                <h2 className="font-serif text-xl font-bold text-foreground mt-1">
+                  Start Here
+                </h2>
               </div>
-              <div className="sp-artifact-grid">
+              <div className="grid gap-4 md:grid-cols-2">
                 {essentialArtifacts.map((artifact, idx) => renderArtifactCard(artifact, idx, true))}
               </div>
-            </div>
+            </section>
           )}
 
           {additionalArtifacts.length > 0 && (
-            <div className="sp-artifact-section" data-testid="section-additional">
-              <div className="sp-section-header">
-                <span className="sp-section-label">Additional</span>
-                <h2 className="sp-section-title">Your Toolkit</h2>
+            <section data-testid="section-additional">
+              <div className="mb-6">
+                <span className="font-sans text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Additional
+                </span>
+                <h2 className="font-serif text-xl font-bold text-foreground mt-1">
+                  Your Toolkit
+                </h2>
               </div>
-              <div className="sp-artifact-grid">
+              <div className="grid gap-4 md:grid-cols-2">
                 {additionalArtifacts.map((artifact, idx) => renderArtifactCard(artifact, idx, false))}
               </div>
-            </div>
+            </section>
           )}
         </div>
       </main>

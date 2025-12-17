@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
 import { apiRequest } from "@/lib/queryClient";
-import { GraduationCap } from "lucide-react";
-import "@/styles/serious-people.css";
+import { GraduationCap, ArrowRight, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 interface LetterResponse {
   status: 'pending' | 'generating' | 'complete' | 'error';
@@ -56,18 +57,21 @@ export default function CoachLetterPage() {
 
   if (authLoading || letterLoading) {
     return (
-      <div className="sp-page">
-        <header className="sp-success-header">
-          <div className="sp-header-content">
-            <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-              <span className="sp-logo">Serious People</span>
-            </Link>
-            <UserMenu />
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-background/95 backdrop-blur-sm">
+          <div className="max-w-container mx-auto px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <Link href="/" className="flex items-center gap-3 group" data-testid="link-home">
+                <span className="font-serif text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
+                  Serious People
+                </span>
+              </Link>
+              <UserMenu />
+            </div>
           </div>
         </header>
-        <div className="sp-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
-          <p className="sp-body">Loading...</p>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -75,28 +79,33 @@ export default function CoachLetterPage() {
 
   if (!letter || letter.status === 'pending' || letter.status === 'generating') {
     return (
-      <div className="sp-page">
-        <header className="sp-success-header">
-          <div className="sp-header-content">
-            <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-              <span className="sp-logo">Serious People</span>
-            </Link>
-            <UserMenu />
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-background/95 backdrop-blur-sm">
+          <div className="max-w-container mx-auto px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <Link href="/" className="flex items-center gap-3 group" data-testid="link-home">
+                <span className="font-serif text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
+                  Serious People
+                </span>
+              </Link>
+              <UserMenu />
+            </div>
           </div>
         </header>
-        <main className="sp-container">
-          <div className="sp-graduation-note" data-testid="letter-loading">
-            <div className="sp-graduation-header" style={{ textAlign: 'center' }}>
-              <h1 className="sp-coach-header">Your Coach is Preparing Your Letter</h1>
+        <main className="max-w-content mx-auto px-6 py-16">
+          <Card className="p-8 md:p-12" data-testid="letter-loading">
+            <div className="text-center">
+              <h1 className="font-serif text-2xl md:text-3xl font-semibold text-foreground mb-8">
+                Your Coach is Preparing Your Letter
+              </h1>
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <p className="text-muted-foreground">
+                  Taking a moment to reflect on your journey...
+                </p>
+              </div>
             </div>
-            <div className="sp-generating-indicator">
-              <div className="sp-spinner"></div>
-              <p className="sp-body" style={{ marginTop: '1rem', textAlign: 'center' }}>
-                Taking a moment to reflect on your journey...
-              </p>
-            </div>
-          </div>
+          </Card>
         </main>
       </div>
     );
@@ -104,76 +113,87 @@ export default function CoachLetterPage() {
 
   if (letter.status === 'error' || !letter.content) {
     return (
-      <div className="sp-page">
-        <header className="sp-success-header">
-          <div className="sp-header-content">
-            <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-              <span className="sp-logo">Serious People</span>
-            </Link>
-            <UserMenu />
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-background/95 backdrop-blur-sm">
+          <div className="max-w-container mx-auto px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <Link href="/" className="flex items-center gap-3 group" data-testid="link-home">
+                <span className="font-serif text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
+                  Serious People
+                </span>
+              </Link>
+              <UserMenu />
+            </div>
           </div>
         </header>
-        <main className="sp-container">
-          <div className="sp-graduation-note" data-testid="letter-error">
-            <h1 className="sp-coach-header" style={{ textAlign: 'center' }}>Something went wrong</h1>
-            <p className="sp-body" style={{ textAlign: 'center' }}>
-              We couldn't load your coach's letter. Please try refreshing the page.
-            </p>
-            <div className="sp-graduation-cta">
-              <button
-                className="sp-plan-cta"
+        <main className="max-w-content mx-auto px-6 py-16">
+          <Card className="p-8 md:p-12" data-testid="letter-error">
+            <div className="text-center">
+              <h1 className="font-serif text-2xl md:text-3xl font-semibold text-foreground mb-4">
+                Something went wrong
+              </h1>
+              <p className="text-muted-foreground mb-8">
+                We couldn't load your coach's letter. Please try refreshing the page.
+              </p>
+              <Button
                 onClick={() => setLocation('/serious-plan')}
                 data-testid="button-skip-to-plan"
               >
                 Continue to Your Plan
-                <span className="sp-plan-cta-arrow">→</span>
-              </button>
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
             </div>
-          </div>
+          </Card>
         </main>
       </div>
     );
   }
 
   return (
-    <div className="sp-page">
-      <header className="sp-success-header">
-        <div className="sp-header-content">
-          <Link href="/" className="sp-logo-link" data-testid="link-home">
-            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-            <span className="sp-logo">Serious People</span>
-          </Link>
-          <UserMenu />
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-background/95 backdrop-blur-sm">
+        <div className="max-w-container mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <Link href="/" className="flex items-center gap-3 group" data-testid="link-home">
+              <span className="font-serif text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
+                Serious People
+              </span>
+            </Link>
+            <UserMenu />
+          </div>
         </div>
       </header>
-      <main className="sp-container">
-        <div className="sp-graduation-note" data-testid="coach-letter">
-          <div className="sp-graduation-header">
-            <div className="sp-letter-icon-row" style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-              <GraduationCap size={40} style={{ opacity: 0.8 }} />
+      <main className="max-w-content mx-auto px-6 py-16">
+        <Card className="p-8 md:p-12" data-testid="coach-letter">
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-sage-wash flex items-center justify-center">
+                <GraduationCap className="w-8 h-8 text-primary" />
+              </div>
             </div>
-            <h1 className="sp-coach-header">A Note from Your Coach</h1>
+            <h1 className="font-serif text-2xl md:text-3xl font-semibold text-foreground">
+              A Note from Your Coach
+            </h1>
           </div>
 
-          <div className="sp-coach-note-content" data-testid="text-letter-content">
+          <div className="space-y-4 text-foreground leading-relaxed" data-testid="text-letter-content">
             {letter.content.split('\n\n').map((paragraph, i) => (
-              <p key={i} className="sp-body">{paragraph}</p>
+              <p key={i}>{paragraph}</p>
             ))}
           </div>
 
-          <div className="sp-graduation-cta">
-            <button
-              className="sp-plan-cta"
+          <div className="mt-10 pt-8 border-t border-border flex justify-center">
+            <Button
               onClick={handleContinue}
               disabled={markSeenMutation.isPending}
+              size="lg"
               data-testid="button-continue-to-plan"
             >
               {markSeenMutation.isPending ? "Loading..." : "Continue to Your Plan"}
-              <span className="sp-plan-cta-arrow">→</span>
-            </button>
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
           </div>
-        </div>
+        </Card>
       </main>
     </div>
   );

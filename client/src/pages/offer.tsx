@@ -5,6 +5,9 @@ import { useJourney } from "@/hooks/useJourney";
 import { UserMenu } from "@/components/UserMenu";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { 
   ChevronDown, 
   Circle,
@@ -18,9 +21,9 @@ import {
   Pause,
   Zap,
   Lock,
-  RefreshCw
+  RefreshCw,
+  ArrowLeft
 } from "lucide-react";
-import "@/styles/serious-people.css";
 
 interface PricingData {
   originalPrice: number;
@@ -58,7 +61,6 @@ interface TranscriptData {
   clientDossier: ClientDossier | null;
 }
 
-// Artifact type to icon mapping
 const artifactIcons: Record<string, typeof FileText> = {
   snapshot: Target,
   conversation: MessageSquare,
@@ -114,7 +116,6 @@ const features = [
   { icon: RefreshCw, title: "Tailored to You", description: "Not a generic template" },
 ];
 
-// Default modules when planCard is missing
 const defaultModules = [
   {
     name: "Job Autopsy",
@@ -136,7 +137,6 @@ const defaultModules = [
   }
 ];
 
-// Default value bullets when valueBullets is missing
 const defaultValueBullets = [
   "Get unstuck from the analysis paralysis that's keeping you in place",
   "See your situation clearly without the fog of everyday stress",
@@ -145,7 +145,6 @@ const defaultValueBullets = [
   "Feel confident about your next move, whatever it is"
 ];
 
-// Default planned artifacts when planCard.plannedArtifacts is missing
 const defaultArtifacts = [
   { key: "decision_snapshot", title: "Decision Snapshot", type: "snapshot", description: "A clear summary of your situation, options, and recommended path forward" },
   { key: "conversation_scripts", title: "Conversation Scripts", type: "conversation", description: "Word-for-word scripts for difficult discussions you'll need to have" },
@@ -162,40 +161,33 @@ export default function Offer() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
-  // Set page title
   useEffect(() => {
     document.title = "Your Coaching Plan - Serious People";
-    // Remove page transition class if present
     document.body.classList.remove('page-transition-out');
   }, []);
 
-  // Fetch pricing
   const { data: pricing } = useQuery<PricingData>({
     queryKey: ["/api/pricing"],
     staleTime: 60000,
   });
 
-  // Fetch transcript data for plan card and value bullets
   const { data: transcriptData, isLoading: transcriptLoading } = useQuery<TranscriptData>({
     queryKey: ["/api/transcript"],
     enabled: isAuthenticated,
   });
 
-  // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       setLocation("/login");
     }
   }, [authLoading, isAuthenticated, setLocation]);
 
-  // Redirect if interview not complete
   useEffect(() => {
     if (!journeyLoading && journeyState && !journeyState.interviewComplete) {
       setLocation("/interview");
     }
   }, [journeyLoading, journeyState, setLocation]);
 
-  // Redirect if already paid
   useEffect(() => {
     if (!journeyLoading && journeyState?.paymentVerified) {
       setLocation("/module/1");
@@ -212,7 +204,6 @@ export default function Offer() {
         promoCode = sessionStorage.getItem('sp_promo_code');
       }
 
-      // Detect if running at /app base path for Stripe redirect URLs
       const basePath = window.location.pathname.startsWith('/app') ? '/app' : '';
       
       const response = await fetch("/checkout", {
@@ -248,14 +239,12 @@ export default function Offer() {
     ? transcriptData.valueBullets.trim().split("\n").filter(line => line.trim().startsWith("-")).map(line => line.replace(/^-\s*/, "").trim())
     : [];
   
-  // Use fallbacks when personalized data is missing
   const displayModules = planCard?.modules || defaultModules;
   const displayName = dossier?.clientName || planCard?.name || user?.providedName || "Your";
-  const firstName = displayName.split(' ')[0]; // Get first name for friendly address
+  const firstName = displayName.split(' ')[0];
   const valueBullets = parsedValueBullets.length > 0 ? parsedValueBullets : defaultValueBullets;
   const plannedArtifacts = planCard?.plannedArtifacts || defaultArtifacts;
   
-  // Personalization data from dossier
   const hasPersonalization = !!(dossier?.situation || dossier?.bigProblem);
   const roleContext = dossier?.currentRole && dossier?.company 
     ? `${dossier.currentRole} at ${dossier.company}` 
@@ -263,53 +252,49 @@ export default function Offer() {
 
   if (authLoading || journeyLoading || transcriptLoading) {
     return (
-      <div className="sp-offer-page">
-        <div className="sp-offer-loading">
-          <div className="sp-spinner-large" />
-          <p>Loading your coaching plan...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading your coaching plan...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="sp-offer-page">
-      {/* Header */}
-      <header className="sp-offer-header">
-        <div className="sp-offer-header-content">
-          <Link href="/" className="sp-logo-link">
-            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-            <span className="sp-logo">Serious People</span>
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
+        <div className="max-w-container mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/favicon.png" alt="Serious People" className="w-8 h-8" />
+            <span className="font-serif text-lg font-bold text-foreground">Serious People</span>
           </Link>
-          <div className="sp-offer-header-right">
-            <UserMenu />
-          </div>
+          <UserMenu />
         </div>
       </header>
 
-      {/* Hero Section with Logan Roy Quote */}
       <motion.section 
-        className="sp-offer-hero"
+        className="py-section-lg bg-sage-wash"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
       >
-        <div className="sp-offer-hero-content">
+        <div className="max-w-content mx-auto px-6 text-center">
           <motion.div 
-            className="sp-offer-quote-box"
+            className="flex items-center justify-center gap-4 mb-8"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <img src="/logan-roy.png" alt="Logan Roy" className="sp-offer-quote-image" />
-            <blockquote className="sp-offer-quote">
-              <p>"You make your own reality."</p>
-              <cite>— Logan Roy</cite>
+            <img src="/logan-roy.png" alt="Logan Roy" className="w-16 h-16 rounded-full object-cover border-2 border-primary/20" />
+            <blockquote className="text-left">
+              <p className="font-serif text-lg italic text-foreground">"You make your own reality."</p>
+              <cite className="text-sm text-muted-foreground not-italic">— Logan Roy</cite>
             </blockquote>
           </motion.div>
           
           <motion.h1 
-            className="sp-offer-hero-title"
+            className="font-serif text-display-lg text-foreground mb-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
@@ -317,20 +302,19 @@ export default function Offer() {
             {firstName !== "Your" ? `${firstName}, Your Plan is Ready` : "Your Coaching Plan is Ready"}
           </motion.h1>
           
-          {/* Personalized Context - Shows we listened */}
           {hasPersonalization && (
             <motion.div 
-              className="sp-offer-context-box"
+              className="mb-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
               data-testid="personalized-context"
             >
-              <p className="sp-offer-context-text">
-                {roleContext && <span className="sp-offer-context-role">{roleContext}</span>}
+              <p className="text-muted-foreground">
+                {roleContext && <span className="font-medium text-foreground">{roleContext}</span>}
                 {dossier?.bigProblem && (
-                  <span className="sp-offer-context-problem">
-                    {roleContext ? " · " : ""}Navigating: <em>{dossier.bigProblem}</em>
+                  <span>
+                    {roleContext ? " · " : ""}Navigating: <em className="text-primary">{dossier.bigProblem}</em>
                   </span>
                 )}
               </p>
@@ -338,7 +322,7 @@ export default function Offer() {
           )}
           
           <motion.p 
-            className="sp-offer-hero-subtitle"
+            className="text-body-lg text-muted-foreground max-w-xl mx-auto mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: hasPersonalization ? 0.6 : 0.5 }}
@@ -348,251 +332,176 @@ export default function Offer() {
               : "We've designed a personalized session based on your situation."
             }
             <br />
-            <span className="sp-highlight">30 minutes to clarity. Pause and return anytime.</span>
+            <span className="font-medium text-foreground">30 minutes to clarity. Pause and return anytime.</span>
           </motion.p>
           
-          <motion.button
-            className="sp-offer-hero-cta"
-            data-testid="button-checkout-hero"
-            onClick={handleCheckout}
-            disabled={isCheckoutLoading}
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: hasPersonalization ? 0.7 : 0.6 }}
           >
-            {isCheckoutLoading ? "Loading..." : (
-              <>
-                Start Your Session — {hasDiscount ? (
-                  <>
-                    <span className="sp-cta-price-original">${originalPrice}</span>
-                    ${displayPrice}
-                  </>
-                ) : (
-                  `$${displayPrice}`
-                )}
-              </>
-            )}
-          </motion.button>
+            <Button
+              size="lg"
+              className="text-lg px-8 py-6"
+              data-testid="button-checkout-hero"
+              onClick={handleCheckout}
+              disabled={isCheckoutLoading}
+            >
+              {isCheckoutLoading ? "Loading..." : (
+                <>
+                  Start Your Session — {hasDiscount ? (
+                    <>
+                      <span className="line-through opacity-60 mr-1">${originalPrice}</span>
+                      ${displayPrice}
+                    </>
+                  ) : (
+                    `$${displayPrice}`
+                  )}
+                </>
+              )}
+            </Button>
+          </motion.div>
         </div>
       </motion.section>
 
-      {/* Program Overview - Journey with Interview + 3 Modules */}
       <motion.section 
-        className="sp-offer-section sp-offer-program"
+        className="py-section bg-background"
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
       >
-        <div className="sp-offer-container">
-          <h2 className="sp-offer-section-title">{firstName}'s Coaching Journey</h2>
+        <div className="max-w-content-wide mx-auto px-6">
+          <h2 className="font-serif text-headline text-foreground text-center mb-4">{firstName}'s Coaching Journey</h2>
           
           {dossier?.clientFacingSummary && (
-            <p className="sp-offer-journey-summary" data-testid="text-journey-summary">
+            <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-12" data-testid="text-journey-summary">
               {dossier.clientFacingSummary}
             </p>
           )}
           
-          <div className="sp-offer-journey-timeline">
-            {/* Interview - Completed */}
-            <motion.div 
-              className="sp-offer-module-card sp-module-complete"
+          <div className="grid md:grid-cols-4 gap-6">
+            <motion.div
               initial={{ opacity: 0, x: -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0 }}
             >
-              <div className="sp-module-badge-area">
-                <div className="sp-module-badge sp-module-badge--complete">
-                  <CheckCircle2 size={11} />
-                  <span>Complete</span>
+              <Card className="p-6 border-primary/30 bg-sage-wash/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    <CheckCircle2 size={12} />
+                    <span>Complete</span>
+                  </div>
                 </div>
-              </div>
-              <div className="sp-offer-module-number">Interview</div>
-              <h3 className="sp-offer-module-name">Discovery Session</h3>
-              <p className="sp-offer-module-objective">
-                {dossier?.situation 
-                  ? dossier.situation.length > 120 
-                    ? dossier.situation.substring(0, 117) + "..." 
-                    : dossier.situation
-                  : "We explored your current situation, constraints, and what you're looking for next."}
-              </p>
-              <div className="sp-module-timing sp-module-timing--complete">
-                <CheckCircle2 size={14} />
-                <span>Completed today</span>
-              </div>
-              <div className="sp-module-divider" />
-              <div className="sp-module-outcome-header">What you shared:</div>
-              <div className="sp-offer-module-outcome sp-module-outcome-complete">
-                <CheckCircle2 size={16} />
-                <span>Your situation, goals, and constraints</span>
-              </div>
-            </motion.div>
-
-            {/* Connector */}
-            <motion.div 
-              className="sp-journey-connector"
-              initial={{ opacity: 0, scaleX: 0 }}
-              whileInView={{ opacity: 1, scaleX: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.3 }}
-            >
-              <div className="sp-journey-line" />
-            </motion.div>
-
-            {/* Module 1 - Up Next */}
-            <motion.div 
-              className="sp-offer-module-card sp-module-next"
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <div className="sp-module-badge-area">
-                <div className="sp-module-badge sp-module-badge--next">
-                  <span className="sp-module-next-dot" />
-                  <span>Up Next</span>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Interview</p>
+                <h3 className="font-serif text-lg font-semibold text-foreground mb-2">Discovery Session</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {dossier?.situation 
+                    ? dossier.situation.length > 120 
+                      ? dossier.situation.substring(0, 117) + "..." 
+                      : dossier.situation
+                    : "We explored your current situation, constraints, and what you're looking for next."}
+                </p>
+                <div className="flex items-center gap-2 text-xs text-primary mb-4">
+                  <CheckCircle2 size={14} />
+                  <span>Completed today</span>
                 </div>
-              </div>
-              <div className="sp-offer-module-number">Module 1</div>
-              <h3 className="sp-offer-module-name">{displayModules[0]?.name || "Job Autopsy"}</h3>
-              <p className="sp-offer-module-objective">{displayModules[0]?.objective || "Understand what's really driving your desire for change"}</p>
-              <div className="sp-module-timing">
-                <Clock size={14} />
-                <span>10–15 min</span>
-              </div>
-              <div className="sp-module-divider" />
-              <div className="sp-module-outcome-header">What you'll get:</div>
-              <div className="sp-offer-module-outcome">
-                <Circle size={16} />
-                <span>{displayModules[0]?.outcome || "Crystal clarity on why now is the time for a change"}</span>
-              </div>
-            </motion.div>
-
-            {/* Connector */}
-            <motion.div 
-              className="sp-journey-connector"
-              initial={{ opacity: 0, scaleX: 0 }}
-              whileInView={{ opacity: 1, scaleX: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.5 }}
-            >
-              <div className="sp-journey-line" />
-            </motion.div>
-
-            {/* Module 2 - Future */}
-            <motion.div 
-              className="sp-offer-module-card sp-module-future"
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-            >
-              <div className="sp-module-badge-area">
-                <div className="sp-module-badge sp-module-badge--future">
-                  <Circle size={11} />
-                  <span>Not Started</span>
+                <div className="border-t border-border pt-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">What you shared:</p>
+                  <div className="flex items-start gap-2 text-sm text-foreground">
+                    <CheckCircle2 size={16} className="text-primary mt-0.5 flex-shrink-0" />
+                    <span>Your situation, goals, and constraints</span>
+                  </div>
                 </div>
-              </div>
-              <div className="sp-offer-module-number">Module 2</div>
-              <h3 className="sp-offer-module-name">{displayModules[1]?.name || "Fork in the Road"}</h3>
-              <p className="sp-offer-module-objective">{displayModules[1]?.objective || "Explore your realistic options without magical thinking"}</p>
-              <div className="sp-module-timing">
-                <Clock size={14} />
-                <span>10–15 min</span>
-              </div>
-              <div className="sp-module-divider" />
-              <div className="sp-module-outcome-header">What you'll get:</div>
-              <div className="sp-offer-module-outcome">
-                <Circle size={16} />
-                <span>{displayModules[1]?.outcome || "A clear view of 2-3 realistic paths forward"}</span>
-              </div>
+              </Card>
             </motion.div>
 
-            {/* Connector */}
-            <motion.div 
-              className="sp-journey-connector"
-              initial={{ opacity: 0, scaleX: 0 }}
-              whileInView={{ opacity: 1, scaleX: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.7 }}
-            >
-              <div className="sp-journey-line" />
-            </motion.div>
-
-            {/* Module 3 - Future */}
-            <motion.div 
-              className="sp-offer-module-card sp-module-future"
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.6 }}
-            >
-              <div className="sp-module-badge-area">
-                <div className="sp-module-badge sp-module-badge--future">
-                  <Circle size={11} />
-                  <span>Not Started</span>
-                </div>
-              </div>
-              <div className="sp-offer-module-number">Module 3</div>
-              <h3 className="sp-offer-module-name">{displayModules[2]?.name || "The Great Escape Plan"}</h3>
-              <p className="sp-offer-module-objective">{displayModules[2]?.objective || "Build a concrete action plan you'll actually follow"}</p>
-              <div className="sp-module-timing">
-                <Clock size={14} />
-                <span>10–15 min</span>
-              </div>
-              <div className="sp-module-divider" />
-              <div className="sp-module-outcome-header">What you'll get:</div>
-              <div className="sp-offer-module-outcome">
-                <Circle size={16} />
-                <span>{displayModules[2]?.outcome || "A 30-90 day roadmap with clear milestones"}</span>
-              </div>
-            </motion.div>
+            {displayModules.map((module, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: (i + 1) * 0.15 }}
+              >
+                <Card className={cn(
+                  "p-6",
+                  i === 0 ? "border-primary/30" : "border-border"
+                )}>
+                  <div className="flex items-center gap-2 mb-3">
+                    {i === 0 ? (
+                      <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-terracotta-wash text-terracotta-foreground text-xs font-medium">
+                        <span className="w-2 h-2 rounded-full bg-terracotta animate-pulse" />
+                        <span>Up Next</span>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                        <Circle size={12} />
+                        <span>Not Started</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Module {i + 1}</p>
+                  <h3 className="font-serif text-lg font-semibold text-foreground mb-2">{module.name}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{module.objective}</p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+                    <Clock size={14} />
+                    <span>10–15 min</span>
+                  </div>
+                  <div className="border-t border-border pt-4">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">What you'll get:</p>
+                    <div className="flex items-start gap-2 text-sm text-foreground">
+                      <Circle size={16} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <span>{module.outcome}</span>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
           </div>
 
-          {/* Arrow pointing down to artifacts */}
           <motion.div 
-            className="sp-journey-arrow-down"
+            className="flex flex-col items-center mt-8"
             initial={{ opacity: 0, y: -10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.8 }}
           >
-            <div className="sp-journey-arrow-line" />
-            <ChevronDown size={20} className="sp-journey-arrow-icon" />
+            <div className="w-px h-8 bg-border" />
+            <ChevronDown size={20} className="text-muted-foreground" />
           </motion.div>
         </div>
       </motion.section>
 
-      {/* Artifact Preview - Now immediately after modules */}
       <motion.section 
-        className="sp-offer-section sp-offer-artifacts"
+        className="py-section bg-card"
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
       >
-        <div className="sp-offer-container">
-          <h2 className="sp-offer-section-title">{firstName}'s Tools to Take Away</h2>
-          <p className="sp-offer-section-subtitle">
+        <div className="max-w-content-wide mx-auto px-6">
+          <h2 className="font-serif text-headline text-foreground text-center mb-4">{firstName}'s Tools to Take Away</h2>
+          <p className="text-muted-foreground text-center max-w-2xl mx-auto mb-12">
             After completing the session, you'll receive a comprehensive package of personalized deliverables:
           </p>
           
-          <div className="sp-offer-artifacts-grid">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {plannedArtifacts.map((artifact, i) => {
               const IconComponent = artifactIcons[artifact.type] || FileText;
               return (
                 <motion.div 
                   key={i} 
-                  className="sp-offer-artifact-card"
+                  className="bg-background rounded-lg border border-border p-6"
                   initial={{ opacity: 0, scale: 0.95 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: i * 0.05 }}
                 >
-                  <IconComponent className="sp-offer-artifact-icon" />
-                  <h4 className="sp-offer-artifact-title">{artifact.title}</h4>
-                  <p className="sp-offer-artifact-desc">{artifact.description}</p>
+                  <IconComponent className="w-8 h-8 text-primary mb-4" />
+                  <h4 className="font-serif text-lg font-semibold text-foreground mb-2">{artifact.title}</h4>
+                  <p className="text-sm text-muted-foreground">{artifact.description}</p>
                 </motion.div>
               );
             })}
@@ -600,140 +509,142 @@ export default function Offer() {
         </div>
       </motion.section>
 
-      {/* Value Propositions */}
       <motion.section 
-        className="sp-offer-section sp-offer-value"
+        className="py-section bg-background"
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
       >
-        <div className="sp-offer-container">
-          <h2 className="sp-offer-section-title">Why This Matters for {firstName !== "Your" ? firstName : "You"}</h2>
-          <div className="sp-offer-value-list">
+        <div className="max-w-content mx-auto px-6">
+          <h2 className="font-serif text-headline text-foreground text-center mb-12">Why This Matters for {firstName !== "Your" ? firstName : "You"}</h2>
+          <div className="space-y-4">
             {valueBullets.map((bullet, i) => (
               <motion.div 
                 key={i} 
-                className="sp-offer-value-item"
+                className="flex items-start gap-4"
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.1 }}
               >
-                <CheckCircle2 className="sp-offer-value-icon" />
-                <span>{bullet}</span>
+                <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
+                <span className="text-body-lg text-foreground">{bullet}</span>
               </motion.div>
             ))}
           </div>
         </div>
       </motion.section>
 
-      {/* Features Grid */}
       <motion.section 
-        className="sp-offer-section sp-offer-features"
+        className="py-section bg-muted"
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
       >
-        <div className="sp-offer-container">
-          <div className="sp-offer-features-grid">
+        <div className="max-w-content-wide mx-auto px-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((feature, i) => (
               <motion.div 
                 key={i} 
-                className="sp-offer-feature"
+                className="text-center"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.1 }}
               >
-                <feature.icon className="sp-offer-feature-icon" />
-                <h4>{feature.title}</h4>
-                <p>{feature.description}</p>
+                <feature.icon className="w-10 h-10 text-primary mx-auto mb-3" />
+                <h4 className="font-semibold text-foreground mb-1">{feature.title}</h4>
+                <p className="text-sm text-muted-foreground">{feature.description}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </motion.section>
 
-      {/* CTA Section */}
       <motion.section 
-        className="sp-offer-section sp-offer-cta"
+        className="py-section-lg bg-primary text-primary-foreground"
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
       >
-        <div className="sp-offer-container">
-          <div className="sp-offer-cta-box">
-            <h2>Ready to Start?</h2>
-            <p className="sp-offer-cta-subtitle">
-              Begin your 30-minute coaching session now. Pause and return anytime.
-            </p>
-            
-            <button
-              className="sp-offer-cta-button"
-              data-testid="button-checkout-primary"
-              onClick={handleCheckout}
-              disabled={isCheckoutLoading}
-            >
-              {isCheckoutLoading ? (
-                <>
-                  <span className="sp-spinner"></span>
-                  <span>Redirecting to checkout...</span>
-                </>
-              ) : (
-                <>
-                  Start Coaching Session — {hasDiscount ? (
-                    <>
-                      <span className="sp-cta-price-original">${originalPrice}</span>
-                      <span className="sp-cta-price-discounted">${displayPrice}</span>
-                    </>
-                  ) : (
-                    `$${displayPrice}`
-                  )}
-                </>
-              )}
-            </button>
-            
-            <p className="sp-offer-cta-note">
-              Secure checkout via Stripe{hasDiscount && " · Discount pre-applied"} · 7-day refund guarantee
-            </p>
-          </div>
+        <div className="max-w-content mx-auto px-6 text-center">
+          <h2 className="font-serif text-headline mb-4">Ready to Start?</h2>
+          <p className="text-primary-foreground/80 mb-8 max-w-lg mx-auto">
+            Begin your 30-minute coaching session now. Pause and return anytime.
+          </p>
+          
+          <Button
+            size="lg"
+            variant="secondary"
+            className="text-lg px-8 py-6"
+            data-testid="button-checkout-primary"
+            onClick={handleCheckout}
+            disabled={isCheckoutLoading}
+          >
+            {isCheckoutLoading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-secondary-foreground/30 border-t-secondary-foreground rounded-full animate-spin mr-2" />
+                <span>Redirecting to checkout...</span>
+              </>
+            ) : (
+              <>
+                Start Coaching Session — {hasDiscount ? (
+                  <>
+                    <span className="line-through opacity-60 mr-1">${originalPrice}</span>
+                    ${displayPrice}
+                  </>
+                ) : (
+                  `$${displayPrice}`
+                )}
+              </>
+            )}
+          </Button>
+          
+          <p className="text-sm text-primary-foreground/60 mt-4">
+            Secure checkout via Stripe{hasDiscount && " · Discount pre-applied"} · 7-day refund guarantee
+          </p>
         </div>
       </motion.section>
 
-      {/* FAQs */}
       <motion.section 
-        className="sp-offer-section sp-offer-faqs"
+        className="py-section bg-background"
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
       >
-        <div className="sp-offer-container">
-          <h2 className="sp-offer-section-title">Frequently Asked Questions</h2>
+        <div className="max-w-content mx-auto px-6">
+          <h2 className="font-serif text-headline text-foreground text-center mb-12">Frequently Asked Questions</h2>
           
-          <div className="sp-offer-faq-list">
+          <div className="space-y-4">
             {faqs.map((faq, i) => (
               <motion.div 
                 key={i} 
-                className={`sp-offer-faq-item ${openFaq === i ? 'open' : ''}`}
+                className="border border-border rounded-lg overflow-hidden"
                 initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.3, delay: i * 0.03 }}
               >
                 <button
-                  className="sp-offer-faq-question"
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/50 transition-colors"
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   data-testid={`faq-toggle-${i}`}
                 >
-                  <span>{faq.question}</span>
-                  <ChevronDown className={`sp-offer-faq-chevron ${openFaq === i ? 'rotated' : ''}`} />
+                  <span className="font-medium text-foreground pr-4">{faq.question}</span>
+                  <ChevronDown className={cn(
+                    "w-5 h-5 text-muted-foreground flex-shrink-0 transition-transform duration-200",
+                    openFaq === i && "rotate-180"
+                  )} />
                 </button>
-                <div className={`sp-offer-faq-answer ${openFaq === i ? 'visible' : ''}`}>
-                  <p>{faq.answer}</p>
+                <div className={cn(
+                  "overflow-hidden transition-all duration-200",
+                  openFaq === i ? "max-h-96" : "max-h-0"
+                )}>
+                  <p className="px-4 pb-4 text-muted-foreground">{faq.answer}</p>
                 </div>
               </motion.div>
             ))}
@@ -741,19 +652,19 @@ export default function Offer() {
         </div>
       </motion.section>
 
-      {/* Final CTA */}
       <motion.section 
-        className="sp-offer-section sp-offer-final-cta"
+        className="py-section-lg bg-sage-wash"
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
       >
-        <div className="sp-offer-container">
-          <h2>Your clarity is waiting.</h2>
+        <div className="max-w-content mx-auto px-6 text-center">
+          <h2 className="font-serif text-headline text-foreground mb-8">Your clarity is waiting.</h2>
           
-          <button
-            className="sp-offer-cta-button-secondary"
+          <Button
+            size="lg"
+            className="text-lg px-8 py-6 mb-6"
             data-testid="button-checkout-secondary"
             onClick={handleCheckout}
             disabled={isCheckoutLoading}
@@ -762,25 +673,33 @@ export default function Offer() {
               <>
                 Begin Session — {hasDiscount ? (
                   <>
-                    <span className="sp-cta-price-original">${originalPrice}</span>
-                    <span className="sp-cta-price-discounted">${displayPrice}</span>
+                    <span className="line-through opacity-60 mr-1">${originalPrice}</span>
+                    ${displayPrice}
                   </>
                 ) : (
                   `$${displayPrice}`
                 )}
               </>
             )}
-          </button>
+          </Button>
           
-          <Link href="/interview" className="sp-offer-back-link" data-testid="link-back-interview">
-            ← Back to interview
-          </Link>
+          <div>
+            <Link 
+              href="/interview" 
+              className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+              data-testid="link-back-interview"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to interview
+            </Link>
+          </div>
         </div>
       </motion.section>
 
-      {/* Footer */}
-      <footer className="sp-offer-footer">
-        <p>© 2024 Serious People · <a href={`mailto:hello@seriouspeople.com`}>hello@seriouspeople.com</a></p>
+      <footer className="py-8 bg-background border-t border-border">
+        <div className="max-w-content mx-auto px-6 text-center text-sm text-muted-foreground">
+          <p>© 2024 Serious People · <a href="mailto:hello@seriouspeople.com" className="hover:text-foreground transition-colors">hello@seriouspeople.com</a></p>
+        </div>
       </footer>
     </div>
   );

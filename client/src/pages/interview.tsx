@@ -4,11 +4,23 @@ import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { formatContent } from "@/components/ChatComponents";
+import { 
+  formatContent, 
+  extractTitleCard,
+  MessageComponent,
+  TypingIndicator,
+  ModuleTitleCard,
+  OptionsContainer,
+  ChatWrapper,
+  MessageWrapper,
+  PlanCardComponent
+} from "@/components/ChatComponents";
 import { analytics } from "@/lib/posthog";
-import "@/styles/serious-people.css";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { ArrowRight, Send } from "lucide-react";
 
-// Detect if user is on a mobile device (for keyboard behavior)
 const isMobileDevice = () => {
   return window.matchMedia('(max-width: 768px)').matches || 
     ('ontouchstart' in window) || 
@@ -47,161 +59,56 @@ interface PricingData {
 const STORAGE_KEY = "serious_people_transcript";
 const PROGRESS_KEY = "serious_people_progress";
 
-function extractTitleCard(content: string): { name: string; time: string } | null {
-  const match = content.match(/^—\s*(.+?)\s*\(est\.\s*([^)]+)\)\s*—/m);
-  if (match) {
-    return { name: match[1].trim(), time: match[2].trim() };
-  }
-  return null;
-}
-
-function TypingIndicator() {
-  return (
-    <div className="sp-typing-indicator">
-      <div className="dot"></div>
-      <div className="dot"></div>
-      <div className="dot"></div>
-    </div>
-  );
-}
-
-function ModuleTitleCard({ name, time }: { name: string; time: string }) {
-  return (
-    <div className="sp-module-title-card">
-      <span className="sp-module-name">{name}</span>
-      <span className="sp-module-time">est. {time}</span>
-    </div>
-  );
-}
-
 function PlanCardTeaser({ planCard, onViewPlan }: { planCard: PlanCard; onViewPlan: () => void }) {
   const [showModules, setShowModules] = useState(false);
   
   useEffect(() => {
-    // Delay module animation for visual effect
     const timer = setTimeout(() => setShowModules(true), 300);
     return () => clearTimeout(timer);
   }, []);
   
   return (
-    <div className="sp-plan-teaser sp-card-animate" data-testid="plan-teaser">
-      <div className="sp-plan-teaser-header">
-        <h3 className="sp-plan-teaser-title">
+    <div 
+      className="w-full max-w-[520px] mx-auto my-6 bg-card border border-border rounded-lg shadow-lg animate-fade-in"
+      data-testid="plan-teaser"
+    >
+      <div className="p-6 text-center border-b border-border">
+        <h3 className="font-serif text-xl font-semibold text-foreground">
           {planCard.name}, are you ready to see your personalized coaching plan?
         </h3>
       </div>
       
-      <div className="sp-plan-teaser-modules">
+      <div className="p-4 space-y-2">
         {planCard.modules.map((mod, i) => (
           <div 
             key={i} 
-            className={`sp-plan-teaser-module ${showModules ? 'sp-teaser-module-visible' : ''}`}
+            className={cn(
+              "p-4 bg-sage-wash/50 rounded-lg transition-all duration-300",
+              showModules ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+            )}
             style={{ transitionDelay: `${i * 150}ms` }}
             data-testid={`teaser-module-${i + 1}`}
           >
-            <div className="sp-teaser-module-number">Module {i + 1}</div>
-            <div className="sp-teaser-module-name">{mod.name}</div>
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+              Module {i + 1}
+            </div>
+            <div className="font-serif text-base font-semibold text-foreground">
+              {mod.name}
+            </div>
           </div>
         ))}
       </div>
       
-      <button 
-        className="sp-plan-teaser-cta"
-        onClick={onViewPlan}
-        data-testid="button-see-plan"
-      >
-        See my plan
-      </button>
-    </div>
-  );
-}
-
-function MessageComponent({ 
-  role, 
-  content, 
-  animate = false, 
-  onComplete,
-  onTyping
-}: { 
-  role: "user" | "assistant"; 
-  content: string; 
-  animate?: boolean;
-  onComplete?: () => void;
-  onTyping?: () => void;
-}) {
-  const [displayedContent, setDisplayedContent] = useState(animate ? "" : formatContent(content, role === "user"));
-  const indexRef = useRef(0);
-  const formattedContent = formatContent(content, role === "user");
-
-  useEffect(() => {
-    if (!animate) {
-      if (onComplete) onComplete();
-      return;
-    }
-
-    const speed = 12;
-    
-    const type = () => {
-      if (indexRef.current < formattedContent.length) {
-        let increment = 1;
-        
-        if (formattedContent.substring(indexRef.current, indexRef.current + 4) === "<br>") {
-          increment = 4;
-        } else if (formattedContent[indexRef.current] === "&") {
-          const semicolonIndex = formattedContent.indexOf(";", indexRef.current);
-          if (semicolonIndex !== -1 && semicolonIndex - indexRef.current < 8) {
-            increment = semicolonIndex - indexRef.current + 1;
-          }
-        } else if (formattedContent[indexRef.current] === "<") {
-          const closeIndex = formattedContent.indexOf(">", indexRef.current);
-          if (closeIndex !== -1) {
-            increment = closeIndex - indexRef.current + 1;
-          }
-        }
-
-        indexRef.current += increment;
-        setDisplayedContent(formattedContent.substring(0, indexRef.current));
-        
-        // Call onTyping for real-time scroll during animation
-        if (onTyping) onTyping();
-        
-        setTimeout(type, speed);
-      } else {
-        if (onComplete) onComplete();
-      }
-    };
-
-    const timer = setTimeout(type, speed);
-    return () => clearTimeout(timer);
-  }, [animate, formattedContent, onComplete, onTyping]);
-
-  return (
-    <div 
-      className={`sp-message ${role}`} 
-      dangerouslySetInnerHTML={{ __html: displayedContent }}
-    />
-  );
-}
-
-function OptionsContainer({ 
-  options, 
-  onSelect 
-}: { 
-  options: string[]; 
-  onSelect: (option: string) => void;
-}) {
-  return (
-    <div className="sp-options-container" data-testid="options-container">
-      {options.map((option, index) => (
-        <button
-          key={index}
-          className="sp-option-pill"
-          data-testid={`option-pill-${index}`}
-          onClick={() => onSelect(option)}
+      <div className="p-4 pt-2">
+        <Button 
+          className="w-full py-6 text-base font-medium"
+          onClick={onViewPlan}
+          data-testid="button-see-plan"
         >
-          {option}
-        </button>
-      ))}
+          See my plan
+          <ArrowRight className="w-4 h-4 ml-2" />
+        </Button>
+      </div>
     </div>
   );
 }
@@ -216,30 +123,32 @@ function PlanConfirmationCTAs({
   isLoading: boolean;
 }) {
   return (
-    <div className="sp-plan-ctas sp-card-animate" data-testid="plan-confirmation-ctas">
-      <div className="sp-plan-ctas-container">
-        <button
-          className="sp-cta-primary"
+    <div className="w-full max-w-[520px] mx-auto my-6 animate-fade-in" data-testid="plan-confirmation-ctas">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Button
+          className="flex-1 py-6 text-base"
           data-testid="button-lets-do-it"
           onClick={onConfirm}
           disabled={isLoading}
         >
           {isLoading ? (
-            <>
-              <span className="sp-spinner"></span>Loading...
-            </>
+            <span className="flex items-center gap-2">
+              <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+              Loading...
+            </span>
           ) : (
             "Let's Do It"
           )}
-        </button>
-        <button
-          className="sp-cta-secondary"
+        </Button>
+        <Button
+          variant="outline"
+          className="flex-1 py-6 text-base"
           data-testid="button-change-something"
           onClick={onRevise}
           disabled={isLoading}
         >
           Change Something
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -249,7 +158,6 @@ export default function Interview() {
   const { isAuthenticated, isLoading: authLoading, refetch } = useAuth();
   const [, setLocation] = useLocation();
   
-  // Set page title
   useEffect(() => {
     document.title = "Career Interview - Serious People";
   }, []);
@@ -298,7 +206,6 @@ export default function Interview() {
     };
   } | null>(null);
   
-  // Force refetch auth status on mount (in case of stale cache after OAuth redirect)
   useEffect(() => {
     if (!hasRefetched.current) {
       hasRefetched.current = true;
@@ -306,14 +213,12 @@ export default function Interview() {
     }
   }, [refetch]);
   
-  // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       setLocation("/login");
     }
   }, [authLoading, isAuthenticated, setLocation]);
   
-  // Save transcript to server mutation
   const saveTranscriptMutation = useMutation({
     mutationFn: async (data: {
       transcript: Message[];
@@ -329,7 +234,6 @@ export default function Interview() {
       return response.json();
     },
     onSuccess: (data) => {
-      // Refetch auth when providedName is captured from AI response
       if (data?.providedNameUpdated) {
         refetch();
       }
@@ -337,7 +241,6 @@ export default function Interview() {
   });
 
   const scrollToBottom = useCallback(() => {
-    // Use requestAnimationFrame to ensure DOM has updated before scrolling
     requestAnimationFrame(() => {
       if (chatWindowRef.current) {
         chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
@@ -345,12 +248,10 @@ export default function Interview() {
     });
   }, []);
 
-  // Scroll to bottom whenever new content is added
   useEffect(() => {
     scrollToBottom();
   }, [transcript, isTyping, options, planCard, interviewComplete, scrollToBottom]);
   
-  // Also scroll when message animation completes
   useEffect(() => {
     if (animatingMessageIndex === null) {
       scrollToBottom();
@@ -366,14 +267,12 @@ export default function Interview() {
     socialProof?: string;
     planCard?: PlanCard | null;
   }) => {
-    // Always save to sessionStorage immediately
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     } catch (e) {
       console.error("Failed to save transcript:", e);
     }
     
-    // Throttle server saves to prevent excessive API calls (debounce 1 second)
     if (isAuthenticated) {
       pendingSaveRef.current = { messages, extraData };
       
@@ -476,9 +375,6 @@ export default function Interview() {
 
       setIsTyping(false);
 
-      // When interview is complete (paywall time), DON'T add AI's response to transcript
-      // The AI often includes Module 1 content in the same response as [[INTERVIEW_COMPLETE]]
-      // We want to show only the paywall after the user's confirmation
       if (data.done) {
         setInterviewComplete(true);
         setValueBullets(data.valueBullets || "");
@@ -486,8 +382,6 @@ export default function Interview() {
         setStatus("");
         analytics.interviewCompleted();
         
-        // CRITICAL: Save valueBullets, socialProof, AND planCard to the database
-        // The new flow generates all plan data in a single response with [[INTERVIEW_COMPLETE]]
         saveTranscript(currentTranscript, {
           interviewComplete: true,
           valueBullets: data.valueBullets || undefined,
@@ -495,12 +389,9 @@ export default function Interview() {
           planCard: data.planCard || undefined,
         });
         
-        // If planCard was generated, set it so the teaser appears
         if (data.planCard?.name) {
-          // Find the last assistant message index to attach the teaser to
           const lastAssistantIdx = currentTranscript.length - 1;
           setPlanCard({ card: data.planCard, index: lastAssistantIdx >= 0 ? lastAssistantIdx : 0 });
-          // Save plan card to sessionStorage for success page
           try {
             sessionStorage.setItem("serious_people_plan_card", JSON.stringify(data.planCard));
           } catch (e) {
@@ -508,12 +399,6 @@ export default function Interview() {
           }
         }
         
-        // NOTE: Dossier generation is now triggered by /api/interview/complete
-        // which is called in handleCheckout BEFORE Stripe redirect
-        // This avoids the 64KB keepalive body limit that caused silent failures
-        
-        // Don't append the reply, don't update progress, don't show options
-        // The paywall will render inline after the user's confirmation message
         return;
       }
 
@@ -530,9 +415,6 @@ export default function Interview() {
       const updatedTranscript = [...currentTranscript, assistantMessage];
       setTranscript(updatedTranscript);
       
-      // CRITICAL: Pass planCard in extraData to ensure it's saved to the server
-      // Previously planCard was only saved to state AFTER saveTranscript was called,
-      // causing stale closure issues where planCard was never persisted to DB
       saveTranscript(updatedTranscript, {
         planCard: data.planCard || null,
         valueBullets: data.valueBullets || undefined,
@@ -548,9 +430,8 @@ export default function Interview() {
 
       if (data.planCard?.name) {
         setPlanCard({ card: data.planCard, index: updatedTranscript.length - 1 });
-        setShowPlanCTAs(true); // Show CTAs when plan card is displayed
-        setIsRevising(false); // Clear revising state
-        // Save plan card to sessionStorage for success page
+        setShowPlanCTAs(true);
+        setIsRevising(false);
         try {
           sessionStorage.setItem("serious_people_plan_card", JSON.stringify(data.planCard));
         } catch (e) {
@@ -567,7 +448,6 @@ export default function Interview() {
       setStatus("Something went wrong. Please try again.");
     } finally {
       setIsSending(false);
-      // Only auto-focus on desktop - mobile users don't want keyboard popping up
       if (!isMobileDevice()) {
         textareaRef.current?.focus();
       }
@@ -579,9 +459,6 @@ export default function Interview() {
     analytics.checkoutStarted();
 
     try {
-      // CRITICAL: Mark interview complete BEFORE Stripe redirect
-      // This lightweight call updates the database synchronously, avoiding
-      // the 64KB keepalive body limit that caused silent failures
       const completeRes = await fetch("/api/interview/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -590,19 +467,16 @@ export default function Interview() {
       
       if (!completeRes.ok) {
         console.error("Failed to mark interview complete:", await completeRes.text());
-        // Continue anyway - the success page has fallback logic
       } else {
         console.log("Interview marked complete, dossier generation started");
       }
       
-      // Check for promo code in URL first, then sessionStorage (captured from landing page)
       const urlParams = new URLSearchParams(window.location.search);
       let promoCode = urlParams.get('promo');
       if (!promoCode) {
         promoCode = sessionStorage.getItem('sp_promo_code');
       }
       
-      // Detect if running at /app base path for Stripe redirect URLs
       const basePath = window.location.pathname.startsWith('/app') ? '/app' : '';
       
       const response = await fetch("/checkout", {
@@ -632,10 +506,8 @@ export default function Interview() {
     const text = inputValue.trim();
     if (text && !isSending) {
       setInputValue("");
-      // Reset textarea height to default
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
-        // On mobile, blur to dismiss keyboard after sending
         if (isMobileDevice()) {
           textareaRef.current.blur();
         }
@@ -657,13 +529,11 @@ export default function Interview() {
     sendMessage(option);
   };
 
-  // Handle "Let's Do It" - confirm plan and navigate to offer page
   const handleConfirmPlan = async () => {
     setIsNavigatingToOffer(true);
     analytics.interviewCompleted();
     
     try {
-      // Mark interview complete in database
       const completeRes = await fetch("/api/interview/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -674,14 +544,10 @@ export default function Interview() {
         console.error("Failed to mark interview complete:", await completeRes.text());
       }
       
-      // CRITICAL: Invalidate the journey cache so the offer page sees updated state
-      // Without this, the offer page may redirect back to interview due to stale cache
       await queryClient.invalidateQueries({ queryKey: ["/api/journey"] });
       
-      // Add a small delay for the animation effect
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Navigate to offer page with transition
       document.body.classList.add('page-transition-out');
       setTimeout(() => {
         setLocation("/offer");
@@ -692,12 +558,10 @@ export default function Interview() {
     }
   };
 
-  // Handle "Change Something" - continue chat to revise the plan
   const handleRevisePlan = async () => {
     setIsRevising(true);
     setShowPlanCTAs(false);
     
-    // Increment revision count in database
     try {
       await fetch("/api/transcript/revision", {
         method: "POST",
@@ -708,26 +572,22 @@ export default function Interview() {
       console.error("Failed to increment revision count:", error);
     }
     
-    // Send a message asking to revise the plan
     const revisionMessage = "I'd like to change something about this plan.";
     sendMessage(revisionMessage);
   };
 
-  // Load transcript from server or sessionStorage on initialization
   useEffect(() => {
     if (hasInitialized.current || authLoading) return;
-    if (!isAuthenticated) return; // Wait for auth check
+    if (!isAuthenticated) return;
     
     hasInitialized.current = true;
 
     const loadTranscript = async () => {
       try {
-        // Try to load from server first
         const response = await fetch("/api/transcript", { credentials: "include" });
         if (response.ok) {
           const data = await response.json();
           if (data.transcript && Array.isArray(data.transcript) && data.transcript.length > 0) {
-            // Restore from server
             setTranscript(data.transcript);
             setProgress(data.progress || 0);
             setCurrentModule(data.currentModule || "Interview");
@@ -736,13 +596,11 @@ export default function Interview() {
             if (data.valueBullets) setValueBullets(data.valueBullets);
             if (data.socialProof) setSocialProof(data.socialProof);
             if (data.planCard) {
-              // Find the last assistant message index for the plan card
               const lastAssistantIdx = data.transcript.reduce((acc: number, msg: Message, idx: number) => 
                 msg.role === "assistant" ? idx : acc, -1);
               setPlanCard({ card: data.planCard, index: lastAssistantIdx });
             }
             
-            // Extract title cards from transcript
             const cards: { index: number; name: string; time: string }[] = [];
             data.transcript.forEach((msg: Message, idx: number) => {
               if (msg.role === "assistant") {
@@ -755,7 +613,6 @@ export default function Interview() {
             });
             setTitleCards(cards);
             
-            // Also sync to sessionStorage
             sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data.transcript));
             sessionStorage.setItem(PROGRESS_KEY, (data.progress || 0).toString());
             return;
@@ -765,7 +622,6 @@ export default function Interview() {
         console.error("Failed to load transcript from server:", e);
       }
       
-      // Fallback to sessionStorage
       try {
         const savedProgress = sessionStorage.getItem(PROGRESS_KEY);
         if (savedProgress) {
@@ -822,79 +678,106 @@ export default function Interview() {
     }
   };
 
-  // Show loading state while checking auth
   if (authLoading) {
     return (
-      <div className="sp-interview-page">
-        <div className="sp-interview-main" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p>Loading...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
   
   return (
-    <div className="sp-interview-page">
-      <header className="sp-interview-header">
-        <div className="sp-header-content">
-          <Link href="/" className="sp-logo-link">
-            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-            <span className="sp-logo">Serious People</span>
-            <span className="sp-logo-subtitle"> · {currentModule}</span>
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
+        <div className="max-w-content-wide mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2 group" data-testid="link-home">
+            <img src="/favicon.png" alt="Serious People" className="w-8 h-8" />
+            <span className="font-serif text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+              Serious People
+            </span>
+            <span className="text-muted-foreground text-sm hidden sm:inline">
+              · {currentModule}
+            </span>
           </Link>
           <UserMenu />
         </div>
-        <div className="sp-progress-bar-container">
-          <div className="sp-progress-bar-fill" style={{ width: `${progress}%` }} />
+        <div className="h-1 bg-muted">
+          <div 
+            className="h-full bg-primary transition-all duration-500 ease-out"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       </header>
 
-      <div className="sp-interview-content">
-        <main className="sp-interview-main">
-          <div className="sp-chat-window" ref={chatWindowRef} data-testid="chat-window">
-            {transcript.map((msg, index) => {
-              const titleCard = titleCards.find(tc => tc.index === index);
-              return (
-                <div key={index} className={`sp-message-wrapper ${msg.role}`}>
-                  {msg.role === "assistant" && titleCard && (
-                    <ModuleTitleCard name={titleCard.name} time={titleCard.time} />
-                  )}
-                  <MessageComponent
-                    role={msg.role}
-                    content={msg.content}
-                    animate={animatingMessageIndex === index}
-                    onComplete={() => {
-                      if (animatingMessageIndex === index) {
-                        setAnimatingMessageIndex(null);
-                      }
-                    }}
-                    onTyping={scrollToBottom}
-                  />
-                  {planCard && planCard.index === index && msg.role === "assistant" && animatingMessageIndex === null && (
-                    <PlanCardTeaser planCard={planCard.card} onViewPlan={handleConfirmPlan} />
-                  )}
-                </div>
-              );
-            })}
-            {isTyping && <TypingIndicator />}
-            {options.length > 0 && animatingMessageIndex === null && !showPlanCTAs && (
-              <OptionsContainer options={options} onSelect={handleOptionSelect} />
-            )}
-            {/* Show PlanCardTeaser when interview is complete and we have a plan */}
-            {interviewComplete && planCard && (
-              <div className="sp-message-wrapper assistant">
-                <PlanCardTeaser planCard={planCard.card} onViewPlan={handleConfirmPlan} />
-              </div>
-            )}
+      <div className="flex-1 flex flex-col max-w-content-wide mx-auto w-full">
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <div 
+            ref={chatWindowRef} 
+            className="flex-1 overflow-y-auto px-4 sm:px-6 py-6"
+            data-testid="chat-window"
+          >
+            <ChatWrapper>
+              {transcript.map((msg, index) => {
+                const titleCard = titleCards.find(tc => tc.index === index);
+                return (
+                  <MessageWrapper key={index} role={msg.role}>
+                    {msg.role === "assistant" && titleCard && (
+                      <ModuleTitleCard name={titleCard.name} time={titleCard.time} />
+                    )}
+                    <MessageComponent
+                      role={msg.role}
+                      content={msg.content}
+                      animate={animatingMessageIndex === index}
+                      onComplete={() => {
+                        if (animatingMessageIndex === index) {
+                          setAnimatingMessageIndex(null);
+                        }
+                      }}
+                      onTyping={scrollToBottom}
+                    />
+                    {planCard && planCard.index === index && msg.role === "assistant" && animatingMessageIndex === null && (
+                      <PlanCardTeaser planCard={planCard.card} onViewPlan={handleConfirmPlan} />
+                    )}
+                  </MessageWrapper>
+                );
+              })}
+              
+              {isTyping && (
+                <MessageWrapper role="assistant">
+                  <div className="bg-sage-wash rounded-2xl rounded-bl-md">
+                    <TypingIndicator />
+                  </div>
+                </MessageWrapper>
+              )}
+              
+              {options.length > 0 && animatingMessageIndex === null && !showPlanCTAs && (
+                <OptionsContainer options={options} onSelect={handleOptionSelect} />
+              )}
+              
+              {interviewComplete && planCard && (
+                <MessageWrapper role="assistant">
+                  <PlanCardTeaser planCard={planCard.card} onViewPlan={handleConfirmPlan} />
+                </MessageWrapper>
+              )}
+            </ChatWrapper>
           </div>
         </main>
 
         {!interviewComplete && !showPlanCTAs && (
-          <div className="sp-input-area">
-            <div className="sp-input-row">
+          <div className="sticky bottom-0 bg-background border-t border-border px-4 sm:px-6 py-4">
+            <div className="flex items-end gap-3">
               <textarea
                 ref={textareaRef}
-                className="sp-textarea"
+                className={cn(
+                  "flex-1 resize-none rounded-lg border border-input bg-card px-4 py-3",
+                  "text-base leading-relaxed placeholder:text-muted-foreground",
+                  "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                  "transition-colors duration-200",
+                  "min-h-[48px] max-h-[150px]"
+                )}
                 data-testid="input-message"
                 placeholder="Type your answer here..."
                 rows={1}
@@ -905,34 +788,33 @@ export default function Interview() {
                 }}
                 onKeyDown={handleKeyDown}
                 onFocus={() => {
-                  // On mobile, scroll input into view after keyboard appears
                   if (isMobileDevice()) {
-                    // iOS Chrome needs multiple scroll attempts as keyboard animates
                     const scrollIntoViewport = () => {
                       if (textareaRef.current) {
-                        // Use scrollIntoView with block: 'end' to ensure input is above keyboard
                         textareaRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
                       }
                     };
-                    // Initial scroll after short delay
                     setTimeout(scrollIntoViewport, 100);
-                    // Second scroll after keyboard animation completes (iOS takes ~300-400ms)
                     setTimeout(scrollIntoViewport, 400);
-                    // Final scroll to handle any iOS Chrome quirks with accessory bar
                     setTimeout(scrollIntoViewport, 600);
                   }
                 }}
               />
-              <button
-                className="sp-send-button"
+              <Button
+                size="icon"
+                className="h-12 w-12 shrink-0"
                 data-testid="button-send"
                 onClick={handleSend}
-                disabled={isSending}
+                disabled={isSending || !inputValue.trim()}
               >
-                →
-              </button>
+                <Send className="w-5 h-5" />
+              </Button>
             </div>
-            <div className="sp-status-line" data-testid="status-line">{status}</div>
+            {status && (
+              <p className="text-sm text-destructive mt-2" data-testid="status-line">
+                {status}
+              </p>
+            )}
           </div>
         )}
       </div>
