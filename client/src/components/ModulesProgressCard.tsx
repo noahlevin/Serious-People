@@ -1,8 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import "@/styles/serious-people.css";
 import type { CoachingModule } from "./ChatComponents";
 
 export interface Module {
@@ -61,26 +57,12 @@ export function ModulesProgressCard({
     : DEFAULT_COACHING_MODULES;
 
   return (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader className="text-center pb-4">
-        {showBadge && (
-          <div className="flex justify-center mb-4">
-            <Badge variant="default" className="bg-primary text-primary-foreground">
-              {badgeText}
-            </Badge>
-          </div>
-        )}
-        <CardTitle className="font-serif text-headline text-foreground">
-          {title}
-        </CardTitle>
-        {subtitle && (
-          <CardDescription className="text-body text-muted-foreground mt-3 max-w-lg mx-auto leading-relaxed">
-            {subtitle}
-          </CardDescription>
-        )}
-      </CardHeader>
+    <div className="sp-ready-card sp-coaching-ready">
+      {showBadge && <div className="sp-success-badge">{badgeText}</div>}
+      <h2>{title}</h2>
+      {subtitle && <p className="sp-coaching-intro">{subtitle}</p>}
       
-      <CardContent className="space-y-4" data-testid="modules-list">
+      <div className="sp-modules-list" data-testid="modules-list">
         {modules.map((module) => {
           const isNext = module.number === currentModule;
           const isCompleted = completedModules.includes(module.number);
@@ -88,61 +70,34 @@ export function ModulesProgressCard({
           return (
             <div 
               key={module.number} 
-              className={cn(
-                "flex items-start gap-4 p-4 rounded-lg transition-colors",
-                isCompleted && "bg-sage-wash",
-                isNext && !isCompleted && "bg-card border border-primary/20",
-                !isNext && !isCompleted && "bg-muted/30"
-              )}
+              className={`sp-module-item ${isNext ? 'sp-module-next' : ''} ${isCompleted ? 'sp-module-completed' : ''}`}
               data-testid={`module-item-${module.number}`}
             >
-              <div 
-                className={cn(
-                  "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold",
-                  isCompleted && "bg-primary text-primary-foreground",
-                  isNext && !isCompleted && "bg-primary/10 text-primary border-2 border-primary",
-                  !isNext && !isCompleted && "bg-muted text-muted-foreground"
-                )}
-              >
-                {isCompleted ? <Check className="w-5 h-5" /> : module.number}
+              <div className="sp-module-number">
+                {isCompleted ? '✓' : module.number}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-serif font-semibold text-foreground">
-                    {module.name}
-                  </h3>
-                  {isNext && !isCompleted && (
-                    <Badge variant="outline" className="text-primary border-primary/30 text-xs">
-                      Up Next
-                    </Badge>
-                  )}
-                  {isCompleted && (
-                    <Badge variant="secondary" className="bg-sage-wash text-sage text-xs">
-                      Complete
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                  {module.description}
-                </p>
+              <div className="sp-module-content">
+                <h3 className="sp-module-name">
+                  {module.name}
+                  {isNext && !isCompleted && <span className="sp-up-next-badge">Up Next</span>}
+                  {isCompleted && <span className="sp-completed-badge">Complete</span>}
+                </h3>
+                <p className="sp-module-description">{module.description}</p>
               </div>
             </div>
           );
         })}
-        
-        {ctaText && onCtaClick && (
-          <div className="pt-4">
-            <Button
-              className="w-full"
-              size="lg"
-              data-testid="button-modules-cta"
-              onClick={onCtaClick}
-            >
-              {ctaText}
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+      
+      {ctaText && onCtaClick && (
+        <button
+          className="sp-generate-btn sp-start-coaching-btn"
+          data-testid="button-modules-cta"
+          onClick={onCtaClick}
+        >
+          {ctaText}
+        </button>
+      )}
+    </div>
   );
 }

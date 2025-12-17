@@ -12,16 +12,13 @@ import {
   OptionsContainer,
   ModuleCompleteCard,
   extractTitleCard,
-  PlanCard,
-  ChatWrapper,
-  MessageWrapper
+  PlanCard
 } from "@/components/ChatComponents";
 import { DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
 import { analytics } from "@/lib/posthog";
-import { cn } from "@/lib/utils";
-import { Progress } from "@/components/ui/progress";
-import { Send } from "lucide-react";
+import "@/styles/serious-people.css";
 
+// Detect if user is on a mobile device (for keyboard behavior)
 const isMobileDevice = () => {
   return window.matchMedia('(max-width: 768px)').matches || 
     ('ontouchstart' in window) || 
@@ -57,6 +54,7 @@ export default function ModulePage() {
   const { journeyState, isLoading: journeyLoading, currentPath } = useJourney();
   const [, setLocation] = useLocation();
   
+  // Set page title
   useEffect(() => {
     document.title = `Module ${moduleNumber}: ${moduleInfo.name} - Serious People`;
   }, [moduleNumber, moduleInfo.name]);
@@ -144,6 +142,7 @@ export default function ModulePage() {
     }
   }, [animatingMessageIndex, scrollToBottom]);
 
+  // Save module transcript to database (fire-and-forget for performance)
   const saveTranscript = useCallback((messages: Message[]) => {
     fetch(`/api/module/${moduleNumber}/data`, {
       method: "POST",
@@ -179,6 +178,7 @@ export default function ModulePage() {
     setStatus("");
 
     try {
+      // Retry logic for handling temporary data loading issues
       let response: Response | null = null;
       let retryCount = 0;
       const maxRetries = 3;
@@ -198,6 +198,7 @@ export default function ModulePage() {
           break;
         }
         
+        // Handle 409 "Context not ready" - retry with delay
         if (response.status === 409) {
           const errorData = await response.json().catch(() => ({}));
           if (errorData.retryable) {
@@ -228,6 +229,8 @@ export default function ModulePage() {
       if (data.done) {
         setModuleComplete(true);
         setModuleSummary(data.summary || "");
+        // Save module completion (summary + complete flag atomically) to database
+        // Also include the full transcript to ensure all data is persisted
         fetch(`/api/module/${moduleNumber}/data`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -275,6 +278,7 @@ export default function ModulePage() {
       setStatus("Something went wrong. Please try again.");
     } finally {
       setIsSending(false);
+      // Only auto-focus on desktop - mobile users don't want keyboard popping up
       if (!isMobileDevice()) {
         textareaRef.current?.focus();
       }
@@ -285,8 +289,10 @@ export default function ModulePage() {
     const text = inputValue.trim();
     if (text && !isSending) {
       setInputValue("");
+      // Reset textarea height to default
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
+        // On mobile, blur to dismiss keyboard after sending
         if (isMobileDevice()) {
           textareaRef.current.blur();
         }
@@ -311,16 +317,23 @@ export default function ModulePage() {
   const handleModuleComplete = async () => {
     console.log("[handleModuleComplete] Starting, moduleNumber:", moduleNumber);
     
+    // Completion status already saved when module marked done (in sendMessage)
+    // Navigate immediately - don't wait for API calls
+    console.log("[handleModuleComplete] Navigating immediately, moduleNumber:", moduleNumber);
+    
     if (moduleNumber < 3) {
       setLocation("/progress");
     } else {
+      // For module 3, start plan generation and check if letter has been seen
       try {
+        // Start plan generation
         await fetch("/api/serious-plan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
         });
         
+        // Check if letter has been seen
         const letterResponse = await fetch("/api/serious-plan/letter", {
           credentials: "include",
         });
@@ -328,19 +341,24 @@ export default function ModulePage() {
         if (letterResponse.ok) {
           const letterData = await letterResponse.json();
           if (letterData.seenAt) {
+            // Letter already seen, go directly to plan
             setLocation("/serious-plan");
           } else {
+            // Letter not seen yet, show coach letter first
             setLocation("/coach-letter");
           }
         } else {
+          // If letter endpoint fails, default to coach-letter
           setLocation("/coach-letter");
         }
       } catch (err) {
         console.error("Error in module 3 completion flow:", err);
+        // Default to coach-letter on error
         setLocation("/coach-letter");
       }
     }
     
+    // Update dossier in background (fire-and-forget)
     const moduleName = moduleInfo?.name || `Module ${moduleNumber}`;
     fetch("/api/update-module-dossier", {
       method: "POST",
@@ -361,6 +379,7 @@ export default function ModulePage() {
       console.error("Error updating dossier:", err);
     });
     
+    // Invalidate journey cache after navigation started
     queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
   };
 
@@ -369,6 +388,7 @@ export default function ModulePage() {
     initializedModuleRef.current = moduleNumber;
     analytics.moduleStarted(moduleNumber);
 
+    // Load module data from database
     const loadModuleData = async () => {
       try {
         const response = await fetch(`/api/module/${moduleNumber}/data`, {
@@ -392,6 +412,7 @@ export default function ModulePage() {
             });
             setTitleCards(cards);
             
+            // Restore completion state from database
             if (data.complete) {
               setModuleComplete(true);
               setProgress(100);
@@ -407,6 +428,7 @@ export default function ModulePage() {
         console.error("Failed to load module transcript from database:", e);
       }
       
+      // Only start fresh if no transcript exists
       sendMessage();
     };
     
@@ -415,164 +437,111 @@ export default function ModulePage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground font-sans">Loading...</p>
+      <div className="sp-interview-page">
+        <div className="sp-interview-main" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p>Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (!moduleInfo) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground font-sans">Module not found.</p>
+      <div className="sp-interview-page">
+        <div className="sp-interview-main" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p>Module not found.</p>
+        </div>
       </div>
     );
   }
   
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
-            <Link href="/" className="flex items-center gap-2 sm:gap-3 group shrink-0" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="w-7 h-7 sm:w-8 sm:h-8" />
-              <div className="flex items-baseline gap-1.5 min-w-0">
-                <span className="font-serif text-lg sm:text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors hidden sm:inline">
-                  Serious People
-                </span>
-                <span className="font-serif text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors sm:hidden">
-                  SP
-                </span>
-                <span className="text-muted-foreground text-sm hidden md:inline">·</span>
-                <span className="font-sans text-sm text-muted-foreground truncate hidden md:inline">
-                  Module {moduleNumber}: {moduleInfo.name}
-                </span>
-              </div>
-            </Link>
-            <UserMenu />
-          </div>
+    <div className="sp-interview-page">
+      <header className="sp-interview-header">
+        <div className="sp-header-content">
+          <Link href="/" className="sp-logo-link">
+            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
+            <span className="sp-logo">Serious People</span>
+            <span className="sp-logo-subtitle"> · Module {moduleNumber}: {moduleInfo.name}</span>
+          </Link>
+          <UserMenu />
         </div>
-        <div className="h-1 bg-muted">
-          <div 
-            className="h-full bg-primary transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-            data-testid="progress-bar"
-          />
+        <div className="sp-progress-bar-container">
+          <div className="sp-progress-bar-fill" style={{ width: `${progress}%` }} />
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col max-w-content-wide mx-auto w-full">
-        <div className="md:hidden px-4 py-3 border-b border-border bg-card/50">
-          <p className="font-sans text-sm text-foreground font-medium">
-            Module {moduleNumber}: {moduleInfo.name}
-          </p>
-        </div>
-
-        <main className="flex-1 overflow-hidden flex flex-col">
-          <div 
-            ref={chatWindowRef}
-            className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6"
-            data-testid="chat-window"
-          >
-            <ChatWrapper>
-              {transcript.map((msg, index) => {
-                const titleCard = titleCards.find(tc => tc.index === index);
-                return (
-                  <MessageWrapper key={index} role={msg.role}>
-                    {msg.role === "assistant" && titleCard && (
-                      <ModuleTitleCard name={titleCard.name} time={titleCard.time} />
-                    )}
-                    <MessageComponent
-                      role={msg.role}
-                      content={msg.content}
-                      animate={animatingMessageIndex === index}
-                      onComplete={() => {
-                        if (animatingMessageIndex === index) {
-                          setAnimatingMessageIndex(null);
-                        }
-                      }}
-                      onTyping={scrollToBottom}
-                    />
-                  </MessageWrapper>
-                );
-              })}
-              
-              {isTyping && (
-                <MessageWrapper role="assistant">
-                  <TypingIndicator />
-                </MessageWrapper>
-              )}
-              
-              {options.length > 0 && animatingMessageIndex === null && (
-                <OptionsContainer options={options} onSelect={handleOptionSelect} />
-              )}
-              
-              {moduleComplete && animatingMessageIndex === null && (
-                <ModuleCompleteCard
-                  summary={moduleSummary}
-                  onComplete={handleModuleComplete}
-                />
-              )}
-            </ChatWrapper>
+      <div className="sp-interview-content">
+        <main className="sp-interview-main">
+          <div className="sp-chat-window" ref={chatWindowRef} data-testid="chat-window">
+            {transcript.map((msg, index) => {
+              const titleCard = titleCards.find(tc => tc.index === index);
+              return (
+                <div key={index} className={`sp-message-wrapper ${msg.role}`}>
+                  {msg.role === "assistant" && titleCard && (
+                    <ModuleTitleCard name={titleCard.name} time={titleCard.time} />
+                  )}
+                  <MessageComponent
+                    role={msg.role}
+                    content={msg.content}
+                    animate={animatingMessageIndex === index}
+                    onComplete={() => {
+                      if (animatingMessageIndex === index) {
+                        setAnimatingMessageIndex(null);
+                      }
+                    }}
+                    onTyping={scrollToBottom}
+                  />
+                </div>
+              );
+            })}
+            {isTyping && <TypingIndicator />}
+            {options.length > 0 && animatingMessageIndex === null && (
+              <OptionsContainer options={options} onSelect={handleOptionSelect} />
+            )}
+            {moduleComplete && animatingMessageIndex === null && (
+              <ModuleCompleteCard
+                summary={moduleSummary}
+                onComplete={handleModuleComplete}
+              />
+            )}
           </div>
         </main>
 
         {!moduleComplete && (
-          <div className="sticky bottom-0 bg-background border-t border-border px-4 sm:px-6 lg:px-8 py-4">
-            <div className="max-w-content mx-auto">
-              <div className="flex items-end gap-3">
-                <div className="flex-1 relative">
-                  <textarea
-                    ref={textareaRef}
-                    className={cn(
-                      "w-full resize-none rounded-xl border border-input bg-card px-4 py-3 pr-12",
-                      "text-base text-foreground placeholder:text-muted-foreground",
-                      "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent",
-                      "transition-colors duration-200",
-                      "min-h-[48px] max-h-[150px]"
-                    )}
-                    data-testid="input-message"
-                    placeholder="Type your answer here..."
-                    rows={1}
-                    value={inputValue}
-                    onChange={(e) => {
-                      setInputValue(e.target.value);
-                      autoResize();
-                    }}
-                    onKeyDown={handleKeyDown}
-                    onFocus={() => {
-                      if (isMobileDevice()) {
-                        setTimeout(() => {
-                          textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 300);
-                      }
-                    }}
-                  />
-                  <button
-                    className={cn(
-                      "absolute right-2 bottom-2 p-2 rounded-lg",
-                      "bg-primary text-primary-foreground",
-                      "hover:bg-primary-hover transition-colors duration-200",
-                      "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-                      "disabled:opacity-50 disabled:cursor-not-allowed"
-                    )}
-                    data-testid="button-send"
-                    onClick={handleSend}
-                    disabled={isSending || !inputValue.trim()}
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              {status && (
-                <p 
-                  className="mt-2 text-sm text-muted-foreground text-center"
-                  data-testid="status-line"
-                >
-                  {status}
-                </p>
-              )}
+          <div className="sp-input-area">
+            <div className="sp-input-row">
+              <textarea
+                ref={textareaRef}
+                className="sp-textarea"
+                data-testid="input-message"
+                placeholder="Type your answer here..."
+                rows={1}
+                value={inputValue}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  autoResize();
+                }}
+                onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  // On mobile, scroll input into view after keyboard appears
+                  if (isMobileDevice()) {
+                    setTimeout(() => {
+                      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                  }
+                }}
+              />
+              <button
+                className="sp-send-button"
+                data-testid="button-send"
+                onClick={handleSend}
+                disabled={isSending}
+              >
+                →
+              </button>
             </div>
+            <div className="sp-status-line" data-testid="status-line">{status}</div>
           </div>
         )}
       </div>

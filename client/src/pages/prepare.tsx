@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { useLocation, Link } from "wouter";
+import { useLocation } from "wouter";
 import { useJourney, getNextStep } from "@/hooks/useJourney";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import "@/styles/serious-people.css";
 
 const PrepareItems = [
   "Make space. Give it 20–30 minutes without multitasking.",
@@ -15,17 +14,21 @@ export default function Prepare() {
   const [itemsVisible, setItemsVisible] = useState(false);
   const { journeyState, isLoading } = useJourney();
 
+  // Set page title
   useEffect(() => {
     document.title = "Get Ready - Serious People";
   }, []);
 
+  // Animate items in on mount
   useEffect(() => {
     const timer = setTimeout(() => setItemsVisible(true), 200);
     return () => clearTimeout(timer);
   }, []);
   
+  // If user has already progressed, redirect to their current step
   useEffect(() => {
     if (!isLoading && journeyState) {
+      // If they've already started (interview complete or further), send them to their current step
       if (journeyState.interviewComplete) {
         const next = getNextStep(journeyState);
         setLocation(next.path);
@@ -34,6 +37,7 @@ export default function Prepare() {
   }, [isLoading, journeyState, setLocation]);
 
   const handleStartInterview = () => {
+    // Use journey state to determine where to go
     if (journeyState) {
       const next = getNextStep(journeyState);
       setLocation(next.path);
@@ -47,80 +51,54 @@ export default function Prepare() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="p-6">
-        <Link 
-          href="/" 
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-          data-testid="link-home"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="font-serif text-lg font-bold text-foreground">Serious People</span>
-        </Link>
-      </header>
-      
-      <main className="flex-1 flex items-center justify-center px-6 pb-12">
-        <div 
-          className="w-full max-w-lg bg-card border border-border rounded-xl p-8 shadow-sm animate-fade-in"
-          data-testid="prepare-card"
-        >
-          <h1 className="font-serif text-2xl font-bold text-foreground text-center mb-6">
-            Welcome to Serious People
-          </h1>
+    <div className="sp-prepare-page">
+      <div className="sp-prepare-container">
+        <div className="sp-prepare-card">
+          <h1 className="sp-prepare-title">Welcome to Serious People</h1>
 
-          <div className="space-y-6">
-            <p className="text-muted-foreground text-center">
+          <div className="sp-prepare-body">
+            <p className="sp-prepare-intro">
               This is a real coaching session, not a quick quiz. Treat it like a trusted coach who's on your side.
             </p>
 
-            <div>
-              <p className="text-sm font-medium text-foreground mb-4">To get the most out of it:</p>
+            <p className="sp-prepare-subtitle">To get the most out of it:</p>
 
-              <div className="space-y-3">
-                {PrepareItems.map((item, index) => (
-                  <div
-                    key={index}
-                    className={`flex gap-3 items-start transition-all duration-300 ${
-                      itemsVisible 
-                        ? "opacity-100 translate-y-0" 
-                        : "opacity-0 translate-y-2"
-                    }`}
-                    style={{ transitionDelay: `${index * 100}ms` }}
-                    data-testid={`prepare-item-${index}`}
-                  >
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center">
-                      {index + 1}
-                    </span>
-                    <span className="text-sm text-muted-foreground leading-relaxed">{item}</span>
-                  </div>
-                ))}
-              </div>
+            <div className="sp-prepare-items">
+              {PrepareItems.map((item, index) => (
+                <div
+                  key={index}
+                  className={`sp-prepare-item ${itemsVisible ? "sp-prepare-item-visible" : ""}`}
+                  style={{ "--item-delay": `${index * 100}ms` } as React.CSSProperties}
+                >
+                  <span className="sp-prepare-number">{index + 1}</span>
+                  <span className="sp-prepare-text">{item}</span>
+                </div>
+              ))}
             </div>
 
-            <p className="text-sm text-muted-foreground text-center border-t border-border pt-6">
+            <p className="sp-prepare-closing">
               When you're ready, we'll start by getting a clear picture of what's going on and what's at stake.
             </p>
           </div>
 
-          <div className="mt-8 space-y-3">
-            <Button
-              className="w-full py-6 text-base"
+          <div className="sp-prepare-actions">
+            <button
+              className="sp-prepare-cta-primary"
               onClick={handleStartInterview}
               data-testid="button-start-interview-prepare"
             >
               I'm ready, start the interview
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full"
+            </button>
+            <button
+              className="sp-prepare-cta-secondary"
               onClick={handleSaveLater}
               data-testid="button-save-later"
             >
-              Not ready yet? Save and come back later
-            </Button>
+              Not ready yet? Save and come back later →
+            </button>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

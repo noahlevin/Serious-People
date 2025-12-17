@@ -3,19 +3,11 @@ import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { analytics } from "@/lib/posthog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { 
-  MessageComponent, 
-  ChatWrapper, 
-  MessageWrapper, 
-  TypingIndicator,
-  formatContent
-} from "@/components/ChatComponents";
-import { Send } from "lucide-react";
+import "@/styles/serious-people.css";
 
+// Detect if user is on a mobile device (for keyboard behavior)
 const isMobileDevice = () => {
   return window.matchMedia('(max-width: 768px)').matches || 
     ('ontouchstart' in window) || 
@@ -45,6 +37,7 @@ export default function CoachChatPage() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Set page title
   useEffect(() => {
     document.title = "Coach Chat - Serious People";
   }, []);
@@ -90,6 +83,7 @@ export default function CoachChatPage() {
 
   const handleSend = () => {
     if (!inputValue.trim() || sendMessageMutation.isPending) return;
+    // On mobile, blur to dismiss keyboard after sending
     if (isMobileDevice()) {
       inputRef.current?.blur();
     }
@@ -106,9 +100,9 @@ export default function CoachChatPage() {
 
   if (authLoading || planLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <p className="font-sans text-muted-foreground">Loading...</p>
+      <div className="sp-page">
+        <div className="sp-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+          <p className="sp-body">Loading...</p>
         </div>
       </div>
     );
@@ -116,24 +110,26 @@ export default function CoachChatPage() {
 
   if (!plan) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border bg-card sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="w-8 h-8" />
-              <span className="font-serif text-xl font-semibold text-foreground">Serious People</span>
+      <div className="sp-page">
+        <header className="sp-success-header">
+          <div className="sp-header-content">
+            <Link href="/" className="sp-logo-link" data-testid="link-home">
+              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
+              <span className="sp-logo">Serious People</span>
             </Link>
             <UserMenu />
           </div>
         </header>
-        <main className="max-w-2xl mx-auto px-4 py-16 text-center">
-          <h1 className="font-serif text-headline font-semibold text-foreground mb-4">Coach Chat</h1>
-          <p className="font-sans text-body text-muted-foreground mb-8">
-            Complete your coaching modules and generate your Serious Plan to unlock coach chat.
-          </p>
-          <Link href="/progress" data-testid="link-progress">
-            <Button>View Progress</Button>
-          </Link>
+        <main className="sp-container">
+          <div className="sp-graduation-note" style={{ textAlign: 'center' }}>
+            <h1 className="sp-headline" style={{ marginBottom: '1rem' }}>Coach Chat</h1>
+            <p className="sp-body" style={{ marginBottom: '2rem' }}>
+              Complete your coaching modules and generate your Serious Plan to unlock coach chat.
+            </p>
+            <Link href="/progress" className="sp-button sp-button-primary" data-testid="link-progress">
+              View Progress
+            </Link>
+          </div>
         </main>
       </div>
     );
@@ -142,78 +138,78 @@ export default function CoachChatPage() {
   const clientName = plan.summaryMetadata?.clientName || 'there';
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="w-8 h-8" />
-              <span className="font-serif text-xl font-semibold text-foreground">Serious People</span>
+    <div className="sp-interview-page">
+      <header className="sp-interview-header">
+        <div className="sp-header-content">
+          <div className="sp-header-left">
+            <Link href="/" className="sp-logo-link" data-testid="link-home">
+              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
+              <span className="sp-logo">Serious People</span>
             </Link>
-            <div className="h-6 w-px bg-border" />
-            <span className="font-sans text-sm text-muted-foreground">Coach Chat</span>
+            <div className="sp-header-separator"></div>
+            <div className="sp-header-subtitle">Coach Chat</div>
           </div>
           <UserMenu />
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
+      <div className="sp-interview-content">
+        <main className="sp-interview-main">
           <div 
-            className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8"
+            className="sp-chat-container" 
             ref={chatContainerRef}
             data-testid="chat-container"
           >
-            <ChatWrapper>
-              {(!messages || messages.length === 0) && !messagesLoading && (
-                <MessageWrapper role="assistant">
-                  <div 
-                    className="max-w-[85%] w-fit px-5 py-4 text-base leading-relaxed rounded-2xl rounded-bl-md bg-sage-wash text-sage-foreground animate-message-in"
-                    data-testid="message-welcome"
-                  >
-                    <p className="mb-2">Hi {clientName}! Now that you have your Serious Plan, I'm here if you have any questions.</p>
-                    <p className="mb-2">You might want to ask about:</p>
-                    <ul className="list-disc list-inside space-y-1 text-sm">
-                      <li>How to prepare for a specific conversation</li>
-                      <li>Clarification on any artifact in your plan</li>
-                      <li>Next steps or timing advice</li>
-                      <li>How to handle pushback or objections</li>
-                    </ul>
-                  </div>
-                </MessageWrapper>
-              )}
+            {(!messages || messages.length === 0) && !messagesLoading && (
+              <div className="sp-message sp-message-assistant" data-testid="message-welcome">
+                <div className="sp-message-content">
+                  <p>Hi {clientName}! Now that you have your Serious Plan, I'm here if you have any questions.</p>
+                  <p style={{ marginTop: '0.5rem' }}>You might want to ask about:</p>
+                  <ul style={{ marginTop: '0.5rem', marginLeft: '1rem' }}>
+                    <li>How to prepare for a specific conversation</li>
+                    <li>Clarification on any artifact in your plan</li>
+                    <li>Next steps or timing advice</li>
+                    <li>How to handle pushback or objections</li>
+                  </ul>
+                </div>
+              </div>
+            )}
 
-              {messages?.map((msg) => (
-                <MessageWrapper key={msg.id} role={msg.role}>
-                  <MessageComponent 
-                    role={msg.role}
-                    content={msg.content}
-                    data-testid={`message-${msg.role}-${msg.id}`}
-                  />
-                </MessageWrapper>
-              ))}
+            {messages?.map((msg) => (
+              <div 
+                key={msg.id} 
+                className={`sp-message sp-message-${msg.role}`}
+                data-testid={`message-${msg.role}-${msg.id}`}
+              >
+                <div className="sp-message-content">
+                  {msg.content.split('\n').map((line, i) => (
+                    line.trim() ? <p key={i}>{line}</p> : <br key={i} />
+                  ))}
+                </div>
+              </div>
+            ))}
 
-              {sendMessageMutation.isPending && (
-                <MessageWrapper role="assistant">
-                  <div 
-                    className="max-w-[85%] w-fit rounded-2xl rounded-bl-md bg-sage-wash"
-                    data-testid="message-typing"
-                  >
-                    <TypingIndicator />
-                  </div>
-                </MessageWrapper>
-              )}
-            </ChatWrapper>
+            {sendMessageMutation.isPending && (
+              <div className="sp-message sp-message-assistant" data-testid="message-typing">
+                <div className="sp-message-content">
+                  <span className="sp-typing-indicator">
+                    <span></span><span></span><span></span>
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="border-t border-border bg-card p-4">
-            <div className="flex gap-3 items-end max-w-3xl mx-auto">
-              <Textarea
+          <div className="sp-input-area">
+            <div className="sp-input-row">
+              <textarea
                 ref={inputRef}
+                className="sp-input"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onFocus={() => {
+                  // On mobile, scroll input into view after keyboard appears
                   if (isMobileDevice()) {
                     setTimeout(() => {
                       inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -221,37 +217,37 @@ export default function CoachChatPage() {
                   }
                 }}
                 placeholder="Ask your coach a question..."
-                className="min-h-[44px] max-h-32 resize-none"
+                rows={1}
                 disabled={sendMessageMutation.isPending}
                 data-testid="input-message"
               />
-              <Button
+              <button
+                className="sp-send-button"
                 onClick={handleSend}
                 disabled={!inputValue.trim() || sendMessageMutation.isPending}
-                size="icon"
                 data-testid="button-send"
               >
-                <Send className="w-4 h-4" />
-              </Button>
+                Send
+              </button>
             </div>
           </div>
         </main>
 
-        <aside className="hidden lg:block w-72 border-l border-border bg-card p-6">
-          <div className="mb-8">
-            <h3 className="font-serif text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Quick Actions</h3>
+        <aside className="sp-chat-sidebar">
+          <div className="sp-sidebar-section">
+            <h3 className="sp-sidebar-title">Quick Actions</h3>
             <Link 
               href="/serious-plan" 
-              className="text-sm text-primary hover:underline"
+              className="sp-sidebar-link"
               data-testid="link-serious-plan"
             >
               View Your Serious Plan
             </Link>
           </div>
           
-          <div>
-            <h3 className="font-serif text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Your Situation</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+          <div className="sp-sidebar-section">
+            <h3 className="sp-sidebar-title">Your Situation</h3>
+            <p className="sp-sidebar-text">
               {plan.summaryMetadata?.primaryRecommendation || 'Navigating a career transition'}
             </p>
           </div>
@@ -259,10 +255,7 @@ export default function CoachChatPage() {
       </div>
 
       {sendMessageMutation.isError && (
-        <div 
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-destructive text-destructive-foreground px-4 py-2 rounded-lg shadow-lg text-sm"
-          data-testid="error-toast"
-        >
+        <div className="sp-error-toast" data-testid="error-toast">
           Something went wrong. Please try again.
         </div>
       )}

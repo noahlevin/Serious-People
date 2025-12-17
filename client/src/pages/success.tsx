@@ -2,10 +2,9 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useSearch, useLocation } from "wouter";
 import { queryClient } from "@/lib/queryClient";
 import { analytics } from "@/lib/posthog";
+import "@/styles/serious-people.css";
 import { UserMenu } from "@/components/UserMenu";
 import { ModulesProgressCard, DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
-import { Button } from "@/components/ui/button";
-import { Check, Copy, Loader2 } from "lucide-react";
 import type { PlanCard } from "@/components/ChatComponents";
 
 interface Message {
@@ -29,12 +28,14 @@ export default function Success() {
   const [scriptsContent, setScriptsContent] = useState("");
   const [copied, setCopied] = useState(false);
   
+  // Set page title
   useEffect(() => {
     document.title = "Payment Confirmed - Serious People";
   }, []);
   
   const handleStartCoaching = () => {
     sessionStorage.setItem("payment_verified", "true");
+    // Invalidate journey cache to ensure fresh state when navigating
     queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
     setLocation("/module/1");
   };
@@ -42,12 +43,14 @@ export default function Success() {
   useEffect(() => {
     const loadPlan = async () => {
       try {
+        // Try sessionStorage first
         const savedPlan = sessionStorage.getItem(PLAN_CARD_KEY);
         if (savedPlan) {
           setCoachingPlan(JSON.parse(savedPlan));
           return;
         }
         
+        // Try loading from server
         const response = await fetch("/api/transcript", { credentials: "include" });
         if (response.ok) {
           const data = await response.json();
@@ -80,6 +83,7 @@ export default function Success() {
     return false;
   }, []);
 
+  // Poll for dossier existence - redirects when ready or times out
   const pollForDossier = useCallback(async (maxWaitMs: number = 60000, pollIntervalMs: number = 2000) => {
     const startTime = Date.now();
     let pollCount = 0;
@@ -102,6 +106,7 @@ export default function Success() {
         console.error("Poll error:", err);
       }
       
+      // Wait before next poll
       await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
     }
     
@@ -126,10 +131,12 @@ export default function Success() {
         setState("preparing-coaching");
         
         try {
+          // First check if dossier already exists in database
           const checkRes = await fetch("/api/transcript", { credentials: "include" });
           const transcriptData = checkRes.ok ? await checkRes.json() : null;
           
           if (transcriptData?.clientDossier) {
+            // Dossier already exists - redirect immediately
             console.log("Client dossier ready, redirecting to Module 1");
             sessionStorage.setItem("payment_verified", "true");
             queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
@@ -137,6 +144,7 @@ export default function Success() {
             return;
           }
           
+          // No dossier found - check if we have a transcript
           const hasTranscript = loadTranscript() || (transcriptData?.transcript && transcriptData.transcript.length > 0);
           
           if (!hasTranscript) {
@@ -144,6 +152,8 @@ export default function Success() {
             return;
           }
           
+          // Trigger fallback generation in the background (fire-and-forget)
+          // This ensures generation starts even if the pre-paywall attempt failed
           console.log("Dossier not ready, triggering fallback generation...");
           fetch("/api/generate-dossier", {
             method: "POST",
@@ -151,9 +161,12 @@ export default function Success() {
             credentials: "include",
           }).catch(err => console.error("Fallback generation error:", err));
           
+          // Poll for dossier existence - this will redirect when ready
+          // or timeout after 60 seconds and show manual button
           const dossierReady = await pollForDossier(60000, 2000);
           
           if (!dossierReady) {
+            // Timeout - show manual start button
             setState("ready");
           }
         } catch (err) {
@@ -210,138 +223,100 @@ export default function Success() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <img src="/favicon.png" alt="Serious People" className="w-8 h-8" />
-            <span className="font-serif text-xl font-bold text-foreground">Serious People</span>
+    <div className="sp-page">
+      <header className="sp-success-header">
+        <div className="sp-header-content">
+          <Link href="/" className="sp-logo-link">
+            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
+            <span className="sp-logo">Serious People</span>
           </Link>
           <UserMenu />
         </div>
       </header>
 
-      <main className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-2xl">
-          {state === "verifying" && (
-            <div className="flex flex-col items-center justify-center py-20 animate-fade-in" data-testid="state-verifying">
-              <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
-              <p className="text-lg text-muted-foreground font-sans">Verifying your payment...</p>
+      <div className="sp-container">
+        {state === "verifying" && (
+          <div className="sp-state-container">
+            <div className="sp-spinner-large"></div>
+            <p className="sp-state-text">Verifying your payment...</p>
+          </div>
+        )}
+
+        {state === "error" && (
+          <div className="sp-state-container">
+            <div className="sp-error-card">
+              <h2>Payment Verification Failed</h2>
+              <p>We couldn't verify your payment. Please contact <a href="mailto:hello@seriouspeople.com">hello@seriouspeople.com</a> for assistance.</p>
             </div>
-          )}
+          </div>
+        )}
 
-          {state === "error" && (
-            <div className="flex flex-col items-center justify-center py-20 animate-fade-in" data-testid="state-error">
-              <div className="bg-card border border-border rounded-xl p-8 text-center max-w-md">
-                <h2 className="font-serif text-2xl font-bold text-foreground mb-4">Payment Verification Failed</h2>
-                <p className="text-muted-foreground font-sans">
-                  We couldn't verify your payment. Please contact{" "}
-                  <a href="mailto:hello@seriouspeople.com" className="text-primary hover:underline">
-                    hello@seriouspeople.com
-                  </a>{" "}
-                  for assistance.
-                </p>
-              </div>
+        {state === "transcript-error" && (
+          <div className="sp-state-container">
+            <div className="sp-error-card">
+              <h2>Interview Not Found</h2>
+              <p>Looks like I can't find your interview on this device. For now this tool assumes you complete the interview and payment on the same device/browser.</p>
+              <p style={{ marginTop: "1rem" }}><Link href="/interview">Start a new interview</Link></p>
             </div>
-          )}
+          </div>
+        )}
 
-          {state === "transcript-error" && (
-            <div className="flex flex-col items-center justify-center py-20 animate-fade-in" data-testid="state-transcript-error">
-              <div className="bg-card border border-border rounded-xl p-8 text-center max-w-md">
-                <h2 className="font-serif text-2xl font-bold text-foreground mb-4">Interview Not Found</h2>
-                <p className="text-muted-foreground font-sans mb-4">
-                  Looks like I can't find your interview on this device. For now this tool assumes you complete the interview and payment on the same device/browser.
-                </p>
-                <Link href="/interview">
-                  <Button data-testid="link-start-interview">Start a new interview</Button>
-                </Link>
-              </div>
+        {state === "preparing-coaching" && (
+          <div className="sp-state-container">
+            <div className="sp-spinner-large"></div>
+            <p className="sp-state-text">Preparing your coaching experience...</p>
+            <p className="sp-state-subtext" style={{ marginTop: "0.5rem", opacity: 0.7 }}>Reviewing your interview and creating a personalized plan</p>
+          </div>
+        )}
+
+        {state === "ready" && (
+          <div className="sp-state-container">
+            <ModulesProgressCard
+              currentModule={1}
+              showBadge={true}
+              badgeText="Payment Confirmed"
+              title="Let's Start Your Coaching Program"
+              subtitle="Your personalized three-module coaching journey awaits. At the end, you'll receive your Career Brief with diagnosis, action plan, and conversation scripts."
+              ctaText={`Start Module 1: ${coachingPlan?.modules?.[0]?.name || DEFAULT_COACHING_MODULES[0].name}`}
+              onCtaClick={handleStartCoaching}
+              customModules={coachingPlan?.modules}
+            />
+          </div>
+        )}
+
+        {state === "generating" && (
+          <div className="sp-state-container">
+            <div className="sp-spinner-large"></div>
+            <p className="sp-state-text">Writing your Career Brief... this may take a moment.</p>
+          </div>
+        )}
+
+        {state === "results" && (
+          <div>
+            <div className="sp-results-header">
+              <h1>Your Career Brief</h1>
+              <p>Use this as your roadmap. Adjust the language to fit your voice.</p>
             </div>
-          )}
 
-          {state === "preparing-coaching" && (
-            <div className="flex flex-col items-center justify-center py-20 animate-fade-in" data-testid="state-preparing">
-              <div className="w-16 h-16 rounded-full bg-sage-wash flex items-center justify-center mb-6">
-                <Loader2 className="w-8 h-8 text-primary animate-spin" />
-              </div>
-              <p className="text-lg text-foreground font-sans mb-2">Preparing your coaching experience...</p>
-              <p className="text-sm text-muted-foreground font-sans">Reviewing your interview and creating a personalized plan</p>
+            <button
+              className={`sp-copy-all-btn ${copied ? "copied" : ""}`}
+              data-testid="button-copy-all"
+              onClick={copyToClipboard}
+            >
+              {copied ? "Copied!" : "Copy All to Clipboard"}
+            </button>
+
+            <div className="sp-scripts-output">
+              <pre className="sp-scripts-content" data-testid="scripts-output">
+                {scriptsContent}
+              </pre>
             </div>
-          )}
+          </div>
+        )}
+      </div>
 
-          {state === "ready" && (
-            <div className="animate-fade-in" data-testid="state-ready">
-              <ModulesProgressCard
-                currentModule={1}
-                showBadge={true}
-                badgeText="Payment Confirmed"
-                title="Let's Start Your Coaching Program"
-                subtitle="Your personalized three-module coaching journey awaits. At the end, you'll receive your Career Brief with diagnosis, action plan, and conversation scripts."
-                ctaText={`Start Module 1: ${coachingPlan?.modules?.[0]?.name || DEFAULT_COACHING_MODULES[0].name}`}
-                onCtaClick={handleStartCoaching}
-                customModules={coachingPlan?.modules}
-              />
-            </div>
-          )}
-
-          {state === "generating" && (
-            <div className="flex flex-col items-center justify-center py-20 animate-fade-in" data-testid="state-generating">
-              <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
-              <p className="text-lg text-muted-foreground font-sans">Writing your Career Brief... this may take a moment.</p>
-            </div>
-          )}
-
-          {state === "results" && (
-            <div className="animate-fade-in" data-testid="state-results">
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 rounded-full bg-sage-wash flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8 text-primary" />
-                </div>
-                <h1 className="font-serif text-3xl font-bold text-foreground mb-2">Your Career Brief</h1>
-                <p className="text-muted-foreground font-sans">Use this as your roadmap. Adjust the language to fit your voice.</p>
-              </div>
-
-              <div className="flex justify-center mb-6">
-                <Button
-                  variant={copied ? "secondary" : "outline"}
-                  data-testid="button-copy-all"
-                  onClick={copyToClipboard}
-                  className="gap-2"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4" />
-                      Copy All to Clipboard
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              <div className="bg-card border border-border rounded-xl p-6 md:p-8">
-                <pre 
-                  className="whitespace-pre-wrap font-sans text-foreground leading-relaxed text-sm md:text-base" 
-                  data-testid="scripts-output"
-                >
-                  {scriptsContent}
-                </pre>
-              </div>
-            </div>
-          )}
-        </div>
-      </main>
-
-      <footer className="border-t border-border py-8">
-        <p className="text-center text-sm text-muted-foreground font-sans">
-          Questions? Contact{" "}
-          <a href="mailto:hello@seriouspeople.com" className="text-primary hover:underline">
-            hello@seriouspeople.com
-          </a>
-        </p>
+      <footer className="sp-footer">
+        <p>Questions? Contact <a href="mailto:hello@seriouspeople.com">hello@seriouspeople.com</a></p>
       </footer>
     </div>
   );

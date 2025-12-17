@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { UserMenu } from "@/components/UserMenu";
 import { queryClient } from "@/lib/queryClient";
 import { ModulesProgressCard, DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
-import type { PlanCard } from "@/components/ChatComponents";
-import { Header, Footer } from "@/components/layout";
+import type { CoachingModule, PlanCard } from "@/components/ChatComponents";
+import "@/styles/serious-people.css";
 
 const PLAN_CARD_KEY = "serious_people_plan_card";
 
@@ -14,6 +15,7 @@ export default function Progress() {
   const [completedModules, setCompletedModules] = useState<number[]>([]);
   const [coachingPlan, setCoachingPlan] = useState<PlanCard | null>(null);
   
+  // Set page title
   useEffect(() => {
     document.title = "Your Progress - Serious People";
   }, []);
@@ -28,6 +30,7 @@ export default function Progress() {
     }
   }, [authLoading, isAuthenticated, setLocation]);
 
+  // Load completed modules from database
   useEffect(() => {
     const loadModulesStatus = async () => {
       try {
@@ -85,6 +88,7 @@ export default function Progress() {
   const allComplete = completedModules.length >= 3;
 
   const handleContinue = () => {
+    // Invalidate journey cache to ensure fresh state
     queryClient.invalidateQueries({ queryKey: ['/api/journey'] });
     
     if (allComplete) {
@@ -126,27 +130,28 @@ export default function Progress() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header variant="default" />
-        <main className="pt-24 pb-16 px-6">
-          <div className="max-w-content-wide mx-auto flex items-center justify-center min-h-[50vh]">
-            <div className="flex items-center gap-3 text-muted-foreground">
-              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              <p className="font-sans">Loading...</p>
-            </div>
-          </div>
-        </main>
-        <Footer />
+      <div className="sp-page">
+        <div className="sp-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+          <p>Loading...</p>
+        </div>
       </div>
     );
   }
   
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header variant="default" />
+    <div className="sp-page">
+      <header className="sp-success-header">
+        <div className="sp-header-content">
+          <Link href="/" className="sp-logo-link">
+            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
+            <span className="sp-logo">Serious People</span>
+          </Link>
+          <UserMenu />
+        </div>
+      </header>
 
-      <main className="flex-1 pt-24 pb-16 px-6" data-testid="progress-page">
-        <div className="max-w-content-wide mx-auto">
+      <div className="sp-container">
+        <div className="sp-state-container">
           <ModulesProgressCard
             currentModule={nextModule}
             completedModules={completedModules}
@@ -159,9 +164,11 @@ export default function Progress() {
             customModules={coachingPlan?.modules}
           />
         </div>
-      </main>
+      </div>
 
-      <Footer />
+      <footer className="sp-footer">
+        <p>Questions? Contact <a href="mailto:hello@seriouspeople.com">hello@seriouspeople.com</a></p>
+      </footer>
     </div>
   );
 }
