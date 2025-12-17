@@ -254,18 +254,11 @@
     }
 
     .sp-testimonial-quote {
-      font-family: var(--sp-font-display);
-      font-size: 1.25rem;
-      font-style: italic;
-      line-height: 1.5;
+      font-family: var(--sp-font-body);
+      font-size: 1.125rem;
+      line-height: 1.7;
       color: var(--sp-text);
-      margin-bottom: 1rem;
-    }
-
-    @media (min-width: 768px) {
-      .sp-testimonial-quote {
-        font-size: 1.5rem;
-      }
+      margin-bottom: 0.75rem;
     }
 
     .sp-testimonial-cite {
@@ -410,11 +403,18 @@
     }
 
     .sp-process-number {
-      font-family: var(--sp-font-display);
-      font-size: 3rem;
-      font-weight: 700;
-      color: rgba(74, 85, 72, 0.2);
-      margin-bottom: 1rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #4A5548;
+      color: #fff;
+      font-family: var(--sp-font-body);
+      font-size: 0.875rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1rem;
     }
 
     .sp-process-title {
@@ -432,14 +432,9 @@
       margin-bottom: 1rem;
     }
 
-    .sp-badge {
-      display: inline-block;
+    .sp-process-tag {
       font-size: 0.75rem;
-      font-weight: 500;
-      padding: 0.375rem 0.75rem;
-      background: var(--sp-bg-alt);
-      border-radius: 9999px;
-      color: var(--sp-text-secondary);
+      color: var(--sp-text-muted);
     }
 
     /* Stats Row */
@@ -495,29 +490,6 @@
       border: 1px solid var(--sp-border);
       border-radius: 8px;
       padding: 1.5rem;
-    }
-
-    .sp-value-card-inner {
-      display: flex;
-      align-items: flex-start;
-      gap: 1rem;
-    }
-
-    .sp-value-icon {
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--sp-primary-light);
-      border-radius: 8px;
-      flex-shrink: 0;
-    }
-
-    .sp-value-icon svg {
-      width: 20px;
-      height: 20px;
-      color: var(--sp-primary);
     }
 
     .sp-value-title {
@@ -814,21 +786,21 @@
           <div class="sp-process-number">01</div>
           <h3 class="sp-process-title">The Interview</h3>
           <p class="sp-process-desc">A free 15-minute AI conversation to understand your situation. We'll map out what's really going on.</p>
-          <span class="sp-badge">Free, no commitment</span>
+          <span class="sp-process-tag">Free, no commitment</span>
         </div>
         
         <div class="sp-process-step sp-reveal">
           <div class="sp-process-number">02</div>
           <h3 class="sp-process-title">The Coaching</h3>
           <p class="sp-process-desc">Three focused modules tailored to your situation. Not generic advice—specific to you.</p>
-          <span class="sp-badge">Personalized curriculum</span>
+          <span class="sp-process-tag">Personalized curriculum</span>
         </div>
         
         <div class="sp-process-step sp-reveal">
           <div class="sp-process-number">03</div>
           <h3 class="sp-process-title">The Plan</h3>
           <p class="sp-process-desc">Walk away with scripts, timelines, and decision frameworks. Everything you need to act.</p>
-          <span class="sp-badge">Concrete deliverables</span>
+          <span class="sp-process-tag">Concrete deliverables</span>
         </div>
       </div>
       
@@ -857,51 +829,23 @@
       
       <div class="sp-value-grid">
         <div class="sp-value-card sp-reveal">
-          <div class="sp-value-card-inner">
-            <div class="sp-value-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            </div>
-            <div>
-              <h3 class="sp-value-title">Speed</h3>
-              <p class="sp-value-desc">Most people ruminate for months. Our clients get clarity in days. The AI interview alone surfaces insights that take weeks to reach in traditional coaching.</p>
-            </div>
-          </div>
+          <h3 class="sp-value-title">Speed</h3>
+          <p class="sp-value-desc">Most people ruminate for months. Our clients get clarity in days. The AI interview alone surfaces insights that take weeks to reach in traditional coaching.</p>
         </div>
         
         <div class="sp-value-card sp-reveal">
-          <div class="sp-value-card-inner">
-            <div class="sp-value-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-            </div>
-            <div>
-              <h3 class="sp-value-title">Specificity</h3>
-              <p class="sp-value-desc">No generic frameworks. Every recommendation is tailored to your exact situation, company context, and career goals. Scripts, timelines, decision trees—ready to use.</p>
-            </div>
-          </div>
+          <h3 class="sp-value-title">Specificity</h3>
+          <p class="sp-value-desc">No generic frameworks. Every recommendation is tailored to your exact situation, company context, and career goals. Scripts, timelines, decision trees—ready to use.</p>
         </div>
         
         <div class="sp-value-card sp-reveal">
-          <div class="sp-value-card-inner">
-            <div class="sp-value-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
-            </div>
-            <div>
-              <h3 class="sp-value-title">Stakes</h3>
-              <p class="sp-value-desc">At the VP+ level, career mistakes are expensive. A bad exit, a missed negotiation, or a wrong move can cost hundreds of thousands. This is insurance.</p>
-            </div>
-          </div>
+          <h3 class="sp-value-title">Stakes</h3>
+          <p class="sp-value-desc">At the VP+ level, career mistakes are expensive. A bad exit, a missed negotiation, or a wrong move can cost hundreds of thousands. This is insurance.</p>
         </div>
         
         <div class="sp-value-card sp-reveal">
-          <div class="sp-value-card-inner">
-            <div class="sp-value-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            </div>
-            <div>
-              <h3 class="sp-value-title">Discretion</h3>
-              <p class="sp-value-desc">No paper trail. No HR involvement. No awkward conversations with colleagues. Just you, working through your situation with complete privacy.</p>
-            </div>
-          </div>
+          <h3 class="sp-value-title">Discretion</h3>
+          <p class="sp-value-desc">No paper trail. No HR involvement. No awkward conversations with colleagues. Just you, working through your situation with complete privacy.</p>
         </div>
       </div>
     </div>

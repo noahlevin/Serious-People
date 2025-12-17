@@ -14,8 +14,7 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Zap, Target, Shield, Lock } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 interface PricingData {
   originalPrice: number;
@@ -90,25 +89,21 @@ const valueProps = [
     id: "speed",
     title: "Speed",
     description: "Most people ruminate for months. Our clients get clarity in days. The AI interview alone surfaces insights that take weeks to reach in traditional coaching.",
-    icon: Zap,
   },
   {
     id: "specificity",
     title: "Specificity",
     description: "No generic frameworks. Every recommendation is tailored to your exact situation, company context, and career goals. Scripts, timelines, decision trees—ready to use.",
-    icon: Target,
   },
   {
     id: "stakes",
     title: "Stakes",
     description: "At the VP+ level, career mistakes are expensive. A bad exit, a missed negotiation, or a wrong move can cost hundreds of thousands. This is insurance.",
-    icon: Shield,
   },
   {
     id: "discretion",
     title: "Discretion",
     description: "No paper trail. No HR involvement. No awkward conversations with colleagues. Just you, working through your situation with complete privacy.",
-    icon: Lock,
   },
 ];
 
@@ -240,14 +235,12 @@ export default function Landing() {
             
             {/* Testimonial Quote */}
             <div className="max-w-2xl mx-auto">
-              <blockquote className="relative">
-                <p className="font-serif text-title md:text-headline text-foreground italic mb-4">
-                  "I spent months going in circles. One hour with this process gave me more clarity than a year of overthinking."
-                </p>
-                <footer className="text-sm text-muted-foreground">
-                  — <span className="font-medium">VP of Engineering</span> · Series C startup
-                </footer>
-              </blockquote>
+              <p className="text-body-lg text-foreground mb-3">
+                "I spent months going in circles. One hour with this process gave me more clarity than a year of overthinking."
+              </p>
+              <p className="text-sm text-muted-foreground">
+                — <span className="font-medium">VP of Engineering</span> · Series C startup
+              </p>
             </div>
           </RevealSection>
         </div>
@@ -314,18 +307,18 @@ export default function Landing() {
             {processSteps.map((step, index) => (
               <RevealSection key={step.number} delay={150 + index * 100}>
                 <div className="text-center">
-                  <div className="font-serif text-display text-primary/20 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-[#4A5548] text-white flex items-center justify-center mx-auto mb-4 text-sm font-medium">
                     {step.number}
                   </div>
                   <h3 className="font-serif text-title text-foreground mb-3">
                     {step.title}
                   </h3>
-                  <p className="text-body text-muted-foreground mb-4 leading-relaxed">
+                  <p className="text-body text-muted-foreground mb-3 leading-relaxed">
                     {step.description}
                   </p>
-                  <Badge variant="secondary" className="text-xs">
+                  <p className="text-xs text-muted-foreground">
                     {step.badge}
-                  </Badge>
+                  </p>
                 </div>
               </RevealSection>
             ))}
@@ -369,19 +362,12 @@ export default function Landing() {
               <RevealSection key={prop.id} delay={150 + index * 50}>
                 <Card className="h-full">
                   <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <prop.icon className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-serif text-title text-foreground mb-2">
-                          {prop.title}
-                        </h3>
-                        <p className="text-body text-muted-foreground leading-relaxed">
-                          {prop.description}
-                        </p>
-                      </div>
-                    </div>
+                    <h3 className="font-serif text-title text-foreground mb-2">
+                      {prop.title}
+                    </h3>
+                    <p className="text-body text-muted-foreground leading-relaxed">
+                      {prop.description}
+                    </p>
                   </CardContent>
                 </Card>
               </RevealSection>
