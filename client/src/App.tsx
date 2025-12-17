@@ -19,6 +19,8 @@ import SeriousPlan from "@/pages/serious-plan";
 import CoachChat from "@/pages/coach-chat";
 import CoachLetter from "@/pages/coach-letter";
 import NotFound from "@/pages/not-found";
+import LovableSmoke from "@/pages/lovable-smoke";
+
 
 // Detect if running at /app base path (Phase 5: optional /app mount)
 function getBasePath(): string {
@@ -44,6 +46,7 @@ function AppRoutes() {
       <Route path="/coach-chat" component={CoachChat} />
       <Route path="/coach-letter" component={CoachLetter} />
       <Route component={NotFound} />
+      <Route path="/__lovable" component={LovableSmoke} />
     </Switch>
   );
 }
