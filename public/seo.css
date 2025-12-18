@@ -605,12 +605,14 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 
 /* Hero section - matches py-12 md:py-16 */
 .sp-hero-section {
-  padding: 3rem 0; /* py-12 = 48px */
+  padding-top: 3rem;    /* py-12 = 48px */
+  padding-bottom: 3rem;
 }
 
 @media (min-width: 768px) {
   .sp-hero-section {
-    padding: 4rem 0; /* md:py-16 = 64px */
+    padding-top: 4rem;    /* md:py-16 = 64px */
+    padding-bottom: 4rem;
   }
 }
 
