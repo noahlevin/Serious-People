@@ -69,6 +69,11 @@
   --sp-content-wide: 72rem;     /* 1152px */
 }
 
+/* Global box-sizing - CRITICAL for preventing padding from adding to element widths */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
@@ -1922,7 +1927,6 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   gap: 0 1rem;
   max-width: 100%;
   min-width: 0;
-  box-sizing: border-box;
 }
 
 .sp-situation-card:hover {
