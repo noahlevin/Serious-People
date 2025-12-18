@@ -77,37 +77,46 @@
     }
     
     .sp-header {
-      text-align: center;
-      padding: 1.5rem 1rem;
-      border-bottom: 3px double var(--sp-text);
-      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.5rem;
+      max-width: 1280px;
+      margin: 0 auto;
     }
     
     .sp-header-logo {
       font-family: var(--sp-font-display);
-      font-size: 1.75rem;
-      font-weight: 700;
+      font-size: 1.25rem;
+      font-weight: 400;
       letter-spacing: -0.02em;
-      text-transform: uppercase;
       color: var(--sp-text);
       text-decoration: none;
     }
     
+    .sp-header-logo:hover {
+      color: var(--sp-accent);
+    }
+    
     .sp-header-nav {
-      margin-top: 0.75rem;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      font-size: 0.875rem;
     }
     
     .sp-header-nav a {
       color: var(--sp-text-secondary);
       text-decoration: none;
-      margin: 0 1rem;
     }
     
     .sp-header-nav a:hover {
       color: var(--sp-text);
+    }
+    
+    .sp-header-nav a.active {
+      color: var(--sp-text);
+      font-weight: 500;
     }
     
     .sp-main {
@@ -158,9 +167,7 @@
     }
     
     .question-number {
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+      font-size: 0.875rem;
       color: var(--sp-text-muted);
       margin-bottom: 0.5rem;
     }
@@ -211,33 +218,47 @@
     
     .nav-btn {
       font-family: var(--sp-font-body);
-      font-size: 0.95rem;
-      padding: 0.875rem 1.5rem;
-      border: 1px solid var(--sp-border);
-      background: var(--sp-bg-elevated);
-      color: var(--sp-text);
+      font-size: 0.875rem;
+      font-weight: 500;
+      min-height: 3rem;
+      padding: 0 1.5rem;
+      border: none;
+      border-radius: 0.375rem;
+      background: transparent;
+      color: var(--sp-text-muted);
       cursor: pointer;
       transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .nav-btn svg {
+      width: 1rem;
+      height: 1rem;
+      flex-shrink: 0;
     }
     
     .nav-btn:hover:not(:disabled) {
-      border-color: var(--sp-text);
+      background: hsl(var(--muted) / 0.5);
+      color: var(--sp-text);
     }
     
     .nav-btn:disabled {
-      opacity: 0.4;
+      opacity: 0.5;
       cursor: not-allowed;
     }
     
     .nav-btn.primary {
+      min-height: 3rem;
+      padding: 0 2rem;
       background: var(--sp-text);
       color: var(--sp-bg);
-      border-color: var(--sp-text);
     }
     
     .nav-btn.primary:hover:not(:disabled) {
-      background: var(--sp-accent);
-      border-color: var(--sp-accent);
+      background: hsl(var(--foreground) / 0.9);
     }
     
     /* Results */
@@ -410,11 +431,33 @@
     }
     
     .sp-footer {
-      border-top: 3px double var(--sp-text);
-      padding: 2rem 1rem;
-      text-align: center;
-      font-size: 0.8rem;
+      border-top: 1px solid var(--sp-border);
+      margin-top: auto;
+    }
+    
+    .sp-footer-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      font-size: 0.875rem;
       color: var(--sp-text-secondary);
+    }
+    
+    @media (min-width: 768px) {
+      .sp-footer-inner {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+    }
+    
+    .sp-footer-links {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
     }
     
     .sp-footer a {
@@ -446,7 +489,7 @@
     <a href="/" class="sp-header-logo">Serious People</a>
     <nav class="sp-header-nav">
       <a href="/guides">Guides</a>
-      <a href="/tools/stay-or-go-calculator">Calculator</a>
+      <a href="/tools/stay-or-go-calculator" class="active">Calculator</a>
       <a href="/app/interview/start">Start Session</a>
     </nav>
   </header>
@@ -491,12 +534,14 @@
   </main>
   
   <footer class="sp-footer">
-    <p>&copy; <%= new Date().getFullYear() %> Serious People. Career coaching for serious decisions.</p>
-    <p style="margin-top: 0.5rem;">
-      <a href="/">Home</a> &middot; 
-      <a href="/guides">Guides</a> &middot; 
-      <a href="/app/interview/start">Start Session</a>
-    </p>
+    <div class="sp-footer-inner">
+      <p>&copy; <%= new Date().getFullYear() %> Serious People. Career coaching for serious decisions.</p>
+      <div class="sp-footer-links">
+        <a href="/">Home</a>
+        <a href="/guides">Guides</a>
+        <a href="/app/interview/start">Start Session</a>
+      </div>
+    </div>
   </footer>
   
   <% if (posthogKey) { %>
@@ -649,12 +694,12 @@
         
         html += '</div>';
         html += '<div class="nav-buttons">';
-        html += '<button class="nav-btn" id="prev-btn" ' + (index === 0 ? 'disabled' : '') + ' data-testid="button-prev">Back</button>';
+        html += '<button class="nav-btn" id="prev-btn" ' + (index === 0 ? 'disabled' : '') + ' data-testid="button-prev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Back</button>';
         
         if (index === questions.length - 1) {
-          html += '<button class="nav-btn primary" id="next-btn" ' + (answers[q.id] === undefined ? 'disabled' : '') + ' data-testid="button-results">See Results</button>';
+          html += '<button class="nav-btn primary" id="next-btn" ' + (answers[q.id] === undefined ? 'disabled' : '') + ' data-testid="button-results">See Results <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>';
         } else {
-          html += '<button class="nav-btn primary" id="next-btn" ' + (answers[q.id] === undefined ? 'disabled' : '') + ' data-testid="button-next">Next</button>';
+          html += '<button class="nav-btn primary" id="next-btn" ' + (answers[q.id] === undefined ? 'disabled' : '') + ' data-testid="button-next">Next <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>';
         }
         
         html += '</div></div>';
