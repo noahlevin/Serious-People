@@ -31,17 +31,23 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet">
-  
+  <link rel="stylesheet" href="/seo.css?v=<%= Date.now() %>">
+
   <style>
     :root {
-      --sp-bg: #faf9f6;
-      --sp-text: #1a1a1a;
-      --sp-text-secondary: #666;
-      --sp-text-muted: #444;
-      --sp-border: #d4d4d4;
-      --sp-border-light: #e5e5e5;
-      --sp-font-display: 'Playfair Display', Georgia, serif;
-      --sp-font-body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+      /* Map EJS CSS variables to the Lovable token system (from /seo.css) */
+      --sp-bg: hsl(var(--background));
+      --sp-bg-elevated: hsl(var(--card));
+      --sp-text: hsl(var(--foreground));
+      --sp-text-secondary: hsl(var(--muted-foreground));
+      --sp-text-muted: hsl(var(--foreground) / 0.78);
+      --sp-border: hsl(var(--border));
+      --sp-border-light: hsl(var(--border) / 0.6);
+      --sp-accent: hsl(var(--primary));
+      --sp-accent-hover: hsl(var(--primary) / 0.85);
+      --sp-link: hsl(var(--primary));
+      --sp-font-display: var(--sp-display);
+      --sp-font-body: var(--sp-body);
     }
     
     *, *::before, *::after {
@@ -227,7 +233,7 @@
     }
     
     .sp-landing-section-alt {
-      background: #f5f4f0;
+      background: var(--sp-bg);
     }
     
     .sp-landing-section-title {
@@ -252,7 +258,7 @@
       padding: 0.75rem 1.25rem;
       border: 1px solid var(--sp-border);
       border-radius: 4px;
-      background: #ffffff;
+      background: var(--sp-bg-elevated);
       max-width: 450px;
       margin: 0 auto;
     }
@@ -359,7 +365,7 @@
     .sp-landing-artifact {
       padding: 1.5rem;
       border: 1px solid var(--sp-border);
-      background: #fff;
+      background: var(--sp-bg-elevated);
     }
     
     .sp-landing-artifact h3 {

@@ -1,25 +1,40 @@
+/* seo.css — pure CSS token bridge for EJS pages (no Tailwind @apply/@layer) */
+
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@400;500;600&display=swap');
 
-:root{
+:root {
+  /* Lovable tokens (match client/src/index.css) */
   --background: 40 33% 97%;
   --foreground: 20 14% 10%;
+
   --card: 40 25% 95%;
   --border: 30 15% 85%;
+
   --primary: 100 12% 32%;
   --muted-foreground: 20 8% 45%;
 
+  /* Font tokens used by SPA + utilities below */
   --sp-display: 'Playfair Display', Georgia, serif;
   --sp-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Helpful extras */
+  --radius: 0.25rem;
 }
 
-html{font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-body{
-  margin:0;
-  background:hsl(var(--background));
-  color:hsl(var(--foreground));
-  font-family:var(--sp-body);
-  line-height:1.6;
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* quick “is this applied?” proof — remove later */
-body{ outline: 4px solid magenta !important; }
+body {
+  margin: 0;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--sp-body);
+  line-height: 1.6;
+}
+
+/* Optional small helpers your EJS templates *can* use */
+.font-display { font-family: var(--sp-display); }
+.font-body { font-family: var(--sp-body); }

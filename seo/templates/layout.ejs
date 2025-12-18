@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- SP-SEO-SENTINEL: Layout template loaded correctly -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -249,7 +250,7 @@
     
     .sp-cta-button:hover {
       background: var(--sp-accent);
-      color: #fff;
+      color: var(--sp-accent-foreground);
     }
     
     /* Related Links */
@@ -379,7 +380,9 @@
     });
     // Track CTA clicks
     document.addEventListener('DOMContentLoaded', function() {
-      var ctaButtons = document.querySelectorAll('.sp-cta-button, a[href="/interview"]');
+      var ctaButtons = document.querySelectorAll(
+        '.sp-cta-button, a[href="/app/interview/start"]'
+      );
       ctaButtons.forEach(function(btn) {
         btn.addEventListener('click', function() {
           posthog.capture('seo_cta_click', {

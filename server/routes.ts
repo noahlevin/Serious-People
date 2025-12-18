@@ -4536,6 +4536,7 @@ FORMAT:
       });
       
       res.set("Content-Type", "text/html");
+      res.set("X-SP-SEO", "1");
       res.send(html);
     } catch (error) {
       console.error("[Landing] Error rendering landing page:", error);

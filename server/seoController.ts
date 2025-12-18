@@ -6,6 +6,30 @@ import fs from "fs";
 // PostHog key for analytics (from environment)
 const POSTHOG_KEY = process.env.VITE_POSTHOG_KEY || "";
 
+// Common CSS head snippet for inline SEO pages that links to /seo.css and maps tokens
+function getSeoStyleHead(): string {
+  return `
+  <link rel="stylesheet" href="/seo.css?v=${Date.now()}">
+  <style>
+    :root {
+      /* Map to Lovable tokens from /seo.css */
+      --sp-bg: hsl(var(--background));
+      --sp-bg-elevated: hsl(var(--card));
+      --sp-text: hsl(var(--foreground));
+      --sp-text-secondary: hsl(var(--muted-foreground));
+      --sp-text-muted: hsl(var(--foreground) / 0.78);
+      --sp-border: hsl(var(--border));
+      --sp-border-light: hsl(var(--border) / 0.6);
+      --sp-accent: hsl(var(--primary));
+      --sp-accent-hover: hsl(var(--primary) / 0.85);
+      --sp-accent-foreground: hsl(var(--primary-foreground));
+      --sp-link: hsl(var(--primary));
+      --sp-font-display: var(--sp-display);
+      --sp-font-body: var(--sp-body);
+    }
+  </style>`;
+}
+
 // Generate PostHog tracking script for inline HTML pages
 function getPostHogScript(pageType: string, pageSlug: string, pageTitle: string): string {
   if (!POSTHOG_KEY) return "";
@@ -554,6 +578,8 @@ function getRelatedProgrammaticPages(pillarSlug: string): Array<{ href: string; 
 
 // Render a pillar page
 export async function renderGuide(req: Request, res: Response) {
+  console.log("[SEO HIT]", req.method, req.originalUrl);
+
   const { slug } = req.params;
   
   // Security: sanitize slug
@@ -630,6 +656,7 @@ export async function renderGuide(req: Request, res: Response) {
     });
     
     res.set("Content-Type", "text/html");
+    res.set("X-SP-SEO", "1");
     res.send(fullHtml);
   } catch (error) {
     console.error(`[SEO] Error rendering guide ${safeSlug}:`, error);
@@ -639,6 +666,7 @@ export async function renderGuide(req: Request, res: Response) {
 
 // Render the guides index page
 export async function renderGuidesIndex(_req: Request, res: Response) {
+  console.log("[SEO HIT]", _req.method, _req.originalUrl);
   const baseUrl = getBaseUrl();
   
   // Use all available pillars
@@ -657,18 +685,8 @@ export async function renderGuidesIndex(_req: Request, res: Response) {
   <meta property="og:url" content="${baseUrl}/guides">
   <meta property="og:title" content="Career Guides | Serious People">
   <meta property="og:description" content="Practical career guides for executives and senior leaders.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Serif+4:wght@400;500;600&display=swap" rel="stylesheet">
+  ${getSeoStyleHead()}
   <style>
-    :root {
-      --sp-bg: #faf9f6;
-      --sp-text: #1a1a1a;
-      --sp-text-secondary: #666;
-      --sp-border: #d4d4d4;
-      --sp-font-display: 'Playfair Display', Georgia, serif;
-      --sp-font-body: 'Source Serif 4', Georgia, serif;
-    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: var(--sp-font-body); background: var(--sp-bg); color: var(--sp-text); line-height: 1.6; }
     .header { text-align: center; padding: 1.5rem 1rem; border-bottom: 3px double var(--sp-text); }
@@ -707,6 +725,7 @@ export async function renderGuidesIndex(_req: Request, res: Response) {
   `;
   
   res.set("Content-Type", "text/html");
+  res.set("X-SP-SEO", "1");
   res.send(html);
 }
 
@@ -844,6 +863,7 @@ export async function renderProgrammaticPage(req: Request, res: Response) {
     });
     
     res.set("Content-Type", "text/html");
+    res.set("X-SP-SEO", "1");
     res.send(fullHtml);
   } catch (error) {
     console.error(`[SEO] Error rendering programmatic page ${role}/${situation}:`, error);
@@ -879,18 +899,8 @@ export async function renderRolesIndex(_req: Request, res: Response) {
   <meta property="og:url" content="${baseUrl}/roles">
   <meta property="og:title" content="Career Guidance by Role | Serious People">
   <meta property="og:description" content="Role-specific career guidance for executives and senior leaders.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Serif+4:wght@400;500;600&display=swap" rel="stylesheet">
+  ${getSeoStyleHead()}
   <style>
-    :root {
-      --sp-bg: #faf9f6;
-      --sp-text: #1a1a1a;
-      --sp-text-secondary: #666;
-      --sp-border: #d4d4d4;
-      --sp-font-display: 'Playfair Display', Georgia, serif;
-      --sp-font-body: 'Source Serif 4', Georgia, serif;
-    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: var(--sp-font-body); background: var(--sp-bg); color: var(--sp-text); line-height: 1.6; }
     .header { text-align: center; padding: 1.5rem 1rem; border-bottom: 3px double var(--sp-text); }
@@ -936,6 +946,7 @@ export async function renderRolesIndex(_req: Request, res: Response) {
   `;
   
   res.set("Content-Type", "text/html");
+  res.set("X-SP-SEO", "1");
   res.send(html);
 }
 
@@ -964,6 +975,7 @@ export async function renderStayOrGoCalculator(_req: Request, res: Response) {
     });
     
     res.set("Content-Type", "text/html");
+    res.set("X-SP-SEO", "1");
     res.send(html);
   } catch (error) {
     console.error("[SEO] Error rendering Stay-or-Go Calculator:", error);
@@ -998,19 +1010,8 @@ export async function renderContentHub(_req: Request, res: Response) {
   <meta property="og:url" content="${baseUrl}/resources">
   <meta property="og:title" content="Career Resources Hub | Serious People">
   <meta property="og:description" content="Complete career coaching resource library for executives and senior leaders.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Serif+4:wght@400;500;600&display=swap" rel="stylesheet">
+  ${getSeoStyleHead()}
   <style>
-    :root {
-      --sp-bg: #faf9f6;
-      --sp-text: #1a1a1a;
-      --sp-text-secondary: #666;
-      --sp-border: #d4d4d4;
-      --sp-accent: #2a5a3a;
-      --sp-font-display: 'Playfair Display', Georgia, serif;
-      --sp-font-body: 'Source Serif 4', Georgia, serif;
-    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: var(--sp-font-body); background: var(--sp-bg); color: var(--sp-text); line-height: 1.6; }
     .header { text-align: center; padding: 1.5rem 1rem; border-bottom: 3px double var(--sp-text); }
@@ -1022,20 +1023,20 @@ export async function renderContentHub(_req: Request, res: Response) {
     .section-title { font-family: var(--sp-font-display); font-size: 1.75rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--sp-border); }
     .section-subtitle { color: var(--sp-text-secondary); margin-bottom: 1rem; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
-    .card { padding: 1rem; border: 1px solid var(--sp-border); background: #fff; }
+    .card { padding: 1rem; border: 1px solid var(--sp-border); background: var(--sp-bg-elevated); }
     .card a { font-family: var(--sp-font-display); font-size: 1.1rem; color: var(--sp-text); text-decoration: none; }
     .card a:hover { text-decoration: underline; }
     .card-desc { font-size: 0.9rem; color: var(--sp-text-secondary); margin-top: 0.25rem; }
     .tool-card { background: var(--sp-accent); border-color: var(--sp-accent); }
-    .tool-card a { color: #fff; }
-    .tool-card .card-desc { color: rgba(255,255,255,0.8); }
+    .tool-card a { color: var(--sp-accent-foreground); }
+    .tool-card .card-desc { color: var(--sp-accent-foreground); opacity: 0.85; }
     .situation-section { margin-bottom: 1.5rem; }
     .situation-title { font-family: var(--sp-font-display); font-size: 1.25rem; margin-bottom: 0.5rem; }
     .role-list { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .role-item a { font-size: 0.9rem; color: var(--sp-text); text-decoration: none; padding: 0.25rem 0.5rem; background: #fff; border: 1px solid var(--sp-border); }
+    .role-item a { font-size: 0.9rem; color: var(--sp-text); text-decoration: none; padding: 0.25rem 0.5rem; background: var(--sp-bg-elevated); border: 1px solid var(--sp-border); }
     .role-item a:hover { background: var(--sp-text); color: var(--sp-bg); }
     .footer { border-top: 3px double var(--sp-text); padding: 2rem; text-align: center; font-size: 0.8rem; color: var(--sp-text-secondary); }
-    .cta-section { text-align: center; padding: 2rem; background: #fff; border: 2px solid var(--sp-text); margin: 2rem 0; }
+    .cta-section { text-align: center; padding: 2rem; background: var(--sp-bg-elevated); border: 2px solid var(--sp-text); margin: 2rem 0; }
     .cta-section h3 { font-family: var(--sp-font-display); margin-bottom: 0.5rem; }
     .cta-button { display: inline-block; margin-top: 1rem; padding: 0.75rem 2rem; background: var(--sp-text); color: var(--sp-bg); text-decoration: none; font-family: var(--sp-font-body); }
     .cta-button:hover { background: var(--sp-accent); }
@@ -1108,5 +1109,6 @@ export async function renderContentHub(_req: Request, res: Response) {
   `;
   
   res.set("Content-Type", "text/html");
+  res.set("X-SP-SEO", "1");
   res.send(html);
 }

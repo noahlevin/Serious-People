@@ -99,6 +99,30 @@ Smart cross-links between pages for SEO and user navigation:
 - `/seo/content/programmatic/` — Content for programmatic pages (frameworks, mistakes, vignettes, walkaway)
 - `/server/seoController.ts` — Rendering logic and route handlers
 - `/docs/seo_taxonomy_and_pillars.md` — Full taxonomy specification
+- `/public/seo.css` — SEO stylesheet with Lovable design tokens
+
+### SEO Styling System
+SEO/EJS pages use `/seo.css` which defines Lovable design tokens. All templates map these to `--sp-*` CSS variables for consistency with the React SPA.
+
+**Token Mapping (in templates):**
+```css
+--sp-bg: hsl(var(--background));
+--sp-bg-elevated: hsl(var(--card));
+--sp-text: hsl(var(--foreground));
+--sp-text-secondary: hsl(var(--muted-foreground));
+--sp-border: hsl(var(--border));
+--sp-accent: hsl(var(--primary));
+--sp-accent-foreground: hsl(var(--primary-foreground));
+--sp-font-display: var(--sp-display);
+--sp-font-body: var(--sp-body);
+```
+
+**Helper Function:**
+- `getSeoStyleHead()` in `seoController.ts` provides consistent CSS token mapping for inline HTML pages
+
+**Debug Headers:**
+- `X-SP-SEO: 1` header added to all SEO route responses for verification
+- `<!-- SP-SEO-SENTINEL: Layout template loaded correctly -->` comment in layout.ejs
 
 ### Programmatic Pages (50 total)
 Role + situation combinations for targeted SEO. Pages are composed from reusable content modules:
