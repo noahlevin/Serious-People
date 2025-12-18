@@ -1,0 +1,117 @@
+<!-- Hero Section - matches Resources.tsx lines 76-90 -->
+<section class="sp-container sp-section">
+  <div class="sp-content-wide">
+    <p class="sp-eyebrow" data-testid="text-eyebrow">Resources</p>
+    <h1 class="sp-page-title-large" data-testid="text-page-title">Career Resources Hub</h1>
+    <p class="sp-page-lede" data-testid="text-page-lede">
+      Everything you need to navigate serious career decisions. Frameworks, scripts, and practical guidance—no fluff.
+    </p>
+  </div>
+</section>
+
+<!-- Interactive Tools - matches Resources.tsx lines 92-118 -->
+<section class="sp-container" style="padding-bottom: 4rem;">
+  <div class="sp-section-header">
+    <svg class="sp-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+      <line x1="8" y1="6" x2="16" y2="6"/>
+      <line x1="8" y1="10" x2="16" y2="10"/>
+      <line x1="8" y1="14" x2="12" y2="14"/>
+    </svg>
+    <h2 class="sp-section-title">Interactive Tools</h2>
+  </div>
+  <p class="sp-section-desc">Quick assessments to clarify your thinking</p>
+  
+  <a href="/tools/stay-or-go-calculator" class="sp-tool-feature-card" data-testid="link-calculator">
+    <h3 class="sp-tool-feature-title">Stay-or-Go Calculator</h3>
+    <p class="sp-tool-feature-desc">A 2-minute quiz to help you decide whether to stay or leave</p>
+    <span class="sp-tool-feature-link">
+      Take the quiz
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </span>
+  </a>
+</section>
+
+<!-- Career Guides - matches Resources.tsx lines 120-163 -->
+<section class="sp-section-sage" style="border-top: 1px solid hsl(var(--border));">
+  <div class="sp-container" style="padding: 4rem 0 6rem;">
+    <div class="sp-section-header">
+      <svg class="sp-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>
+      <h2 class="sp-section-title">Career Guides</h2>
+    </div>
+    <p class="sp-section-desc">In-depth frameworks for major career decisions</p>
+    
+    <div class="sp-guide-grid" data-testid="list-guides">
+      <% guides.forEach(function(guide) { %>
+      <a href="/guides/<%= guide.slug %>" class="sp-guide-card" data-testid="link-guide-<%= guide.slug %>">
+        <h3 class="sp-guide-card-title"><%= guide.title %></h3>
+        <svg class="sp-guide-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+      <% }); %>
+    </div>
+    
+    <div style="margin-top: 2rem;">
+      <a href="/guides" class="sp-btn sp-btn-outline" data-testid="link-view-guides">
+        View all guides
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Role-Specific Guidance - matches Resources.tsx lines 165-204 -->
+<section class="sp-container sp-section" style="border-top: 1px solid hsl(var(--border));">
+  <div class="sp-section-header">
+    <svg class="sp-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+    <h2 class="sp-section-title">Role-Specific Guidance</h2>
+  </div>
+  <p class="sp-section-desc">Tailored advice for your specific role and seniority</p>
+  
+  <div class="sp-role-grid" data-testid="list-roles">
+    <% roles.forEach(function(role) { %>
+    <a href="/roles/<%= role.slug %>" class="sp-role-card" data-testid="link-role-<%= role.slug %>">
+      <h3 class="sp-role-card-title"><%= role.title %></h3>
+      <p class="sp-role-card-count">10 situations</p>
+    </a>
+    <% }); %>
+  </div>
+  
+  <div style="margin-top: 2rem;">
+    <a href="/roles" class="sp-btn sp-btn-outline" data-testid="link-browse-roles">
+      Browse all roles
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </a>
+  </div>
+</section>
+
+<!-- CTA - matches Resources.tsx lines 206-222 -->
+<section class="sp-section-sage" style="border-top: 1px solid hsl(var(--border));">
+  <div class="sp-container" style="padding: 4rem 0 6rem; text-align: center;">
+    <h2 class="sp-cta-section-title">Want personalized guidance?</h2>
+    <p class="sp-cta-section-desc">
+      Get tailored advice for your specific situation with our AI-powered coaching interview.
+    </p>
+    <a href="/app/interview/start" class="sp-btn sp-btn-dark" data-testid="button-start-interview">
+      Start Your Free Interview
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </a>
+  </div>
+</section>

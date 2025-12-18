@@ -1,0 +1,48 @@
+<!-- Hero Section - matches Roles.tsx lines 84-98 -->
+<section class="sp-container sp-section">
+  <div class="sp-content-narrow">
+    <p class="sp-eyebrow" data-testid="text-eyebrow">By Role</p>
+    <h1 class="sp-page-title" data-testid="text-page-title">Career Guidance by Role</h1>
+    <p class="sp-page-lede" data-testid="text-page-lede">
+      Find guidance tailored to your specific role and situation. Because a VP's burnout looks different than a Director's.
+    </p>
+  </div>
+</section>
+
+<!-- Roles Grid - matches Roles.tsx lines 100-137 -->
+<section class="sp-container" style="padding-bottom: 6rem;">
+  <div class="sp-roles-list" data-testid="list-roles">
+    <% roles.forEach(function(role) { %>
+    <div class="sp-role-section" data-testid="section-role-<%= role.slug %>">
+      <div class="sp-role-header">
+        <h2 class="sp-role-title"><%= role.title %></h2>
+        <p class="sp-role-desc"><%= role.description %></p>
+      </div>
+      
+      <div class="sp-situation-grid">
+        <% situations.forEach(function(situation) { %>
+        <a href="/roles/<%= role.slug %>/situations/<%= situation.slug %>" class="sp-situation-card" data-testid="link-situation-<%= role.slug %>-<%= situation.slug %>">
+          <span><%= situation.label %></span>
+        </a>
+        <% }); %>
+      </div>
+    </div>
+    <% }); %>
+  </div>
+</section>
+
+<!-- CTA - matches Roles.tsx lines 139-155 -->
+<section class="sp-cta-full" data-testid="cta-section">
+  <div class="sp-container" style="padding: 4rem 0 5rem; text-align: center;">
+    <h2 class="sp-cta-full-title">Not sure which situation fits?</h2>
+    <p class="sp-cta-full-desc">
+      Start with our interview. We'll help you figure out what's actually going on.
+    </p>
+    <a href="/app/interview/start" class="sp-btn sp-btn-inverse" data-testid="button-start-interview">
+      Start Your Free Interview
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </a>
+  </div>
+</section>
