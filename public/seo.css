@@ -484,42 +484,31 @@ body {
 .sp-article-body ul,
 .sp-article-body ol {
   margin: 1rem 0;
-  padding-left: 0;
-  list-style: none;
+  padding-left: 1.5rem;
+}
+
+.sp-article-body ul {
+  list-style: disc;
+}
+
+.sp-article-body ol {
+  list-style: decimal;
 }
 
 .sp-article-body li {
   color: hsl(var(--muted-foreground));
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
   margin-bottom: 0.5rem;
-  line-height: 1.6;
+  line-height: 1.7;
+  padding-left: 0.25rem;
 }
 
-.sp-article-body ul li::before {
-  content: "";
-  width: 0.375rem;
-  height: 0.375rem;
-  border-radius: 50%;
-  background: hsl(var(--primary));
-  margin-top: 0.625rem;
-  flex-shrink: 0;
-}
-
-.sp-article-body ol {
-  counter-reset: item;
-}
-
-.sp-article-body ol li {
-  counter-increment: item;
-}
-
-.sp-article-body ol li::before {
-  content: counter(item) ".";
-  font-weight: 500;
+.sp-article-body li::marker {
   color: hsl(var(--foreground));
-  min-width: 1.5rem;
+  font-weight: 500;
+}
+
+.sp-article-body ul li::marker {
+  color: hsl(var(--primary));
 }
 
 .sp-article-body strong {
@@ -644,49 +633,31 @@ body {
 .sp-article-section ul,
 .sp-article-section ol {
   margin: 1rem 0;
-  padding-left: 0;
-  list-style: none;
+  padding-left: 1.5rem;
+}
+
+.sp-article-section ul {
+  list-style: disc;
+}
+
+.sp-article-section ol {
+  list-style: decimal;
 }
 
 .sp-article-section li {
   color: hsl(var(--muted-foreground));
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
   margin-bottom: 0.5rem;
+  line-height: 1.7;
+  padding-left: 0.25rem;
 }
 
-.sp-article-section li::before {
-  content: "";
-  width: 0.375rem;
-  height: 0.375rem;
-  border-radius: 50%;
-  background: hsl(var(--primary));
-  margin-top: 0.625rem;
-  flex-shrink: 0;
-}
-
-.sp-article-section ol li::before {
-  display: none;
-}
-
-.sp-article-section ol {
-  counter-reset: item;
-}
-
-.sp-article-section ol li {
-  counter-increment: item;
-}
-
-.sp-article-section ol li::before {
-  content: counter(item) ".";
-  display: inline;
-  background: none;
-  width: auto;
-  height: auto;
-  margin-top: 0;
-  font-weight: 500;
+.sp-article-section li::marker {
   color: hsl(var(--foreground));
+  font-weight: 500;
+}
+
+.sp-article-section ul li::marker {
+  color: hsl(var(--primary));
 }
 
 .sp-article-section strong {
@@ -698,7 +669,7 @@ body {
 .sp-cta-dark {
   background: hsl(var(--foreground));
   color: hsl(var(--background));
-  padding: 2rem 2.5rem;
+  padding: 2.5rem; /* p-10 equivalent */
   margin-bottom: 4rem;
 }
 
