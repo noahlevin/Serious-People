@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Serious People - Career Coaching</title>
-  <meta name="description" content="Turn career uncertainty into a decision you trust. Serious People helps you think clearly and act decisively on major career decisions.">
+  <title>Serious People - Career Coaching for Senior Professionals</title>
+  <meta name="description" content="A structured coaching experience that helps you think clearly about your career—and leave with a concrete plan, not vague advice.">
   
   <link rel="canonical" href="<%= baseUrl %>/">
   
   <meta property="og:type" content="website">
   <meta property="og:url" content="<%= baseUrl %>/">
   <meta property="og:title" content="Serious People - Career Coaching">
-  <meta property="og:description" content="Turn career uncertainty into a decision you trust. Serious People helps you think clearly and act decisively on major career decisions.">
+  <meta property="og:description" content="A structured coaching experience that helps you think clearly about your career—and leave with a concrete plan, not vague advice.">
   <meta property="og:site_name" content="Serious People">
   <meta property="og:locale" content="en_US">
   <meta property="og:image" content="<%= baseUrl %>/logo.png">
@@ -23,7 +23,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@seriouspeople">
   <meta name="twitter:title" content="Serious People - Career Coaching">
-  <meta name="twitter:description" content="Turn career uncertainty into a decision you trust. Serious People helps you think clearly and act decisively on major career decisions.">
+  <meta name="twitter:description" content="A structured coaching experience that helps you think clearly about your career—and leave with a concrete plan, not vague advice.">
   <meta name="twitter:image" content="<%= baseUrl %>/logo.png">
   
   <link rel="icon" type="image/png" href="/favicon.png">
@@ -32,347 +32,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/seo.css?v=<%= Date.now() %>">
-
-  <style>
-    /* Landing page specific styles */
-    .sp-landing-hero {
-      padding: 4rem 0;
-      text-align: center;
-    }
-    
-    .sp-landing-headline {
-      font-family: var(--sp-display);
-      font-size: clamp(2rem, 5vw, 3rem);
-      font-weight: 700;
-      line-height: 1.15;
-      letter-spacing: -0.02em;
-      margin-bottom: 1.5rem;
-      color: hsl(var(--foreground));
-    }
-    
-    .sp-typewriter-text {
-      display: inline;
-      border-right: 2px solid hsl(var(--foreground));
-      animation: sp-blink 0.7s step-end infinite;
-    }
-    
-    @keyframes sp-blink {
-      from, to { border-color: transparent; }
-      50% { border-color: hsl(var(--foreground)); }
-    }
-    
-    .sp-landing-subhead {
-      font-size: 1rem;
-      line-height: 1.6;
-      color: hsl(var(--muted-foreground));
-      margin-bottom: 2rem;
-      max-width: 360px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    
-    .sp-landing-cta-group {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-    
-    .sp-landing-cta-secondary {
-      font-size: 0.9rem;
-      color: hsl(var(--muted-foreground));
-      text-decoration: none;
-    }
-    
-    .sp-landing-cta-secondary:hover {
-      color: hsl(var(--foreground));
-    }
-    
-    .sp-landing-reassurance {
-      font-size: 0.85rem;
-      color: hsl(var(--muted-foreground));
-      margin-top: 0.5rem;
-    }
-    
-    .sp-landing-quote-box {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 0.75rem 1.25rem;
-      border: 1px solid hsl(var(--border));
-      border-radius: 4px;
-      background: hsl(var(--card));
-      max-width: 450px;
-      margin: 0 auto;
-    }
-    
-    .sp-landing-quote-image {
-      width: auto;
-      height: auto;
-      max-width: 75px;
-      flex-shrink: 0;
-    }
-    
-    .sp-landing-quote {
-      font-family: var(--sp-display);
-      font-size: 1rem;
-      font-style: italic;
-      color: hsl(var(--foreground));
-      margin: 0;
-      border: none;
-      padding: 0;
-      background: transparent;
-      line-height: 1.3;
-    }
-    
-    .sp-landing-quote p {
-      margin-bottom: 0.25rem;
-    }
-    
-    .sp-landing-quote cite {
-      font-size: 0.85rem;
-      font-style: normal;
-      color: hsl(var(--muted-foreground));
-      letter-spacing: 0.05em;
-    }
-    
-    .sp-landing-section-title {
-      font-family: var(--sp-display);
-      font-size: clamp(1.5rem, 3vw, 1.75rem);
-      font-weight: 600;
-      line-height: 1.3;
-      margin-bottom: 1.5rem;
-      color: hsl(var(--foreground));
-    }
-    
-    .sp-landing-section-intro {
-      font-size: 1.05rem;
-      color: hsl(var(--muted-foreground));
-      margin-bottom: 2rem;
-    }
-    
-    .sp-landing-scenarios {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    
-    .sp-landing-scenario {
-      display: flex;
-      gap: 1rem;
-      padding: 1rem 0;
-      border-bottom: 1px solid hsl(var(--border) / 0.6);
-      font-size: 1.05rem;
-    }
-    
-    .sp-landing-scenario:last-child {
-      border-bottom: none;
-    }
-    
-    .sp-landing-scenario-bullet {
-      color: hsl(var(--muted-foreground));
-      flex-shrink: 0;
-    }
-    
-    .sp-landing-steps {
-      display: flex;
-      flex-direction: column;
-      gap: 2.5rem;
-    }
-    
-    .sp-landing-step {
-      position: relative;
-      padding-left: 3.5rem;
-    }
-    
-    .sp-landing-step-number {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 2.5rem;
-      height: 2.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
-      font-weight: 800;
-      line-height: 1;
-      border: 2px solid hsl(var(--foreground));
-      border-radius: 50%;
-    }
-    
-    .sp-landing-step h3 {
-      font-family: var(--sp-display);
-      font-size: 1.25rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-    
-    .sp-landing-step p {
-      font-size: 1rem;
-      color: hsl(var(--muted-foreground));
-      line-height: 1.7;
-    }
-    
-    .sp-landing-artifacts {
-      display: grid;
-      gap: 1.5rem;
-    }
-    
-    @media (min-width: 768px) {
-      .sp-landing-artifacts {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-    
-    .sp-landing-artifact {
-      padding: 1.5rem;
-      border: 1px solid hsl(var(--border));
-      background: hsl(var(--card));
-    }
-    
-    .sp-landing-artifact h3 {
-      font-family: var(--sp-display);
-      font-size: 1.125rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-    
-    .sp-landing-artifact p {
-      font-size: 0.95rem;
-      color: hsl(var(--muted-foreground));
-      line-height: 1.6;
-      margin: 0;
-    }
-    
-    .sp-landing-comparisons {
-      display: grid;
-      gap: 2rem;
-    }
-    
-    @media (min-width: 768px) {
-      .sp-landing-comparisons {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-    
-    .sp-landing-comparison h3 {
-      font-family: var(--sp-display);
-      font-size: 1.05rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      color: hsl(var(--foreground));
-    }
-    
-    .sp-landing-comparison p {
-      font-size: 0.95rem;
-      color: hsl(var(--muted-foreground));
-      line-height: 1.6;
-      margin: 0;
-    }
-    
-    .sp-landing-centered-text {
-      text-align: center;
-    }
-    
-    .sp-landing-centered-text p {
-      max-width: 600px;
-      margin: 0 auto 1.25rem;
-      font-size: 1.05rem;
-      line-height: 1.7;
-      color: hsl(var(--muted-foreground));
-    }
-    
-    .sp-landing-faq {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-    
-    .sp-landing-faq-item {
-      border-bottom: 1px solid hsl(var(--border));
-    }
-    
-    .sp-landing-faq-question {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
-      padding: 1.25rem 0;
-      background: transparent;
-      border: none;
-      font-family: var(--sp-display);
-      font-size: 1.05rem;
-      font-weight: 500;
-      text-align: left;
-      cursor: pointer;
-      color: hsl(var(--foreground));
-    }
-    
-    .sp-landing-faq-icon {
-      font-size: 1.25rem;
-      color: hsl(var(--muted-foreground));
-      transition: transform 0.2s ease;
-    }
-    
-    .sp-landing-faq-answer {
-      padding-bottom: 1.25rem;
-      display: none;
-    }
-    
-    .sp-landing-faq-item.sp-landing-faq-open .sp-landing-faq-answer {
-      display: block;
-    }
-    
-    .sp-landing-faq-answer p {
-      font-size: 0.95rem;
-      color: hsl(var(--muted-foreground));
-      line-height: 1.7;
-      margin: 0;
-    }
-    
-    .sp-landing-final-cta {
-      padding: 5rem 0;
-      border-top: 1px solid hsl(var(--border));
-    }
-    
-    .sp-landing-contact {
-      margin-top: 2rem;
-      font-size: 0.9rem;
-      color: hsl(var(--muted-foreground));
-    }
-    
-    .sp-landing-contact a {
-      color: hsl(var(--foreground));
-      text-decoration: underline;
-    }
-    
-    @media (max-width: 768px) {
-      .sp-landing-step {
-        padding-left: 3rem;
-      }
-      
-      .sp-landing-step-number {
-        width: 2rem;
-        height: 2rem;
-        font-size: 1rem;
-      }
-      
-      .sp-landing-quote-box {
-        padding: 0.75rem 0.75rem;
-        gap: 0.75rem;
-      }
-      
-      .sp-landing-quote {
-        font-size: 0.85rem;
-      }
-      
-      .sp-landing-quote cite {
-        font-size: 0.75rem;
-      }
-    }
-  </style>
   
   <script type="application/ld+json">
   {
@@ -384,247 +43,380 @@
   }
   </script>
 </head>
-<body>
+<body class="sp-landing-page">
   <%- include("partials/header", { active: "" }) %>
   
   <main>
-    <section class="sp-landing-hero sp-container">
-      <h1 class="sp-landing-headline">
-        Turn<br>
-        "<span class="sp-typewriter-text" id="typewriter"></span>"<br>
-        into a decision you trust.
-      </h1>
-      <p class="sp-landing-subhead">
-        <strong>Serious People</strong> helps you think clearly and act decisively on major career decisions.
-      </p>
-      
-      <div class="sp-landing-cta-group">
-        <a href="/app/login" class="sp-btn sp-btn-primary" data-testid="button-start-interview">
-          Start the free interview
-        </a>
-        <a href="/app/login" class="sp-landing-cta-secondary" data-testid="link-resume">
-          Already started? Log back in
-        </a>
+    <!-- Hero - Asymmetric Layout -->
+    <section class="sp-container sp-section sp-hero-landing">
+      <div class="sp-hero-grid">
+        <div class="sp-hero-content">
+          <p class="sp-eyebrow sp-text-primary" data-testid="text-eyebrow">
+            Career coaching for senior professionals
+          </p>
+          
+          <h1 class="sp-display-hero" data-testid="text-headline">
+            You're <span class="sp-rotating-text sp-text-terracotta" id="rotating-situation">wondering if it's time to leave</span>
+          </h1>
+          
+          <p class="sp-hero-lede" data-testid="text-lede">
+            A structured coaching experience that helps you think clearly about 
+            your career—and leave with a concrete plan, not vague advice.
+          </p>
+          
+          <div class="sp-hero-cta-group">
+            <a href="/app/interview" class="sp-btn sp-btn-primary sp-btn-lg" data-testid="button-start-interview">
+              Start free interview
+              <svg class="sp-btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </a>
+            <a href="#how-it-works" class="sp-btn sp-btn-ghost sp-btn-lg" data-testid="link-how-it-works">
+              <span class="sp-underline-hover">See how it works</span>
+            </a>
+          </div>
+        </div>
       </div>
-      
-      <p class="sp-landing-reassurance">
-        Free interview takes 5-10 minutes. Full coaching session is $<%= price %>.
-      </p>
     </section>
 
-    <section class="sp-section sp-section-alt">
-      <div class="sp-container">
-        <div class="sp-landing-quote-box">
-          <img src="/logan-roy.png" alt="Logan Roy" class="sp-landing-quote-image">
-          <blockquote class="sp-landing-quote">
-            <p>"I love you, but you are not serious people."</p>
-            <cite>- Logan Roy, Waystar Royco</cite>
+    <!-- Pull Quote Section -->
+    <section class="sp-section-border">
+      <div class="sp-container sp-quote-section">
+        <div class="sp-quote-elegant sp-quote-centered">
+          <blockquote data-testid="text-quote">
+            I spent months going in circles. One hour with this process gave me more clarity than a year of overthinking.
           </blockquote>
+          <cite>
+            <span class="sp-quote-author">— VP of Engineering</span>
+            <span class="sp-quote-sep">·</span>
+            <span class="sp-quote-role">Series C startup</span>
+          </cite>
         </div>
       </div>
     </section>
 
-    <section class="sp-section">
-      <div class="sp-container sp-content">
-        <h2 class="sp-landing-section-title">
-          This is for the decisions that keep you up at night.
-        </h2>
-        <ul class="sp-landing-scenarios">
-          <li class="sp-landing-scenario">
-            <span class="sp-landing-scenario-bullet">&#8226;</span>
-            <span>You're on the fence about quitting and don't want to make a decision you'll regret.</span>
-          </li>
-          <li class="sp-landing-scenario">
-            <span class="sp-landing-scenario-bullet">&#8226;</span>
-            <span>Your role has drifted into something you never signed up for. You need to renegotiate-or leave.</span>
-          </li>
-          <li class="sp-landing-scenario">
-            <span class="sp-landing-scenario-bullet">&#8226;</span>
-            <span>You're stuck in a bad dynamic with your boss and can't tell if it's fixable.</span>
-          </li>
-          <li class="sp-landing-scenario">
-            <span class="sp-landing-scenario-bullet">&#8226;</span>
-            <span>You're about to have a hard conversation with your partner about money, risk, and timing.</span>
-          </li>
-          <li class="sp-landing-scenario">
-            <span class="sp-landing-scenario-bullet">&#8226;</span>
-            <span>You've written a dozen draft emails in your head. None of them feel right.</span>
-          </li>
-        </ul>
-      </div>
-    </section>
-
-    <section class="sp-section sp-section-alt">
-      <div class="sp-container sp-content">
-        <h2 class="sp-landing-section-title">Here's what happens.</h2>
-        
-        <div class="sp-landing-steps">
-          <div class="sp-landing-step">
-            <div class="sp-landing-step-number">1</div>
-            <h3>Free coaching interview (5-10 min)</h3>
-            <p>
-              You answer the questions a good career coach would ask: What's actually happening? What have you tried? What's at stake? By the end, you'll see a plain-language coaching plan tailored to your situation.
-            </p>
+    <!-- Situations Section - Sage Background -->
+    <section class="sp-section-sage sp-section-border" id="situations">
+      <div class="sp-container sp-section-padded">
+        <div class="sp-two-col-grid">
+          <div class="sp-col-left">
+            <p class="sp-eyebrow sp-text-primary">What brings people here</p>
+            <h2 class="sp-display-section" data-testid="text-situations-heading">
+              Career decisions shouldn't feel like guesswork
+            </h2>
           </div>
           
-          <div class="sp-landing-step">
-            <div class="sp-landing-step-number">2</div>
-            <h3>Guided working session (~30 min)</h3>
-            <p>
-              Your coach walks you through three modules. First, you go deep on what's really going on. Then you map your options, constraints, and trade-offs. Finally, you turn your thinking into a concrete plan.
-            </p>
-          </div>
-          
-          <div class="sp-landing-step">
-            <div class="sp-landing-step-number">3</div>
-            <h3>Your Serious Plan (instant)</h3>
-            <p>
-              You leave with a set of documents you can actually use. Decision summary. Conversation scripts. A 30-90 day action plan. A risk map for what could go wrong.
-            </p>
+          <div class="sp-col-right">
+            <div class="sp-situations-grid" data-testid="situations-grid">
+              <div class="sp-situation-card" data-testid="card-situation-0">
+                <div class="sp-situation-icon-wrap">
+                  <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 35 L20 20" />
+                    <path d="M20 20 L10 8" />
+                    <path d="M20 20 L30 8" />
+                    <circle cx="10" cy="6" r="2" />
+                    <circle cx="30" cy="6" r="2" />
+                    <circle cx="20" cy="37" r="2" fill="currentColor" />
+                  </svg>
+                </div>
+                <div class="sp-situation-content">
+                  <h3 class="sp-situation-title">Stay or go?</h3>
+                  <p class="sp-situation-desc">You've been thinking about leaving for months, but can't decide if it's the right move.</p>
+                </div>
+                <div class="sp-situation-hover">
+                  Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
+              </div>
+              
+              <div class="sp-situation-card" data-testid="card-situation-1">
+                <div class="sp-situation-icon-wrap">
+                  <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 22 Q8 16 14 16 Q14 12 20 12 Q26 12 26 16 Q32 16 32 22" />
+                    <path d="M12 22 L12 24" />
+                    <path d="M20 22 L20 26" />
+                    <path d="M28 22 L28 24" />
+                    <circle cx="20" cy="32" r="3" />
+                    <path d="M14 38 L20 35 L26 38" />
+                  </svg>
+                </div>
+                <div class="sp-situation-content">
+                  <h3 class="sp-situation-title">Bad manager</h3>
+                  <p class="sp-situation-desc">Your boss is making your life difficult. You're not sure if it's fixable or time to exit.</p>
+                </div>
+                <div class="sp-situation-hover">
+                  Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
+              </div>
+              
+              <div class="sp-situation-card" data-testid="card-situation-2">
+                <div class="sp-situation-icon-wrap">
+                  <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="6" y="12" width="24" height="16" rx="2" />
+                    <path d="M30 18 L34 18 L34 22 L30 22" />
+                    <rect x="9" y="15" width="4" height="10" fill="currentColor" opacity="0.3" />
+                    <path d="M16 20 L18 17 L20 23 L22 20" />
+                  </svg>
+                </div>
+                <div class="sp-situation-content">
+                  <h3 class="sp-situation-title">Burnout</h3>
+                  <p class="sp-situation-desc">You're exhausted and know something needs to change, but what? A new job? A break? A career shift?</p>
+                </div>
+                <div class="sp-situation-hover">
+                  Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
+              </div>
+              
+              <div class="sp-situation-card" data-testid="card-situation-3">
+                <div class="sp-situation-icon-wrap">
+                  <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 20 L12 14 L20 20 L28 14 L34 20" />
+                    <path d="M12 14 L12 28" />
+                    <path d="M28 14 L28 28" />
+                    <path d="M12 28 Q20 32 28 28" stroke-dasharray="3 2" />
+                  </svg>
+                </div>
+                <div class="sp-situation-content">
+                  <h3 class="sp-situation-title">Negotiating an exit</h3>
+                  <p class="sp-situation-desc">You've decided to leave. Now you need to navigate the conversation without burning bridges.</p>
+                </div>
+                <div class="sp-situation-hover">
+                  Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
+              </div>
+              
+              <div class="sp-situation-card" data-testid="card-situation-4">
+                <div class="sp-situation-icon-wrap">
+                  <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 6 L20 12" />
+                    <path d="M8 12 L32 12" />
+                    <path d="M8 12 L8 24" />
+                    <path d="M32 12 L32 20" />
+                    <path d="M4 24 Q8 28 12 24" />
+                    <path d="M28 20 Q32 24 36 20" />
+                    <path d="M18 30 Q18 26 20 26 Q22 26 22 28 Q22 30 20 31" />
+                    <circle cx="20" cy="34" r="1" fill="currentColor" />
+                  </svg>
+                </div>
+                <div class="sp-situation-content">
+                  <h3 class="sp-situation-title">Counter-offer dilemma</h3>
+                  <p class="sp-situation-desc">They matched your offer. Now you're second-guessing everything.</p>
+                </div>
+                <div class="sp-situation-hover">
+                  Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
+              </div>
+              
+              <div class="sp-situation-card" data-testid="card-situation-5">
+                <div class="sp-situation-icon-wrap">
+                  <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="10" width="12" height="24" rx="1" />
+                    <rect x="24" y="10" width="12" height="24" rx="1" />
+                    <circle cx="13" cy="22" r="1.5" fill="currentColor" />
+                    <circle cx="27" cy="22" r="1.5" fill="currentColor" />
+                    <path d="M10 6 L10 8" opacity="0.5" />
+                    <path d="M30 6 L30 8" opacity="0.5" />
+                    <circle cx="20" cy="38" r="2" fill="currentColor" />
+                  </svg>
+                </div>
+                <div class="sp-situation-content">
+                  <h3 class="sp-situation-title">Two opportunities</h3>
+                  <p class="sp-situation-desc">You have options, but comparing them feels impossible. Different roles, different tradeoffs.</p>
+                </div>
+                <div class="sp-situation-hover">
+                  Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="sp-section">
-      <div class="sp-container sp-content">
-        <h2 class="sp-landing-section-title">What you actually get.</h2>
-        <p class="sp-landing-section-intro">
-          Every Serious Plan is different because every situation is different. But yours will include artifacts like these:
-        </p>
-        
-        <div class="sp-landing-artifacts">
-          <div class="sp-landing-artifact">
-            <h3>Decision Snapshot</h3>
-            <p>A one-page summary of your situation, your options, and the trade-offs.</p>
-          </div>
-          <div class="sp-landing-artifact">
-            <h3>Conversation Scripts</h3>
-            <p>Word-for-word scripts for the conversations that matter most.</p>
-          </div>
-          <div class="sp-landing-artifact">
-            <h3>Action Plan (30-90 days)</h3>
-            <p>Concrete next moves with timing. What to try first. When to draw a line.</p>
-          </div>
-          <div class="sp-landing-artifact">
-            <h3>Risk Map</h3>
-            <p>A candid look at what could go wrong-with "if X happens, say Y" playbooks.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="sp-section sp-section-alt">
-      <div class="sp-container sp-content">
-        <h2 class="sp-landing-section-title">
-          Why people pay $<%= price %> for this instead of just thinking it through.
+    <!-- How it Works -->
+    <section class="sp-container sp-section sp-section-border" id="how-it-works">
+      <div class="sp-how-it-works">
+        <p class="sp-eyebrow sp-text-primary sp-text-center">The process</p>
+        <h2 class="sp-display-section sp-text-center" data-testid="text-process-heading">
+          Three sessions. One clear plan.
         </h2>
         
-        <div class="sp-landing-comparisons">
-          <div class="sp-landing-comparison">
-            <h3>vs. Journaling or venting to friends</h3>
-            <p>Your friends will validate you. Journaling helps you process. Neither will give you a script for Monday's meeting or a 90-day plan.</p>
+        <div class="sp-process-wrapper">
+          <!-- Process Path SVG (desktop only) -->
+          <div class="sp-process-path-wrapper">
+            <svg class="sp-process-path" viewBox="0 0 1000 200" preserveAspectRatio="xMidYMid meet" fill="none">
+              <path d="M80 100 C 180 100, 220 50, 320 50 C 420 50, 420 100, 500 100 C 580 100, 580 150, 680 150 C 780 150, 820 100, 920 100" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>
+              <g>
+                <circle cx="80" cy="100" r="20" fill="hsl(var(--background))" stroke="hsl(var(--primary))" stroke-width="2" />
+                <circle cx="80" cy="100" r="12" fill="hsl(var(--primary) / 0.1)" />
+                <path d="M74 96 L86 96 L86 104 L81 104 L78 108 L78 104 L74 104 Z" stroke="hsl(var(--primary))" stroke-width="1.5" fill="none" />
+              </g>
+              <g>
+                <circle cx="500" cy="100" r="20" fill="hsl(var(--background))" stroke="hsl(var(--primary))" stroke-width="2" />
+                <circle cx="500" cy="100" r="12" fill="hsl(var(--primary) / 0.1)" />
+                <circle cx="500" cy="100" r="6" stroke="hsl(var(--primary))" stroke-width="1.5" fill="none" />
+                <circle cx="500" cy="100" r="2" fill="hsl(var(--primary))" />
+              </g>
+              <g>
+                <circle cx="920" cy="100" r="20" fill="hsl(var(--background))" stroke="hsl(var(--primary))" stroke-width="2" />
+                <circle cx="920" cy="100" r="12" fill="hsl(var(--primary) / 0.1)" />
+                <path d="M912 100 L918 106 L928 94" stroke="hsl(var(--primary))" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+              </g>
+              <g style="opacity: 0.5">
+                <circle cx="200" cy="75" r="3" fill="hsl(var(--sage-medium))" />
+                <circle cx="380" cy="60" r="2" fill="hsl(var(--terracotta))" />
+                <circle cx="620" cy="140" r="3" fill="hsl(var(--sage-medium))" />
+                <circle cx="800" cy="125" r="2" fill="hsl(var(--terracotta))" />
+              </g>
+              <g>
+                <polygon points="280,55 290,50 285,60" fill="hsl(var(--primary))" />
+                <polygon points="620,145 630,140 625,150" fill="hsl(var(--primary))" />
+              </g>
+            </svg>
           </div>
-          <div class="sp-landing-comparison">
-            <h3>vs. Generic AI (ChatGPT, etc.)</h3>
-            <p>Most AI tools act like polite yes-men. Serious People follows a structured coaching curriculum and will push back on fuzzy thinking.</p>
-          </div>
-          <div class="sp-landing-comparison">
-            <h3>vs. A human career coach</h3>
-            <p>A good coach costs $200-500/hour and takes weeks to book. Serious People works on your schedule.</p>
-          </div>
-          <div class="sp-landing-comparison">
-            <h3>vs. Doing nothing</h3>
-            <p>You already know how that goes. The situation festers. This is the forcing function that gets you unstuck.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="sp-section">
-      <div class="sp-container sp-content sp-landing-centered-text">
-        <h2 class="sp-landing-section-title">This is for people who are ready to decide.</h2>
-        
-        <p>
-          If you're mid-career or senior, your choices affect real money and real people, and you want to walk away with a plan-not just reassurance-this will help.
-        </p>
-        
-        <p>
-          If you're looking for therapy, legal advice, or someone to make the decision for you, this isn't that.
-        </p>
-      </div>
-    </section>
-
-    <section class="sp-section sp-section-alt">
-      <div class="sp-container sp-content">
-        <h2 class="sp-landing-section-title">Questions people ask before getting serious.</h2>
-        
-        <div class="sp-landing-faq">
-          <div class="sp-landing-faq-item">
-            <button class="sp-landing-faq-question" data-testid="button-faq-0" aria-expanded="false">
-              <span>How much does this cost?</span>
-              <span class="sp-landing-faq-icon">+</span>
-            </button>
-            <div class="sp-landing-faq-answer">
-              <p>The interview is completely free. You'll see your personalized coaching plan before paying anything. The full coaching session and Serious Plan cost $<%= price %>-less than an hour with a human coach.</p>
+          
+          <div class="sp-process-steps">
+            <div class="sp-process-step" data-testid="step-1">
+              <div class="sp-step-number">01</div>
+              <h3 class="sp-step-title">The Interview</h3>
+              <p class="sp-step-desc">A free 15-minute AI conversation to understand your situation. We'll map out what's really going on.</p>
+              <p class="sp-step-note">Free, no commitment</p>
             </div>
-          </div>
-          <div class="sp-landing-faq-item">
-            <button class="sp-landing-faq-question" data-testid="button-faq-1" aria-expanded="false">
-              <span>Is this really "just AI"?</span>
-              <span class="sp-landing-faq-icon">+</span>
-            </button>
-            <div class="sp-landing-faq-answer">
-              <p>Serious People is AI-powered, but it's not a generic chatbot. It uses large language models guided by a specific coaching philosophy: ask hard questions, reflect back what it hears, push toward clear decisions.</p>
+            
+            <div class="sp-process-step" data-testid="step-2">
+              <div class="sp-step-number">02</div>
+              <h3 class="sp-step-title">The Coaching</h3>
+              <p class="sp-step-desc">Three focused modules tailored to your situation. Not generic advice—specific to you.</p>
+              <p class="sp-step-note">Personalized curriculum</p>
             </div>
-          </div>
-          <div class="sp-landing-faq-item">
-            <button class="sp-landing-faq-question" data-testid="button-faq-2" aria-expanded="false">
-              <span>Will my information be private?</span>
-              <span class="sp-landing-faq-icon">+</span>
-            </button>
-            <div class="sp-landing-faq-answer">
-              <p>Yes. Your interview and plan are stored securely and used only to generate your Serious Plan. We don't sell or share your stories with anyone.</p>
-            </div>
-          </div>
-          <div class="sp-landing-faq-item">
-            <button class="sp-landing-faq-question" data-testid="button-faq-3" aria-expanded="false">
-              <span>How long does this take?</span>
-              <span class="sp-landing-faq-icon">+</span>
-            </button>
-            <div class="sp-landing-faq-answer">
-              <p>Most people finish the free interview in 5-10 minutes. The full coaching session takes about 30 minutes. Your Serious Plan is generated within a few minutes after that.</p>
-            </div>
-          </div>
-          <div class="sp-landing-faq-item">
-            <button class="sp-landing-faq-question" data-testid="button-faq-4" aria-expanded="false">
-              <span>Does this replace working with a human coach?</span>
-              <span class="sp-landing-faq-icon">+</span>
-            </button>
-            <div class="sp-landing-faq-answer">
-              <p>It doesn't have to. Serious People is a great first step-or a complement to human coaching. If you decide to work with a coach later, your Serious Plan becomes a powerful starting brief.</p>
+            
+            <div class="sp-process-step" data-testid="step-3">
+              <div class="sp-step-number">03</div>
+              <h3 class="sp-step-title">The Plan</h3>
+              <p class="sp-step-desc">Walk away with scripts, timelines, and decision frameworks. Everything you need to act.</p>
+              <p class="sp-step-note">Concrete deliverables</p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="sp-landing-final-cta">
-      <div class="sp-container sp-landing-centered-text">
-        <h2 class="sp-landing-section-title">Ready to get serious?</h2>
-        <p>
-          The free interview takes 5-10 minutes. You'll see your coaching plan before you pay anything.
-        </p>
-        
-        <div class="sp-landing-cta-group">
-          <a href="/app/login" class="sp-btn sp-btn-primary" data-testid="button-start-interview-bottom">
-            Start the free interview
-          </a>
+    <!-- Social Proof Stats - Sage Background -->
+    <section class="sp-section-sage sp-section-border">
+      <div class="sp-container sp-stats-section">
+        <div class="sp-stats-row" data-testid="stats-row">
+          <div class="sp-stat">
+            <p class="sp-stat-value">500+</p>
+            <p class="sp-stat-label">Coaching sessions</p>
+          </div>
+          <div class="sp-stat-divider"></div>
+          <div class="sp-stat">
+            <p class="sp-stat-value">4.9/5</p>
+            <p class="sp-stat-label">Average rating</p>
+          </div>
+          <div class="sp-stat-divider"></div>
+          <div class="sp-stat">
+            <p class="sp-stat-value">VP+</p>
+            <p class="sp-stat-label">Senior professionals</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Why People Pay -->
+    <section class="sp-container sp-section sp-section-border">
+      <div class="sp-two-col-grid">
+        <div class="sp-col-left">
+          <p class="sp-eyebrow sp-text-primary">Why people pay</p>
+          <h2 class="sp-display-section" data-testid="text-why-heading">
+            This isn't therapy. It's strategy.
+          </h2>
         </div>
         
-        <p class="sp-landing-contact">
-          Questions? Email <a href="mailto:hello@seriouspeople.app">hello@seriouspeople.app</a>
+        <div class="sp-col-right">
+          <div class="sp-value-props" data-testid="value-props">
+            <div class="sp-value-prop">
+              <h3 class="sp-value-title">Speed</h3>
+              <p class="sp-value-desc">Most people ruminate for months. Our clients get clarity in days. The AI interview alone surfaces insights that take weeks to reach in traditional coaching.</p>
+            </div>
+            
+            <div class="sp-value-prop">
+              <h3 class="sp-value-title">Specificity</h3>
+              <p class="sp-value-desc">No generic frameworks. Every recommendation is tailored to your exact situation, company context, and career goals. Scripts, timelines, decision trees—ready to use.</p>
+            </div>
+            
+            <div class="sp-value-prop">
+              <h3 class="sp-value-title">Stakes</h3>
+              <p class="sp-value-desc">At the VP+ level, career mistakes are expensive. A bad exit, a missed negotiation, or a wrong move can cost hundreds of thousands. This is insurance.</p>
+            </div>
+            
+            <div class="sp-value-prop">
+              <h3 class="sp-value-title">Discretion</h3>
+              <p class="sp-value-desc">No paper trail. No HR involvement. No awkward conversations with colleagues. Just you, working through your situation with complete privacy.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Section - Sage Background -->
+    <section class="sp-section-sage sp-section-border">
+      <div class="sp-container sp-section-padded">
+        <div class="sp-two-col-grid">
+          <div class="sp-col-left">
+            <p class="sp-eyebrow sp-text-primary">FAQ</p>
+            <h2 class="sp-display-section" data-testid="text-faq-heading">
+              Common questions
+            </h2>
+          </div>
+          
+          <div class="sp-col-right">
+            <div class="sp-faq-list" data-testid="faq-list">
+              <div class="sp-faq-item">
+                <h3 class="sp-faq-question">Is this AI or human coaching?</h3>
+                <p class="sp-faq-answer">Both. The initial interview and situation analysis are AI-powered, but the coaching sessions include human oversight and review. You get the speed and availability of AI with the judgment of experienced career coaches.</p>
+              </div>
+              
+              <div class="sp-faq-item">
+                <h3 class="sp-faq-question">How is this different from talking to a friend or mentor?</h3>
+                <p class="sp-faq-answer">Friends tell you what you want to hear. Mentors give advice based on their experience, not yours. We give you structured frameworks, specific scripts, and concrete action plans based on your exact situation and goals.</p>
+              </div>
+              
+              <div class="sp-faq-item">
+                <h3 class="sp-faq-question">What if I'm not sure I want to leave?</h3>
+                <p class="sp-faq-answer">Perfect. Most of our clients start unsure. The process is designed to help you think clearly, not push you in any direction. Many people decide to stay—but with a much clearer understanding of why.</p>
+              </div>
+              
+              <div class="sp-faq-item">
+                <h3 class="sp-faq-question">How long does it take?</h3>
+                <p class="sp-faq-answer">The free interview takes about 15 minutes. The full coaching program is three sessions over 1-2 weeks. Most clients have their complete action plan within 10 days.</p>
+              </div>
+              
+              <div class="sp-faq-item sp-faq-item-last">
+                <h3 class="sp-faq-question">Is this confidential?</h3>
+                <p class="sp-faq-answer">Completely. We don't share any information with employers, and there's no record of your participation. Many clients specifically choose us because there's no HR involvement or paper trail.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="sp-container sp-section sp-section-border">
+      <div class="sp-cta-centered">
+        <h2 class="sp-display-section sp-text-center" data-testid="text-cta-heading">
+          Ready to think clearly about your career?
+        </h2>
+        <p class="sp-cta-lede">
+          Start with a free interview. In 15 minutes, you'll have more clarity than months of ruminating.
         </p>
+        <a href="/app/interview" class="sp-btn sp-btn-primary sp-btn-lg" data-testid="button-start-interview-bottom">
+          Start free interview
+          <svg class="sp-btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </a>
+        <p class="sp-cta-reassurance">No credit card required</p>
       </div>
     </section>
   </main>
@@ -632,103 +424,32 @@
   <%- include("partials/footer") %>
 
   <script>
-    // Typewriter effect
-    const rotatingQuestions = [
-      "should I quit?",
-      "is this fixable?",
-      "what do I even want?",
-      "how do I say this?",
-      "am I overreacting?",
-      "is it worth the risk?"
+    // Rotating situations text
+    const situations = [
+      "wondering if it's time to leave",
+      "dealing with a difficult manager",
+      "burned out but unsure what's next",
+      "negotiating your exit",
+      "considering a counter-offer",
+      "stuck between two opportunities"
     ];
     
-    let phraseIndex = 0;
-    let charIndex = 0;
-    let isDeleting = false;
-    const typewriter = document.getElementById('typewriter');
+    let currentIndex = 0;
+    const rotatingElement = document.getElementById('rotating-situation');
     
-    function type() {
-      const currentPhrase = rotatingQuestions[phraseIndex];
+    function rotateSituation() {
+      rotatingElement.style.opacity = '0';
+      rotatingElement.style.transform = 'translateY(8px)';
       
-      if (isDeleting) {
-        charIndex--;
-        typewriter.textContent = currentPhrase.substring(0, charIndex);
-        
-        if (charIndex === 0) {
-          isDeleting = false;
-          phraseIndex = (phraseIndex + 1) % rotatingQuestions.length;
-          return setTimeout(type, 300);
-        }
-        
-        return setTimeout(type, 40);
-      } else {
-        charIndex++;
-        typewriter.textContent = currentPhrase.substring(0, charIndex);
-        
-        if (charIndex === currentPhrase.length) {
-          return setTimeout(function() {
-            isDeleting = true;
-            type();
-          }, 2000);
-        }
-        
-        return setTimeout(type, 80);
-      }
+      setTimeout(() => {
+        currentIndex = (currentIndex + 1) % situations.length;
+        rotatingElement.textContent = situations[currentIndex];
+        rotatingElement.style.opacity = '1';
+        rotatingElement.style.transform = 'translateY(0)';
+      }, 400);
     }
     
-    type();
-    
-    // FAQ accordion
-    document.querySelectorAll('.sp-landing-faq-question').forEach(function(button) {
-      button.addEventListener('click', function() {
-        const item = this.closest('.sp-landing-faq-item');
-        const isOpen = item.classList.contains('sp-landing-faq-open');
-        
-        // Close all
-        document.querySelectorAll('.sp-landing-faq-item').forEach(function(i) {
-          i.classList.remove('sp-landing-faq-open');
-          i.querySelector('.sp-landing-faq-icon').textContent = '+';
-          i.querySelector('.sp-landing-faq-question').setAttribute('aria-expanded', 'false');
-        });
-        
-        // Open clicked if it was closed
-        if (!isOpen) {
-          item.classList.add('sp-landing-faq-open');
-          item.querySelector('.sp-landing-faq-icon').textContent = '−';
-          this.setAttribute('aria-expanded', 'true');
-        }
-      });
-    });
+    setInterval(rotateSituation, 3500);
   </script>
-  
-  <% if (typeof posthogKey !== 'undefined' && posthogKey) { %>
-  <!-- PostHog Analytics -->
-  <script>
-    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
-    posthog.init('<%= posthogKey %>', {
-      api_host: 'https://us.i.posthog.com',
-      person_profiles: 'identified_only',
-      capture_pageview: true,
-      capture_pageleave: true,
-      autocapture: false
-    });
-    posthog.capture('seo_page_view', {
-      page_type: 'landing',
-      page_slug: '',
-      page_title: 'Serious People - Career Coaching'
-    });
-    document.addEventListener('DOMContentLoaded', function() {
-      document.querySelectorAll('.sp-btn-primary, a[href="/app/login"]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-          posthog.capture('seo_cta_click', {
-            page_type: 'landing',
-            page_slug: '',
-            cta_href: btn.getAttribute('href')
-          });
-        });
-      });
-    });
-  </script>
-  <% } %>
 </body>
 </html>
