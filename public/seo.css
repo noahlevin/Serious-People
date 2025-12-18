@@ -695,8 +695,13 @@ body {
 .sp-cta-dark {
   background: hsl(var(--foreground));
   color: hsl(var(--background));
-  padding: 2.5rem; /* p-10 equivalent */
+  padding: 4rem 2.5rem;
   margin-bottom: 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .sp-cta-dark h3 {
