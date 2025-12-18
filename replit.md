@@ -24,6 +24,21 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - **Styling:** Centralized `serious-people.css` for consistent WSJ-inspired styles.
 - **SEO Engine:** Separate EJS templated site for crawlable HTML pages, using Markdown with YAML frontmatter for content. Shares design tokens with the React SPA via `public/seo.css` which mirrors `client/src/index.css` tokens exactly. CSS architecture uses `.sp-container` for horizontal padding (24px mobile, 32px tablet+) and `.sp-section` for vertical-only padding to avoid conflicts.
 
+### CSS Parity Rules (SEO ↔ SPA)
+When maintaining visual parity between SEO pages (EJS + seo.css) and React SPA (Tailwind + index.css):
+
+1. **Trace Actual Values, Not Names:** Don't assume semantic class names match. Trace exact Tailwind utility values (`h-12` = 48px, `px-8` = 32px) and use those exact values in seo.css.
+
+2. **Variable Names AND Values:** Both `index.css` and `seo.css` must have identical variable names (unprefixed for Tailwind: `--terracotta`, `--sage-wash`) AND identical HSL values.
+
+3. **Height vs Padding:** React buttons use height-based sizing (`h-12`) with flexbox centering. SEO CSS must use `height: 3rem` not `padding: 0.875rem 2rem` - vertical padding creates taller elements.
+
+4. **Font Weights:** All display typography using `var(--sp-display)` must use `font-weight: 500` per the design system.
+
+5. **No Duplicates:** Keep one definition per selector. Duplicate rules create override conflicts and maintenance drift.
+
+6. **Test Computed Values:** Use Playwright to measure actual rendered dimensions (height, padding, font-size) on both SEO and SPA pages to verify parity.
+
 ### Technical Implementations
 - **Backend:** Express.js with TypeScript.
 - **AI Integration:** Primarily uses Anthropic Claude Sonnet 4.5, with fallback to OpenAI GPT-4.1-mini, utilizing specific tokens for structured responses.

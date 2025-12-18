@@ -337,31 +337,62 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   border-top: 1px solid hsl(var(--border));
 }
 
-/* Buttons */
+/* Buttons - Base styles (no padding here, use size modifiers)
+   React Button uses height-based sizing with flexbox centering, not vertical padding */
 .sp-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   font-family: var(--sp-body);
-  font-size: 1rem;
   font-weight: 500;
-  padding: 0.875rem 2rem;
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
 }
 
+/* Size modifiers - match React Button sizes */
+.sp-btn-sm {
+  height: 2rem;          /* h-8 = 32px */
+  padding-left: 0.75rem; /* px-3 */
+  padding-right: 0.75rem;
+  font-size: 0.75rem;    /* text-xs */
+}
+
+.sp-btn-default {
+  height: 2.25rem;       /* min-h-9 = 36px */
+  padding-left: 1rem;    /* px-4 */
+  padding-right: 1rem;
+  font-size: 0.875rem;   /* text-sm */
+}
+
+.sp-btn-lg {
+  height: 3rem;          /* h-12 = 48px */
+  padding-left: 2rem;    /* px-8 = 32px (hero) */
+  padding-right: 2rem;
+  font-size: 1rem;       /* text-base */
+}
+
+/* Variant modifiers */
 .sp-btn-primary {
   background: hsl(var(--foreground));
   color: hsl(var(--background));
 }
 
 .sp-btn-primary:hover {
-  opacity: 0.9;
+  background: hsl(var(--foreground) / 0.9);
   transform: translateY(-1px);
+}
+
+.sp-btn-ghost {
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.sp-btn-ghost:hover {
+  color: hsl(var(--foreground));
 }
 
 .sp-btn-secondary {
@@ -1714,45 +1745,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   }
 }
 
-/* Button styles */
-.sp-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--sp-body);
-  font-weight: 500;
-  text-decoration: none;
-  border-radius: var(--radius);
-  transition: all 0.3s ease;
-  cursor: pointer;
-  border: none;
-}
-
-.sp-btn-primary {
-  background: hsl(var(--foreground));
-  color: hsl(var(--background));
-  padding: 0.75rem 2rem;
-}
-
-.sp-btn-primary:hover {
-  background: hsl(var(--foreground) / 0.9);
-}
-
-.sp-btn-ghost {
-  background: transparent;
-  color: hsl(var(--muted-foreground));
-  padding: 0.75rem 1rem;
-}
-
-.sp-btn-ghost:hover {
-  color: hsl(var(--foreground));
-}
-
-.sp-btn-lg {
-  height: 3rem;
-  font-size: 1rem;
-}
-
+/* Button arrow and underline hover (used with base button classes defined above) */
 .sp-btn-arrow {
   margin-left: 0.5rem;
   transition: transform 0.3s ease;
