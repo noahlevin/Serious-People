@@ -1860,26 +1860,34 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 
 .sp-quote-centered blockquote {
   padding-left: 0;
+  text-align: center;
 }
 
 .sp-quote-centered cite {
   padding-left: 0;
+  text-align: center;
 }
 
 /* Two column grid layout */
 .sp-two-col-grid {
   display: grid;
-  gap: 3rem;
-  width: 100%;
-  max-width: 100%;
+  grid-template-columns: repeat(12, minmax(0, 1fr)); /* <-- add this */
+  gap: 2.5rem;
+  align-items: start;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .sp-two-col-grid {
-    grid-template-columns: repeat(12, 1fr);
-    gap: 3rem;
+    grid-template-columns: repeat(12, minmax(0, 1fr)); /* keep, but make it minmax */
+    gap: 4rem;
   }
 }
+
+.sp-col-left,
+.sp-col-right {
+  min-width: 0;
+}
+
 
 .sp-col-left {
   grid-column: span 12;
