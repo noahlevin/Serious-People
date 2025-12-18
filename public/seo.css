@@ -488,8 +488,7 @@ body {
   list-style: none;
 }
 
-/* Global counter for consecutive ordered lists - reset only on first ol */
-.sp-article-body > ol:first-of-type {
+.sp-article-body ol {
   counter-reset: item-counter;
 }
 
@@ -509,9 +508,7 @@ body {
   font-weight: 500;
   min-width: 1.5rem;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  text-align: right;
 }
 
 .sp-article-body ul {
@@ -650,8 +647,7 @@ body {
   list-style: none;
 }
 
-/* Global counter for consecutive ordered lists - reset only on first ol */
-.sp-article-section > ol:first-of-type {
+.sp-article-section ol {
   counter-reset: item-counter;
 }
 
@@ -671,9 +667,7 @@ body {
   font-weight: 500;
   min-width: 1.5rem;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  text-align: right;
 }
 
 .sp-article-section ul {

@@ -203,7 +203,7 @@ function markdownToHtml(markdown: string): string {
   
   html = processedLines.join("\n");
   
-  // Convert numbered lists - skip blank lines to keep consecutive items together
+  // Convert numbered lists
   const lines2 = html.split("\n");
   let inOl = false;
   const processedLines2: string[] = [];
@@ -211,21 +211,20 @@ function markdownToHtml(markdown: string): string {
   for (let i = 0; i < lines2.length; i++) {
     const line = lines2[i];
     const isOlItem = /^\d+\. (.+)$/.test(line);
-    const isBlank = !line.trim();
     
     if (isOlItem && !inOl) {
       inOl = true;
       processedLines2.push("<ol>");
     }
     
-    if (!isOlItem && !isBlank && inOl) {
+    if (!isOlItem && inOl) {
       inOl = false;
       processedLines2.push("</ol>");
     }
     
     if (isOlItem) {
       processedLines2.push(line.replace(/^\d+\. (.+)$/, "<li>$1</li>"));
-    } else if (!isBlank) {
+    } else {
       processedLines2.push(line);
     }
   }
