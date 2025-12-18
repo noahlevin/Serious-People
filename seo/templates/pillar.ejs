@@ -1,38 +1,109 @@
-<article class="sp-article">
+<!-- Breadcrumb -->
+<div class="sp-container">
+  <nav class="sp-breadcrumb">
+    <a href="/guides">Guides</a>
+    <svg class="sp-breadcrumb-separator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <span class="sp-breadcrumb-current"><%= typeof category !== 'undefined' ? category : 'Guide' %></span>
+  </nav>
+</div>
+
+<!-- Article Hero -->
+<section class="sp-article-hero">
   <h1><%= title %></h1>
   
   <% if (typeof lede !== 'undefined' && lede) { %>
-  <p class="sp-lede"><%= lede %></p>
+  <p class="sp-article-lede"><%= lede %></p>
   <% } %>
   
-  <%- content %>
-  
-  <!-- Primary CTA -->
-  <div class="sp-cta-box">
-    <h3>Ready to make your decision?</h3>
-    <p>In one structured session, you'll walk away with a clear recommendation, conversation scripts, and a 14-day action plan.</p>
-    <a href="/app/interview/start" class="sp-cta-button" data-testid="cta-start-session">Start Your Session</a>
+  <% if (typeof readTime !== 'undefined' && readTime) { %>
+  <div class="sp-article-meta">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M12 6v6l4 2"/>
+    </svg>
+    <span><%= readTime %></span>
   </div>
-  
-  <% if (typeof relatedLinks !== 'undefined' && relatedLinks.length > 0) { %>
-  <section class="sp-related">
-    <h3>Related Guides</h3>
-    <ul>
-      <% relatedLinks.forEach(function(link) { %>
-      <li><a href="<%= link.href %>"><%= link.title %></a></li>
-      <% }); %>
-    </ul>
-  </section>
   <% } %>
-  
-  <% if (typeof relatedRolePages !== 'undefined' && relatedRolePages.length > 0) { %>
-  <section class="sp-related">
-    <h3>Role-Specific Guidance</h3>
-    <ul>
-      <% relatedRolePages.forEach(function(link) { %>
-      <li><a href="<%= link.href %>"><%= link.title %></a></li>
-      <% }); %>
-    </ul>
-  </section>
-  <% } %>
+</section>
+
+<% if (typeof toolCta !== 'undefined' && toolCta) { %>
+<!-- Tool CTA Card -->
+<div class="sp-container">
+  <div class="sp-content">
+    <a href="<%= toolCta.href %>" class="sp-tool-cta" data-testid="link-tool-cta">
+      <p class="sp-tool-cta-label"><%= toolCta.label %></p>
+      <p class="sp-tool-cta-title">
+        <%= toolCta.title %>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </p>
+      <p class="sp-tool-cta-desc"><%= toolCta.description %></p>
+    </a>
+  </div>
+</div>
+<% } %>
+
+<!-- Article Content -->
+<article class="sp-article-content sp-article-section">
+  <%- content %>
 </article>
+
+<!-- Dark CTA Box -->
+<div class="sp-container">
+  <div class="sp-content">
+    <div class="sp-cta-dark">
+      <h3>Ready to make your decision?</h3>
+      <p>In one structured session, you'll walk away with a clear recommendation, conversation scripts, and a 14-day action plan.</p>
+      <a href="/app/interview/start" class="sp-btn" data-testid="cta-start-session">
+        Start Your Session
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</div>
+
+<% if ((typeof relatedLinks !== 'undefined' && relatedLinks.length > 0) || (typeof relatedRolePages !== 'undefined' && relatedRolePages.length > 0)) { %>
+<!-- Related Content -->
+<section class="sp-related-section">
+  <div class="sp-container">
+    <div class="sp-content">
+      <% if (typeof relatedLinks !== 'undefined' && relatedLinks.length > 0) { %>
+      <h3>Related Guides</h3>
+      <ul class="sp-related-list">
+        <% relatedLinks.forEach(function(link) { %>
+        <li class="sp-related-item">
+          <a href="<%= link.href %>">
+            <span><%= link.title %></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </a>
+        </li>
+        <% }); %>
+      </ul>
+      <% } %>
+      
+      <% if (typeof relatedRolePages !== 'undefined' && relatedRolePages.length > 0) { %>
+      <h3>Role-Specific Guidance</h3>
+      <ul class="sp-related-list">
+        <% relatedRolePages.forEach(function(link) { %>
+        <li class="sp-related-item">
+          <a href="<%= link.href %>">
+            <span><%= link.title %></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </a>
+        </li>
+        <% }); %>
+      </ul>
+      <% } %>
+    </div>
+  </div>
+</section>
+<% } %>
