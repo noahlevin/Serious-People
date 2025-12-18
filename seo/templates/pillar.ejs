@@ -61,7 +61,7 @@
     <div class="sp-cta-dark" data-testid="cta-dark-box">
       <h3>Ready to make your decision?</h3>
       <p>In one structured session, you'll walk away with a clear recommendation, conversation scripts, and a 14-day action plan.</p>
-      <a href="/app/interview/start" class="sp-btn" data-testid="button-start-session">
+      <a href="/app/interview/start" class="sp-btn sp-btn-default" data-testid="button-start-session">
         Start Your Session
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -74,7 +74,7 @@
 <% if ((typeof relatedLinks !== 'undefined' && relatedLinks.length > 0) || (typeof relatedRolePages !== 'undefined' && relatedRolePages.length > 0)) { %>
 <!-- Related Content - matches GuideDetail.tsx line 252-285 -->
 <section class="sp-section-sage" style="border-top: 1px solid hsl(var(--border));">
-  <div class="sp-container" style="padding: 4rem 0;">
+  <div class="sp-container" style="padding-top: 4rem; padding-bottom: 4rem;">
     <div class="sp-content-narrow" style="margin: 0 auto;">
       <% if (typeof relatedLinks !== 'undefined' && relatedLinks.length > 0) { %>
       <h3 class="sp-related-heading">Related Guides</h3>
