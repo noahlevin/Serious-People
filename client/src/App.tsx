@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { Routes, Route, BrowserRouter } from "react-router-dom";
+import { Routes, Route, BrowserRouter, Navigate } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -19,12 +19,18 @@ import CareerBrief from "@/pages/career-brief";
 import SeriousPlan from "@/pages/serious-plan";
 import CoachChat from "@/pages/coach-chat";
 import CoachLetter from "@/pages/coach-letter";
-import NotFound from "@/pages/not-found";
+import InterviewStart from "@/pages/interview-start";
+import InterviewPrepare from "@/pages/interview-prepare";
+import InterviewChat from "@/pages/interview-chat";
 import LovableSmoke from "@/pages/lovable-smoke";
+import NotFound from "@/pages/not-found";
 
 // Detect if running at /app base path
 function getBasePath(): string {
-  if (typeof window !== "undefined" && window.location.pathname.startsWith("/app")) {
+  if (
+    typeof window !== "undefined" &&
+    window.location.pathname.startsWith("/app")
+  ) {
     return "/app";
   }
   return "";
@@ -35,7 +41,6 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/__lovable" element={<LovableSmoke />} />
-
       <Route path="/login" element={<Login />} />
       <Route path="/prepare" element={<Prepare />} />
       <Route path="/interview" element={<Interview />} />
@@ -47,7 +52,11 @@ function AppRoutes() {
       <Route path="/serious-plan" element={<SeriousPlan />} />
       <Route path="/coach-chat" element={<CoachChat />} />
       <Route path="/coach-letter" element={<CoachLetter />} />
-
+      <Route path="/interview/start" element={<InterviewStart />} />
+      <Route path="/interview/prepare" element={<InterviewPrepare />} />
+      <Route path="/interview/chat" element={<InterviewChat />} />
+      <Route path="/prepare" element={<Navigate to="/interview/prepare" replace />} />
+      <Route path="/interview" element={<Navigate to="/interview/chat" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
