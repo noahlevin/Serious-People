@@ -2007,16 +2007,23 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 }
 
 .sp-situation-hover {
-  display: flex;
+  display: none;  /* Hidden on mobile to prevent width overflow */
   align-items: center;
   gap: 0.25rem;
   margin-top: 1rem;
-  padding-left: 4rem;
+  padding-left: 0;  /* No padding on mobile */
   font-size: 0.875rem;
   color: hsl(var(--primary));
   opacity: 0;
   transform: translateX(-10px);
   transition: all 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .sp-situation-hover {
+    display: flex;
+    padding-left: 4rem;  /* Restore padding on desktop */
+  }
 }
 
 .sp-situation-card:hover .sp-situation-hover {
