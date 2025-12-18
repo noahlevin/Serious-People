@@ -622,6 +622,28 @@ export async function renderGuide(req: Request, res: Response) {
     const title = frontmatter.title || "Guide";
     const description = frontmatter.description || "A career coaching guide from Serious People.";
     
+    // Calculate read time (average 200 words per minute)
+    const wordCount = expandedMarkdown.split(/\s+/).length;
+    const readTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
+    const readTime = `${readTimeMinutes} min read`;
+    
+    // Map slugs to short breadcrumb category names (matching GuideDetail.tsx)
+    const SLUG_TO_CATEGORY: Record<string, string> = {
+      "stay-or-go-framework": "Stay or Go",
+      "burnout-vs-misfit-vs-bad-manager": "Burnout",
+      "how-to-resign-without-burning-bridges": "Resignation",
+      "severance-negotiation-playbook": "Severance",
+      "executive-job-search-is-different": "Job Search",
+      "how-to-explain-your-departure": "Departure",
+      "what-to-do-in-the-first-14-days": "First 14 Days",
+      "how-to-talk-to-your-boss-about-changing-your-role": "Role Change",
+      "how-to-evaluate-an-offer-like-an-adult": "Offers",
+      "when-to-use-a-coach": "Coaching",
+      "layoff-risk-plan": "Layoff Risk",
+      "toxic-boss-survival-or-exit": "Toxic Boss",
+    };
+    const category = frontmatter.category || SLUG_TO_CATEGORY[safeSlug] || "Guide";
+    
     // Generate Article schema for structured data
     const articleSchema = generateArticleSchema({
       title,
@@ -633,6 +655,8 @@ export async function renderGuide(req: Request, res: Response) {
       title,
       description,
       lede: frontmatter.lede || null,
+      readTime,
+      category,
       content: htmlContent,
       relatedLinks,
       relatedRolePages,
@@ -648,8 +672,8 @@ export async function renderGuide(req: Request, res: Response) {
     const pillarTemplatePath = path.join(templatesDir, "pillar.ejs");
     const pillarHtml = await ejs.renderFile(pillarTemplatePath, templateData);
     
-    // Render the layout with the pillar content
-    const layoutTemplatePath = path.join(templatesDir, "layout.ejs");
+    // Render the pillar-specific layout (full-width sections, no sp-main wrapper)
+    const layoutTemplatePath = path.join(templatesDir, "layout-pillar.ejs");
     const fullHtml = await ejs.renderFile(layoutTemplatePath, {
       ...templateData,
       body: pillarHtml,

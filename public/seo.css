@@ -386,6 +386,148 @@ body {
   height: 1rem;
 }
 
+/* Guide Page Styles (matches GuideDetail.tsx) */
+.sp-pillar-page {
+  min-height: 100vh;
+  background: hsl(var(--background));
+  overflow-x: hidden;
+}
+
+.sp-guide-title {
+  font-family: var(--sp-display);
+  font-size: clamp(1.875rem, 5vw, 3rem);
+  font-weight: 400;
+  line-height: 1.15;
+  margin-bottom: 1.5rem;
+  color: hsl(var(--foreground));
+  text-wrap: balance;
+}
+
+.sp-guide-lede {
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 1.5rem;
+}
+
+.sp-guide-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.sp-guide-meta svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Article Body (content rendered from markdown) */
+.sp-article-body h2 {
+  font-family: var(--sp-display);
+  font-size: clamp(1.5rem, 3vw, 1.875rem);
+  font-weight: 400;
+  margin-top: 3rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.sp-article-body h2:first-child {
+  margin-top: 0;
+}
+
+.sp-article-body h3 {
+  font-family: var(--sp-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: hsl(var(--foreground));
+}
+
+.sp-article-body p {
+  color: hsl(var(--muted-foreground));
+  line-height: 1.7;
+  margin-bottom: 1rem;
+}
+
+.sp-article-body ul,
+.sp-article-body ol {
+  margin: 1rem 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.sp-article-body li {
+  color: hsl(var(--muted-foreground));
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.sp-article-body ul li::before {
+  content: "";
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  margin-top: 0.625rem;
+  flex-shrink: 0;
+}
+
+.sp-article-body ol {
+  counter-reset: item;
+}
+
+.sp-article-body ol li {
+  counter-increment: item;
+}
+
+.sp-article-body ol li::before {
+  content: counter(item) ".";
+  font-weight: 500;
+  color: hsl(var(--foreground));
+  min-width: 1.5rem;
+}
+
+.sp-article-body strong {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.sp-article-body blockquote {
+  border-left: 2px solid hsl(var(--primary) / 0.3);
+  padding-left: 1.5rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+}
+
+.sp-article-body a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s ease;
+}
+
+.sp-article-body a:hover {
+  color: hsl(var(--foreground));
+}
+
+/* Related Section Heading */
+.sp-related-heading {
+  font-family: var(--sp-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+  color: hsl(var(--foreground));
+}
+
 /* Calculator/Tool CTA Card */
 .sp-tool-cta {
   display: block;
