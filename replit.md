@@ -2,28 +2,15 @@
 
 ## Overview
 
-Serious People is a career coaching service designed to guide users through career transitions. The platform offers a structured coaching experience including user authentication, a free introductory phase to define user needs, a dynamically priced 3-module coaching plan, and a final "Serious Plan" with AI-generated artifacts. The project aims to provide a professional, structured, and AI-powered career coaching solution.
+Serious People is a career coaching service designed to guide users through career transitions with a professional, structured, and AI-powered approach. The platform provides user authentication, a free introductory phase, a dynamically priced 3-module coaching plan, and a final "Serious Plan" with AI-generated artifacts.
 
 **Key Capabilities:**
 - User authentication (magic link or Google OAuth).
 - Free intro and personalized 3-module plan proposal.
-- Dynamic Stripe pricing with automated discount application.
+- Dynamic Stripe pricing.
 - Three core coaching modules: Job Autopsy, Fork in the Road, The Great Escape Plan.
-- AI-generated "Serious Plan" artifacts: coach graduation note, decision snapshot, conversation scripts, action plan, risk map, module recap, and resources.
-- PDF generation and email delivery of the Serious Plan.
+- AI-generated "Serious Plan" artifacts (e.g., coach graduation note, decision snapshot, action plan) delivered as a PDF via email.
 - Persistent coach chat functionality.
-
-**Serious Plan Generation:**
-The Serious Plan and its artifacts are generated in parallel upon completion of Module 3. Initial placeholders are created, and generation processes for the coach letter and other artifacts run asynchronously. The frontend polls for completion, displaying loaders during this period.
-
-**Dossier Generation:**
-Client dossiers are generated during the interview (when the plan card is created) to avoid delays after payment. The system uses:
-- **Non-blocking architecture**: Transcript is saved FIRST, then dossier generation runs in background (fire-and-forget). This ensures planCard and messages are persisted immediately so subsequent reads see correct data.
-- Anthropic Claude Haiku 4.5 for speed (8192 max tokens, temperature=0 for deterministic output)
-- Anthropic prefill technique for reliable JSON output
-- OpenAI native JSON mode as fallback
-- In-memory locking (60s stale timeout) to prevent duplicate concurrent generation
-- Success page polling (every 2 seconds for up to 60 seconds) with fallback generation if needed
 
 ## User Preferences
 
@@ -31,191 +18,35 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 
 ## System Architecture
 
-### Frontend
-- **Technology Stack:** React SPA with Vite, wouter for routing.
-- **Design:** WSJ-inspired typography (Playfair Display, Source Serif 4) and overall aesthetic for a credible, professional feel.
-- **Analytics:** PostHog for user tracking and funnel analysis (events include interview progress, payments, module completion, plan generation, and chat messages).
-- **Core Pages:** Landing, Login, AI Interview, Payment Success, Coaching Modules, Progress, Coach Letter, Serious Plan, and Coach Chat.
-- **Components:** Auth context provider (`useAuth.tsx`), UserMenu.
-- **Styling:** Centralized `serious-people.css` for WSJ-inspired styles.
-- **Interview Features:** Chat interface, server-side transcript storage, user menu, progress bar, module title cards, personalized paywall with AI-generated value bullets, two-step plan confirmation, Stripe checkout integration.
+### UI/UX Decisions
+- **Frontend:** React SPA with Vite, using wouter for routing.
+- **Design Aesthetic:** WSJ-inspired typography (Playfair Display, Source Serif 4) and overall aesthetic for a credible, professional feel.
+- **Styling:** Centralized `serious-people.css` for consistent WSJ-inspired styles.
+- **SEO Engine:** Separate EJS templated site for crawlable HTML pages, using Markdown with YAML frontmatter for content. Shares header/footer partials and design tokens with the React SPA for consistency.
 
-### Backend
-- **Framework:** Express.js with TypeScript.
-- **API Endpoints:**
-    - Authentication (login, logout, magic link, Google OAuth).
-    - Interview and Module conversation management.
-    - Stripe integration (checkout, pricing, session verification).
-    - Serious Plan initialization, artifact generation, PDF creation, and email delivery.
-    - Coach chat message handling.
-    - Transcript and module data persistence.
-- **AI Integration:** Primarily uses Anthropic Claude Sonnet 4.5, with fallback to OpenAI GPT-4.1-mini. Utilizes specific tokens (e.g., `[[INTERVIEW_COMPLETE]]`, `[[VALUE_BULLETS]]`, `[[PLAN_CARD]]`) for structured AI responses and system control.
-- **Testing Feature ("testskip"):** Typing "testskip" in the interview or any module causes the coach to fabricate plausible context, list the fabricated details, and complete the module normally. This allows rapid testing without manually completing conversations.
-- **Data Storage:** PostgreSQL database.
-    - **Tables:** `users`, `sessions`, `interview_transcripts`, `magic_link_tokens`, `serious_plans`, `serious_plan_artifacts`, `coach_chat_messages`.
-    - **Storage Pattern:** Server-side persistence for all user and coaching data, ensuring cross-device and cross-session continuity.
+### Technical Implementations
+- **Backend:** Express.js with TypeScript.
+- **AI Integration:** Primarily uses Anthropic Claude Sonnet 4.5, with fallback to OpenAI GPT-4.1-mini, utilizing specific tokens for structured responses.
+- **Authentication:** Email magic link (via Resend) and Google OAuth2 (Passport.js) with session-based authentication using `express-session` and `connect-pg-simple`.
+- **Data Storage:** PostgreSQL database for all user and coaching data.
+- **Serious Plan Generation:** Artifacts are generated in parallel upon Module 3 completion, with initial placeholders and asynchronous background processing. Client dossiers are generated during the interview using a non-blocking architecture.
 
-### Authentication & Authorization
-- **Methods:** Email magic link (via Resend) and Google OAuth2 (Passport.js).
-- **Session Management:** Session-based authentication with `express-session` and `connect-pg-simple` for PostgreSQL storage, using httpOnly cookies.
+### Feature Specifications
+- **Coaching Modules:** Structured progression through Job Autopsy, Fork in the Road, and The Great Escape Plan.
+- **Serious Plan Artifacts:** AI-generated documents forming a comprehensive career plan.
+- **SEO Content:** Guides, role-specific advice, and interactive tools served via an SEO engine with structured data, Open Graph, and cross-linking.
+
+### System Design Choices
+- **Non-blocking architecture** for dossier generation to ensure immediate data persistence.
+- **In-memory locking** for dossier generation to prevent duplicates.
+- **Testskip feature** for rapid testing of modules.
+- **SPA at `/app`:** React SPA served at `/app` with preserved session handling.
+- **Marketing Site at Root:** Static EJS landing page at `/` for logged-out users, redirecting logged-in users to their journey within `/app`.
 
 ## External Dependencies
 
--   **Payment Processing:** Stripe for dynamic pricing, checkout sessions, and discount pre-application.
--   **AI Models:** Anthropic Claude Sonnet 4.5 (primary) and OpenAI GPT-4.1-mini (fallback) for all AI-driven coaching interactions and content generation.
--   **Email Services:** Resend for sending magic links and inbound email webhooks.
--   **Analytics:** PostHog for user behavior tracking.
--   **PDF Generation:** Puppeteer for generating WSJ-styled PDFs of Serious Plan artifacts.
-
-## SEO Engine
-
-The SEO engine generates crawlable HTML pages for organic search traffic, served separately from the React SPA.
-
-### Architecture
-- **Renderer:** EJS templates (may migrate to Astro in future)
-- **Content format:** Markdown with YAML frontmatter (renderer-agnostic)
-- **Routes:** Served by Express before SPA catch-all
-
-### Current Routes
-- `GET /resources` — Content hub linking all SEO content
-- `GET /guides` — Index of available guides
-- `GET /guides/:slug` — Individual pillar pages (12 pillars)
-- `GET /roles` — Index of role-specific guidance
-- `GET /roles/:role/situations/:situation` — Programmatic pages (50 pages)
-- `GET /tools/stay-or-go-calculator` — Interactive Stay-or-Go quiz
-- `GET /robots.txt` — Search engine instructions
-- `GET /sitemap.xml` — XML sitemap (67 URLs total)
-
-### Cross-Linking System
-Smart cross-links between pages for SEO and user navigation:
-- **Pillar pages** show: Related Guides (topic-based) + Role-Specific Guidance (situation-matched programmatic pages)
-- **Programmatic pages** show: Related Guides (situation-to-pillar mapping) + Adjacent Pages (same role OR same situation)
-- **Topic clusters**: decision, exit, job-search, internal, survival — used to match related pillars
-
-### Key Files
-- `/seo/templates/` — EJS layout and page templates
-- `/seo/content/pillars/` — Markdown pillar content
-- `/seo/content/modules/` — Reusable content modules
-- `/seo/content/programmatic/` — Content for programmatic pages (frameworks, mistakes, vignettes, walkaway)
-- `/server/seoController.ts` — Rendering logic and route handlers
-- `/docs/seo_taxonomy_and_pillars.md` — Full taxonomy specification
-- `/public/seo.css` — SEO stylesheet with Lovable design tokens
-
-### SEO Styling System
-SEO/EJS pages use `/seo.css` which defines Lovable design tokens. All templates map these to `--sp-*` CSS variables for consistency with the React SPA.
-
-**Token Mapping (in templates):**
-```css
---sp-bg: hsl(var(--background));
---sp-bg-elevated: hsl(var(--card));
---sp-text: hsl(var(--foreground));
---sp-text-secondary: hsl(var(--muted-foreground));
---sp-border: hsl(var(--border));
---sp-accent: hsl(var(--primary));
---sp-accent-foreground: hsl(var(--primary-foreground));
---sp-font-display: var(--sp-display);
---sp-font-body: var(--sp-body);
-```
-
-**Helper Function:**
-- `getSeoStyleHead()` in `seoController.ts` provides consistent CSS token mapping for inline HTML pages
-
-**Debug Headers:**
-- `X-SP-SEO: 1` header added to all SEO route responses for verification
-- `<!-- SP-SEO-SENTINEL: Layout template loaded correctly -->` comment in layout.ejs
-
-### Programmatic Pages (50 total)
-Role + situation combinations for targeted SEO. Pages are composed from reusable content modules:
-- **Roles:** VP Product, Director of Product, Director of Engineering, Engineering Manager, Ops Leader, Founder
-- **Situations:** Stay or Go, Burnout, Bad Manager, Toxic Culture, Severance, Internal Pivot, Job Search, Offer Evaluation, Resignation, Layoff Risk
-- **Page Structure:** Framework → Mistakes → Vignette → Walkaway → CTA
-- **Quality Threshold:** 700+ words (pages below threshold get noindex)
-
-### SEO Analytics (PostHog)
-SEO pages include PostHog tracking for user behavior analysis:
-- **Events:**
-  - `seo_page_view` — Fired on every SEO page load (page_type, page_slug, page_title)
-  - `seo_cta_click` — Fired when CTA buttons or /interview links are clicked
-  - `seo_scroll_depth` — Fired at 25%, 50%, 75%, 90%, 100% scroll thresholds (page_type, page_slug, depth_percent)
-- **Implementation:** PostHog script injected via layout.ejs for template pages, inline for index pages
-- **Key:** Uses VITE_POSTHOG_KEY environment variable
-
-### Open Graph & Social Sharing
-All SEO pages include comprehensive Open Graph and Twitter Card meta tags:
-- **OG Tags:** og:type, og:url, og:title, og:description, og:site_name, og:locale, og:image (with dimensions and alt text), article:published_time, article:author, article:section
-- **Twitter Tags:** twitter:card (summary_large_image), twitter:site, twitter:creator, twitter:title, twitter:description, twitter:image
-- **Image:** Falls back to /logo.png for all pages
-- **Canonical URLs:** All pages include proper canonical URLs
-
-### Structured Data (JSON-LD)
-All SEO pages include JSON-LD structured data for rich search results:
-- **Article schema** — Pillar pages and programmatic pages (headline, description, author, publisher, dates)
-- **WebPage schema** — Interactive tools like the Stay-or-Go Calculator
-- **Organization schema** — Included on all layout-based pages (name, URL, description)
-- **Implementation:** Generated in seoController.ts, injected via headExtra and organizationSchema variables
-
-### Available Pillars (12 total)
-1. `/guides/stay-or-go-framework` — The Stay-or-Go Decision Framework
-2. `/guides/burnout-vs-misfit-vs-bad-manager` — Burnout vs. Misfit vs. Bad Manager
-3. `/guides/how-to-resign-without-burning-bridges` — How to Resign Without Burning Bridges
-4. `/guides/severance-negotiation-playbook` — The Severance Negotiation Playbook
-5. `/guides/executive-job-search-is-different` — Executive Job Search Is Different
-6. `/guides/how-to-explain-your-departure` — How to Explain Your Departure
-7. `/guides/what-to-do-in-the-first-14-days` — What to Do in the First 14 Days
-8. `/guides/how-to-talk-to-your-boss-about-changing-your-role` — How to Talk to Your Boss About Changing Your Role
-9. `/guides/how-to-evaluate-an-offer-like-an-adult` — How to Evaluate an Offer Like an Adult
-10. `/guides/when-to-use-a-coach` — When to Use a Coach (And What Kind)
-11. `/guides/layoff-risk-plan` — The Layoff Risk Survival Plan
-12. `/guides/toxic-boss-survival-or-exit` — Toxic Boss: Survive or Exit?
-
-### Content Modules
-Reusable content blocks that can be included in any pillar page using `{{module:module-id}}` syntax.
-
-Available modules:
-- `cta-coaching` — CTA for personalized coaching
-- `cta-interview` — CTA for free AI interview
-- `warning-counteroffer` — Warning about counteroffer traps
-- `warning-burnout-signs` — Health warning signs
-- `framework-decision-matrix` — Scoring template
-- `script-resignation` — Resignation conversation script
-- `script-asking-for-promotion` — Promotion ask script
-- `checklist-exit-documents` — Documents to collect before leaving
-- `checklist-financial-runway` — Financial runway calculator
-
-### Quality Thresholds
-- Pillars: 1200+ words, 5+ unique modules
-- Programmatic: 700+ words, 4+ unique modules
-- Max similarity: 0.7
-
-### Phase 4 Gaps (Not Built)
-Items from the PRD that were deferred:
-- Second tool page under /tools (only built Stay-or-Go Calculator, PRD called for 2 tools)
-- /lp/* landing pages for paid ads (noindex pages for campaign traffic)
-
-### Phase 5: /app Mount (Completed)
-The SPA is served at /app with preserved session handling:
-- **/app/*:** React SPA with /app base path
-- **Routing:** Client-side wouter router auto-detects /app base path and adjusts routes
-- **Auth:** Session-based authentication works, cookies shared across paths
-- **API Routes:** All /api/* and /auth/* routes work identically
-- **Base Path Preservation:** Authentication (Google OAuth, magic links) and Stripe checkout preserve the /app base path in all redirects
-- **Security:** `sanitizeBasePath()` function in `server/routes.ts` prevents open redirect attacks. Only allows single-segment paths like `/app` (regex: `/^\/[a-zA-Z0-9-_]+$/`).
-
-### Phase 6: Marketing Site at Root (Completed)
-Root path (/) now serves static marketing content to logged-out users:
-- **Root (/) - Logged Out:** Static EJS landing page (`seo/templates/landing.ejs`) mirroring the React landing page design
-- **Root (/) - Logged In:** Server-side redirect to user's current journey step at /app/*
-- **Static Landing Features:**
-  - Typewriter animation for hero headline
-  - Dynamic pricing from Stripe
-  - PostHog analytics tracking
-  - FAQ accordion
-  - Navigation links to /guides and /resources
-  - All CTAs link to /app/login
-- **Edge Case Handling:** Users without journey state (fresh accounts) redirect to /app, letting the SPA determine their first destination
-- **React Landing Updates:** Added header navigation links to SEO content (/guides, /resources)
-
-## Project Documentation
-
-- **RETROSPECTIVE.md** - Comprehensive retrospective covering what went well, what didn't, instructions for future agents, bug prevention checklists, and design patterns. Essential reading before making significant changes.
-- **docs/seo_taxonomy_and_pillars.md** - Complete SEO taxonomy specification, pillar definitions, and content module requirements.
+-   **Payment Processing:** Stripe for dynamic pricing, checkout sessions, and discount application.
+-   **AI Models:** Anthropic Claude Sonnet 4.5 and OpenAI GPT-4.1-mini for AI-driven coaching and content generation.
+-   **Email Services:** Resend for sending magic links and handling inbound email webhooks.
+-   **Analytics:** PostHog for user behavior tracking across both the React SPA and SEO pages.
+-   **PDF Generation:** Puppeteer for creating WSJ-styled PDFs of Serious Plan artifacts.
