@@ -782,3 +782,538 @@ body {
   color: hsl(var(--primary));
   transform: translateX(0.25rem);
 }
+
+/* ================================================
+   NEW TEMPLATE STYLES (Guides, Roles, Resources)
+   ================================================ */
+
+/* Page Titles & Eyebrows */
+.sp-eyebrow {
+  font-family: var(--sp-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+  margin-bottom: 1rem;
+}
+
+.sp-page-title {
+  font-family: var(--sp-display);
+  font-size: 2.5rem;
+  font-weight: 400;
+  line-height: 1.15;
+  color: hsl(var(--foreground));
+  margin-bottom: 1.5rem;
+  text-wrap: balance;
+}
+
+@media (min-width: 768px) {
+  .sp-page-title {
+    font-size: 3rem;
+  }
+}
+
+.sp-page-title-large {
+  font-family: var(--sp-display);
+  font-size: 2.5rem;
+  font-weight: 400;
+  line-height: 1.1;
+  color: hsl(var(--foreground));
+  margin-bottom: 2rem;
+  text-wrap: balance;
+}
+
+@media (min-width: 768px) {
+  .sp-page-title-large {
+    font-size: 3.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sp-page-title-large {
+    font-size: 3.75rem;
+  }
+}
+
+.sp-page-lede {
+  font-size: 1.125rem;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.7;
+  max-width: 36rem;
+}
+
+/* Content widths */
+.sp-content-wide {
+  max-width: 48rem;
+}
+
+/* Guide List (Guides page) */
+.sp-guide-list {
+  border-top: 1px solid hsl(var(--border));
+}
+
+.sp-guide-list-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid hsl(var(--border));
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+}
+
+.sp-guide-list-item:hover .sp-guide-list-title {
+  color: hsl(var(--primary));
+}
+
+.sp-guide-list-item:hover .sp-guide-list-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sp-guide-list-content {
+  flex: 1;
+}
+
+.sp-guide-list-title {
+  font-family: var(--sp-display);
+  font-size: 1.125rem;
+  font-weight: 400;
+  color: hsl(var(--foreground));
+  margin-bottom: 0.25rem;
+  transition: color 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .sp-guide-list-title {
+    font-size: 1.25rem;
+  }
+}
+
+.sp-guide-list-desc {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.sp-guide-list-arrow {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+  color: hsl(var(--muted-foreground));
+  opacity: 0;
+  transform: translateX(-0.5rem);
+  transition: all 0.3s ease;
+}
+
+/* Roles Page Styles */
+.sp-roles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+.sp-role-section {
+  padding-bottom: 1rem;
+}
+
+.sp-role-header {
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.sp-role-title {
+  font-family: var(--sp-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: hsl(var(--foreground));
+  margin-bottom: 0.25rem;
+}
+
+@media (min-width: 768px) {
+  .sp-role-title {
+    font-size: 1.875rem;
+  }
+}
+
+.sp-role-desc {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Situation Grid */
+.sp-situation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .sp-situation-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.sp-situation-grid-3 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 768px) {
+  .sp-situation-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.sp-situation-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  border: 1px solid hsl(var(--border));
+  text-align: center;
+  text-decoration: none;
+  color: hsl(var(--foreground));
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+}
+
+.sp-situation-card:hover {
+  border-color: hsl(var(--primary) / 0.3);
+  background: hsl(var(--muted-foreground) / 0.05);
+}
+
+.sp-situation-card:hover span {
+  color: hsl(var(--primary));
+}
+
+/* Full-width CTA Section */
+.sp-cta-full {
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+}
+
+.sp-cta-full-title {
+  font-family: var(--sp-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: hsl(var(--background));
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+  .sp-cta-full-title {
+    font-size: 1.875rem;
+  }
+}
+
+.sp-cta-full-desc {
+  color: hsl(var(--background) / 0.7);
+  max-width: 28rem;
+  margin: 0 auto 2rem;
+}
+
+.sp-btn-inverse {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.sp-btn-inverse:hover {
+  opacity: 0.9;
+}
+
+/* Role Badges (Role-Situation page) */
+.sp-role-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.sp-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 0.125rem;
+}
+
+.sp-badge-primary {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+}
+
+.sp-badge-muted {
+  background: hsl(var(--muted-foreground) / 0.1);
+  color: hsl(var(--muted-foreground));
+}
+
+/* Resources Page Styles */
+.sp-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.sp-section-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: hsl(var(--primary));
+}
+
+.sp-section-title {
+  font-family: var(--sp-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: hsl(var(--foreground));
+}
+
+.sp-section-desc {
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 2rem;
+}
+
+/* Featured Tool Card */
+.sp-tool-feature-card {
+  display: block;
+  max-width: 28rem;
+  padding: 1.5rem 2rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .sp-tool-feature-card {
+    padding: 2rem 2.5rem;
+  }
+}
+
+.sp-tool-feature-card:hover {
+  background: hsl(var(--primary) / 0.9);
+}
+
+.sp-tool-feature-card:hover .sp-tool-feature-title {
+  transform: translateX(0.25rem);
+}
+
+.sp-tool-feature-card:hover .sp-tool-feature-link svg {
+  transform: translateX(0.25rem);
+}
+
+.sp-tool-feature-title {
+  font-family: var(--sp-display);
+  font-size: 1.25rem;
+  font-weight: 400;
+  margin-bottom: 0.5rem;
+  transition: transform 0.3s ease;
+}
+
+.sp-tool-feature-desc {
+  font-size: 0.875rem;
+  color: hsl(var(--primary-foreground) / 0.8);
+  margin-bottom: 1rem;
+}
+
+.sp-tool-feature-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.sp-tool-feature-link svg {
+  transition: transform 0.3s ease;
+}
+
+/* Guide Grid (Resources page) */
+.sp-guide-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .sp-guide-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.sp-guide-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+}
+
+.sp-guide-card:hover {
+  border-color: hsl(var(--primary) / 0.3);
+}
+
+.sp-guide-card:hover .sp-guide-card-title {
+  color: hsl(var(--primary));
+}
+
+.sp-guide-card:hover .sp-guide-card-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sp-guide-card-title {
+  font-family: var(--sp-display);
+  font-size: 1.125rem;
+  font-weight: 400;
+  color: hsl(var(--foreground));
+  transition: color 0.3s ease;
+}
+
+.sp-guide-card-arrow {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
+  opacity: 0;
+  transform: translateX(-0.5rem);
+  transition: all 0.3s ease;
+}
+
+/* Role Grid (Resources page) */
+.sp-role-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .sp-role-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .sp-role-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.sp-role-card {
+  display: block;
+  padding: 1.5rem;
+  border: 1px solid hsl(var(--border));
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.sp-role-card:hover {
+  border-color: hsl(var(--primary) / 0.3);
+  background: hsl(var(--muted-foreground) / 0.05);
+}
+
+.sp-role-card:hover .sp-role-card-title {
+  color: hsl(var(--primary));
+}
+
+.sp-role-card-title {
+  font-family: var(--sp-display);
+  font-size: 1.125rem;
+  font-weight: 400;
+  color: hsl(var(--foreground));
+  transition: color 0.3s ease;
+}
+
+.sp-role-card-count {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  margin-top: 0.25rem;
+}
+
+/* Button Variants */
+.sp-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: transparent;
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+  font-family: var(--sp-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.sp-btn-outline:hover {
+  border-color: hsl(var(--primary) / 0.3);
+  background: hsl(var(--muted-foreground) / 0.05);
+}
+
+.sp-btn-outline:hover svg {
+  transform: translateX(0.25rem);
+}
+
+.sp-btn-outline svg {
+  transition: transform 0.3s ease;
+}
+
+.sp-btn-dark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+  font-family: var(--sp-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.sp-btn-dark:hover {
+  opacity: 0.9;
+}
+
+/* CTA Section (in sage) */
+.sp-cta-section-title {
+  font-family: var(--sp-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: hsl(var(--foreground));
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+  .sp-cta-section-title {
+    font-size: 1.875rem;
+  }
+}
+
+.sp-cta-section-desc {
+  color: hsl(var(--muted-foreground));
+  max-width: 28rem;
+  margin: 0 auto 2rem;
+}
+
+/* Related Heading (used in multiple templates) */
+.sp-related-heading {
+  font-family: var(--sp-display);
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: hsl(var(--foreground));
+  margin-bottom: 1.5rem;
+}
