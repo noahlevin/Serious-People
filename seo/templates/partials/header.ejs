@@ -1,0 +1,27 @@
+<nav class="sp-nav">
+  <div class="sp-container sp-nav-inner">
+    <a href="/" class="sp-logo">Serious People</a>
+    
+    <div class="sp-nav-links">
+      <a href="/guides" class="sp-nav-link<%= typeof active !== 'undefined' && active === 'guides' ? ' sp-nav-active' : '' %>">Guides</a>
+      <a href="/resources" class="sp-nav-link<%= typeof active !== 'undefined' && active === 'resources' ? ' sp-nav-active' : '' %>">Resources</a>
+      <a href="/app/login" class="sp-nav-link sp-nav-login">Log in</a>
+    </div>
+    
+    <button class="sp-mobile-toggle" aria-label="Toggle menu" onclick="document.querySelector('.sp-mobile-menu').classList.toggle('sp-mobile-open')">
+      <svg class="sp-icon-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
+  </div>
+</nav>
+
+<div class="sp-mobile-menu">
+  <div class="sp-container">
+    <a href="/guides" class="sp-mobile-link">Guides</a>
+    <a href="/resources" class="sp-mobile-link">Resources</a>
+    <a href="/app/login" class="sp-mobile-link">Log in</a>
+  </div>
+</div>

@@ -11,6 +11,7 @@
   --border: 30 15% 85%;
 
   --primary: 100 12% 32%;
+  --primary-foreground: 40 33% 97%;
   --muted-foreground: 20 8% 45%;
 
   /* Font tokens used by SPA + utilities below */
@@ -38,3 +39,280 @@ body {
 /* Optional small helpers your EJS templates *can* use */
 .font-display { font-family: var(--sp-display); }
 .font-body { font-family: var(--sp-body); }
+
+/* --- Lovable Shell CSS --- */
+
+/* Container */
+.sp-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Navigation */
+.sp-nav {
+  padding: 1.5rem 0;
+}
+
+.sp-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sp-logo {
+  font-family: var(--sp-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: hsl(var(--foreground));
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.sp-logo:hover {
+  color: hsl(var(--primary));
+}
+
+.sp-nav-links {
+  display: none;
+  align-items: center;
+  gap: 2rem;
+}
+
+@media (min-width: 768px) {
+  .sp-nav-links {
+    display: flex;
+  }
+}
+
+.sp-nav-link {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  transition: color 0.2s ease;
+  position: relative;
+}
+
+.sp-nav-link:hover {
+  color: hsl(var(--foreground));
+}
+
+.sp-nav-login {
+  font-weight: 500;
+}
+
+.sp-nav-login:hover {
+  color: hsl(var(--primary));
+}
+
+.sp-nav-active {
+  color: hsl(var(--foreground));
+}
+
+/* Mobile toggle */
+.sp-mobile-toggle {
+  display: block;
+  padding: 0.5rem;
+  margin-right: -0.5rem;
+  background: none;
+  border: none;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+}
+
+@media (min-width: 768px) {
+  .sp-mobile-toggle {
+    display: none;
+  }
+}
+
+.sp-icon-menu {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* Mobile menu */
+.sp-mobile-menu {
+  display: none;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+}
+
+.sp-mobile-menu.sp-mobile-open {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .sp-mobile-menu {
+    display: none !important;
+  }
+}
+
+.sp-mobile-link {
+  display: block;
+  padding: 0.75rem 0;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.sp-mobile-link:hover {
+  color: hsl(var(--foreground));
+}
+
+/* Footer */
+.sp-footer {
+  border-top: 1px solid hsl(var(--border));
+  padding: 3rem 0;
+}
+
+.sp-footer-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .sp-footer-inner {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: left;
+  }
+}
+
+.sp-footer-links {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.sp-footer-link {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.sp-footer-link:hover {
+  color: hsl(var(--foreground));
+}
+
+.sp-copyright {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  margin: 0;
+}
+
+/* Section styles */
+.sp-section {
+  padding: 4rem 0;
+}
+
+.sp-section-alt {
+  background: hsl(var(--card));
+}
+
+/* Buttons */
+.sp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--sp-body);
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.875rem 2rem;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.sp-btn-primary {
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+}
+
+.sp-btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.sp-btn-secondary {
+  background: transparent;
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+}
+
+.sp-btn-secondary:hover {
+  background: hsl(var(--card));
+}
+
+/* Typography */
+.sp-eyebrow {
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+}
+
+.sp-heading {
+  font-family: var(--sp-display);
+  font-weight: 400;
+  line-height: 1.2;
+  color: hsl(var(--foreground));
+}
+
+.sp-heading-xl {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+}
+
+.sp-heading-lg {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+}
+
+.sp-text-muted {
+  color: hsl(var(--muted-foreground));
+}
+
+/* Content */
+.sp-content {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.sp-content-narrow {
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+/* Cards */
+.sp-card {
+  padding: 1.5rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+/* CTA Box */
+.sp-cta-box {
+  padding: 2.5rem;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.sp-cta-box .sp-heading {
+  margin-bottom: 0.75rem;
+}
+
+.sp-cta-box .sp-text-muted {
+  margin-bottom: 1.5rem;
+}
