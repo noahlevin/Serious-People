@@ -608,10 +608,7 @@ export async function renderGuide(req: Request, res: Response) {
     const { data: frontmatter, content: markdownBody } = parseFrontmatter(rawContent);
     
     // Process module includes ({{module:module-id}} syntax)
-    const expandedMarkdown = processModuleIncludes(markdownBody);
-    
-    // Convert markdown to HTML
-    const htmlContent = markdownToHtml(expandedMarkdown);
+    let expandedMarkdown = processModuleIncludes(markdownBody);
     
     // Get related links (other pillars + role-specific pages)
     const relatedLinks = getRelatedLinks(safeSlug);
@@ -644,6 +641,24 @@ export async function renderGuide(req: Request, res: Response) {
     };
     const category = frontmatter.category || SLUG_TO_CATEGORY[safeSlug] || "Guide";
     
+    // Extract calculator/tool CTA from markdown (pattern: **label** [title](href) — description)
+    let toolCta: { label: string; title: string; href: string; description: string } | null = null;
+    const ctaPattern = /\*\*(.+?)\*\*\s*\[(.+?)\]\((.+?)\)\s*[—–-]\s*(.+?)(?:\.|$)/m;
+    const ctaMatch = expandedMarkdown.match(ctaPattern);
+    if (ctaMatch) {
+      toolCta = {
+        label: ctaMatch[1].trim(),
+        title: ctaMatch[2].trim(),
+        href: ctaMatch[3].trim(),
+        description: ctaMatch[4].trim(),
+      };
+      // Remove the CTA line from markdown so it's not rendered inline
+      expandedMarkdown = expandedMarkdown.replace(ctaPattern, '').trim();
+    }
+    
+    // Convert markdown to HTML (after extracting CTA)
+    const htmlContent = markdownToHtml(expandedMarkdown);
+    
     // Generate Article schema for structured data
     const articleSchema = generateArticleSchema({
       title,
@@ -657,6 +672,7 @@ export async function renderGuide(req: Request, res: Response) {
       lede: frontmatter.lede || null,
       readTime,
       category,
+      toolCta,
       content: htmlContent,
       relatedLinks,
       relatedRolePages,

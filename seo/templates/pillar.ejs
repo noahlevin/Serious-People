@@ -9,8 +9,8 @@
   </nav>
 </div>
 
-<!-- Hero - matches GuideDetail.tsx line 138-157 -->
-<section class="sp-container" style="padding: 3rem 0 4rem;">
+<!-- Hero - matches GuideDetail.tsx py-12 md:py-16 max-w-2xl -->
+<section class="sp-container sp-hero-section">
   <div class="sp-content-narrow" style="margin: 0 auto;">
     <h1 class="sp-guide-title" data-testid="text-guide-title"><%= title %></h1>
     
@@ -31,7 +31,7 @@
 </section>
 
 <% if (typeof toolCta !== 'undefined' && toolCta) { %>
-<!-- Calculator/Tool CTA - matches GuideDetail.tsx line 159-173 -->
+<!-- Calculator/Tool CTA - matches GuideDetail.tsx pb-12 max-w-2xl -->
 <section class="sp-container" style="padding-bottom: 3rem;">
   <div class="sp-content-narrow" style="margin: 0 auto;">
     <a href="<%= toolCta.href %>" class="sp-tool-cta" data-testid="link-tool-cta">
