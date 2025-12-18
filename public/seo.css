@@ -931,6 +931,8 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-cta-dark .sp-btn {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--background));
+  padding: 0.75rem 1.25rem;
 }
 
 .sp-cta-dark .sp-btn:hover {
