@@ -736,7 +736,7 @@ export async function renderGuidesIndex(_req: Request, res: Response) {
   }));
   
   const canonicalUrl = `${baseUrl}/guides`;
-  const title = "Career Guides | Serious People";
+  const title = "Career Guides";
   const description = "Practical career guides for executives and senior leaders. Frameworks, scripts, and action plans for career decisions.";
   
   const templateData = {
@@ -940,7 +940,7 @@ export async function renderRolesIndex(_req: Request, res: Response) {
   ];
   
   const canonicalUrl = `${baseUrl}/roles`;
-  const title = "Career Guidance by Role | Serious People";
+  const title = "Career Guidance by Role";
   const description = "Role-specific career guidance for executives and senior leaders. Practical frameworks for every situation.";
   
   const templateData = {
@@ -1028,7 +1028,7 @@ export async function renderContentHub(_req: Request, res: Response) {
   ];
   
   const canonicalUrl = `${baseUrl}/resources`;
-  const title = "Career Resources Hub | Serious People";
+  const title = "Career Resources Hub";
   const description = "Complete career coaching resource library. Guides, frameworks, tools, and role-specific advice for executives navigating career transitions.";
   
   const templateData = {
