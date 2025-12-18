@@ -371,12 +371,13 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 }
 
 /* Typography */
+/* sp-eyebrow: Matches Lovable @apply text-xs font-medium uppercase tracking-widest text-muted-foreground + letter-spacing: 0.15em */
 .sp-eyebrow {
-  font-size: 0.8rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  font-size: 0.75rem;           /* text-xs = 12px */
+  font-weight: 500;             /* font-medium */
   text-transform: uppercase;
-  color: hsl(var(--primary));
+  letter-spacing: 0.15em;       /* tracking-widest override */
+  color: hsl(var(--muted-foreground));
 }
 
 .sp-heading {
@@ -904,16 +905,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
    NEW TEMPLATE STYLES (Guides, Roles, Resources)
    ================================================ */
 
-/* Page Titles & Eyebrows */
-.sp-eyebrow {
-  font-family: var(--sp-body);
-  font-size: 0.875rem;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: hsl(var(--primary));
-  margin-bottom: 1rem;
-}
+/* Page Titles - sp-eyebrow is defined earlier, no duplicate needed */
 
 .sp-page-title {
   font-family: var(--sp-display);
@@ -1571,13 +1563,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   text-align: center;
 }
 
-/* Eyebrow text */
-.sp-eyebrow {
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
+/* Eyebrow text - uses main sp-eyebrow definition above */
 
 /* Display typography */
 .sp-display-hero {
@@ -1744,47 +1730,70 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   width: 100%;
 }
 
-/* Quote section */
+/* Quote section - matches Lovable sp-quote-elegant exactly */
 .sp-quote-section {
-  padding: 4rem 0;
+  padding-top: 4rem;      /* py-16 */
+  padding-bottom: 4rem;
 }
 
 @media (min-width: 768px) {
   .sp-quote-section {
-    padding: 5rem 0;
+    padding-top: 5rem;    /* py-20 */
+    padding-bottom: 5rem;
   }
 }
 
+/* sp-quote-elegant: Matches Lovable @apply relative */
 .sp-quote-elegant {
-  max-width: 42rem;
+  position: relative;
+  max-width: var(--sp-content-medium);  /* 52rem = 832px */
   margin: 0 auto;
 }
 
-.sp-quote-centered {
-  text-align: center;
+/* Decorative opening quote mark - matches Lovable ::before */
+.sp-quote-elegant::before {
+  content: '"';
+  font-family: var(--sp-display);
+  position: absolute;
+  top: -1rem;             /* -top-4 = -16px */
+  left: -0.5rem;          /* -left-2 = -8px */
+  font-size: 3.75rem;     /* text-6xl = 60px */
+  line-height: 1;         /* leading-none */
+  color: hsl(var(--primary) / 0.3);  /* text-primary/30 */
 }
 
+@media (min-width: 768px) {
+  .sp-quote-elegant::before {
+    font-size: 4.5rem;    /* md:text-7xl = 72px */
+  }
+}
+
+/* Blockquote - matches Lovable @apply text-xl md:text-2xl text-foreground leading-relaxed pl-6 */
 .sp-quote-elegant blockquote {
   font-family: var(--sp-display);
-  font-size: 1.25rem;
-  font-style: italic;
-  line-height: 1.5;
+  font-size: 1.25rem;     /* text-xl = 20px */
+  font-weight: 500;       /* NOT italic */
+  line-height: 1.625;     /* leading-relaxed */
   color: hsl(var(--foreground));
   margin: 0;
-  padding: 0;
+  padding: 0 0 0 1.5rem;  /* pl-6 = 24px */
   border: none;
 }
 
 @media (min-width: 768px) {
   .sp-quote-elegant blockquote {
-    font-size: 1.5rem;
+    font-size: 1.5rem;    /* md:text-2xl = 24px */
   }
 }
 
+/* Cite - matches Lovable @apply block mt-6 text-sm text-muted-foreground not-italic pl-6 */
 .sp-quote-elegant cite {
   display: block;
-  margin-top: 1.5rem;
-  font-style: normal;
+  margin-top: 1.5rem;     /* mt-6 = 24px */
+  font-size: 0.875rem;    /* text-sm = 14px */
+  font-style: normal;     /* not-italic */
+  color: hsl(var(--muted-foreground));
+  padding-left: 1.5rem;   /* pl-6 = 24px */
 }
 
 .sp-quote-author {
@@ -1799,6 +1808,25 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 
 .sp-quote-role {
   color: hsl(var(--muted-foreground));
+}
+
+/* Centered quote variation (removes left padding for centered layout) */
+.sp-quote-centered {
+  text-align: center;
+}
+
+.sp-quote-centered.sp-quote-elegant::before {
+  left: 50%;
+  transform: translateX(-50%);
+  top: -2rem;
+}
+
+.sp-quote-centered blockquote {
+  padding-left: 0;
+}
+
+.sp-quote-centered cite {
+  padding-left: 0;
 }
 
 /* Two column grid layout */
