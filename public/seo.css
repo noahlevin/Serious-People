@@ -1317,3 +1317,79 @@ body {
   color: hsl(var(--foreground));
   margin-bottom: 1.5rem;
 }
+
+/* ================================================
+   ROLE-SITUATION PAGE STYLES
+   ================================================ */
+
+/* Breadcrumb Navigation */
+.sp-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 1rem;
+}
+
+.sp-breadcrumb a {
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.sp-breadcrumb a:hover {
+  color: hsl(var(--primary));
+}
+
+.sp-breadcrumb-separator {
+  width: 1rem;
+  height: 1rem;
+  color: hsl(var(--muted-foreground) / 0.5);
+}
+
+.sp-breadcrumb-current {
+  color: hsl(var(--foreground));
+}
+
+/* Hero Section for Role-Situation */
+.sp-hero-section {
+  padding-top: 2rem;
+  padding-bottom: 3rem;
+}
+
+/* Guide Title (Role-Situation page) */
+.sp-guide-title {
+  font-family: var(--sp-display);
+  font-size: 2rem;
+  font-weight: 400;
+  line-height: 1.15;
+  color: hsl(var(--foreground));
+  margin-bottom: 1rem;
+  text-wrap: balance;
+}
+
+@media (min-width: 768px) {
+  .sp-guide-title {
+    font-size: 2.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sp-guide-title {
+    font-size: 3rem;
+  }
+}
+
+/* Guide Lede (Role-Situation page) */
+.sp-guide-lede {
+  font-size: 1.125rem;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.7;
+  max-width: 36rem;
+}
+
+/* Sage Background Section */
+.sp-section-sage {
+  background: hsl(var(--card));
+}

@@ -315,8 +315,12 @@ const programmaticDir = path.resolve(process.cwd(), "seo/content/programmatic");
 const ROLES: Record<string, string> = {
   "vp-product": "VP Product",
   "director-product": "Director of Product",
-  "product-manager": "Product Manager",
+  "vp-engineering": "VP Engineering",
   "director-engineering": "Director of Engineering",
+  "chief-of-staff": "Chief of Staff",
+  "vp-operations": "VP Operations",
+  // Legacy roles for backwards compatibility
+  "product-manager": "Product Manager",
   "engineering-manager": "Engineering Manager",
   "ops-leader": "Operations Leader",
   "gm": "General Manager",
@@ -732,7 +736,7 @@ export async function renderGuidesIndex(_req: Request, res: Response) {
   const guides = ALL_PILLARS.map(p => ({
     title: p.title,
     slug: p.slug,
-    description: p.description || "A practical framework for career decisions",
+    description: "A practical framework for career decisions",
   }));
   
   const canonicalUrl = `${baseUrl}/guides`;
@@ -846,20 +850,27 @@ export async function renderProgrammaticPage(req: Request, res: Response) {
       return pillar ? { href: `/guides/${slug}`, title: pillar.title } : null;
     }).filter(Boolean) as Array<{ href: string; title: string }>;
     
-    // Get adjacent pages (same role, different situations OR same situation, different roles)
-    const allPages = getAllProgrammaticPages();
-    const adjacentPages = allPages
-      .filter(p => (p.role === role && p.situation !== situation) || (p.situation === situation && p.role !== role))
-      .slice(0, 4)
-      .map(p => ({
-        href: `/roles/${p.role}/situations/${p.situation}`,
-        title: `${ROLES[p.role]}: ${SITUATIONS[p.situation]}`,
-      }));
+    // Get related situations for the same role (other situations)
+    const allSituations = [
+      { slug: "stay-or-go", label: "Stay or Go" },
+      { slug: "burnout", label: "Burnout" },
+      { slug: "bad-manager", label: "Bad Manager" },
+      { slug: "toxic-culture", label: "Toxic Culture" },
+      { slug: "severance", label: "Severance" },
+      { slug: "internal-pivot", label: "Internal Pivot" },
+      { slug: "job-search", label: "Job Search" },
+      { slug: "offer-evaluation", label: "Offer Evaluation" },
+      { slug: "resignation", label: "Resignation" },
+      { slug: "layoff-risk", label: "Layoff Risk" },
+    ];
+    const relatedSituations = allSituations
+      .filter(s => s.slug !== situation)
+      .slice(0, 6);
     
-    // Title patterns
+    // Title patterns - matching RoleSituation.tsx lines 40-41 exactly
     const title = `${situationLabel} for ${roleLabel}: A Practical Framework`;
+    const subtitle = `Practical guidance for ${roleLabel} professionals facing ${situationLabel.toLowerCase()} situations.`;
     const description = `A no-fluff guide to ${situationLabel.toLowerCase()} for ${roleLabel}—framework, common mistakes, examples, and scripts. Includes a 14-day plan and a clear next step.`;
-    const lede = `Practical guidance for ${roleLabel} professionals facing ${situationLabel.toLowerCase()} situations.`;
     
     // Check quality threshold (700 words minimum for programmatic)
     const shouldIndex = wordCount >= 700;
@@ -869,34 +880,38 @@ export async function renderProgrammaticPage(req: Request, res: Response) {
     
     // Generate Article schema for structured data
     const articleSchema = generateArticleSchema({
-      title,
+      title: `${title}: A Practical Framework`,
       description,
       url: canonicalUrl,
     });
     
-    // Prepare template data
+    // Prepare template data for role-situation.ejs
     const templateData = {
       title,
+      subtitle,
       description,
-      lede,
+      roleSlug: role,
+      roleTitle: roleLabel,
+      situationSlug: situation,
+      situationTitle: situationLabel,
       content: htmlContent,
       relatedLinks,
-      adjacentPages,
+      relatedSituations,
       canonical: canonicalUrl,
       noindex: !shouldIndex,
       posthogKey: POSTHOG_KEY,
-      pageType: "programmatic",
+      pageType: "role-situation",
       pageSlug: `${role}/${situation}`,
       headExtra: articleSchema,
       organizationSchema: generateOrganizationSchema(),
     };
     
-    // Render the programmatic template
-    const programmaticTemplatePath = path.join(templatesDir, "programmatic.ejs");
-    const pageHtml = await ejs.renderFile(programmaticTemplatePath, templateData);
+    // Render the role-situation template
+    const roleSituationTemplatePath = path.join(templatesDir, "role-situation.ejs");
+    const pageHtml = await ejs.renderFile(roleSituationTemplatePath, templateData);
     
     // Render the layout with the page content
-    const layoutTemplatePath = path.join(templatesDir, "layout.ejs");
+    const layoutTemplatePath = path.join(templatesDir, "layout-pillar.ejs");
     const fullHtml = await ejs.renderFile(layoutTemplatePath, {
       ...templateData,
       body: pageHtml,
