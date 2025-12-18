@@ -1,25 +1,68 @@
 /* seo.css — pure CSS token bridge for EJS pages (no Tailwind @apply/@layer) */
+/* Matches client/src/index.css for visual parity with Lovable SPA */
 
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@400;500;600&display=swap');
 
 :root {
-  /* Lovable tokens (match client/src/index.css) */
-  --background: 40 33% 97%;
-  --foreground: 20 14% 10%;
-
-  --card: 40 25% 95%;
-  --border: 30 15% 85%;
-
-  --primary: 100 12% 32%;
+  /* Paper & Ink - The Foundation (match index.css exactly) */
+  --background: 40 33% 97%;           /* Warm ivory paper #FAF8F5 */
+  --foreground: 20 14% 10%;           /* Warm near-black #1C1917 */
+  
+  /* Surface Hierarchy */
+  --card: 40 25% 95%;                 /* Slightly darker paper */
+  --card-foreground: 20 14% 10%;
+  --popover: 40 33% 97%;
+  --popover-foreground: 20 14% 10%;
+  
+  /* Primary - Deep Sage (the signature) */
+  --primary: 100 12% 32%;             /* Deep sage #4A5548 */
   --primary-foreground: 40 33% 97%;
+  
+  /* Secondary - Warm Stone */
+  --secondary: 30 8% 88%;             /* Warm gray-beige */
+  --secondary-foreground: 20 14% 20%;
+  
+  /* Muted - For secondary text */
+  --muted: 30 10% 92%;
   --muted-foreground: 20 8% 45%;
+  
+  /* Accent - Terracotta whisper */
+  --accent: 15 25% 50%;               /* Muted terracotta */
+  --accent-foreground: 40 33% 97%;
+  
+  /* Functional */
+  --destructive: 0 65% 50%;
+  --destructive-foreground: 40 33% 97%;
+  
+  /* Borders - Subtle, warm */
+  --border: 30 15% 85%;
+  --input: 30 15% 85%;
+  --ring: 100 12% 32%;
+  
+  --radius: 0.25rem;                  /* Minimal radius - editorial feel */
 
-  /* Font tokens used by SPA + utilities below */
+  /* Font tokens */
   --sp-display: 'Playfair Display', Georgia, serif;
   --sp-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 
-  /* Helpful extras */
-  --radius: 0.25rem;
+  /* Extended color palette */
+  --sp-terracotta: 25 55% 46%;           /* Warm terracotta #B87333 */
+  --sp-sage-wash: 100 12% 32% / 0.04;    /* Subtle sage background */
+  --sp-sage-light: 100 12% 32% / 0.12;   /* Borders, accents */
+  --sp-sage-medium: 100 12% 32% / 0.20;  /* Stronger accents */
+  
+  /* Spacing rhythm (matches Tailwind scale) */
+  --sp-space-xs: 0.5rem;    /* 8px */
+  --sp-space-sm: 1rem;      /* 16px */
+  --sp-space-md: 1.5rem;    /* 24px */
+  --sp-space-lg: 2.5rem;    /* 40px */
+  --sp-space-xl: 4rem;      /* 64px */
+  --sp-space-2xl: 6rem;     /* 96px */
+  
+  /* Content widths (matches Tailwind) */
+  --sp-content-narrow: 38rem;   /* 608px */
+  --sp-content-medium: 52rem;   /* 832px */
+  --sp-content-wide: 72rem;     /* 1152px */
 }
 
 html {
@@ -36,17 +79,50 @@ body {
   line-height: 1.6;
 }
 
-/* Optional small helpers your EJS templates *can* use */
+/* Typography base (matches index.css) */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--sp-display);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* Typography scale - mobile first */
+h1 { font-size: 2.25rem; }  /* text-4xl = 36px */
+h2 { font-size: 1.5rem; }   /* text-2xl = 24px */
+h3 { font-size: 1.25rem; }  /* text-xl = 20px */
+p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
+
+@media (min-width: 768px) {
+  h1 { font-size: 3rem; }     /* md:text-5xl = 48px */
+  h2 { font-size: 1.875rem; } /* md:text-3xl = 30px */
+  h3 { font-size: 1.5rem; }   /* md:text-2xl = 24px */
+  p { font-size: 1.125rem; }  /* md:text-lg = 18px */
+}
+
+@media (min-width: 1024px) {
+  h1 { font-size: 3.75rem; }  /* lg:text-6xl = 60px */
+  h2 { font-size: 2.25rem; }  /* lg:text-4xl = 36px */
+}
+
+/* Optional small helpers */
 .font-display { font-family: var(--sp-display); }
 .font-body { font-family: var(--sp-body); }
+.text-balance { text-wrap: balance; }
 
 /* --- Lovable Shell CSS --- */
 
-/* Container */
+/* Container - matches @apply mx-auto px-6 md:px-8 + max-width: var(--sp-content-wide) */
 .sp-container {
-  max-width: 1200px;
+  max-width: var(--sp-content-wide);  /* 72rem = 1152px */
   margin: 0 auto;
-  padding: 0 1.5rem;
+  padding: 0 1.5rem;  /* px-6 = 24px */
+}
+
+@media (min-width: 768px) {
+  .sp-container {
+    padding: 0 2rem;  /* md:px-8 = 32px */
+  }
 }
 
 /* Navigation */
@@ -207,13 +283,47 @@ body {
   margin: 0;
 }
 
-/* Section styles */
+/* Section styles - matches @apply py-16 md:py-24 lg:py-32 */
 .sp-section {
-  padding: 4rem 0;
+  padding: 4rem 0;  /* py-16 = 64px */
+}
+
+@media (min-width: 768px) {
+  .sp-section {
+    padding: 6rem 0;  /* md:py-24 = 96px */
+  }
+}
+
+@media (min-width: 1024px) {
+  .sp-section {
+    padding: 8rem 0;  /* lg:py-32 = 128px */
+  }
+}
+
+/* Section small - matches @apply py-10 md:py-16 */
+.sp-section-sm {
+  padding: 2.5rem 0;  /* py-10 = 40px */
+}
+
+@media (min-width: 768px) {
+  .sp-section-sm {
+    padding: 4rem 0;  /* md:py-16 = 64px */
+  }
 }
 
 .sp-section-alt {
   background: hsl(var(--card));
+}
+
+/* Section with sage wash background - matches index.css */
+.sp-section-sage {
+  position: relative;
+  background: hsl(var(--sp-sage-wash));
+}
+
+/* Section border - for top borders on sections */
+.sp-section-border {
+  border-top: 1px solid hsl(var(--border));
 }
 
 /* Buttons */

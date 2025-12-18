@@ -1,0 +1,58 @@
+Goal: Make SEO pages (including /) visually identical to Lovable pages at 375 / 768 / 1024 / 1280 widths.
+
+Acceptance criteria:
+
+/ (EJS) matches the Lovable landing visually (header, spacing, sections, responsive behavior).
+
+/guides, /guides/:slug, /roles, /resources, /tools/stay-or-go-calculator share the same header/footer + spacing rhythm as Lovable.
+
+No “mobile padding goes to zero” issues.
+
+Typography matches (font family + sizes + weights).
+
+We can verify with screenshots at the 4 widths.
+
+Plan of attack (do in this order):
+
+A) Make EJS use the same CSS as Lovable (stop relying on /seo.css as the main stylesheet)
+
+In the server, read the Vite build manifest (e.g. client/dist/.vite/manifest.json or client/dist/manifest.json) and extract the entry CSS file (the one that becomes /assets/index-*.css).
+
+Pass that href into every SEO EJS render as appCssHref.
+
+In seo/templates/layout.ejs and seo/templates/landing.ejs, replace the /seo.css?... link with:
+
+<link rel="stylesheet" crossorigin href="<%= appCssHref %>">
+
+
+Keep /seo.css only for tiny SEO-specific overrides if needed (or delete it entirely once parity is reached).
+
+Why this matters: it guarantees your EJS pages inherit the exact same container padding, breakpoints, typography scale, etc.
+
+B) Unify header/footer across all SEO pages to match Lovable
+
+Create seo/templates/partials/header.ejs and seo/templates/partials/footer.ejs (or update the existing ones) to match the Lovable header/footer markup + classes.
+
+Make layout.ejs use those partials.
+
+Remove/avoid old bespoke header/footer CSS rules that fight the Lovable layout system.
+
+C) Remove “second layout system” CSS from EJS
+
+In layout.ejs, aggressively delete inline CSS that defines widths/padding/typography unless it’s truly required.
+
+Let the Lovable stylesheet drive layout and typography.
+
+If the article body needs some readable defaults, apply a small wrapper class like prose (if you’re using Tailwind typography) or a minimal .seo-article rule, but don’t recreate an entire design system in the template.
+
+D) Add an automated visual sanity check
+
+Add a Playwright script that hits:
+
+EJS /
+
+the Lovable equivalent page (whatever route/component you consider canonical)
+
+Take screenshots at 375/768/1024/1280 and write them to /tmp/screens/.
+
+Optional: use pixelmatch to diff and output a delta image.
