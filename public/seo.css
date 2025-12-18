@@ -1169,28 +1169,6 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   }
 }
 
-.sp-situation-card {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  border: 1px solid hsl(var(--border));
-  text-align: center;
-  text-decoration: none;
-  color: hsl(var(--foreground));
-  font-size: 0.875rem;
-  transition: all 0.3s ease;
-}
-
-.sp-situation-card:hover {
-  border-color: hsl(var(--primary) / 0.3);
-  background: hsl(var(--muted-foreground) / 0.05);
-}
-
-.sp-situation-card:hover span {
-  color: hsl(var(--primary));
-}
-
 /* Full-width CTA Section */
 .sp-cta-full {
   background: hsl(var(--foreground));
@@ -1926,6 +1904,9 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   border-radius: var(--radius);
   transition: all 0.5s ease;
   cursor: pointer;
+  /* Card is a flex column to stack the icon+content row and hover text */
+  display: flex;
+  flex-direction: column;
 }
 
 .sp-situation-card:hover {
@@ -1934,10 +1915,33 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   border-left-color: hsl(var(--primary));
 }
 
-.sp-situation-card > div:first-child {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
+/* Create a flex row for icon and content inside the card */
+.sp-situation-card .sp-situation-icon-wrap,
+.sp-situation-card .sp-situation-content {
+  /* These will be in the natural flow - need wrapper to be flex row */
+}
+
+/* Use CSS to create the side-by-side layout with grid on the card's main content area */
+.sp-situation-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: 0 1rem;
+}
+
+.sp-situation-card .sp-situation-icon-wrap {
+  grid-row: 1 / 3;
+  align-self: start;
+}
+
+.sp-situation-card .sp-situation-content {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.sp-situation-card .sp-situation-hover {
+  grid-column: 2;
+  grid-row: 2;
 }
 
 .sp-situation-icon-wrap {
