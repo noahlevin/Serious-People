@@ -511,12 +511,17 @@ body {
 
 .sp-article-body ul {
   padding-left: 1.5rem;
+  list-style: disc;
 }
 
 .sp-article-body ul li {
   color: hsl(var(--muted-foreground));
   margin-bottom: 0.75rem;
   line-height: 1.7;
+}
+
+.sp-article-body ul li::marker {
+  color: hsl(var(--muted-foreground));
 }
 
 .sp-article-body strong {
@@ -668,12 +673,17 @@ body {
 
 .sp-article-section ul {
   padding-left: 1.5rem;
+  list-style: disc;
 }
 
 .sp-article-section ul li {
   color: hsl(var(--muted-foreground));
   margin-bottom: 0.75rem;
   line-height: 1.7;
+}
+
+.sp-article-section ul li::marker {
+  color: hsl(var(--muted-foreground));
 }
 
 .sp-article-section strong {
