@@ -934,7 +934,18 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 }
 
 .sp-cta-dark .sp-btn:hover {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
   opacity: 0.9;
+}
+
+.sp-cta-dark .sp-btn svg {
+  margin-left: 0.5rem;
+  transition: transform 0.3s ease;
+}
+
+.sp-cta-dark .sp-btn:hover svg {
+  transform: translateX(4px);
 }
 
 /* Related Links Section */
@@ -1167,6 +1178,21 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   justify-content: center;
   text-align: center;
   padding: 1rem 0.75rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.sp-situation-grid a:hover,
+.sp-situation-grid .sp-situation-card:hover {
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
 }
 
 .sp-situation-grid a span,
