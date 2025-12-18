@@ -410,12 +410,75 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   margin: 0 auto;
 }
 
-/* Cards */
+/* Cards - matches Lovable @apply bg-card border border-border p-6 md:p-8 */
 .sp-card {
-  padding: 1.5rem;
+  padding: 1.5rem;            /* p-6 = 24px */
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
+}
+
+@media (min-width: 768px) {
+  .sp-card {
+    padding: 2rem;            /* md:p-8 = 32px */
+  }
+}
+
+/* Subtle hover lift - matches Lovable @apply transition-transform duration-300 ease-out */
+.sp-hover-lift {
+  transition-property: transform;
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);  /* ease-out */
+}
+
+.sp-hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Animated link underline - matches Lovable sp-link */
+.sp-link {
+  position: relative;
+  display: inline-block;
+}
+
+.sp-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: hsl(var(--primary));
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease;
+}
+
+.sp-link:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* Divider with character - matches Lovable sp-divider */
+.sp-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.sp-divider::before,
+.sp-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: hsl(var(--border));
+}
+
+/* Section with sage wash background - matches Lovable sp-section-sage */
+.sp-section-sage {
+  position: relative;
+  background: hsl(var(--sp-sage-wash));
 }
 
 /* CTA Box */
@@ -1746,8 +1809,6 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 /* sp-quote-elegant: Matches Lovable @apply relative */
 .sp-quote-elegant {
   position: relative;
-  max-width: var(--sp-content-medium);  /* 52rem = 832px */
-  margin: 0 auto;
 }
 
 /* Decorative opening quote mark - matches Lovable ::before */
@@ -1778,6 +1839,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   margin: 0;
   padding: 0 0 0 1.5rem;  /* pl-6 = 24px */
   border: none;
+  text-wrap: balance;
 }
 
 @media (min-width: 768px) {
@@ -2208,4 +2270,223 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   margin-top: 1rem;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
+}
+
+/* ================================================
+   ANIMATIONS - Matches Lovable @layer utilities
+   ================================================ */
+
+/* Text balance for headlines - defined earlier at line 111 */
+
+/* Fade in animations */
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-left {
+  animation: fadeInLeft 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-right {
+  animation: fadeInRight 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+/* Scroll-triggered reveal - matches Lovable exactly */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), 
+              transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-30px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), 
+              transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-left.revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.reveal-right {
+  opacity: 0;
+  transform: translateX(30px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), 
+              transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-right.revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Scale reveal */
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.reveal-scale.revealed {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Stagger children */
+.stagger-children > * {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+}
+
+.stagger-children.revealed > *:nth-child(1) { opacity: 1; transform: translateY(0); transition-delay: 0.05s; }
+.stagger-children.revealed > *:nth-child(2) { opacity: 1; transform: translateY(0); transition-delay: 0.1s; }
+.stagger-children.revealed > *:nth-child(3) { opacity: 1; transform: translateY(0); transition-delay: 0.15s; }
+.stagger-children.revealed > *:nth-child(4) { opacity: 1; transform: translateY(0); transition-delay: 0.2s; }
+.stagger-children.revealed > *:nth-child(5) { opacity: 1; transform: translateY(0); transition-delay: 0.25s; }
+.stagger-children.revealed > *:nth-child(6) { opacity: 1; transform: translateY(0); transition-delay: 0.3s; }
+
+/* Floating animation */
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 6s ease-in-out 2s infinite;
+}
+
+/* Subtle pulse */
+.animate-pulse-subtle {
+  animation: pulseSoft 3s ease-in-out infinite;
+}
+
+/* Number counter animation */
+.animate-number {
+  animation: countUp 1s ease-out forwards;
+}
+
+/* Line draw animation */
+.animate-line-draw {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: lineDraw 1.5s ease-out forwards;
+}
+
+/* Shimmer effect */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--primary) / 0.08),
+    transparent
+  );
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* Display font utility */
+.font-display {
+  font-family: var(--sp-display);
+}
+
+/* Body font utility */
+.font-body {
+  font-family: var(--sp-body);
+}
+
+/* ================================================
+   KEYFRAMES - Matches Lovable exactly
+   ================================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulseSoft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  50%, 100% { left: 100%; }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes lineDraw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Selection color - matches Lovable */
+::selection {
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--foreground));
 }
