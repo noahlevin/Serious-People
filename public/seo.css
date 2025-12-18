@@ -284,30 +284,37 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 }
 
 /* Section styles - matches @apply py-16 md:py-24 lg:py-32 */
+/* Use padding-block to preserve horizontal padding from .sp-container */
 .sp-section {
-  padding: 4rem 0;  /* py-16 = 64px */
+  padding-top: 4rem;     /* py-16 = 64px */
+  padding-bottom: 4rem;
 }
 
 @media (min-width: 768px) {
   .sp-section {
-    padding: 6rem 0;  /* md:py-24 = 96px */
+    padding-top: 6rem;   /* md:py-24 = 96px */
+    padding-bottom: 6rem;
   }
 }
 
 @media (min-width: 1024px) {
   .sp-section {
-    padding: 8rem 0;  /* lg:py-32 = 128px */
+    padding-top: 8rem;   /* lg:py-32 = 128px */
+    padding-bottom: 8rem;
   }
 }
 
 /* Section small - matches @apply py-10 md:py-16 */
+/* Use padding-top/bottom to preserve horizontal padding from .sp-container */
 .sp-section-sm {
-  padding: 2.5rem 0;  /* py-10 = 40px */
+  padding-top: 2.5rem;   /* py-10 = 40px */
+  padding-bottom: 2.5rem;
 }
 
 @media (min-width: 768px) {
   .sp-section-sm {
-    padding: 4rem 0;  /* md:py-16 = 64px */
+    padding-top: 4rem;   /* md:py-16 = 64px */
+    padding-bottom: 4rem;
   }
 }
 
