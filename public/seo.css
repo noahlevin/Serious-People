@@ -299,6 +299,8 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-section {
   padding-top: 4rem;     /* py-16 = 64px */
   padding-bottom: 4rem;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 @media (min-width: 768px) {
@@ -337,11 +339,15 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-section-sage {
   position: relative;
   background: hsl(var(--sage-wash));
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 /* Section border - for top borders on sections */
 .sp-section-border {
   border-top: 1px solid hsl(var(--border));
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 /* Buttons - Base styles (no padding here, use size modifiers)
