@@ -34,153 +34,39 @@
   <link rel="stylesheet" href="/seo.css?v=<%= Date.now() %>">
 
   <style>
-    :root {
-      /* Map EJS CSS variables to the Lovable token system (from /seo.css) */
-      --sp-bg: hsl(var(--background));
-      --sp-bg-elevated: hsl(var(--card));
-      --sp-text: hsl(var(--foreground));
-      --sp-text-secondary: hsl(var(--muted-foreground));
-      --sp-text-muted: hsl(var(--foreground) / 0.78);
-      --sp-border: hsl(var(--border));
-      --sp-border-light: hsl(var(--border) / 0.6);
-      --sp-accent: hsl(var(--primary));
-      --sp-accent-hover: hsl(var(--primary) / 0.85);
-      --sp-link: hsl(var(--primary));
-      --sp-font-display: var(--sp-display);
-      --sp-font-body: var(--sp-body);
-    }
-    
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
-    html {
-      font-size: 16px;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-    
-    .sp-landing-page {
-      font-family: var(--sp-font-body);
-      background: var(--sp-bg);
-      color: var(--sp-text);
-      line-height: 1.7;
-      min-height: 100vh;
-    }
-    
-    .sp-landing-container {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 0 1.5rem;
-    }
-    
-    .sp-landing-header-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem 1.5rem;
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    
-    .sp-landing-logo {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      font-family: var(--sp-font-display);
-      font-size: 1.125rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-      text-decoration: none;
-      color: inherit;
-    }
-    
-    .sp-landing-logo .sp-logo-icon {
-      width: 32px;
-      height: 32px;
-    }
-    
-    .sp-landing-nav {
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-    }
-    
-    .sp-landing-nav-link {
-      font-family: var(--sp-font-body);
-      font-size: 0.9rem;
-      color: var(--sp-text-secondary);
-      text-decoration: none;
-      transition: color 0.2s ease;
-    }
-    
-    .sp-landing-nav-link:hover {
-      color: var(--sp-text);
-    }
-    
-    .sp-landing-login-link {
-      font-family: var(--sp-font-body);
-      font-size: 0.9rem;
-      color: var(--sp-text-secondary);
-      text-decoration: none;
-      transition: color 0.2s ease;
-    }
-    
-    .sp-landing-login-link:hover {
-      color: var(--sp-text);
-    }
-    
+    /* Landing page specific styles */
     .sp-landing-hero {
-      padding-bottom: 4rem;
-      border-bottom: 1px solid var(--sp-border);
-    }
-    
-    .sp-landing-hero-content {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem 0;
+      padding: 4rem 0;
       text-align: center;
     }
     
     .sp-landing-headline {
-      font-family: var(--sp-font-display);
-      font-size: 2.75rem;
+      font-family: var(--sp-display);
+      font-size: clamp(2rem, 5vw, 3rem);
       font-weight: 700;
       line-height: 1.15;
       letter-spacing: -0.02em;
       margin-bottom: 1.5rem;
-      color: var(--sp-text);
+      color: hsl(var(--foreground));
     }
     
-    .sp-landing-headline .sp-headline-static {
+    .sp-typewriter-text {
       display: inline;
-    }
-    
-    .sp-landing-headline .sp-headline-dynamic {
-      display: inline;
-    }
-    
-    .sp-landing-headline .sp-typewriter-text {
-      display: inline;
-      border-right: 2px solid var(--sp-text);
+      border-right: 2px solid hsl(var(--foreground));
       animation: sp-blink 0.7s step-end infinite;
     }
     
     @keyframes sp-blink {
       from, to { border-color: transparent; }
-      50% { border-color: var(--sp-text); }
+      50% { border-color: hsl(var(--foreground)); }
     }
     
     .sp-landing-subhead {
-      font-family: var(--sp-font-body);
       font-size: 1rem;
       line-height: 1.6;
-      color: var(--sp-text-secondary);
+      color: hsl(var(--muted-foreground));
       margin-bottom: 2rem;
-      max-width: 320px;
+      max-width: 360px;
       margin-left: auto;
       margin-right: auto;
     }
@@ -193,62 +79,20 @@
       margin-bottom: 1rem;
     }
     
-    .sp-landing-cta-primary {
-      display: inline-block;
-      font-family: var(--sp-font-body);
-      font-size: 1rem;
-      font-weight: 500;
-      background: var(--sp-text);
-      color: var(--sp-bg);
-      border: none;
-      padding: 0.875rem 2rem;
-      cursor: pointer;
-      transition: opacity 0.2s ease;
-      text-decoration: none;
-    }
-    
-    .sp-landing-cta-primary:hover {
-      opacity: 0.85;
-    }
-    
     .sp-landing-cta-secondary {
-      font-family: var(--sp-font-body);
       font-size: 0.9rem;
-      color: var(--sp-text-secondary);
+      color: hsl(var(--muted-foreground));
       text-decoration: none;
     }
     
     .sp-landing-cta-secondary:hover {
-      color: var(--sp-text);
+      color: hsl(var(--foreground));
     }
     
     .sp-landing-reassurance {
       font-size: 0.85rem;
-      color: var(--sp-text-muted);
+      color: hsl(var(--muted-foreground));
       margin-top: 0.5rem;
-    }
-    
-    .sp-landing-section {
-      padding: 4rem 0;
-    }
-    
-    .sp-landing-section-alt {
-      background: var(--sp-bg);
-    }
-    
-    .sp-landing-section-title {
-      font-family: var(--sp-font-display);
-      font-size: 1.75rem;
-      font-weight: 600;
-      line-height: 1.3;
-      margin-bottom: 1.5rem;
-      color: var(--sp-text);
-    }
-    
-    .sp-landing-section-intro {
-      font-size: 1.05rem;
-      color: var(--sp-text-secondary);
-      margin-bottom: 2rem;
     }
     
     .sp-landing-quote-box {
@@ -256,9 +100,9 @@
       align-items: center;
       gap: 1rem;
       padding: 0.75rem 1.25rem;
-      border: 1px solid var(--sp-border);
+      border: 1px solid hsl(var(--border));
       border-radius: 4px;
-      background: var(--sp-bg-elevated);
+      background: hsl(var(--card));
       max-width: 450px;
       margin: 0 auto;
     }
@@ -271,10 +115,10 @@
     }
     
     .sp-landing-quote {
-      font-family: var(--sp-font-display);
+      font-family: var(--sp-display);
       font-size: 1rem;
       font-style: italic;
-      color: var(--sp-text);
+      color: hsl(var(--foreground));
       margin: 0;
       border: none;
       padding: 0;
@@ -289,8 +133,23 @@
     .sp-landing-quote cite {
       font-size: 0.85rem;
       font-style: normal;
-      color: var(--sp-text-secondary);
+      color: hsl(var(--muted-foreground));
       letter-spacing: 0.05em;
+    }
+    
+    .sp-landing-section-title {
+      font-family: var(--sp-display);
+      font-size: clamp(1.5rem, 3vw, 1.75rem);
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 1.5rem;
+      color: hsl(var(--foreground));
+    }
+    
+    .sp-landing-section-intro {
+      font-size: 1.05rem;
+      color: hsl(var(--muted-foreground));
+      margin-bottom: 2rem;
     }
     
     .sp-landing-scenarios {
@@ -303,7 +162,7 @@
       display: flex;
       gap: 1rem;
       padding: 1rem 0;
-      border-bottom: 1px solid var(--sp-border-light);
+      border-bottom: 1px solid hsl(var(--border) / 0.6);
       font-size: 1.05rem;
     }
     
@@ -312,7 +171,7 @@
     }
     
     .sp-landing-scenario-bullet {
-      color: var(--sp-text-secondary);
+      color: hsl(var(--muted-foreground));
       flex-shrink: 0;
     }
     
@@ -336,16 +195,15 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: var(--sp-font-body);
       font-size: 1.1rem;
       font-weight: 800;
       line-height: 1;
-      border: 2px solid var(--sp-text);
+      border: 2px solid hsl(var(--foreground));
       border-radius: 50%;
     }
     
     .sp-landing-step h3 {
-      font-family: var(--sp-font-display);
+      font-family: var(--sp-display);
       font-size: 1.25rem;
       font-weight: 600;
       margin-bottom: 0.5rem;
@@ -353,7 +211,7 @@
     
     .sp-landing-step p {
       font-size: 1rem;
-      color: var(--sp-text-secondary);
+      color: hsl(var(--muted-foreground));
       line-height: 1.7;
     }
     
@@ -362,14 +220,20 @@
       gap: 1.5rem;
     }
     
+    @media (min-width: 768px) {
+      .sp-landing-artifacts {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
     .sp-landing-artifact {
       padding: 1.5rem;
-      border: 1px solid var(--sp-border);
-      background: var(--sp-bg-elevated);
+      border: 1px solid hsl(var(--border));
+      background: hsl(var(--card));
     }
     
     .sp-landing-artifact h3 {
-      font-family: var(--sp-font-display);
+      font-family: var(--sp-display);
       font-size: 1.125rem;
       font-weight: 600;
       margin-bottom: 0.5rem;
@@ -377,7 +241,7 @@
     
     .sp-landing-artifact p {
       font-size: 0.95rem;
-      color: var(--sp-text-secondary);
+      color: hsl(var(--muted-foreground));
       line-height: 1.6;
       margin: 0;
     }
@@ -387,17 +251,23 @@
       gap: 2rem;
     }
     
+    @media (min-width: 768px) {
+      .sp-landing-comparisons {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
     .sp-landing-comparison h3 {
-      font-family: var(--sp-font-display);
+      font-family: var(--sp-display);
       font-size: 1.05rem;
       font-weight: 600;
       margin-bottom: 0.5rem;
-      color: var(--sp-text);
+      color: hsl(var(--foreground));
     }
     
     .sp-landing-comparison p {
       font-size: 0.95rem;
-      color: var(--sp-text-secondary);
+      color: hsl(var(--muted-foreground));
       line-height: 1.6;
       margin: 0;
     }
@@ -411,7 +281,7 @@
       margin: 0 auto 1.25rem;
       font-size: 1.05rem;
       line-height: 1.7;
-      color: var(--sp-text-secondary);
+      color: hsl(var(--muted-foreground));
     }
     
     .sp-landing-faq {
@@ -421,7 +291,7 @@
     }
     
     .sp-landing-faq-item {
-      border-bottom: 1px solid var(--sp-border);
+      border-bottom: 1px solid hsl(var(--border));
     }
     
     .sp-landing-faq-question {
@@ -432,17 +302,17 @@
       padding: 1.25rem 0;
       background: transparent;
       border: none;
-      font-family: var(--sp-font-display);
+      font-family: var(--sp-display);
       font-size: 1.05rem;
       font-weight: 500;
       text-align: left;
       cursor: pointer;
-      color: var(--sp-text);
+      color: hsl(var(--foreground));
     }
     
     .sp-landing-faq-icon {
       font-size: 1.25rem;
-      color: var(--sp-text-secondary);
+      color: hsl(var(--muted-foreground));
       transition: transform 0.2s ease;
     }
     
@@ -457,68 +327,36 @@
     
     .sp-landing-faq-answer p {
       font-size: 0.95rem;
-      color: var(--sp-text-secondary);
+      color: hsl(var(--muted-foreground));
       line-height: 1.7;
       margin: 0;
     }
     
     .sp-landing-final-cta {
       padding: 5rem 0;
-      border-top: 1px solid var(--sp-border);
-    }
-    
-    .sp-landing-final-cta .sp-landing-section-title {
-      margin-bottom: 1rem;
+      border-top: 1px solid hsl(var(--border));
     }
     
     .sp-landing-contact {
       margin-top: 2rem;
       font-size: 0.9rem;
-      color: var(--sp-text-secondary);
+      color: hsl(var(--muted-foreground));
     }
     
     .sp-landing-contact a {
-      color: var(--sp-text);
+      color: hsl(var(--foreground));
       text-decoration: underline;
     }
     
-    .sp-landing-footer {
-      padding: 2rem;
-      text-align: center;
-      font-size: 0.85rem;
-      color: var(--sp-text-secondary);
-      border-top: 1px solid var(--sp-border);
-    }
-    
-    .sp-landing-footer-nav {
-      margin-top: 0.75rem;
-    }
-    
-    .sp-landing-footer-nav a {
-      color: var(--sp-text-secondary);
-      text-decoration: none;
-      margin: 0 0.5rem;
-    }
-    
-    .sp-landing-footer-nav a:hover {
-      color: var(--sp-text);
-    }
-    
     @media (max-width: 768px) {
-      .sp-landing-headline {
-        font-size: 2rem;
+      .sp-landing-step {
+        padding-left: 3rem;
       }
       
-      .sp-landing-subhead {
+      .sp-landing-step-number {
+        width: 2rem;
+        height: 2rem;
         font-size: 1rem;
-      }
-      
-      .sp-landing-section {
-        padding: 3rem 0;
-      }
-      
-      .sp-landing-section-title {
-        font-size: 1.5rem;
       }
       
       .sp-landing-quote-box {
@@ -532,30 +370,6 @@
       
       .sp-landing-quote cite {
         font-size: 0.75rem;
-      }
-      
-      .sp-landing-step {
-        padding-left: 3rem;
-      }
-      
-      .sp-landing-step-number {
-        width: 2rem;
-        height: 2rem;
-        font-size: 1rem;
-      }
-      
-      .sp-landing-nav {
-        display: none;
-      }
-    }
-    
-    @media (min-width: 768px) {
-      .sp-landing-artifacts {
-        grid-template-columns: repeat(2, 1fr);
-      }
-      
-      .sp-landing-comparisons {
-        grid-template-columns: repeat(2, 1fr);
       }
     }
   </style>
@@ -571,49 +385,35 @@
   </script>
 </head>
 <body>
-  <div class="sp-landing-page">
-    <header class="sp-landing-hero">
-      <div class="sp-landing-header-bar">
-        <a href="/" class="sp-landing-logo">
-          <img src="/favicon.png" alt="Serious People" class="sp-logo-icon">
-          <span>Serious People</span>
+  <%- include("partials/header", { active: "" }) %>
+  
+  <main>
+    <section class="sp-landing-hero sp-container">
+      <h1 class="sp-landing-headline">
+        Turn<br>
+        "<span class="sp-typewriter-text" id="typewriter"></span>"<br>
+        into a decision you trust.
+      </h1>
+      <p class="sp-landing-subhead">
+        <strong>Serious People</strong> helps you think clearly and act decisively on major career decisions.
+      </p>
+      
+      <div class="sp-landing-cta-group">
+        <a href="/app/login" class="sp-btn sp-btn-primary" data-testid="button-start-interview">
+          Start the free interview
         </a>
-        <nav class="sp-landing-nav">
-          <a href="/guides" class="sp-landing-nav-link">Guides</a>
-          <a href="/resources" class="sp-landing-nav-link">Resources</a>
-          <a href="/app/login" class="sp-landing-login-link" data-testid="link-login">Log in</a>
-        </nav>
+        <a href="/app/login" class="sp-landing-cta-secondary" data-testid="link-resume">
+          Already started? Log back in
+        </a>
       </div>
       
-      <div class="sp-landing-hero-content">
-        <h1 class="sp-landing-headline">
-          <span class="sp-headline-static">Turn</span>
-          <br>
-          <span class="sp-headline-static">"</span><span class="sp-headline-dynamic"><span class="sp-typewriter-text" id="typewriter"></span></span><span class="sp-headline-static">"</span>
-          <br>
-          <span class="sp-headline-static">into a decision you trust.</span>
-        </h1>
-        <p class="sp-landing-subhead">
-          <strong>Serious People</strong> helps you think clearly and act decisively on major career decisions.
-        </p>
-        
-        <div class="sp-landing-cta-group">
-          <a href="/app/login" class="sp-landing-cta-primary" data-testid="button-start-interview">
-            Start the free interview
-          </a>
-          <a href="/app/login" class="sp-landing-cta-secondary" data-testid="link-resume">
-            Already started? Log back in
-          </a>
-        </div>
-        
-        <p class="sp-landing-reassurance">
-          Free interview takes 5-10 minutes. Full coaching session is $<%= price %>.
-        </p>
-      </div>
-    </header>
+      <p class="sp-landing-reassurance">
+        Free interview takes 5-10 minutes. Full coaching session is $<%= price %>.
+      </p>
+    </section>
 
-    <section class="sp-landing-section sp-landing-section-alt">
-      <div class="sp-landing-container">
+    <section class="sp-section sp-section-alt">
+      <div class="sp-container">
         <div class="sp-landing-quote-box">
           <img src="/logan-roy.png" alt="Logan Roy" class="sp-landing-quote-image">
           <blockquote class="sp-landing-quote">
@@ -624,8 +424,8 @@
       </div>
     </section>
 
-    <section class="sp-landing-section">
-      <div class="sp-landing-container">
+    <section class="sp-section">
+      <div class="sp-container sp-content">
         <h2 class="sp-landing-section-title">
           This is for the decisions that keep you up at night.
         </h2>
@@ -654,8 +454,8 @@
       </div>
     </section>
 
-    <section class="sp-landing-section sp-landing-section-alt">
-      <div class="sp-landing-container">
+    <section class="sp-section sp-section-alt">
+      <div class="sp-container sp-content">
         <h2 class="sp-landing-section-title">Here's what happens.</h2>
         
         <div class="sp-landing-steps">
@@ -663,7 +463,7 @@
             <div class="sp-landing-step-number">1</div>
             <h3>Free coaching interview (5-10 min)</h3>
             <p>
-              You answer the questions a good career coach would ask: What's actually happening? What have you tried? What's at stake? By the end, you'll see a plain-language coaching plan tailored to your situation. Review it, adjust it, then decide if you want to continue.
+              You answer the questions a good career coach would ask: What's actually happening? What have you tried? What's at stake? By the end, you'll see a plain-language coaching plan tailored to your situation.
             </p>
           </div>
           
@@ -671,7 +471,7 @@
             <div class="sp-landing-step-number">2</div>
             <h3>Guided working session (~30 min)</h3>
             <p>
-              Your coach walks you through three modules. First, you go deep on what's really going on-the stuff you haven't fully articulated, even to yourself. Then you map your options, constraints, and trade-offs. Finally, you turn your thinking into a concrete plan with real next steps.
+              Your coach walks you through three modules. First, you go deep on what's really going on. Then you map your options, constraints, and trade-offs. Finally, you turn your thinking into a concrete plan.
             </p>
           </div>
           
@@ -679,15 +479,15 @@
             <div class="sp-landing-step-number">3</div>
             <h3>Your Serious Plan (instant)</h3>
             <p>
-              You leave with a set of documents you can actually use. Decision summary. Conversation scripts. A 30-90 day action plan. A risk map for what could go wrong. No inspirational posters. No vague frameworks. Just clear language you can copy into an email tonight.
+              You leave with a set of documents you can actually use. Decision summary. Conversation scripts. A 30-90 day action plan. A risk map for what could go wrong.
             </p>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="sp-landing-section">
-      <div class="sp-landing-container">
+    <section class="sp-section">
+      <div class="sp-container sp-content">
         <h2 class="sp-landing-section-title">What you actually get.</h2>
         <p class="sp-landing-section-intro">
           Every Serious Plan is different because every situation is different. But yours will include artifacts like these:
@@ -696,30 +496,26 @@
         <div class="sp-landing-artifacts">
           <div class="sp-landing-artifact">
             <h3>Decision Snapshot</h3>
-            <p>A one-page summary of your situation, your options, and the trade-offs. This is the map you keep coming back to when you're second-guessing yourself at 2am.</p>
+            <p>A one-page summary of your situation, your options, and the trade-offs.</p>
           </div>
           <div class="sp-landing-artifact">
             <h3>Conversation Scripts</h3>
-            <p>Word-for-word scripts for the conversations that matter most-your manager, your partner, HR, mentors. Clear, honest, non-destructive.</p>
+            <p>Word-for-word scripts for the conversations that matter most.</p>
           </div>
           <div class="sp-landing-artifact">
             <h3>Action Plan (30-90 days)</h3>
-            <p>Concrete next moves with timing. What to try first. What to document. How to know if things are actually improving. When to draw a line.</p>
+            <p>Concrete next moves with timing. What to try first. When to draw a line.</p>
           </div>
           <div class="sp-landing-artifact">
             <h3>Risk Map</h3>
-            <p>A candid look at what could go wrong-whether you stay, reshape the role, or leave. Includes "if X happens, say Y" playbooks so you're not improvising when it counts.</p>
-          </div>
-          <div class="sp-landing-artifact">
-            <h3>Resources & Prompts</h3>
-            <p>Curated exercises and reflection prompts based on your exact situation. Not a generic reading list.</p>
+            <p>A candid look at what could go wrong-with "if X happens, say Y" playbooks.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="sp-landing-section sp-landing-section-alt">
-      <div class="sp-landing-container">
+    <section class="sp-section sp-section-alt">
+      <div class="sp-container sp-content">
         <h2 class="sp-landing-section-title">
           Why people pay $<%= price %> for this instead of just thinking it through.
         </h2>
@@ -727,26 +523,26 @@
         <div class="sp-landing-comparisons">
           <div class="sp-landing-comparison">
             <h3>vs. Journaling or venting to friends</h3>
-            <p>Your friends will validate you. Journaling helps you process. Neither will give you a script for Monday's meeting or a 90-day plan. Serious People turns feelings into a document you can act on.</p>
+            <p>Your friends will validate you. Journaling helps you process. Neither will give you a script for Monday's meeting or a 90-day plan.</p>
           </div>
           <div class="sp-landing-comparison">
             <h3>vs. Generic AI (ChatGPT, etc.)</h3>
-            <p>Most AI tools act like polite yes-men-they validate your first idea and dress it up in nicer words. Serious People follows a structured coaching curriculum. It will push back on fuzzy thinking, ask harder questions, and sometimes disagree with you.</p>
+            <p>Most AI tools act like polite yes-men. Serious People follows a structured coaching curriculum and will push back on fuzzy thinking.</p>
           </div>
           <div class="sp-landing-comparison">
             <h3>vs. A human career coach</h3>
-            <p>A good coach costs $200-500/hour and takes weeks to book. Serious People works on your schedule. It's not a replacement for deep, ongoing coaching-but it's a powerful starting point.</p>
+            <p>A good coach costs $200-500/hour and takes weeks to book. Serious People works on your schedule.</p>
           </div>
           <div class="sp-landing-comparison">
             <h3>vs. Doing nothing</h3>
-            <p>You already know how that goes. The situation festers. You make a reactive decision when you're fed up instead of a strategic one when you're clear. Serious People is the forcing function that gets you unstuck.</p>
+            <p>You already know how that goes. The situation festers. This is the forcing function that gets you unstuck.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="sp-landing-section">
-      <div class="sp-landing-container sp-landing-centered-text">
+    <section class="sp-section">
+      <div class="sp-container sp-content sp-landing-centered-text">
         <h2 class="sp-landing-section-title">This is for people who are ready to decide.</h2>
         
         <p>
@@ -754,13 +550,13 @@
         </p>
         
         <p>
-          If you're looking for therapy, legal advice, or someone to make the decision for you, this isn't that. If you're not planning to actually have the conversations this prepares you for, save your money.
+          If you're looking for therapy, legal advice, or someone to make the decision for you, this isn't that.
         </p>
       </div>
     </section>
 
-    <section class="sp-landing-section sp-landing-section-alt">
-      <div class="sp-landing-container">
+    <section class="sp-section sp-section-alt">
+      <div class="sp-container sp-content">
         <h2 class="sp-landing-section-title">Questions people ask before getting serious.</h2>
         
         <div class="sp-landing-faq">
@@ -779,7 +575,7 @@
               <span class="sp-landing-faq-icon">+</span>
             </button>
             <div class="sp-landing-faq-answer">
-              <p>Serious People is AI-powered, but it's not a generic chatbot. It uses large language models guided by a specific coaching philosophy: ask hard questions, reflect back what it hears, push toward clear decisions. It won't pretend to be human, but it will behave like an experienced, no-nonsense coach-one that knows when to slow you down and when to back your instincts.</p>
+              <p>Serious People is AI-powered, but it's not a generic chatbot. It uses large language models guided by a specific coaching philosophy: ask hard questions, reflect back what it hears, push toward clear decisions.</p>
             </div>
           </div>
           <div class="sp-landing-faq-item">
@@ -806,22 +602,22 @@
               <span class="sp-landing-faq-icon">+</span>
             </button>
             <div class="sp-landing-faq-answer">
-              <p>It doesn't have to. Serious People is a great first step-or a complement to human coaching. You can start right now, on your own schedule, without committing to a multi-session package. If you decide to work with a coach later, your Serious Plan becomes a powerful starting brief.</p>
+              <p>It doesn't have to. Serious People is a great first step-or a complement to human coaching. If you decide to work with a coach later, your Serious Plan becomes a powerful starting brief.</p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="sp-landing-section sp-landing-final-cta">
-      <div class="sp-landing-container sp-landing-centered-text">
+    <section class="sp-landing-final-cta">
+      <div class="sp-container sp-landing-centered-text">
         <h2 class="sp-landing-section-title">Ready to get serious?</h2>
         <p>
           The free interview takes 5-10 minutes. You'll see your coaching plan before you pay anything.
         </p>
         
         <div class="sp-landing-cta-group">
-          <a href="/app/login" class="sp-landing-cta-primary" data-testid="button-start-interview-bottom">
+          <a href="/app/login" class="sp-btn sp-btn-primary" data-testid="button-start-interview-bottom">
             Start the free interview
           </a>
         </div>
@@ -831,16 +627,9 @@
         </p>
       </div>
     </section>
+  </main>
 
-    <footer class="sp-landing-footer">
-      <p>&copy; Serious People Career Coaching</p>
-      <nav class="sp-landing-footer-nav">
-        <a href="/guides">Guides</a>
-        <a href="/resources">Resources</a>
-        <a href="/app/login">Log in</a>
-      </nav>
-    </footer>
-  </div>
+  <%- include("partials/footer") %>
 
   <script>
     // Typewriter effect
@@ -902,26 +691,18 @@
           i.querySelector('.sp-landing-faq-question').setAttribute('aria-expanded', 'false');
         });
         
-        // Open clicked one if it was closed
+        // Open clicked if it was closed
         if (!isOpen) {
           item.classList.add('sp-landing-faq-open');
-          this.querySelector('.sp-landing-faq-icon').textContent = '-';
+          item.querySelector('.sp-landing-faq-icon').textContent = '−';
           this.setAttribute('aria-expanded', 'true');
         }
       });
     });
-    
-    // Capture promo code from URL
-    (function() {
-      var urlParams = new URLSearchParams(window.location.search);
-      var promoCode = urlParams.get('promo');
-      if (promoCode) {
-        sessionStorage.setItem('sp_promo_code', promoCode);
-      }
-    })();
   </script>
   
   <% if (typeof posthogKey !== 'undefined' && posthogKey) { %>
+  <!-- PostHog Analytics -->
   <script>
     !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
     posthog.init('<%= posthogKey %>', {
@@ -936,12 +717,14 @@
       page_slug: '',
       page_title: 'Serious People - Career Coaching'
     });
-    document.querySelectorAll('.sp-landing-cta-primary, a[href="/app/login"]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        posthog.capture('seo_cta_click', {
-          page_type: 'landing',
-          page_slug: '',
-          cta_href: btn.getAttribute('href')
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.sp-btn-primary, a[href="/app/login"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          posthog.capture('seo_cta_click', {
+            page_type: 'landing',
+            page_slug: '',
+            cta_href: btn.getAttribute('href')
+          });
         });
       });
     });

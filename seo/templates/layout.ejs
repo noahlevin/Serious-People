@@ -51,12 +51,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet">
   
-  <!-- Inline Styles (no external CSS to minimize requests) -->
+  <!-- Styles -->
   <link rel="stylesheet" href="/seo.css?v=<%= Date.now() %>">
 
   <style>
     :root {
-      /* Map existing EJS CSS variables to the Lovable token system (from /seo.css) */
       --sp-bg: hsl(var(--background));
       --sp-bg-elevated: hsl(var(--card));
       --sp-text: hsl(var(--foreground));
@@ -64,19 +63,12 @@
       --sp-text-muted: hsl(var(--foreground) / 0.78);
       --sp-border: hsl(var(--border));
       --sp-border-light: hsl(var(--border) / 0.6);
-
-      /* Prefer Lovable’s “sage” as accent; tweak later if you want terracotta */
       --sp-accent: hsl(var(--primary));
       --sp-accent-hover: hsl(var(--primary) / 0.85);
-
-      /* Link color aligned to the system */
       --sp-link: hsl(var(--primary));
-
-      /* Fonts */
       --sp-font-display: var(--sp-display);
       --sp-font-body: var(--sp-body);
     }
-
     
     *, *::before, *::after {
       box-sizing: border-box;
@@ -84,60 +76,11 @@
       padding: 0;
     }
     
-    html {
-      font-size: 16px;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-    
-    body {
-      font-family: var(--sp-font-body);
-      background: var(--sp-bg);
-      color: var(--sp-text);
-      line-height: 1.6;
-      min-height: 100vh;
-    }
-    
-    /* Header */
-    .sp-header {
-      text-align: center;
-      padding: 1.5rem 1rem;
-      border-bottom: 3px double var(--sp-text);
-      margin-bottom: 2rem;
-    }
-    
-    .sp-header-logo {
-      font-family: var(--sp-font-display);
-      font-size: 1.75rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      text-transform: uppercase;
-      color: var(--sp-text);
-      text-decoration: none;
-    }
-    
-    .sp-header-nav {
-      margin-top: 0.75rem;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-    
-    .sp-header-nav a {
-      color: var(--sp-text-secondary);
-      text-decoration: none;
-      margin: 0 1rem;
-    }
-    
-    .sp-header-nav a:hover {
-      color: var(--sp-text);
-    }
-    
     /* Main Content */
     .sp-main {
       max-width: 680px;
       margin: 0 auto;
-      padding: 0 1.5rem 4rem;
+      padding: 2rem 1.5rem 4rem;
     }
     
     /* Article Typography */
@@ -214,8 +157,8 @@
       padding-bottom: 2rem;
     }
     
-    /* CTA Box */
-    .sp-cta-box {
+    /* CTA Box (override from seo.css for article context) */
+    .sp-article .sp-cta-box {
       background: var(--sp-bg-elevated);
       border: 1px solid var(--sp-border);
       padding: 2rem;
@@ -223,14 +166,14 @@
       text-align: center;
     }
     
-    .sp-cta-box h3 {
+    .sp-article .sp-cta-box h3 {
       font-family: var(--sp-font-display);
       font-size: 1.4rem;
       margin-bottom: 0.75rem;
       margin-top: 0;
     }
     
-    .sp-cta-box p {
+    .sp-article .sp-cta-box p {
       color: var(--sp-text-secondary);
       margin-bottom: 1.25rem;
     }
@@ -249,8 +192,7 @@
     }
     
     .sp-cta-button:hover {
-      background: var(--sp-accent);
-      color: var(--sp-accent-foreground);
+      opacity: 0.9;
     }
     
     /* Related Links */
@@ -289,24 +231,6 @@
       color: var(--sp-accent);
     }
     
-    /* Footer */
-    .sp-footer {
-      border-top: 3px double var(--sp-text);
-      padding: 2rem 1rem;
-      text-align: center;
-      font-size: 0.8rem;
-      color: var(--sp-text-secondary);
-    }
-    
-    .sp-footer a {
-      color: var(--sp-text-secondary);
-      text-decoration: none;
-    }
-    
-    .sp-footer a:hover {
-      color: var(--sp-text);
-    }
-    
     /* Responsive */
     @media (max-width: 640px) {
       .sp-article h1 {
@@ -315,10 +239,6 @@
       
       .sp-article h2 {
         font-size: 1.35rem;
-      }
-      
-      .sp-header-logo {
-        font-size: 1.5rem;
       }
       
       .sp-lede {
@@ -336,26 +256,13 @@
   <% } %>
 </head>
 <body>
-  <header class="sp-header">
-    <a href="/" class="sp-header-logo">Serious People</a>
-    <nav class="sp-header-nav">
-      <a href="/guides">Guides</a>
-      <a href="/app/interview/start">Start Session</a>
-    </nav>
-  </header>
+  <%- include("partials/header", { active: typeof active !== "undefined" ? active : "" }) %>
   
   <main class="sp-main">
     <%- body %>
   </main>
   
-  <footer class="sp-footer">
-    <p>&copy; <%= new Date().getFullYear() %> Serious People. Career coaching for serious decisions.</p>
-    <p style="margin-top: 0.5rem;">
-      <a href="/">Home</a> &middot; 
-      <a href="/guides">Guides</a> &middot; 
-      <a href="/app/interview/start">Start Session</a>
-    </p>
-  </footer>
+  <%- include("partials/footer") %>
   
   <% if (typeof footerExtra !== 'undefined') { %>
   <%- footerExtra %>
@@ -381,7 +288,7 @@
     // Track CTA clicks
     document.addEventListener('DOMContentLoaded', function() {
       var ctaButtons = document.querySelectorAll(
-        '.sp-cta-button, a[href="/app/interview/start"]'
+        '.sp-cta-button, .sp-btn-primary, a[href="/app/interview/start"]'
       );
       ctaButtons.forEach(function(btn) {
         btn.addEventListener('click', function() {
