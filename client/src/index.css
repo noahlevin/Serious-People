@@ -72,11 +72,15 @@
     --sp-display: 'Playfair Display', Georgia, serif;
     --sp-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     
-    /* Extended color palette */
+    /* Extended color palette - both prefixed (legacy) and unprefixed (Tailwind) */
     --sp-terracotta: 25 55% 46%;           /* Warm terracotta #B87333 */
+    --terracotta: 25 55% 46%;              /* Tailwind uses unprefixed */
     --sp-sage-wash: 100 12% 32% / 0.04;    /* Subtle sage background */
+    --sage-wash: 100 12% 32% / 0.04;       /* Tailwind uses unprefixed */
     --sp-sage-light: 100 12% 32% / 0.12;   /* Borders, accents */
+    --sage-light: 100 12% 32% / 0.12;      /* Tailwind uses unprefixed */
     --sp-sage-medium: 100 12% 32% / 0.20;  /* Stronger accents */
+    --sage-medium: 100 12% 32% / 0.20;     /* Tailwind uses unprefixed */
     
     /* Spacing rhythm */
     --sp-space-xs: 0.5rem;

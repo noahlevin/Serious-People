@@ -45,11 +45,15 @@
   --sp-display: 'Playfair Display', Georgia, serif;
   --sp-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 
-  /* Extended color palette */
+  /* Extended color palette - both prefixed and unprefixed (match index.css exactly) */
   --sp-terracotta: 25 55% 46%;           /* Warm terracotta #B87333 */
+  --terracotta: 25 55% 46%;              /* Unprefixed for direct use */
   --sp-sage-wash: 100 12% 32% / 0.04;    /* Subtle sage background */
+  --sage-wash: 100 12% 32% / 0.04;       /* Unprefixed for direct use */
   --sp-sage-light: 100 12% 32% / 0.12;   /* Borders, accents */
+  --sage-light: 100 12% 32% / 0.12;      /* Unprefixed for direct use */
   --sp-sage-medium: 100 12% 32% / 0.20;  /* Stronger accents */
+  --sage-medium: 100 12% 32% / 0.20;     /* Unprefixed for direct use */
   
   /* Spacing rhythm (matches Tailwind scale) */
   --sp-space-xs: 0.5rem;    /* 8px */
@@ -325,7 +329,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 /* Section with sage wash background - matches index.css */
 .sp-section-sage {
   position: relative;
-  background: hsl(var(--sp-sage-wash));
+  background: hsl(var(--sage-wash));
 }
 
 /* Section border - for top borders on sections */
@@ -382,7 +386,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 
 .sp-heading {
   font-family: var(--sp-display);
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.2;
   color: hsl(var(--foreground));
 }
@@ -475,12 +479,6 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   background: hsl(var(--border));
 }
 
-/* Section with sage wash background - matches Lovable sp-section-sage */
-.sp-section-sage {
-  position: relative;
-  background: hsl(var(--sp-sage-wash));
-}
-
 /* CTA Box */
 .sp-cta-box {
   padding: 2.5rem;
@@ -540,7 +538,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-article-hero h1 {
   font-family: var(--sp-display);
   font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.15;
   margin-bottom: 1.5rem;
   color: hsl(var(--foreground));
@@ -589,7 +587,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-guide-title {
   font-family: var(--sp-display);
   font-size: 1.875rem; /* 30px = text-3xl */
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.15;
   letter-spacing: -0.02em;
   margin-bottom: 1.5rem;
@@ -635,7 +633,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-article-body h2 {
   font-family: var(--sp-display);
   font-size: clamp(1.5rem, 3vw, 1.875rem);
-  font-weight: 400;
+  font-weight: 500;
   margin-top: 3rem;
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
@@ -802,7 +800,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-article-section h2 {
   font-family: var(--sp-display);
   font-size: clamp(1.5rem, 3vw, 1.875rem);
-  font-weight: 400;
+  font-weight: 500;
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid hsl(var(--border));
@@ -883,7 +881,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-cta-dark h3 {
   font-family: var(--sp-display);
   font-size: 1.5rem;
-  font-weight: 400;
+  font-weight: 500;
   margin-bottom: 1rem;
   color: hsl(var(--background));
 }
@@ -973,7 +971,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-page-title {
   font-family: var(--sp-display);
   font-size: 2.5rem;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.15;
   color: hsl(var(--foreground));
   margin-bottom: 1.5rem;
@@ -989,7 +987,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-page-title-large {
   font-family: var(--sp-display);
   font-size: 2.5rem;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.1;
   color: hsl(var(--foreground));
   margin-bottom: 2rem;
@@ -1053,7 +1051,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-guide-list-title {
   font-family: var(--sp-display);
   font-size: 1.125rem;
-  font-weight: 400;
+  font-weight: 500;
   color: hsl(var(--foreground));
   margin-bottom: 0.25rem;
   transition: color 0.3s ease;
@@ -1101,7 +1099,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-role-title {
   font-family: var(--sp-display);
   font-size: 1.5rem;
-  font-weight: 400;
+  font-weight: 500;
   color: hsl(var(--foreground));
   margin-bottom: 0.25rem;
 }
@@ -1171,7 +1169,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-cta-full-title {
   font-family: var(--sp-display);
   font-size: 1.5rem;
-  font-weight: 400;
+  font-weight: 500;
   color: hsl(var(--background));
   margin-bottom: 1rem;
 }
@@ -1242,7 +1240,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-section-title {
   font-family: var(--sp-display);
   font-size: 1.5rem;
-  font-weight: 400;
+  font-weight: 500;
   color: hsl(var(--foreground));
 }
 
@@ -1283,7 +1281,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-tool-feature-title {
   font-family: var(--sp-display);
   font-size: 1.25rem;
-  font-weight: 400;
+  font-weight: 500;
   margin-bottom: 0.5rem;
   transition: transform 0.3s ease;
 }
@@ -1346,7 +1344,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-guide-card-title {
   font-family: var(--sp-display);
   font-size: 1.125rem;
-  font-weight: 400;
+  font-weight: 500;
   color: hsl(var(--foreground));
   transition: color 0.3s ease;
 }
@@ -1399,7 +1397,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-role-card-title {
   font-family: var(--sp-display);
   font-size: 1.125rem;
-  font-weight: 400;
+  font-weight: 500;
   color: hsl(var(--foreground));
   transition: color 0.3s ease;
 }
@@ -1464,7 +1462,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-cta-section-title {
   font-family: var(--sp-display);
   font-size: 1.5rem;
-  font-weight: 400;
+  font-weight: 500;
   color: hsl(var(--foreground));
   margin-bottom: 1rem;
 }
@@ -1485,7 +1483,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-related-heading {
   font-family: var(--sp-display);
   font-size: 1.25rem;
-  font-weight: 400;
+  font-weight: 500;
   color: hsl(var(--foreground));
   margin-bottom: 1.5rem;
 }
@@ -1534,7 +1532,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-guide-title {
   font-family: var(--sp-display);
   font-size: 2rem;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.15;
   color: hsl(var(--foreground));
   margin-bottom: 1rem;
@@ -1561,22 +1559,12 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   max-width: 36rem;
 }
 
-/* Sage Background Section */
-.sp-section-sage {
-  background: hsl(var(--card));
-}
-
 /* ============================================= */
 /* LANDING PAGE STYLES (matching Index.tsx)     */
 /* ============================================= */
 
-:root {
-  /* Additional tokens for landing page */
-  --terracotta: 15 65% 55%;
-  --sage-wash: 90 20% 94%;
-  --sage-medium: 90 15% 75%;
-  --sage-light: 90 10% 88%;
-}
+/* NOTE: --terracotta, --sage-* variables are defined in the main :root block above
+   with values matching index.css exactly. Do NOT redefine them here. */
 
 /* Landing page body */
 .sp-landing-page {
@@ -1628,11 +1616,11 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 
 /* Eyebrow text - uses main sp-eyebrow definition above */
 
-/* Display typography */
+/* Display typography - matches index.css h1-h6 font-weight: 500 */
 .sp-display-hero {
   font-family: var(--sp-display);
   font-size: 2.5rem;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.15;
   text-wrap: balance;
   margin-bottom: 2rem;
@@ -1653,7 +1641,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-display-section {
   font-family: var(--sp-display);
   font-size: 1.75rem;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.25;
   text-wrap: balance;
 }
@@ -1985,7 +1973,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-situation-title {
   font-family: var(--sp-display);
   font-size: 1.125rem;
-  font-weight: 400;
+  font-weight: 500;
   margin-bottom: 0.5rem;
   transition: color 0.3s ease;
 }
@@ -2110,7 +2098,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-step-title {
   font-family: var(--sp-display);
   font-size: 1.25rem;
-  font-weight: 400;
+  font-weight: 500;
   margin-bottom: 0.75rem;
 }
 
@@ -2209,7 +2197,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-value-title {
   font-family: var(--sp-display);
   font-size: 1.125rem;
-  font-weight: 400;
+  font-weight: 500;
   margin-bottom: 0.5rem;
 }
 
@@ -2240,7 +2228,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-faq-question {
   font-family: var(--sp-display);
   font-size: 1.125rem;
-  font-weight: 400;
+  font-weight: 500;
   margin-bottom: 0.75rem;
 }
 
