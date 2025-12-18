@@ -1,0 +1,49 @@
+<!-- Single Role page - shows all situations for a specific role -->
+
+<!-- Breadcrumb -->
+<div class="sp-container" style="padding-top: 1rem;">
+  <nav class="sp-breadcrumb" data-testid="breadcrumb-nav">
+    <a href="/roles" data-testid="link-breadcrumb-roles">Roles</a>
+    <svg class="sp-breadcrumb-separator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <span class="sp-breadcrumb-current"><%= roleTitle %></span>
+  </nav>
+</div>
+
+<!-- Hero Section -->
+<section class="sp-container sp-section">
+  <div class="sp-content-narrow">
+    <h1 class="sp-page-title" data-testid="text-page-title"><%= roleTitle %></h1>
+    <p class="sp-page-lede" data-testid="text-page-lede"><%= roleDescription %></p>
+  </div>
+</section>
+
+<!-- Situations Grid -->
+<section class="sp-container" style="padding-bottom: 4rem;">
+  <div class="sp-content-narrow" style="margin: 0 auto;">
+    <div class="sp-situation-grid" data-testid="list-situations">
+      <% situations.forEach(function(situation) { %>
+      <a href="/roles/<%= roleSlug %>/situations/<%= situation.slug %>" class="sp-situation-card" data-testid="link-situation-<%= situation.slug %>">
+        <span><%= situation.label %></span>
+      </a>
+      <% }); %>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="sp-container" style="padding-bottom: 4rem;">
+  <div class="sp-content-narrow" style="margin: 0 auto;">
+    <div class="sp-cta-dark" data-testid="cta-dark-box">
+      <h3>Not sure which situation fits?</h3>
+      <p>Start with our interview. We'll help you figure out what's actually going on.</p>
+      <a href="/app/interview/start" class="sp-btn" data-testid="button-start-session">
+        Start Your Free Interview
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</section>

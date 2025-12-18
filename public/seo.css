@@ -758,6 +758,12 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   color: hsl(var(--foreground));
 }
 
+.sp-article-body hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 2rem 0;
+}
+
 /* Related Section Heading */
 .sp-related-heading {
   font-family: var(--sp-display);

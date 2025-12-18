@@ -151,6 +151,9 @@ function markdownToHtml(markdown: string): string {
   // Remove frontmatter
   html = html.replace(/^---[\s\S]*?---\n*/m, "");
   
+  // Convert horizontal rules (standalone --- or *** or ___ on their own line)
+  html = html.replace(/^(---|___|\*\*\*)\s*$/gm, "<hr>");
+  
   // Convert headers
   html = html.replace(/^### (.+)$/gm, "<h3>$1</h3>");
   html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
@@ -986,6 +989,78 @@ export async function renderRolesIndex(_req: Request, res: Response) {
   } catch (error) {
     console.error("[SEO] Error rendering roles index:", error);
     res.status(500).send("Error rendering roles");
+  }
+}
+
+// Render a single role page (shows all situations for that role)
+export async function renderRolePage(req: Request, res: Response) {
+  const baseUrl = getBaseUrl();
+  const { role } = req.params;
+  
+  // Define roles with descriptions (matching Roles.tsx)
+  const rolesData: Record<string, { title: string; description: string }> = {
+    "vp-product": { title: "VP Product", description: "Strategic product leadership" },
+    "director-product": { title: "Director of Product", description: "Product team management" },
+    "vp-engineering": { title: "VP Engineering", description: "Engineering organization leadership" },
+    "director-engineering": { title: "Director of Engineering", description: "Engineering team management" },
+    "chief-of-staff": { title: "Chief of Staff", description: "Executive operations" },
+    "vp-operations": { title: "VP Operations", description: "Operational excellence" },
+  };
+  
+  const roleData = rolesData[role];
+  if (!roleData) {
+    res.status(404).send("Role not found");
+    return;
+  }
+  
+  // Define situations (matching Roles.tsx)
+  const situations = [
+    { slug: "stay-or-go", label: "Stay or Go" },
+    { slug: "burnout", label: "Burnout" },
+    { slug: "bad-manager", label: "Bad Manager" },
+    { slug: "toxic-culture", label: "Toxic Culture" },
+    { slug: "severance", label: "Severance" },
+    { slug: "internal-pivot", label: "Internal Pivot" },
+    { slug: "job-search", label: "Job Search" },
+    { slug: "offer-evaluation", label: "Offer Evaluation" },
+    { slug: "resignation", label: "Resignation" },
+    { slug: "layoff-risk", label: "Layoff Risk" },
+  ];
+  
+  const canonicalUrl = `${baseUrl}/roles/${role}`;
+  const title = `${roleData.title} Career Guidance`;
+  const description = `Career guidance for ${roleData.title}s. ${roleData.description}. Practical frameworks for every situation.`;
+  
+  const templateData = {
+    title,
+    description,
+    roleTitle: roleData.title,
+    roleSlug: role,
+    roleDescription: roleData.description,
+    situations,
+    canonical: canonicalUrl,
+    posthogKey: POSTHOG_KEY,
+    pageType: "role",
+    pageSlug: role,
+    organizationSchema: generateOrganizationSchema(),
+  };
+  
+  try {
+    const roleTemplatePath = path.join(templatesDir, "role.ejs");
+    const roleHtml = await ejs.renderFile(roleTemplatePath, templateData);
+    
+    const layoutTemplatePath = path.join(templatesDir, "layout-pillar.ejs");
+    const fullHtml = await ejs.renderFile(layoutTemplatePath, {
+      ...templateData,
+      body: roleHtml,
+    });
+    
+    res.set("Content-Type", "text/html");
+    res.set("X-SP-SEO", "1");
+    res.send(fullHtml);
+  } catch (error) {
+    console.error(`[SEO] Error rendering role page ${role}:`, error);
+    res.status(500).send("Error rendering role page");
   }
 }
 

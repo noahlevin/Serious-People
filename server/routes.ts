@@ -4551,6 +4551,7 @@ FORMAT:
   app.get("/guides", seoController.renderGuidesIndex);
   app.get("/guides/:slug", seoController.renderGuide);
   app.get("/roles", seoController.renderRolesIndex);
+  app.get("/roles/:role", seoController.renderRolePage);
   app.get("/roles/:role/situations/:situation", seoController.renderProgrammaticPage);
   app.get("/tools/stay-or-go-calculator", seoController.renderStayOrGoCalculator);
 
