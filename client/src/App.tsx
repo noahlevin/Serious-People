@@ -1,11 +1,12 @@
 import { useEffect, useMemo } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Routes, Route, BrowserRouter } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { initPostHog } from "@/lib/posthog";
+
 import Landing from "@/pages/landing";
 import Login from "@/pages/login";
 import Prepare from "@/pages/prepare";
@@ -21,12 +22,9 @@ import CoachLetter from "@/pages/coach-letter";
 import NotFound from "@/pages/not-found";
 import LovableSmoke from "@/pages/lovable-smoke";
 
-// Detect if running at /app base path (Phase 5: optional /app mount)
+// Detect if running at /app base path
 function getBasePath(): string {
-  if (
-    typeof window !== "undefined" &&
-    window.location.pathname.startsWith("/app")
-  ) {
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/app")) {
     return "/app";
   }
   return "";
@@ -34,40 +32,37 @@ function getBasePath(): string {
 
 function AppRoutes() {
   return (
-    <Switch>
-      <Route path="/" component={Landing} />
-      <Route path="/login" component={Login} />
-      <Route path="/prepare" component={Prepare} />
-      <Route path="/interview" component={Interview} />
-      <Route path="/offer" component={Offer} />
-      <Route path="/success" component={Success} />
-      <Route path="/module/:moduleNumber" component={ModulePage} />
-      <Route path="/progress" component={Progress} />
-      <Route path="/career-brief" component={CareerBrief} />
-      <Route path="/serious-plan" component={SeriousPlan} />
-      <Route path="/coach-chat" component={CoachChat} />
-      <Route path="/coach-letter" component={CoachLetter} />
-      <Route path="/__lovable" component={LovableSmoke} />
-      <Route component={NotFound} />
-    </Switch>
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/__lovable" element={<LovableSmoke />} />
+
+      <Route path="/login" element={<Login />} />
+      <Route path="/prepare" element={<Prepare />} />
+      <Route path="/interview" element={<Interview />} />
+      <Route path="/offer" element={<Offer />} />
+      <Route path="/success" element={<Success />} />
+      <Route path="/module/:moduleNumber" element={<ModulePage />} />
+      <Route path="/progress" element={<Progress />} />
+      <Route path="/career-brief" element={<CareerBrief />} />
+      <Route path="/serious-plan" element={<SeriousPlan />} />
+      <Route path="/coach-chat" element={<CoachChat />} />
+      <Route path="/coach-letter" element={<CoachLetter />} />
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
 
 function Router() {
   const base = useMemo(() => getBasePath(), []);
-
-  if (base) {
-    return (
-      <WouterRouter base={base}>
-        <AppRoutes />
-      </WouterRouter>
-    );
-  }
-
-  return <AppRoutes />;
+  return (
+    <BrowserRouter basename={base || undefined}>
+      <AppRoutes />
+    </BrowserRouter>
+  );
 }
 
-function App() {
+export default function App() {
   useEffect(() => {
     initPostHog();
   }, []);
@@ -83,5 +78,3 @@ function App() {
     </QueryClientProvider>
   );
 }
-
-export default App;
