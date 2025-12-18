@@ -203,28 +203,47 @@ function markdownToHtml(markdown: string): string {
   
   html = processedLines.join("\n");
   
-  // Convert numbered lists
+  // Convert numbered lists - look ahead past blank lines
   const lines2 = html.split("\n");
   let inOl = false;
   const processedLines2: string[] = [];
   
+  // Helper: check if there's another numbered item ahead (skipping blank lines)
+  const hasMoreListItems = (startIdx: number): boolean => {
+    for (let j = startIdx; j < lines2.length; j++) {
+      const nextLine = lines2[j].trim();
+      if (!nextLine) continue; // skip blank lines
+      return /^\d+\. (.+)$/.test(lines2[j]);
+    }
+    return false;
+  };
+  
   for (let i = 0; i < lines2.length; i++) {
     const line = lines2[i];
     const isOlItem = /^\d+\. (.+)$/.test(line);
+    const isBlank = !line.trim();
     
     if (isOlItem && !inOl) {
       inOl = true;
       processedLines2.push("<ol>");
     }
     
-    if (!isOlItem && inOl) {
+    // Only close list if this is non-blank, non-list content
+    if (!isOlItem && !isBlank && inOl) {
+      inOl = false;
+      processedLines2.push("</ol>");
+    }
+    
+    // Close list on blank line only if no more list items ahead
+    if (isBlank && inOl && !hasMoreListItems(i + 1)) {
       inOl = false;
       processedLines2.push("</ol>");
     }
     
     if (isOlItem) {
       processedLines2.push(line.replace(/^\d+\. (.+)$/, "<li>$1</li>"));
-    } else {
+    } else if (!isBlank || !inOl) {
+      // Keep blank lines outside lists, skip them inside lists
       processedLines2.push(line);
     }
   }
