@@ -1755,23 +1755,6 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   position: relative;
 }
 
-/* Decorative opening quote mark - matches Lovable ::before */
-.sp-quote-elegant::before {
-  content: '"';
-  font-family: var(--sp-display);
-  position: absolute;
-  top: -1rem;             /* -top-4 = -16px */
-  left: -0.5rem;          /* -left-2 = -8px */
-  font-size: 3.75rem;     /* text-6xl = 60px */
-  line-height: 1;         /* leading-none */
-  color: hsl(var(--primary) / 0.3);  /* text-primary/30 */
-}
-
-@media (min-width: 768px) {
-  .sp-quote-elegant::before {
-    font-size: 4.5rem;    /* md:text-7xl = 72px */
-  }
-}
 
 /* Blockquote - matches Lovable @apply text-xl md:text-2xl text-foreground leading-relaxed pl-6 */
 .sp-quote-elegant blockquote {

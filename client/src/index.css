@@ -209,11 +209,6 @@
     @apply relative;
   }
   
-  .sp-quote-elegant::before {
-    content: '"';
-    font-family: var(--sp-display);
-    @apply absolute -top-4 -left-2 text-6xl md:text-7xl text-primary/30 leading-none;
-  }
   
   .sp-quote-elegant blockquote {
     font-family: var(--sp-display);

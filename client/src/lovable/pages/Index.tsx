@@ -230,9 +230,6 @@ const Landing = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="mt-4 flex items-center text-sm text-primary opacity-0 translate-x-[-10px] transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0 pl-16">
-                        Learn more <ArrowRight className="ml-1 h-3 w-3" />
-                      </div>
                     </div>
                   );
                 })}
