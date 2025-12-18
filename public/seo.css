@@ -1254,8 +1254,13 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 }
 
 .sp-btn-inverse {
+  height: 2.25rem;       /* min-h-9 = 36px */
+  padding-left: 1rem;    /* px-4 */
+  padding-right: 1rem;
+  font-size: 0.875rem;   /* text-sm */
   background: hsl(var(--background));
   color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--background));
 }
 
 .sp-btn-inverse:hover {
