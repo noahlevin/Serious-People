@@ -22,7 +22,7 @@ Preferred communication style: Simple, everyday language. Plain, direct, no corp
 - **Frontend:** React SPA with Vite, using wouter for routing.
 - **Design Aesthetic:** WSJ-inspired typography (Playfair Display, Source Serif 4) and overall aesthetic for a credible, professional feel.
 - **Styling:** Centralized `serious-people.css` for consistent WSJ-inspired styles.
-- **SEO Engine:** Separate EJS templated site for crawlable HTML pages, using Markdown with YAML frontmatter for content. Shares header/footer partials and design tokens with the React SPA for consistency.
+- **SEO Engine:** Separate EJS templated site for crawlable HTML pages, using Markdown with YAML frontmatter for content. Shares design tokens with the React SPA via `public/seo.css` which mirrors `client/src/index.css` tokens exactly. CSS architecture uses `.sp-container` for horizontal padding (24px mobile, 32px tablet+) and `.sp-section` for vertical-only padding to avoid conflicts.
 
 ### Technical Implementations
 - **Backend:** Express.js with TypeScript.
