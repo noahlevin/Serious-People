@@ -203,7 +203,8 @@ function markdownToHtml(markdown: string): string {
   
   html = processedLines.join("\n");
   
-  // Convert numbered lists
+  // Convert numbered lists - join consecutive numbered items
+  html = html.replace(/(<\/ol>)\n\n(<ol>)/g, "\n"); // Remove paragraph breaks between consecutive lists
   const lines2 = html.split("\n");
   let inOl = false;
   const processedLines2: string[] = [];

@@ -484,31 +484,41 @@ body {
 .sp-article-body ul,
 .sp-article-body ol {
   margin: 1rem 0;
-  padding-left: 1.5rem;
+  padding-left: 0;
+  list-style: none;
+}
+
+/* Global counter for consecutive ordered lists - reset only on first ol */
+.sp-article-body > ol:first-of-type {
+  counter-reset: item-counter;
+}
+
+.sp-article-body ol li {
+  counter-increment: item-counter;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.7;
+  color: hsl(var(--muted-foreground));
+}
+
+.sp-article-body ol li::before {
+  content: counter(item-counter) ".";
+  color: hsl(var(--foreground));
+  font-weight: 500;
+  min-width: 2rem;
+  flex-shrink: 0;
 }
 
 .sp-article-body ul {
-  list-style: disc;
+  padding-left: 1.5rem;
 }
 
-.sp-article-body ol {
-  list-style: decimal;
-}
-
-.sp-article-body li {
+.sp-article-body ul li {
   color: hsl(var(--muted-foreground));
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
   line-height: 1.7;
-  padding-left: 0.25rem;
-}
-
-.sp-article-body li::marker {
-  color: hsl(var(--foreground));
-  font-weight: 500;
-}
-
-.sp-article-body ul li::marker {
-  color: hsl(var(--primary));
 }
 
 .sp-article-body strong {
@@ -633,31 +643,41 @@ body {
 .sp-article-section ul,
 .sp-article-section ol {
   margin: 1rem 0;
-  padding-left: 1.5rem;
+  padding-left: 0;
+  list-style: none;
+}
+
+/* Global counter for consecutive ordered lists - reset only on first ol */
+.sp-article-section > ol:first-of-type {
+  counter-reset: item-counter;
+}
+
+.sp-article-section ol li {
+  counter-increment: item-counter;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.7;
+  color: hsl(var(--muted-foreground));
+}
+
+.sp-article-section ol li::before {
+  content: counter(item-counter) ".";
+  color: hsl(var(--foreground));
+  font-weight: 500;
+  min-width: 2rem;
+  flex-shrink: 0;
 }
 
 .sp-article-section ul {
-  list-style: disc;
+  padding-left: 1.5rem;
 }
 
-.sp-article-section ol {
-  list-style: decimal;
-}
-
-.sp-article-section li {
+.sp-article-section ul li {
   color: hsl(var(--muted-foreground));
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
   line-height: 1.7;
-  padding-left: 0.25rem;
-}
-
-.sp-article-section li::marker {
-  color: hsl(var(--foreground));
-  font-weight: 500;
-}
-
-.sp-article-section ul li::marker {
-  color: hsl(var(--primary));
 }
 
 .sp-article-section strong {
