@@ -22,6 +22,8 @@ import CoachLetter from "@/pages/coach-letter";
 import InterviewStart from "@/pages/interview-start";
 import InterviewPrepare from "@/pages/interview-prepare";
 import InterviewChat from "@/pages/interview-chat";
+import Artifacts from "@/pages/artifacts";
+
 import LovableSmoke from "@/pages/lovable-smoke";
 import NotFound from "@/pages/not-found";
 
@@ -57,6 +59,8 @@ function AppRoutes() {
       <Route path="/interview/chat" element={<InterviewChat />} />
       <Route path="/prepare" element={<Navigate to="/interview/prepare" replace />} />
       <Route path="/interview" element={<Navigate to="/interview/chat" replace />} />
+      <Route path="/artifacts" element={<Artifacts />} />
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

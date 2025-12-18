@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { 
-  Download, 
-  FileText, 
-  MessageSquare, 
-  CheckSquare, 
+import {
+  Download,
+  FileText,
+  MessageSquare,
+  CheckSquare,
   Calendar,
   Users,
   Target,
   BookOpen,
   Clock,
   ChevronRight,
-  Search
+  Search,
 } from "lucide-react";
 import { Button } from "@/lovable/components/ui/button";
 import { Input } from "@/lovable/components/ui/input";
@@ -40,7 +40,8 @@ const Artifacts = () => {
     {
       id: "1",
       title: "Decision Snapshot",
-      description: "A concise summary of your situation, the options you considered, and your recommended path forward.",
+      description:
+        "A concise summary of your situation, the options you considered, and your recommended path forward.",
       category: "documents",
       icon: Target,
       createdAt: "Today",
@@ -50,7 +51,8 @@ const Artifacts = () => {
     {
       id: "2",
       title: "Skip-Level Introduction Script",
-      description: "Word-for-word scripts for creating natural touchpoints with your director without seeming political.",
+      description:
+        "Word-for-word scripts for creating natural touchpoints with your director without seeming political.",
       category: "scripts",
       icon: MessageSquare,
       module: 1,
@@ -61,7 +63,8 @@ const Artifacts = () => {
     {
       id: "3",
       title: "90-Day Visibility Plan",
-      description: "Week-by-week actions to build visibility with decision-makers. Small moves that compound.",
+      description:
+        "Week-by-week actions to build visibility with decision-makers. Small moves that compound.",
       category: "plans",
       icon: Calendar,
       module: 2,
@@ -72,7 +75,8 @@ const Artifacts = () => {
     {
       id: "4",
       title: "Manager Conversation Guide",
-      description: "How to reframe your relationship with your manager—scripts for the promotion conversation.",
+      description:
+        "How to reframe your relationship with your manager—scripts for the promotion conversation.",
       category: "scripts",
       icon: Users,
       module: 2,
@@ -82,7 +86,8 @@ const Artifacts = () => {
     {
       id: "5",
       title: "Promotion Positioning Doc",
-      description: "A self-advocacy document you can share with your manager before calibrations.",
+      description:
+        "A self-advocacy document you can share with your manager before calibrations.",
       category: "documents",
       icon: FileText,
       module: 3,
@@ -92,7 +97,8 @@ const Artifacts = () => {
     {
       id: "6",
       title: "Decision Timeline",
-      description: "Key decision points over the next 90 days with criteria for each fork in the road.",
+      description:
+        "Key decision points over the next 90 days with criteria for each fork in the road.",
       category: "plans",
       icon: CheckSquare,
       module: 3,
@@ -102,7 +108,8 @@ const Artifacts = () => {
     {
       id: "7",
       title: "Module 1 Recap",
-      description: "Key insights, decisions, and action items from The Visibility Gap.",
+      description:
+        "Key insights, decisions, and action items from The Visibility Gap.",
       category: "documents",
       icon: BookOpen,
       module: 1,
@@ -112,7 +119,8 @@ const Artifacts = () => {
     {
       id: "8",
       title: "Module 2 Recap",
-      description: "Key insights, decisions, and action items from The Strategic Pivot.",
+      description:
+        "Key insights, decisions, and action items from The Strategic Pivot.",
       category: "documents",
       icon: BookOpen,
       module: 2,
@@ -122,7 +130,8 @@ const Artifacts = () => {
     {
       id: "9",
       title: "Module 3 Recap",
-      description: "Key insights, decisions, and action items from The Decisive Move.",
+      description:
+        "Key insights, decisions, and action items from The Decisive Move.",
       category: "documents",
       icon: BookOpen,
       module: 3,
@@ -133,15 +142,29 @@ const Artifacts = () => {
 
   const categories = [
     { id: "all" as const, label: "All", count: artifacts.length },
-    { id: "documents" as const, label: "Documents", count: artifacts.filter(a => a.category === "documents").length },
-    { id: "scripts" as const, label: "Scripts", count: artifacts.filter(a => a.category === "scripts").length },
-    { id: "plans" as const, label: "Plans", count: artifacts.filter(a => a.category === "plans").length },
+    {
+      id: "documents" as const,
+      label: "Documents",
+      count: artifacts.filter((a) => a.category === "documents").length,
+    },
+    {
+      id: "scripts" as const,
+      label: "Scripts",
+      count: artifacts.filter((a) => a.category === "scripts").length,
+    },
+    {
+      id: "plans" as const,
+      label: "Plans",
+      count: artifacts.filter((a) => a.category === "plans").length,
+    },
   ];
 
-  const filteredArtifacts = artifacts.filter(artifact => {
-    const matchesCategory = activeCategory === "all" || artifact.category === activeCategory;
-    const matchesSearch = artifact.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          artifact.description.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredArtifacts = artifacts.filter((artifact) => {
+    const matchesCategory =
+      activeCategory === "all" || artifact.category === activeCategory;
+    const matchesSearch =
+      artifact.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      artifact.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -149,12 +172,15 @@ const Artifacts = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
         <div className="sp-container py-6 flex items-center justify-between">
-          <Link to="/" className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300">
+          <Link
+            to="/"
+            className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300"
+          >
             Serious People
           </Link>
-          
+
           <div className="flex items-center gap-4">
-            <Link 
+            <Link
               to="/app/dashboard"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -175,7 +201,8 @@ const Artifacts = () => {
             {userName}'s Artifacts
           </h1>
           <p className="text-muted-foreground max-w-xl">
-            Everything you need to execute your plan. Download, reference, and revisit anytime.
+            Everything you need to execute your plan. Download, reference, and
+            revisit anytime.
           </p>
         </div>
       </section>
@@ -197,13 +224,15 @@ const Artifacts = () => {
                   }`}
                 >
                   {category.label}
-                  <span className={`ml-2 ${activeCategory === category.id ? "text-background/60" : "text-muted-foreground"}`}>
+                  <span
+                    className={`ml-2 ${activeCategory === category.id ? "text-background/60" : "text-muted-foreground"}`}
+                  >
                     {category.count}
                   </span>
                 </button>
               ))}
             </div>
-            
+
             {/* Search */}
             <div className="relative w-full md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -240,7 +269,7 @@ const Artifacts = () => {
                       </span>
                     )}
                   </div>
-                  
+
                   {/* Content */}
                   <h3 className="font-display text-lg text-foreground mb-2 group-hover:text-primary transition-colors">
                     {artifact.title}
@@ -248,13 +277,11 @@ const Artifacts = () => {
                   <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                     {artifact.description}
                   </p>
-                  
+
                   {/* Meta */}
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
                     <div className="flex items-center gap-3">
-                      {artifact.module && (
-                        <span>Module {artifact.module}</span>
-                      )}
+                      {artifact.module && <span>Module {artifact.module}</span>}
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {artifact.createdAt}
@@ -262,22 +289,14 @@ const Artifacts = () => {
                     </div>
                     <span className="uppercase">{artifact.format}</span>
                   </div>
-                  
+
                   {/* Actions */}
                   <div className="flex items-center gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1 h-9"
-                    >
+                    <Button variant="outline" size="sm" className="flex-1 h-9">
                       <Download className="w-4 h-4 mr-2" />
                       Download
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      className="h-9 px-3"
-                    >
+                    <Button variant="ghost" size="sm" className="h-9 px-3">
                       <ChevronRight className="w-4 h-4" />
                     </Button>
                   </div>
@@ -286,7 +305,9 @@ const Artifacts = () => {
             </div>
           ) : (
             <div className="text-center py-16">
-              <p className="text-muted-foreground">No artifacts match your search.</p>
+              <p className="text-muted-foreground">
+                No artifacts match your search.
+              </p>
             </div>
           )}
         </div>
@@ -304,7 +325,7 @@ const Artifacts = () => {
                 Get all {artifacts.length} artifacts in a single ZIP file.
               </p>
             </div>
-            <Button 
+            <Button
               size="lg"
               className="bg-background text-foreground hover:bg-background/90 h-12 px-8"
             >
@@ -321,7 +342,7 @@ const Artifacts = () => {
           <p className="text-muted-foreground mb-4">
             Need help implementing your plan?
           </p>
-          <Link 
+          <Link
             to="/support"
             className="text-sm text-foreground underline underline-offset-4 hover:text-foreground/80 transition-colors"
           >

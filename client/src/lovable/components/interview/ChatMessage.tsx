@@ -1,4 +1,4 @@
-import { Message } from "@/data/mockInterview";
+import { Message } from "@/lovable/data/mockInterview";
 
 interface ChatMessageProps {
   message: Message;

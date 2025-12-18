@@ -7,7 +7,7 @@ import ChatInput from "@/lovable/components/interview/ChatInput";
 import WelcomeCard from "@/lovable/components/interview/WelcomeCard";
 import SectionDivider from "@/lovable/components/interview/SectionDivider";
 import UpsellCard from "@/lovable/components/interview/UpsellCard";
-import { Message, mockResponses, interviewQuestions, interviewSections } from "@/data/mockInterview";
+import { Message, mockResponses, interviewQuestions, interviewSections } from "@/lovable/data/mockInterview";
 
 // First message without the intro (welcome card handles that)
 const firstQuestion: Message = {
