@@ -1210,6 +1210,139 @@ export async function registerRoutes(
     }
   });
 
+  // GET /api/bootstrap - Combined session + journey bootstrap for SPA initialization
+  // Returns auth status, user data, journey state, phase, and routing in one call
+  app.get("/api/bootstrap", async (req, res) => {
+    try {
+      // Not authenticated
+      if (!req.isAuthenticated() || !req.user) {
+        return res.json({
+          authenticated: false,
+          user: null,
+          journey: null,
+          routing: null,
+        });
+      }
+
+      const userId = req.user.id;
+
+      // Fetch user data (fresh from storage)
+      let userData = req.user;
+      try {
+        const freshUser = await storage.getUser(userId);
+        if (freshUser) userData = freshUser;
+      } catch (e) {
+        console.error("[bootstrap] Error fetching fresh user:", e);
+      }
+
+      // Fetch journey state
+      const journeyState = await storage.getJourneyState(userId);
+      const state: JourneyState = journeyState || {
+        interviewComplete: false,
+        paymentVerified: false,
+        module1Complete: false,
+        module2Complete: false,
+        module3Complete: false,
+        hasSeriousPlan: false,
+      };
+
+      // Determine phase
+      let phase: string;
+      if (!state.interviewComplete) {
+        phase = "INTERVIEW";
+      } else if (!state.paymentVerified) {
+        // Check if user has a pending checkout
+        const transcript = await storage.getTranscriptByUserId(userId);
+        if (transcript?.stripeSessionId) {
+          phase = "CHECKOUT_PENDING";
+        } else {
+          phase = "OFFER";
+        }
+      } else if (!state.module1Complete) {
+        phase = "PURCHASED";
+      } else if (!state.module2Complete) {
+        phase = "MODULE_2";
+      } else if (!state.module3Complete) {
+        phase = "MODULE_3";
+      } else if (!state.hasSeriousPlan) {
+        phase = "COACH_LETTER";
+      } else {
+        phase = "SERIOUS_PLAN";
+      }
+
+      // Compute routing (app-internal paths without /app prefix)
+      let canonicalPath: string;
+      let resumePath: string;
+      let allowedPaths: string[];
+
+      switch (phase) {
+        case "INTERVIEW":
+          canonicalPath = "/interview/start";
+          resumePath = "/interview/start";
+          allowedPaths = ["/interview/start", "/interview/prepare", "/interview/chat"];
+          break;
+        case "OFFER":
+          canonicalPath = "/offer";
+          resumePath = "/offer";
+          allowedPaths = ["/offer", "/offer/success"];
+          break;
+        case "CHECKOUT_PENDING":
+          canonicalPath = "/offer/success";
+          resumePath = "/offer/success";
+          allowedPaths = ["/offer", "/offer/success"];
+          break;
+        case "PURCHASED":
+          canonicalPath = "/progress";
+          resumePath = "/module/1";
+          allowedPaths = ["/progress", "/module/1"];
+          break;
+        case "MODULE_2":
+          canonicalPath = "/progress";
+          resumePath = "/module/2";
+          allowedPaths = ["/progress", "/module/1", "/module/2"];
+          break;
+        case "MODULE_3":
+          canonicalPath = "/progress";
+          resumePath = "/module/3";
+          allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3"];
+          break;
+        case "COACH_LETTER":
+          canonicalPath = "/progress";
+          resumePath = "/coach-letter";
+          allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3", "/coach-letter"];
+          break;
+        case "SERIOUS_PLAN":
+        default:
+          canonicalPath = "/progress";
+          resumePath = "/serious-plan";
+          allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3", "/coach-letter", "/serious-plan"];
+          break;
+      }
+
+      res.json({
+        authenticated: true,
+        user: {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          providedName: userData.providedName || null,
+        },
+        journey: {
+          state,
+          phase,
+        },
+        routing: {
+          canonicalPath,
+          resumePath,
+          allowedPaths,
+        },
+      });
+    } catch (error: any) {
+      console.error("[bootstrap] Error:", error);
+      res.status(500).json({ error: "Failed to load bootstrap data" });
+    }
+  });
+
   // GET /api/journey - Get user's journey state and current step
   app.get("/api/journey", requireAuth, async (req, res) => {
     try {
