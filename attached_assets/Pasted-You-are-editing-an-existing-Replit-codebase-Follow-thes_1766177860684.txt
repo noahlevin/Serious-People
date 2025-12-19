@@ -1,0 +1,72 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- Prefer surgical edits.
+- No jq dependency.
+
+## 1) Goal (one sentence)
+GOAL: Add a single shell script that re-runs our full smoke loop (auth + serious plan artifacts + module gating) as one command.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+scripts/smoke-all.sh
+
+If you think other files are required, STOP and list the additional file paths and why.
+
+## 3) Current behavior to preserve
+- Preserve all existing smoke scripts and endpoints.
+- No changes to auth/session/routing logic.
+- This is just a wrapper/orchestrator.
+
+## 4) Implementation plan (small + explicit)
+1) Create scripts/smoke-all.sh that:
+   - Fails fast (set -euo pipefail)
+   - Accepts env vars with sensible defaults:
+     - PORT=5000
+     - ORIGIN=http://localhost:$PORT
+     - EMAIL=noah@noahlevin.com
+     - DEV_TOOLS_SECRET optional (only needed if the artifacts smoke test requires it)
+2) Runs, in order:
+   - bash scripts/smoke-auth.sh
+   - node scripts/smoke-serious-plan-artifacts.mjs (passing ORIGIN/EMAIL/DEV_TOOLS_SECRET through env)
+   - curl module gating check: GET $ORIGIN/app/module/1 and assert status is 200 or 302 (302 is expected if unauthenticated)
+3) Print clear [PASS]/[FAIL] lines and a final summary.
+
+## 5) Exact edits
+For each file you touch, produce:
+- Path: scripts/smoke-all.sh
+- Change type: replace full contents (new file)
+- Diff-style summary (what changed and why)
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+1) `npm test` if it exists, else say “no test script found”
+2) `npm run build`
+3) Ensure server is running (existing workflow is fine)
+4) `bash scripts/smoke-all.sh`
+
+### Output expectations
+- The script prints ORIGIN and EMAIL at the top
+- Auth smoke shows PASS for /auth/google and /app/auth/google and magic link start
+- Serious plan artifacts smoke shows PASS through completion (or clearly fails with an error)
+- Module gating check prints something like:
+  - “[PASS] Module route gated (302 → /app/login?next=...)” if 302
+  - or “[PASS] Module route served (200)” if already authenticated in that context
+- Ends with “[PASS] Smoke loop complete”
+
+## 7) Acceptance criteria (must be met)
+- Single command runs the full smoke loop.
+- No jq dependency.
+- Clear pass/fail output and non-zero exit on failure.
+
+## 8) If verification fails
+Do NOT keep making random edits.
+Instead:
+- Paste the raw error output
+- List 2–3 likely causes
+- Propose the smallest next diagnostic step (curl/grep/log)
+
+Now execute the plan.
