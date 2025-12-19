@@ -4856,6 +4856,40 @@ FORMAT:
     }
   });
 
+  // POST /api/dev/modules/complete
+  // Sets moduleNComplete flag for testing without UI
+  app.post("/api/dev/modules/complete", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const { moduleNumber } = req.body;
+      if (![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "moduleNumber must be 1, 2, or 3" });
+      }
+
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      // Set the module complete flag
+      await storage.updateModuleComplete(user.id, moduleNumber as 1 | 2 | 3, true);
+
+      const routing = await computeRoutingForUser(user.id);
+
+      res.json({
+        success: true,
+        userId: user.id,
+        email: user.email,
+        moduleNumber,
+        routing,
+      });
+    } catch (error: any) {
+      console.error("[DEV] modules/complete error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // GET /api/dev/routing/:userId
   // Returns routing for a specific user (for testing without auth)
   app.get("/api/dev/routing/:userId", async (req, res) => {

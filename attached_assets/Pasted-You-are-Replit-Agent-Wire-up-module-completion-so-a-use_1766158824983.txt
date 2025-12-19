@@ -1,0 +1,116 @@
+You are Replit Agent. Wire up module completion so a user can finish Module 1/2/3 and the server-owned journey state machine advances (moduleNComplete flags flip in DB). Make the smallest possible change.
+
+Hard rules:
+- Prefer reusing existing endpoints/storage helpers; only add new endpoints/helpers if truly missing.
+- Do not redesign UI. Keep existing Lovable components/layout.
+- Avoid refactors. Small, testable edits only.
+- Use session auth cookies (credentials: "include") for client fetches.
+- Output:
+  1) Diff-style summary (what changed + why)
+  2) Full contents of any file(s) you modified
+  3) Pasted output from the Critical Verification commands (below). If you cannot run them, say so explicitly.
+
+Goal behavior:
+- Visiting /app/module/1 (or /module/1 under basename) shows the module.
+- When the user completes the module (explicit action), the app calls a server endpoint that sets:
+  - module1Complete / module2Complete / module3Complete to true (based on moduleNumber)
+- After completion, user is navigated to /progress (TOC), and Resume points to the next module or next stage based on state machine.
+- The server gate should then allow access to the next module route deterministically.
+
+Step A — Find the Module page component actually used by routing
+- In client, locate the component used at route `/module/:moduleNumber` (App.tsx currently maps it to `ModulePage` from `@/pages/module`).
+- Confirm where the “complete/continue” CTA lives. If there is already a “Continue” or “Mark complete” button, hook into it. If not, add a minimal button at the bottom of the module screen (no styling rabbit holes).
+
+Step B — Add/Reuse a completion endpoint (server)
+- Search for existing module status endpoints (e.g. /api/modules/status, /api/module/complete, /api/journey, etc.).
+- If an endpoint exists that can mark module completion, use it.
+- If not, add a minimal auth-required endpoint in `server/routes.ts`:
+
+  POST /api/modules/complete
+  Body: { moduleNumber: 1|2|3 }
+
+  Behavior:
+  - Validate moduleNumber is 1-3, else 400.
+  - Update journey state for req.user.id to set the corresponding flag true:
+    - 1 => module1Complete=true
+    - 2 => module2Complete=true
+    - 3 => module3Complete=true
+  - Return { ok: true }.
+  - Do not change any other flags here.
+
+- Use existing storage update patterns (you already have getJourneyState and likely update/set helpers). If you need a tiny helper in storage.ts, add only what you need (e.g., updateJourneyState(userId, partialFlags)).
+
+Step C — Client wiring (module page)
+- In the module page component:
+  - Read moduleNumber from the route params.
+  - Add a “Complete module” action that:
+    1) POSTs to /api/modules/complete with { moduleNumber }
+       - fetch(..., { method:"POST", credentials:"include", headers:{...}, body: JSON.stringify(...) })
+    2) On success: navigate("/progress")
+    3) On error: show a simple inline error message and keep user on page.
+  - Optional but nice: disable the button while loading; prevent double-submit.
+
+Step D — Do not embed flow logic client-side
+- Do not compute “next allowed route” locally.
+- The state machine and /api/bootstrap already control canonical/resume.
+- Module page just marks completion, then returns user to /progress.
+
+Critical Verification (must execute in Replit Shell and paste output)
+1) Repo checks (skip gracefully if scripts not present):
+```bash
+npm run lint --if-present
+npm run typecheck --if-present
+npm run test --if-present
+npm run build --if-present
+Confirm server responds (default port 5000 unless configured otherwise):
+
+bash
+Copy code
+PORT=${PORT:-5000}
+curl -sS -i "http://localhost:${PORT}/api/bootstrap" | head -n 30
+Validate module completion endpoint works using dev tools (no UI clicking required):
+
+Use dev routing helpers to force a paid state first (so modules are allowed), then call module completion, then verify routing changes.
+
+bash
+Copy code
+PORT=${PORT:-5000}
+DEV_TOOLS_SECRET="${DEV_TOOLS_SECRET:-}"
+echo "DEV_TOOLS_SECRET length: ${#DEV_TOOLS_SECRET}"
+
+# Force pending -> paid quickly (returns userId)
+curl -sS -X POST "http://localhost:${PORT}/api/dev/simulate-checkout-pending" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d '{}' | tee /tmp/dev_pending.json
+
+USER_ID=$(node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/dev_pending.json','utf8')); console.log(j.userId||'');")
+echo "USER_ID=$USER_ID"
+
+curl -sS -X POST "http://localhost:${PORT}/api/dev/simulate-payment-verified" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d "{\"userId\":\"${USER_ID}\"}" >/dev/null
+
+# Confirm paid phase
+curl -sS "http://localhost:${PORT}/api/dev/routing/${USER_ID}" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+
+# Complete module 1 (auth endpoints require session; if this endpoint is auth-only, add a dev-only variant below)
+curl -sS -X POST "http://localhost:${PORT}/api/modules/complete" \
+  -H "content-type: application/json" \
+  -d '{"moduleNumber":1}' | tee /tmp/module_complete.json
+
+# If auth blocks the curl above (401), add a dev-only endpoint:
+# POST /api/dev/modules/complete guarded by x-dev-tools-secret + non-production, that sets the flag for a given userId and moduleNumber.
+# Then re-run the test using that dev endpoint and verify routing changes.
+
+# Finally verify routing/resume now points at module 2 (or later), depending on your state machine
+curl -sS "http://localhost:${PORT}/api/dev/routing/${USER_ID}" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+If any step can’t be executed, say so explicitly and explain. Do not claim tests passed without pasted command output.
+
+bash
+Copy code
+
+When this is done, paste back the diff summary + the test outputs, and we’ll do the next chunk: making `/app/module/:n` actually use real module content and setting `moduleNComplete` at the right moment (not just a button), plus wiring `/app/serious-plan` + artifact slugs.
