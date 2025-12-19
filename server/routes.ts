@@ -1225,7 +1225,7 @@ export async function registerRoutes(
   // Gate all /app/* routes based on authentication and journey state
   // This runs before SPA serving (vite or static) to enforce routing server-side
   app.use("/app", async (req, res, next) => {
-    // Skip API/auth routes - let them pass through
+    // Skip API/auth routes - they are handled by the proxy above or API handlers
     if (req.originalUrl.startsWith("/app/api") || req.originalUrl.startsWith("/app/auth")) {
       return next();
     }
@@ -1346,6 +1346,38 @@ export async function registerRoutes(
       } catch (error) {
         console.error("[auth/me] Error fetching user:", error);
         // Fall back to session data on error
+        res.json({
+          authenticated: true,
+          user: {
+            id: req.user.id,
+            email: req.user.email,
+            name: req.user.name,
+            providedName: req.user.providedName || null,
+          },
+        });
+      }
+    } else {
+      res.json({ authenticated: false, user: null });
+    }
+  });
+
+  // Duplicate at /app/auth/me for SPA compatibility
+  app.get("/app/auth/me", async (req, res) => {
+    if (req.isAuthenticated() && req.user) {
+      try {
+        const freshUser = await storage.getUser(req.user.id);
+        const userData = freshUser || req.user;
+        res.json({
+          authenticated: true,
+          user: {
+            id: userData.id,
+            email: userData.email,
+            name: userData.name,
+            providedName: userData.providedName || null,
+          },
+        });
+      } catch (error) {
+        console.error("[auth/me] Error fetching user:", error);
         res.json({
           authenticated: true,
           user: {
@@ -2052,8 +2084,12 @@ COMMUNICATION STYLE:
     return sanitized;
   }
 
-  // GET /auth/google - Start Google OAuth flow
-  app.get("/auth/google", (req, res, next) => {
+  // ============== AUTH ROUTER ==============
+  // Create auth router and mount at both /auth and /app/auth
+  const authRouter = express.Router();
+
+  // GET /google - Start Google OAuth flow
+  authRouter.get("/google", (req, res, next) => {
     // Store promo code and base path in session before OAuth redirect
     const promoCode = req.query.promo as string | undefined;
     const basePath = sanitizeBasePath(req.query.basePath as string | undefined);
@@ -2074,9 +2110,9 @@ COMMUNICATION STYLE:
     });
   });
 
-  // GET /auth/google/callback - Google OAuth callback
-  app.get(
-    "/auth/google/callback",
+  // GET /google/callback - Google OAuth callback
+  authRouter.get(
+    "/google/callback",
     (req, res, next) => {
       // Get the stored base path and promo code BEFORE passport auth (which regenerates session)
       // Store them on req object to survive session regeneration
@@ -2118,8 +2154,8 @@ COMMUNICATION STYLE:
     },
   );
 
-  // POST /auth/magic/start - Request magic link email
-  app.post("/auth/magic/start", async (req, res) => {
+  // POST /magic/start - Request magic link email
+  authRouter.post("/magic/start", async (req, res) => {
     try {
       const { email, promoCode, basePath } = req.body;
 
@@ -2146,10 +2182,11 @@ COMMUNICATION STYLE:
         expiresAt,
       });
 
-      // Send email with magic link (include basePath as query param for redirect after verification)
+      // Send email with magic link (include basePath in URL and as query param for redirect after verification)
       const baseUrl = getBaseUrl();
-      const basePathParam = basePath ? `&basePath=${encodeURIComponent(basePath)}` : "";
-      const magicLinkUrl = `${baseUrl}/auth/magic/verify?token=${token}${basePathParam}`;
+      const sanitizedBasePath = sanitizeBasePath(basePath || "/app");
+      const basePathParam = `&basePath=${encodeURIComponent(sanitizedBasePath)}`;
+      const magicLinkUrl = `${baseUrl}${sanitizedBasePath}/auth/magic/verify?token=${token}${basePathParam}`;
 
       const result = await sendMagicLinkEmail(email, magicLinkUrl);
 
@@ -2172,8 +2209,8 @@ COMMUNICATION STYLE:
     }
   });
 
-  // GET /auth/magic/verify - Verify magic link and log in
-  app.get("/auth/magic/verify", async (req, res) => {
+  // GET /magic/verify - Verify magic link and log in
+  authRouter.get("/magic/verify", async (req, res) => {
     try {
       const { token, basePath: basePathParam } = req.query;
       const basePath = sanitizeBasePath(typeof basePathParam === "string" ? basePathParam : "");
@@ -2238,8 +2275,8 @@ COMMUNICATION STYLE:
     }
   });
 
-  // POST /auth/logout - Log out
-  app.post("/auth/logout", (req, res) => {
+  // POST /logout - Log out
+  authRouter.post("/logout", (req, res) => {
     req.logout((err) => {
       if (err) {
         console.error("Logout error:", err);
@@ -2249,8 +2286,8 @@ COMMUNICATION STYLE:
     });
   });
 
-  // POST /auth/demo - Demo login for testing (development only)
-  app.post("/auth/demo", async (req, res) => {
+  // POST /demo - Demo login for testing (development only)
+  authRouter.post("/demo", async (req, res) => {
     try {
       const demoEmail = "demo@test.local";
 
@@ -2301,6 +2338,10 @@ COMMUNICATION STYLE:
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Mount auth router at both /auth and /app/auth
+  app.use("/auth", authRouter);
+  app.use("/app/auth", authRouter);
 
   // ============== TRANSCRIPT API (Protected) ==============
 

@@ -1,0 +1,108 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- Make surgical edits only.
+- If you touch auth/session/routing, include at least one curl check.
+
+## 1) Goal (one sentence)
+GOAL: Fix login so (1) the Google button actually starts OAuth and (2) the email magic-link flow actually sends/returns success, with the app hosted under /app.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+server/auth.ts
+server/routes.ts
+client/src/pages/login.tsx
+
+If the actual paths differ in this repo, STOP and report the correct paths (found via ripgrep) before editing.
+
+## 3) Current behavior to preserve
+- Preserve existing route gating/state machine behavior.
+- Preserve existing API response shapes.
+- Do not change CSS/layout/markup structure beyond what’s necessary to wire handlers.
+
+## 4) Implementation plan (small + explicit)
+1) Wire the Login page handlers to the existing server endpoints under /app, using cookie-bearing requests.
+2) Update server Google OAuth callbackURL to include /app.
+3) Update server magic link email URL to include /app.
+
+## 5) Exact edits
+
+### A) client/src/pages/login.tsx
+- Change type: surgical edit
+- What to do:
+  1) Replace the placeholder handleGoogleLogin() with a hard redirect to:
+     `${basePath}/auth/google?basePath=${encodeURIComponent(basePath)}`
+     Where basePath is read from `window.__SP_ROUTING__?.basePath` and falls back to "/app".
+  2) Replace handleSubmit() to POST JSON to:
+     `${basePath}/auth/magic/start`
+     Body: `{ email, basePath }`
+     Use `credentials: "include"` and `Content-Type: application/json`.
+  3) Only set `sent=true` when the server returns `{ success: true }`. Otherwise show the returned error message.
+
+### B) server/auth.ts
+- Change type: surgical edit
+- What to do:
+  1) Add a helper `getAppBasePath()` that returns a normalized base path:
+     - env APP_BASE_PATH if present else "/app"
+     - ensure leading "/"
+     - remove trailing "/" unless the path is just "/"
+  2) Update GoogleStrategy callbackURL to:
+     `${getBaseUrl()}${getAppBasePath()}/auth/google/callback`
+
+### C) server/routes.ts
+- Change type: surgical edit
+- What to do:
+  In /auth/magic/start, update the email magic link URL to include basePath:
+  from:
+    `${baseUrl}/auth/magic/verify?...`
+  to:
+    `${baseUrl}${basePath}/auth/magic/verify?...`
+  (basePath is already sanitized earlier in that handler.)
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+### Build / type sanity
+1) `npm test` if it exists, else state “no test script found”
+2) `npm run build`
+3) `npm run lint` if it exists, else state it doesn’t
+
+### Runtime checks
+4) Start server: `npm run dev`
+5) In a second shell, run:
+
+- Bootstrap should return routing.basePath="/app":
+  `curl -i http://localhost:5000/app/api/bootstrap`
+
+  Success looks like: HTTP 200 and JSON containing `"routing"` with `"basePath":"/app"`.
+
+- Google OAuth start should 302 to Google:
+  `curl -i http://localhost:5000/app/auth/google?basePath=%2Fapp`
+
+  Success looks like: HTTP 302 with a `Location:` pointing at `accounts.google.com`.
+
+- Magic link start should return JSON (success or a clear error):
+  `curl -i -X POST http://localhost:5000/app/auth/magic/start \
+    -H 'content-type: application/json' \
+    -d '{"email":"test@example.com","basePath":"/app"}'`
+
+  Success looks like: HTTP 200 and JSON containing `{"success":true,...}`.
+  If RESEND isn’t configured, acceptable outcome is: HTTP 200 with `{"success":false,"error":"<useful message>"}` (but it must not be a silent failure).
+
+## 7) Acceptance criteria (must be met)
+- Google button redirects to `/app/auth/google...` and server responds with a 302 to Google.
+- Email submit calls `/app/auth/magic/start` and UI shows “sent” only when server returns success.
+- Magic link emails contain `/app/auth/magic/verify` in the URL (not root `/auth/...`).
+
+## 8) If verification fails
+Do NOT keep making random edits.
+Instead:
+- Paste the error output
+- Give the 2–3 most likely root causes
+- Propose the smallest next diagnostic step (grep/curl/log)
+
+## 9) Rollback note
+If anything goes sideways:
+- `git d

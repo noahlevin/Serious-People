@@ -28,9 +28,18 @@ function getBaseUrl(): string {
   if (process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
   }
-  // For production, fallback to current request origin if available
-  // Otherwise use localhost for local development
   return "http://localhost:5000";
+}
+
+function getAppBasePath(): string {
+  let basePath = process.env.APP_BASE_PATH || "/app";
+  if (!basePath.startsWith("/")) {
+    basePath = "/" + basePath;
+  }
+  if (basePath.length > 1 && basePath.endsWith("/")) {
+    basePath = basePath.slice(0, -1);
+  }
+  return basePath;
 }
 
 export function setupAuth(app: Express): void {
@@ -101,7 +110,7 @@ export function setupAuth(app: Express): void {
         {
           clientID: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          callbackURL: `${getBaseUrl()}/auth/google/callback`,
+          callbackURL: `${getBaseUrl()}${getAppBasePath()}/auth/google/callback`,
           scope: ["email", "profile"],
         },
         async (accessToken, refreshToken, profile, done) => {

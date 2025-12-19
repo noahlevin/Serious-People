@@ -4,29 +4,64 @@ import { Button } from "@/lovable/components/ui/button";
 import { Input } from "@/lovable/components/ui/input";
 import { Check } from "lucide-react";
 
-type LoginState = "form" | "sent";
+type LoginState = "form" | "sent" | "error";
 
 const Login = () => {
   const [state, setState] = useState<LoginState>("form");
   const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const getBasePath = () => {
+    const routing = (window as any).__SP_ROUTING__;
+    return routing?.basePath || "/app";
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) {
-      setState("sent");
+    if (!email) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const basePath = getBasePath();
+      const response = await fetch(`${basePath}/auth/magic/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, basePath }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setState("sent");
+      } else {
+        setError(data.error || "Failed to send login link. Please try again.");
+        setState("error");
+      }
+    } catch (err) {
+      setError("Network error. Please try again.");
+      setState("error");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleGoogleLogin = () => {
-    // Mock Google login - would integrate with Supabase
-    console.log("Google login clicked");
+    const basePath = getBasePath();
+    window.location.href = `${basePath}/auth/google?basePath=${encodeURIComponent(basePath)}`;
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border shrink-0">
         <div className="sp-container py-6">
-          <Link to="/" className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300">
+          <Link
+            to="/"
+            className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300"
+          >
             Serious People
           </Link>
         </div>
@@ -37,7 +72,7 @@ const Login = () => {
         {/* Left - Brand/Message */}
         <div className="hidden lg:flex lg:w-1/2 bg-foreground text-background p-12 xl:p-16 flex-col justify-between">
           <div />
-          
+
           <div className="max-w-md">
             <blockquote className="font-display text-3xl xl:text-4xl italic leading-tight mb-8">
               "The best career decisions are made with clarity, not courage."
@@ -55,7 +90,7 @@ const Login = () => {
         {/* Right - Form */}
         <div className="flex-1 flex items-center justify-center p-6 md:p-12">
           <div className="w-full max-w-sm">
-            {state === "form" ? (
+            {state === "form" || state === "error" ? (
               <>
                 <h1 className="font-display text-2xl md:text-3xl text-foreground mb-8">
                   Sign in or create an account
@@ -105,17 +140,24 @@ const Login = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     className="h-12 mb-4"
                     required
+                    data-testid="input-email"
                   />
+                  {error && (
+                    <p className="text-sm text-destructive mb-4">{error}</p>
+                  )}
                   <Button
                     type="submit"
                     className="w-full h-12 text-base font-medium bg-foreground text-background hover:bg-foreground/90"
+                    disabled={isLoading}
+                    data-testid="button-send-link"
                   >
-                    Send login link
+                    {isLoading ? "Sending..." : "Send login link"}
                   </Button>
                 </form>
 
                 <p className="text-sm text-muted-foreground text-center mt-8">
-                  New or returning—we'll send you a magic link. No password needed.
+                  New or returning—we'll send you a magic link. No password
+                  needed.
                 </p>
               </>
             ) : (
@@ -124,22 +166,21 @@ const Login = () => {
                 <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
                   <Check className="w-7 h-7 text-primary" />
                 </div>
-                
+
                 <h1 className="font-display text-2xl text-foreground mb-2">
                   Check your inbox
                 </h1>
-                
+
                 <p className="text-muted-foreground mb-1">
                   We sent a login link to
                 </p>
-                <p className="font-medium text-foreground mb-6">
-                  {email}
-                </p>
-                
+                <p className="font-medium text-foreground mb-6">{email}</p>
+
                 <p className="text-sm text-muted-foreground mb-8">
-                  Click the link in your email to sign in. It expires in 15 minutes.
+                  Click the link in your email to sign in. It expires in 15
+                  minutes.
                 </p>
-                
+
                 <button
                   onClick={() => setState("form")}
                   className="text-sm text-foreground underline underline-offset-4 hover:text-foreground/80 transition-colors"
