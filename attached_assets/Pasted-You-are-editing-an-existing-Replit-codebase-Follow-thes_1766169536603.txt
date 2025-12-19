@@ -1,0 +1,80 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- Prefer “surgical edits.”
+- Keep auth/state machine behavior unchanged.
+
+## 1) Goal (one sentence)
+GOAL: Add a lightweight debug page under /app that renders all inline chat components (title cards/dividers/etc.) so we can visually confirm they render correctly and have a shell-first smoke check.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+client/src/routes.tsx (or wherever the SPA routes are defined)
+client/src/pages/debug-chat-components.tsx (new)
+client/src/lovable/components/interview/SectionDivider.tsx
+client/src/lovable/components/interview/WelcomeCard.tsx
+client/src/lovable/components/interview/UpsellCard.tsx
+
+If the “title card” component lives elsewhere, STOP and list the exact file path(s) you need and why.
+
+## 3) Current behavior to preserve
+- Preserve existing route gating/state machine behavior.
+- Debug page must be non-discoverable by users (simple gate).
+- No changes to existing InterviewChat behavior.
+
+## 4) Implementation plan (small + explicit)
+1) Locate the SPA route config file (likely client/src/routes.tsx or similar) and add a debug route: /app/debug/chat-components.
+2) Create a new page component that renders:
+   - WelcomeCard
+   - SectionDivider (multiple variants if it supports them)
+   - UpsellCard
+   - Any “title card” / inline card component used in chat (only if it exists; otherwise stop and report)
+   Include visible headings and add simple sentinel attributes or text markers like:
+   data-testid="debug-welcome-card", "debug-section-divider", etc.
+3) Add a gate so this page only renders if a flag is enabled:
+   - Prefer: import.meta.env.VITE_DEBUG_UI === "1"
+   - If not available, fallback to a query param like ?debug=1 and show a “disabled” message otherwise.
+
+## 5) Exact edits
+For each file you touch, produce:
+- Path:
+- Change type: (surgical edit | new file)
+- Diff-style summary (what changed and why)
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+### Build / type sanity
+1) `npm test` if it exists, else skip and say “no test script found”
+2) `npm run build` (or the closest equivalent)
+3) `npm run lint` if it exists, else say it doesn’t
+
+### Runtime checks
+4) Start server: `npm run dev` (or workspace default)
+5) In a second shell:
+- `curl -i http://localhost:5000/app/debug/chat-components | head -n 20`
+- `curl -s http://localhost:5000/app/debug/chat-components | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{console.log(/debug-welcome-card/.test(s)&&/debug-section-divider/.test(s)&&/debug-upsell-card/.test(s)?'[PASS] sentinels found':'[FAIL] missing sentinels')})"`
+
+### Output expectations
+- Build completes without TypeScript errors.
+- Curl returns 200 (or a clear “debug disabled” message) depending on gating.
+- Sentinel check prints [PASS] when enabled.
+
+## 7) Acceptance criteria (must be met)
+- There is a stable debug route that renders the inline chat components.
+- The page is gated (not generally accessible unless debug enabled).
+- Shell-first verification can confirm it renders (sentinel check).
+
+## 8) If verification fails
+Do NOT keep making random edits.
+Instead:
+- Show the error output
+- Give the 2–3 most likely root causes
+- Propose the smallest next diagnostic step
+
+## 9) Deliverables
+A) Diff Summary
+B) Raw command outputs from verification
+C) One-liner on how to enable the debug gate (env var or query param)

@@ -1229,6 +1229,11 @@ export async function registerRoutes(
     if (req.originalUrl.startsWith("/app/api") || req.originalUrl.startsWith("/app/auth")) {
       return next();
     }
+    
+    // Skip debug routes - they have their own gating
+    if (req.originalUrl.startsWith("/app/debug/")) {
+      return next();
+    }
 
     // Parse the internal path (strip /app prefix) and query string
     const urlObj = new URL(req.originalUrl, `http://${req.headers.host}`);

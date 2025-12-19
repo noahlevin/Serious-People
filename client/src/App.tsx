@@ -22,6 +22,7 @@ import InterviewChat from "@/pages/interview-chat";
 import Artifacts from "@/pages/artifacts";
 
 import LovableSmoke from "@/pages/lovable-smoke";
+import DebugChatComponents from "@/pages/debug-chat-components";
 import NotFound from "@/pages/not-found";
 
 // Detect if running at /app base path
@@ -56,6 +57,7 @@ function AppRoutes() {
       <Route path="/coach-chat" element={<CoachChat />} />
       <Route path="/artifacts" element={<Artifacts />} />
       <Route path="/__lovable" element={<LovableSmoke />} />
+      <Route path="/debug/chat-components" element={<DebugChatComponents />} />
       
       {/* Legacy aliases → redirect to canonical */}
       <Route path="/" element={<Navigate to="/interview/start" replace />} />
