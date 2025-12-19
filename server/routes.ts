@@ -5037,6 +5037,23 @@ FORMAT:
     }
   });
 
+  // GET /api/dev/most-recent-user
+  // Returns the most recent user (for smoke testing)
+  app.get("/api/dev/most-recent-user", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await storage.getMostRecentUser();
+      if (!user) {
+        return res.status(404).json({ error: "No users found" });
+      }
+      res.json({ id: user.id, email: user.email });
+    } catch (error: any) {
+      console.error("[DEV] most-recent-user error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // GET /api/dev/serious-plan/latest
   // Returns the serious plan for a user (same shape as /api/serious-plan/latest)
   app.get("/api/dev/serious-plan/latest", async (req, res) => {
