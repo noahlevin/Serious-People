@@ -65,3 +65,7 @@ When maintaining visual parity between SEO pages (EJS + seo.css) and React SPA (
 -   **Email Services:** Resend for sending magic links and handling inbound email webhooks.
 -   **Analytics:** PostHog for user behavior tracking across both the React SPA and SEO pages.
 -   **PDF Generation:** Puppeteer for creating WSJ-styled PDFs of Serious Plan artifacts.
+
+## Recent Changes
+
+- **Dec 19, 2025:** Fixed mobile horizontal overflow on SEO landing page by hiding `.sp-situation-hover` on mobile viewports. Fixed quote centering with explicit `text-align: center` on blockquote/cite elements.

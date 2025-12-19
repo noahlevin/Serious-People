@@ -7,38 +7,38 @@
   /* Paper & Ink - The Foundation (match index.css exactly) */
   --background: 40 33% 97%;           /* Warm ivory paper #FAF8F5 */
   --foreground: 20 14% 10%;           /* Warm near-black #1C1917 */
-  
+
   /* Surface Hierarchy */
   --card: 40 25% 95%;                 /* Slightly darker paper */
   --card-foreground: 20 14% 10%;
   --popover: 40 33% 97%;
   --popover-foreground: 20 14% 10%;
-  
+
   /* Primary - Deep Sage (the signature) */
   --primary: 100 12% 32%;             /* Deep sage #4A5548 */
   --primary-foreground: 40 33% 97%;
-  
+
   /* Secondary - Warm Stone */
   --secondary: 30 8% 88%;             /* Warm gray-beige */
   --secondary-foreground: 20 14% 20%;
-  
+
   /* Muted - For secondary text */
   --muted: 30 10% 92%;
   --muted-foreground: 20 8% 45%;
-  
+
   /* Accent - Terracotta whisper */
   --accent: 15 25% 50%;               /* Muted terracotta */
   --accent-foreground: 40 33% 97%;
-  
+
   /* Functional */
   --destructive: 0 65% 50%;
   --destructive-foreground: 40 33% 97%;
-  
+
   /* Borders - Subtle, warm */
   --border: 30 15% 85%;
   --input: 30 15% 85%;
   --ring: 100 12% 32%;
-  
+
   --radius: 0.25rem;                  /* Minimal radius - editorial feel */
 
   /* Font tokens */
@@ -54,7 +54,7 @@
   --sage-light: 100 12% 32% / 0.12;      /* Unprefixed for direct use */
   --sp-sage-medium: 100 12% 32% / 0.20;  /* Stronger accents */
   --sage-medium: 100 12% 32% / 0.20;     /* Unprefixed for direct use */
-  
+
   /* Spacing rhythm (matches Tailwind scale) */
   --sp-space-xs: 0.5rem;    /* 8px */
   --sp-space-sm: 1rem;      /* 16px */
@@ -62,7 +62,7 @@
   --sp-space-lg: 2.5rem;    /* 40px */
   --sp-space-xl: 4rem;      /* 64px */
   --sp-space-2xl: 6rem;     /* 96px */
-  
+
   /* Content widths (matches Tailwind) */
   --sp-content-narrow: 38rem;   /* 608px */
   --sp-content-medium: 52rem;   /* 832px */
@@ -275,7 +275,11 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   display: flex;
   align-items: center;
   gap: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
 }
+
 
 .sp-footer-link {
   font-size: 0.875rem;
@@ -294,13 +298,10 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   margin: 0;
 }
 
-/* Section styles - matches @apply py-16 md:py-24 lg:py-32 */
-/* Use padding-block to preserve horizontal padding from .sp-container */
+/* Section styles - vertical rhythm only (container handles max-width + horizontal padding) */
 .sp-section {
   padding-top: 4rem;     /* py-16 = 64px */
   padding-bottom: 4rem;
-  overflow-x: hidden;
-  max-width: 100vw;
 }
 
 @media (min-width: 768px) {
@@ -317,8 +318,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   }
 }
 
-/* Section small - matches @apply py-10 md:py-16 */
-/* Use padding-top/bottom to preserve horizontal padding from .sp-container */
+/* Section small - vertical rhythm only */
 .sp-section-sm {
   padding-top: 2.5rem;   /* py-10 = 40px */
   padding-bottom: 2.5rem;
@@ -339,16 +339,14 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 .sp-section-sage {
   position: relative;
   background: hsl(var(--sage-wash));
-  overflow-x: hidden;
-  max-width: 100vw;
 }
+
 
 /* Section border - for top borders on sections */
 .sp-section-border {
   border-top: 1px solid hsl(var(--border));
-  overflow-x: hidden;
-  max-width: 100vw;
 }
+
 
 /* Buttons - Base styles (no padding here, use size modifiers)
    React Button uses height-based sizing with flexbox centering, not vertical padding */
@@ -1222,7 +1220,7 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
   .sp-situation-grid {
     grid-template-columns: repeat(5, 1fr);
   }
-  
+
   .sp-situation-grid a,
   .sp-situation-grid .sp-situation-card {
     min-height: auto;
@@ -2511,5 +2509,15 @@ p { font-size: 1rem; line-height: 1.7; }  /* text-base = 16px */
 /* Selection color - matches Lovable */
 ::selection {
   background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--foreground));
+}
+
+
+/* Safety: if a section accidentally includes both .sp-container and .sp-section, keep container max-width */
+.sp-container.sp-section,
+.sp-container.sp-section-sm {
+  max-width: var(--sp-content-wide);
+}
+/ 0.15);
   color: hsl(var(--foreground));
 }
