@@ -187,9 +187,48 @@ const SeriousPlan = () => {
 
   const renderArtifactCard = (artifact: Artifact, index: number) => {
     const generating = artifact.generationStatus === 'pending' || artifact.generationStatus === 'generating';
+    const hasError = artifact.generationStatus === 'error';
     
     if (generating) {
-      return <ArtifactSkeleton key={artifact.id} />;
+      return (
+        <div key={artifact.id} className="bg-card border border-border p-6" data-testid={`card-artifact-generating-${artifact.artifactKey}`}>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-xs text-muted-foreground font-mono">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 flex items-center gap-1">
+              <Loader2 size={12} className="animate-spin" />
+              Generating
+            </span>
+          </div>
+          <h3 className="font-display text-lg text-foreground mb-2">
+            {artifact.title || artifact.artifactKey.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+          </h3>
+          <div className="h-4 w-full bg-muted rounded mb-2 animate-pulse" />
+          <div className="h-4 w-2/3 bg-muted rounded animate-pulse" />
+        </div>
+      );
+    }
+
+    if (hasError) {
+      return (
+        <div key={artifact.id} className="bg-card border border-destructive/30 p-6" data-testid={`card-artifact-error-${artifact.artifactKey}`}>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-xs text-muted-foreground font-mono">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <span className="text-xs px-2 py-0.5 rounded bg-destructive/10 text-destructive">
+              Error
+            </span>
+          </div>
+          <h3 className="font-display text-lg text-foreground mb-2">
+            {artifact.title || artifact.artifactKey.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            This artifact couldn't be generated. Our team has been notified.
+          </p>
+        </div>
+      );
     }
 
     const essential = isEssential(artifact);
