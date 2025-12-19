@@ -704,8 +704,9 @@ async function generateSingleArtifact(
 /**
  * Generate the plan artifacts asynchronously - IN PARALLEL.
  * Each artifact is generated independently and updates the frontend immediately on completion.
+ * Exported for dev tooling.
  */
-async function generateArtifactsAsync(
+export async function generateArtifactsAsync(
   planId: string,
   clientName: string,
   coachingPlan: CoachingPlan,

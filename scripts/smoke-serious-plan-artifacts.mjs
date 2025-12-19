@@ -13,8 +13,9 @@
 const ORIGIN = process.env.ORIGIN || 'http://localhost:5000';
 const EMAIL = process.env.EMAIL || 'noah@noahlevin.com';
 const DEV_SECRET = process.env.DEV_TOOLS_SECRET || 'sp-dev-2024';
-const MAX_POLL_ATTEMPTS = 30;
-const POLL_INTERVAL_MS = 1000;
+const FORCE_REGENERATE = process.env.FORCE_REGENERATE === '1' || process.env.FORCE_REGENERATE === 'true';
+const MAX_POLL_ATTEMPTS = 60; // Increased for real LLM generation
+const POLL_INTERVAL_MS = 2000; // Increased interval for LLM processing
 
 const devHeaders = {
   'x-dev-tools-secret': DEV_SECRET,
@@ -27,6 +28,7 @@ const observedStates = new Set();
 async function main() {
   console.log(`[INFO] Testing against ${ORIGIN}`);
   console.log(`[INFO] Using EMAIL=${EMAIL}`);
+  console.log(`[INFO] FORCE_REGENERATE=${FORCE_REGENERATE}`);
   console.log('');
 
   // Step 1: Call ensure-artifacts to guarantee artifacts exist
@@ -37,7 +39,7 @@ async function main() {
     ensureResponse = await fetch(`${ORIGIN}/api/dev/serious-plan/ensure-artifacts`, {
       method: 'POST',
       headers: devHeaders,
-      body: JSON.stringify({ email: EMAIL }),
+      body: JSON.stringify({ email: EMAIL, forceRegenerate: FORCE_REGENERATE }),
     });
   } catch (err) {
     console.log(`[FAIL] Could not connect to ${ORIGIN}: ${err.message}`);
@@ -209,8 +211,50 @@ async function main() {
   console.log('[PASS] Observed terminal state (complete and/or error)');
   console.log('');
 
-  // Step 6: Verify refresh-deterministic behavior
-  console.log('[TEST] Step 6: Verify refresh-deterministic behavior');
+  // Step 6: Validate non-empty artifact content
+  console.log('[TEST] Step 6: Validate non-empty artifact content');
+  
+  let hasNonEmptyContent = false;
+  const contentCheck = [];
+  
+  for (const artifact of finalPlan.artifacts) {
+    const hasContent = artifact.contentRaw && artifact.contentRaw.length > 10;
+    contentCheck.push({
+      key: artifact.artifactKey,
+      status: artifact.generationStatus,
+      hasContent,
+      contentLength: artifact.contentRaw?.length || 0,
+    });
+    if (hasContent) {
+      hasNonEmptyContent = true;
+    }
+  }
+  
+  console.log('[INFO] Artifact content check:');
+  contentCheck.forEach(c => {
+    console.log(`  - ${c.key}: status=${c.status}, hasContent=${c.hasContent}, contentLength=${c.contentLength}`);
+  });
+  
+  // Require at least one artifact with non-empty content (real LLM generation)
+  const completeArtifacts = finalPlan.artifacts.filter(a => a.generationStatus === 'complete');
+  const completeWithContent = completeArtifacts.filter(a => a.contentRaw && a.contentRaw.length > 10);
+  
+  if (completeArtifacts.length > 0 && completeWithContent.length === 0) {
+    console.log('[FAIL] Complete artifacts have no content - real generation may have failed');
+    process.exit(1);
+  }
+  
+  if (hasNonEmptyContent) {
+    console.log('[PASS] At least one artifact has non-empty content from real generation');
+  } else if (statusCounts.error === finalPlan.artifacts.length) {
+    console.log('[WARN] All artifacts errored - content validation skipped');
+  } else {
+    console.log('[WARN] No artifacts have content yet (may still be generating)');
+  }
+  console.log('');
+
+  // Step 7: Verify refresh-deterministic behavior
+  console.log('[TEST] Step 7: Verify refresh-deterministic behavior');
   
   // Fetch twice more and compare
   const refetch1 = await fetch(`${ORIGIN}/api/dev/serious-plan/latest?userId=${userId}`, {
@@ -281,6 +325,7 @@ async function main() {
   console.log(`  - All artifacts have generationStatus field`);
   console.log(`  - All artifacts reached terminal status`);
   console.log(`  - Observed states: ${Array.from(observedStates).join(', ')}`);
+  console.log(`  - Non-empty content: ${hasNonEmptyContent ? 'YES (real LLM generation)' : 'NO'}`);
   console.log(`  - Refresh-deterministic: IDs/status/content stable`);
 }
 

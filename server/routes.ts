@@ -35,6 +35,7 @@ import {
   getLatestSeriousPlan,
   initializeSeriousPlan,
   regeneratePendingArtifacts,
+  generateArtifactsAsync,
 } from "./seriousPlanService";
 import {
   generateArtifactPdf,
@@ -5056,6 +5057,7 @@ FORMAT:
 
   // POST /api/dev/serious-plan/ensure-artifacts
   // Ensures a user has a serious plan with at least one artifact (creates if needed)
+  // Uses REAL artifact generation pipeline (LLM calls) if artifacts need to be created
   // Returns: { userId, planId, artifactCount, created, artifactKeys }
   app.post("/api/dev/serious-plan/ensure-artifacts", async (req, res) => {
     if (!requireDevTools(req, res)) return;
@@ -5083,16 +5085,31 @@ FORMAT:
 
       // Check existing artifacts
       let artifacts = await storage.getArtifactsByPlanId(plan.id);
+      
+      // Force regenerate if requested - delete existing non-transcript artifacts
+      const forceRegenerate = req.body.forceRegenerate === true;
+      if (forceRegenerate && artifacts.length > 0) {
+        console.log(`[DEV] Force regenerate requested - deleting ${artifacts.length} existing artifacts`);
+        // Delete existing non-transcript artifacts
+        for (const artifact of artifacts) {
+          if (!artifact.artifactKey.startsWith('transcript_')) {
+            await db.delete(seriousPlanArtifacts).where(eq(seriousPlanArtifacts.id, artifact.id));
+          }
+        }
+        // Re-fetch to get only transcript artifacts (if any)
+        artifacts = await storage.getArtifactsByPlanId(plan.id);
+        created = true;
+      }
 
       if (artifacts.length === 0) {
-        // Create placeholder artifacts for testing the lifecycle
+        // Create placeholder artifacts for testing the real generation lifecycle
         const testArtifactKeys = ['decision_snapshot', 'action_plan', 'module_recap'];
         const placeholders = testArtifactKeys.map((key, idx) => ({
           planId: plan!.id,
           artifactKey: key,
           title: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
           type: 'generated' as const,
-          importanceLevel: 'critical' as const,
+          importanceLevel: 'must_read' as const,
           whyImportant: `Test artifact for ${key}`,
           contentRaw: null,
           generationStatus: 'pending' as const,
@@ -5103,29 +5120,68 @@ FORMAT:
         artifacts = await storage.createArtifacts(placeholders);
         created = true;
 
-        // Simulate async generation by updating status after a delay (fire and forget)
-        setTimeout(async () => {
-          for (const artifact of artifacts) {
-            try {
-              await storage.updateArtifactGenerationStatus(artifact.id, 'generating');
-              // Simulate generation time
-              await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
-              await storage.updateArtifactGenerationStatus(
-                artifact.id, 
-                'complete',
-                JSON.stringify({ 
-                  summary: `Generated content for ${artifact.artifactKey}`,
-                  generatedAt: new Date().toISOString()
-                })
-              );
-            } catch (err) {
-              console.error(`[DEV] Artifact generation simulation failed for ${artifact.id}:`, err);
-              await storage.updateArtifactGenerationStatus(artifact.id, 'error');
-            }
-          }
-          // Mark plan as ready when all artifacts complete
-          await storage.updateSeriousPlanStatus(plan!.id, 'ready');
-        }, 100);
+        // Build minimal coaching plan and dossier for real generation
+        const clientName = user.name || user.email?.split('@')[0] || 'Test User';
+        const testCoachingPlan: CoachingPlan = {
+          name: clientName,
+          careerBrief: 'Career transition coaching',
+          seriousPlanSummary: 'Your personalized career plan with actionable steps',
+          plannedArtifacts: testArtifactKeys.map((key) => ({
+            key,
+            title: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            type: 'generated',
+            description: `Generated artifact for ${key}`,
+            importance: 'must_read' as const,
+          })),
+          modules: [
+            { name: 'Job Autopsy', objective: 'Analyze current career', approach: 'Interview-based', outcome: 'Clear picture of situation' },
+            { name: 'Fork in the Road', objective: 'Explore options', approach: 'Decision framework', outcome: 'Path forward identified' },
+            { name: 'Great Escape Plan', objective: 'Create action plan', approach: 'Step-by-step planning', outcome: 'Actionable roadmap' },
+          ],
+        };
+
+        const testDossier: ClientDossier = {
+          interviewTranscript: [{ role: 'assistant', content: 'Welcome to coaching.' }, { role: 'user', content: 'Thanks!' }],
+          lastUpdated: new Date().toISOString(),
+          interviewAnalysis: {
+            clientName,
+            currentRole: 'Software Engineer',
+            company: 'Tech Corp',
+            tenure: '5 years',
+            situation: 'Looking to transition careers',
+            bigProblem: 'Feeling stuck in current role',
+            desiredOutcome: 'Career transition to product management',
+            clientFacingSummary: 'A skilled engineer ready for the next chapter.',
+            keyFacts: ['5 years experience', 'Strong technical background'],
+            relationships: [{ person: 'Manager', role: 'Supervisor', dynamic: 'Supportive' }],
+            emotionalState: 'Motivated but uncertain',
+            communicationStyle: 'Direct and clear',
+            priorities: ['Career growth', 'Work-life balance'],
+            constraints: ['Time availability', 'Financial considerations'],
+            motivations: ['Learning new skills', 'Making an impact'],
+            fears: ['Starting over', 'Uncertainty'],
+            questionsAsked: ['What do you want?'],
+            optionsOffered: [{ option: 'PM role', chosen: true }],
+            observations: 'Client is well-prepared and engaged.',
+          },
+          moduleRecords: testCoachingPlan.modules.map((m, idx) => ({
+            moduleNumber: idx + 1,
+            moduleName: m.name,
+            transcript: [{ role: 'assistant', content: `Module ${idx + 1}` }],
+            summary: `Completed ${m.name}`,
+            decisions: ['Move forward with plan'],
+            insights: [`Key insight from ${m.name}`],
+            actionItems: [`Action item from ${m.name}`],
+            questionsAsked: ['How do you feel?'],
+            optionsPresented: [{ option: 'Continue', chosen: true }],
+            observations: 'Good progress',
+            completedAt: new Date().toISOString(),
+          })),
+        };
+
+        // Fire off REAL artifact generation (uses LLM to generate content)
+        console.log(`[DEV] Starting real artifact generation for plan=${plan!.id} artifacts=${testArtifactKeys.join(',')}`);
+        generateArtifactsAsync(plan!.id, testCoachingPlan.name, testCoachingPlan, testDossier, testArtifactKeys);
       }
 
       res.json({
