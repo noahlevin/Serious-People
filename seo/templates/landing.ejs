@@ -1,437 +1,441 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Serious People - Career Coaching for Senior Professionals</title>
-  <meta name="description" content="A structured coaching experience that helps you think clearly about your career—and leave with a concrete plan, not vague advice.">
-  
-  <link rel="canonical" href="<%= baseUrl %>/">
-  
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="<%= baseUrl %>/">
-  <meta property="og:title" content="Serious People - Career Coaching">
-  <meta property="og:description" content="A structured coaching experience that helps you think clearly about your career—and leave with a concrete plan, not vague advice.">
-  <meta property="og:site_name" content="Serious People">
-  <meta property="og:locale" content="en_US">
-  <meta property="og:image" content="<%= baseUrl %>/logo.png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Serious People - Career Coaching">
-  
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:site" content="@seriouspeople">
-  <meta name="twitter:title" content="Serious People - Career Coaching">
-  <meta name="twitter:description" content="A structured coaching experience that helps you think clearly about your career—and leave with a concrete plan, not vague advice.">
-  <meta name="twitter:image" content="<%= baseUrl %>/logo.png">
-  
-  <link rel="icon" type="image/png" href="/favicon.png">
-  
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/seo.css?v=<%= Date.now() %>">
-  
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "Serious People",
-    "url": "<%= baseUrl %>",
-    "description": "Career coaching for serious decisions"
-  }
-  </script>
-</head>
-<body class="sp-landing-page">
-  <%- include("partials/header", { active: "" }) %>
-  
-  <main>
-    <!-- Hero - Asymmetric Layout -->
-    <section class="sp-container sp-section sp-hero-landing">
-      <div class="sp-hero-grid">
-        <div class="sp-hero-content">
-          <p class="sp-eyebrow sp-text-primary" data-testid="text-eyebrow">
-            Career coaching for senior professionals
-          </p>
-          
-          <h1 class="sp-display-hero" data-testid="text-headline">
-            You're <span class="sp-rotating-text sp-text-terracotta" id="rotating-situation">wondering if it's time to leave</span>
-          </h1>
-          
-          <p class="sp-hero-lede" data-testid="text-lede">
-            A structured coaching experience that helps you think clearly about 
-            your career—and leave with a concrete plan, not vague advice.
-          </p>
-          
-          <div class="sp-hero-cta-group">
-            <a href="/app/interview" class="sp-btn sp-btn-primary sp-btn-lg" data-testid="button-start-interview">
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+      <title>Serious People - Career Coaching for Senior Professionals</title>
+      <meta name="description" content="A structured coaching experience that helps you think clearly about your career—and leave with a concrete plan, not vague advice.">
+
+      <link rel="canonical" href="<%= baseUrl %>/">
+
+      <meta property="og:type" content="website">
+      <meta property="og:url" content="<%= baseUrl %>/">
+      <meta property="og:title" content="Serious People - Career Coaching">
+      <meta property="og:description" content="A structured coaching experience that helps you think clearly about your career—and leave with a concrete plan, not vague advice.">
+      <meta property="og:site_name" content="Serious People">
+      <meta property="og:locale" content="en_US">
+      <meta property="og:image" content="<%= baseUrl %>/logo.png">
+      <meta property="og:image:width" content="1200">
+      <meta property="og:image:height" content="630">
+      <meta property="og:image:alt" content="Serious People - Career Coaching">
+
+      <meta name="twitter:card" content="summary_large_image">
+      <meta name="twitter:site" content="@seriouspeople">
+      <meta name="twitter:title" content="Serious People - Career Coaching">
+      <meta name="twitter:description" content="A structured coaching experience that helps you think clearly about your career—and leave with a concrete plan, not vague advice.">
+      <meta name="twitter:image" content="<%= baseUrl %>/logo.png">
+
+      <link rel="icon" type="image/png" href="/favicon.png">
+
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet">
+      <link rel="stylesheet" href="/seo.css?v=<%= Date.now() %>">
+
+      <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Serious People",
+        "url": "<%= baseUrl %>",
+        "description": "Career coaching for serious decisions"
+      }
+      </script>
+    </head>
+    <body class="sp-landing-page">
+      <%- include("partials/header", { active: "" }) %>
+
+      <main>
+        <!-- Hero - Asymmetric Layout -->
+        <section class="sp-section sp-hero-landing">
+        <div class="sp-container">
+          <div class="sp-hero-grid">
+            <div class="sp-hero-content">
+              <p class="sp-eyebrow sp-text-primary" data-testid="text-eyebrow">
+                Career coaching for senior professionals
+              </p>
+
+              <h1 class="sp-display-hero" data-testid="text-headline">
+                You're <span class="sp-rotating-text sp-text-terracotta" id="rotating-situation">wondering if it's time to leave</span>
+              </h1>
+
+              <p class="sp-hero-lede" data-testid="text-lede">
+                A structured coaching experience that helps you think clearly about 
+                your career—and leave with a concrete plan, not vague advice.
+              </p>
+
+              <div class="sp-hero-cta-group">
+                <a href="/app/interview" class="sp-btn sp-btn-primary sp-btn-lg" data-testid="button-start-interview">
+                  Start free interview
+                  <svg class="sp-btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </a>
+                <a href="#how-it-works" class="sp-btn sp-btn-ghost sp-btn-lg" data-testid="link-how-it-works">
+                  <span class="sp-underline-hover">See how it works</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Pull Quote Section -->
+        <section class="sp-section-border">
+          <div class="sp-container sp-quote-section">
+            <div class="sp-quote-elegant sp-quote-centered">
+              <blockquote data-testid="text-quote">
+                I spent months going in circles. One hour with this process gave me more clarity than a year of overthinking.
+              </blockquote>
+              <cite>
+                <span class="sp-quote-author">— VP of Engineering</span>
+                <span class="sp-quote-sep">·</span>
+                <span class="sp-quote-role">Series C startup</span>
+              </cite>
+            </div>
+          </div>
+        </section>
+
+        <!-- Situations Section - Sage Background -->
+        <section class="sp-section-sage sp-section-border" id="situations">
+          <div class="sp-container sp-section-padded">
+            <div class="sp-two-col-grid">
+              <div class="sp-col-left">
+                <p class="sp-eyebrow sp-text-primary">What brings people here</p>
+                <h2 class="sp-display-section" data-testid="text-situations-heading">
+                  Career decisions shouldn't feel like guesswork
+                </h2>
+              </div>
+
+              <div class="sp-col-right">
+                <div class="sp-situations-grid" data-testid="situations-grid">
+                  <div class="sp-situation-card" data-testid="card-situation-0">
+                    <div class="sp-situation-icon-wrap">
+                      <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 35 L20 20" />
+                        <path d="M20 20 L10 8" />
+                        <path d="M20 20 L30 8" />
+                        <circle cx="10" cy="6" r="2" />
+                        <circle cx="30" cy="6" r="2" />
+                        <circle cx="20" cy="37" r="2" fill="currentColor" />
+                      </svg>
+                    </div>
+                    <div class="sp-situation-content">
+                      <h3 class="sp-situation-title">Stay or go?</h3>
+                      <p class="sp-situation-desc">You've been thinking about leaving for months, but can't decide if it's the right move.</p>
+                    </div>
+                  </div>
+
+                  <div class="sp-situation-card" data-testid="card-situation-1">
+                    <div class="sp-situation-icon-wrap">
+                      <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 22 Q8 16 14 16 Q14 12 20 12 Q26 12 26 16 Q32 16 32 22" />
+                        <path d="M12 22 L12 24" />
+                        <path d="M20 22 L20 26" />
+                        <path d="M28 22 L28 24" />
+                        <circle cx="20" cy="32" r="3" />
+                        <path d="M14 38 L20 35 L26 38" />
+                      </svg>
+                    </div>
+                    <div class="sp-situation-content">
+                      <h3 class="sp-situation-title">Bad manager</h3>
+                      <p class="sp-situation-desc">Your boss is making your life difficult. You're not sure if it's fixable or time to exit.</p>
+                    </div>
+                  </div>
+
+                  <div class="sp-situation-card" data-testid="card-situation-2">
+                    <div class="sp-situation-icon-wrap">
+                      <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="6" y="12" width="24" height="16" rx="2" />
+                        <path d="M30 18 L34 18 L34 22 L30 22" />
+                        <rect x="9" y="15" width="4" height="10" fill="currentColor" opacity="0.3" />
+                        <path d="M16 20 L18 17 L20 23 L22 20" />
+                      </svg>
+                    </div>
+                    <div class="sp-situation-content">
+                      <h3 class="sp-situation-title">Burnout</h3>
+                      <p class="sp-situation-desc">You're exhausted and know something needs to change, but what? A new job? A break? A career shift?</p>
+                    </div>
+                  </div>
+
+                  <div class="sp-situation-card" data-testid="card-situation-3">
+                    <div class="sp-situation-icon-wrap">
+                      <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 20 L12 14 L20 20 L28 14 L34 20" />
+                        <path d="M12 14 L12 28" />
+                        <path d="M28 14 L28 28" />
+                        <path d="M12 28 Q20 32 28 28" stroke-dasharray="3 2" />
+                      </svg>
+                    </div>
+                    <div class="sp-situation-content">
+                      <h3 class="sp-situation-title">Negotiating an exit</h3>
+                      <p class="sp-situation-desc">You've decided to leave. Now you need to navigate the conversation without burning bridges.</p>
+                    </div>
+                  </div>
+
+                  <div class="sp-situation-card" data-testid="card-situation-4">
+                    <div class="sp-situation-icon-wrap">
+                      <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 6 L20 12" />
+                        <path d="M8 12 L32 12" />
+                        <path d="M8 12 L8 24" />
+                        <path d="M32 12 L32 20" />
+                        <path d="M4 24 Q8 28 12 24" />
+                        <path d="M28 20 Q32 24 36 20" />
+                        <path d="M18 30 Q18 26 20 26 Q22 26 22 28 Q22 30 20 31" />
+                        <circle cx="20" cy="34" r="1" fill="currentColor" />
+                      </svg>
+                    </div>
+                    <div class="sp-situation-content">
+                      <h3 class="sp-situation-title">Counter-offer dilemma</h3>
+                      <p class="sp-situation-desc">They matched your offer. Now you're second-guessing everything.</p>
+                    </div>
+                  </div>
+
+                  <div class="sp-situation-card" data-testid="card-situation-5">
+                    <div class="sp-situation-icon-wrap">
+                      <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="4" y="10" width="12" height="24" rx="1" />
+                        <rect x="24" y="10" width="12" height="24" rx="1" />
+                        <circle cx="13" cy="22" r="1.5" fill="currentColor" />
+                        <circle cx="27" cy="22" r="1.5" fill="currentColor" />
+                        <path d="M10 6 L10 8" opacity="0.5" />
+                        <path d="M30 6 L30 8" opacity="0.5" />
+                        <circle cx="20" cy="38" r="2" fill="currentColor" />
+                      </svg>
+                    </div>
+                    <div class="sp-situation-content">
+                      <h3 class="sp-situation-title">Two opportunities</h3>
+                      <p class="sp-situation-desc">You have options, but comparing them feels impossible. Different roles, different tradeoffs.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- How it Works -->
+        <section class="sp-section sp-section-border" id="how-it-works">
+        <div class="sp-container">
+          <div class="sp-how-it-works">
+            <p class="sp-eyebrow sp-text-primary sp-text-center">The process</p>
+            <h2 class="sp-display-section sp-text-center" data-testid="text-process-heading">
+              Three sessions. One clear plan.
+            </h2>
+
+            <div class="sp-process-wrapper">
+              <!-- Process Path SVG (desktop only) -->
+              <div class="sp-process-path-wrapper">
+                <svg class="sp-process-path" viewBox="0 0 1000 200" preserveAspectRatio="xMidYMid meet" fill="none">
+                  <path d="M80 100 C 180 100, 220 50, 320 50 C 420 50, 420 100, 500 100 C 580 100, 580 150, 680 150 C 780 150, 820 100, 920 100" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>
+                  <g>
+                    <circle cx="80" cy="100" r="20" fill="hsl(var(--background))" stroke="hsl(var(--primary))" stroke-width="2" />
+                    <circle cx="80" cy="100" r="12" fill="hsl(var(--primary) / 0.1)" />
+                    <path d="M74 96 L86 96 L86 104 L81 104 L78 108 L78 104 L74 104 Z" stroke="hsl(var(--primary))" stroke-width="1.5" fill="none" />
+                  </g>
+                  <g>
+                    <circle cx="500" cy="100" r="20" fill="hsl(var(--background))" stroke="hsl(var(--primary))" stroke-width="2" />
+                    <circle cx="500" cy="100" r="12" fill="hsl(var(--primary) / 0.1)" />
+                    <circle cx="500" cy="100" r="6" stroke="hsl(var(--primary))" stroke-width="1.5" fill="none" />
+                    <circle cx="500" cy="100" r="2" fill="hsl(var(--primary))" />
+                  </g>
+                  <g>
+                    <circle cx="920" cy="100" r="20" fill="hsl(var(--background))" stroke="hsl(var(--primary))" stroke-width="2" />
+                    <circle cx="920" cy="100" r="12" fill="hsl(var(--primary) / 0.1)" />
+                    <path d="M912 100 L918 106 L928 94" stroke="hsl(var(--primary))" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+                  </g>
+                  <g style="opacity: 0.5">
+                    <circle cx="200" cy="75" r="3" fill="hsl(var(--sage-medium))" />
+                    <circle cx="380" cy="60" r="2" fill="hsl(var(--terracotta))" />
+                    <circle cx="620" cy="140" r="3" fill="hsl(var(--sage-medium))" />
+                    <circle cx="800" cy="125" r="2" fill="hsl(var(--terracotta))" />
+                  </g>
+                  <g>
+                    <polygon points="280,55 290,50 285,60" fill="hsl(var(--primary))" />
+                    <polygon points="620,145 630,140 625,150" fill="hsl(var(--primary))" />
+                  </g>
+                </svg>
+              </div>
+
+              <div class="sp-process-steps">
+                <div class="sp-process-step" data-testid="step-1">
+                  <div class="sp-step-number">01</div>
+                  <h3 class="sp-step-title">The Interview</h3>
+                  <p class="sp-step-desc">A free 15-minute AI conversation to understand your situation. We'll map out what's really going on.</p>
+                  <p class="sp-step-note">Free, no commitment</p>
+                </div>
+
+                <div class="sp-process-step" data-testid="step-2">
+                  <div class="sp-step-number">02</div>
+                  <h3 class="sp-step-title">The Coaching</h3>
+                  <p class="sp-step-desc">Three focused modules tailored to your situation. Not generic advice—specific to you.</p>
+                  <p class="sp-step-note">Personalized curriculum</p>
+                </div>
+
+                <div class="sp-process-step" data-testid="step-3">
+                  <div class="sp-step-number">03</div>
+                  <h3 class="sp-step-title">The Plan</h3>
+                  <p class="sp-step-desc">Walk away with scripts, timelines, and decision frameworks. Everything you need to act.</p>
+                  <p class="sp-step-note">Concrete deliverables</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Social Proof Stats - Sage Background -->
+        <section class="sp-section-sage sp-section-border">
+          <div class="sp-container sp-stats-section">
+            <div class="sp-stats-row" data-testid="stats-row">
+              <div class="sp-stat">
+                <p class="sp-stat-value">500+</p>
+                <p class="sp-stat-label">Coaching sessions</p>
+              </div>
+              <div class="sp-stat-divider"></div>
+              <div class="sp-stat">
+                <p class="sp-stat-value">4.9/5</p>
+                <p class="sp-stat-label">Average rating</p>
+              </div>
+              <div class="sp-stat-divider"></div>
+              <div class="sp-stat">
+                <p class="sp-stat-value">VP+</p>
+                <p class="sp-stat-label">Senior professionals</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Why People Pay -->
+        <section class="sp-section sp-section-border">
+        <div class="sp-container">
+          <div class="sp-two-col-grid">
+            <div class="sp-col-left">
+              <p class="sp-eyebrow sp-text-primary">Why people pay</p>
+              <h2 class="sp-display-section" data-testid="text-why-heading">
+                This isn't therapy. It's strategy.
+              </h2>
+            </div>
+
+            <div class="sp-col-right">
+              <div class="sp-value-props" data-testid="value-props">
+                <div class="sp-value-prop">
+                  <h3 class="sp-value-title">Speed</h3>
+                  <p class="sp-value-desc">Most people ruminate for months. Our clients get clarity in days. The AI interview alone surfaces insights that take weeks to reach in traditional coaching.</p>
+                </div>
+
+                <div class="sp-value-prop">
+                  <h3 class="sp-value-title">Specificity</h3>
+                  <p class="sp-value-desc">No generic frameworks. Every recommendation is tailored to your exact situation, company context, and career goals. Scripts, timelines, decision trees—ready to use.</p>
+                </div>
+
+                <div class="sp-value-prop">
+                  <h3 class="sp-value-title">Stakes</h3>
+                  <p class="sp-value-desc">At the VP+ level, career mistakes are expensive. A bad exit, a missed negotiation, or a wrong move can cost hundreds of thousands. This is insurance.</p>
+                </div>
+
+                <div class="sp-value-prop">
+                  <h3 class="sp-value-title">Discretion</h3>
+                  <p class="sp-value-desc">No paper trail. No HR involvement. No awkward conversations with colleagues. Just you, working through your situation with complete privacy.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- FAQ Section - Sage Background -->
+        <section class="sp-section-sage sp-section-border">
+          <div class="sp-container sp-section-padded">
+            <div class="sp-two-col-grid">
+              <div class="sp-col-left">
+                <p class="sp-eyebrow sp-text-primary">FAQ</p>
+                <h2 class="sp-display-section" data-testid="text-faq-heading">
+                  Common questions
+                </h2>
+              </div>
+
+              <div class="sp-col-right">
+                <div class="sp-faq-list" data-testid="faq-list">
+                  <div class="sp-faq-item">
+                    <h3 class="sp-faq-question">Is this AI or human coaching?</h3>
+                    <p class="sp-faq-answer">Both. The initial interview and situation analysis are AI-powered, but the coaching sessions include human oversight and review. You get the speed and availability of AI with the judgment of experienced career coaches.</p>
+                  </div>
+
+                  <div class="sp-faq-item">
+                    <h3 class="sp-faq-question">How is this different from talking to a friend or mentor?</h3>
+                    <p class="sp-faq-answer">Friends tell you what you want to hear. Mentors give advice based on their experience, not yours. We give you structured frameworks, specific scripts, and concrete action plans based on your exact situation and goals.</p>
+                  </div>
+
+                  <div class="sp-faq-item">
+                    <h3 class="sp-faq-question">What if I'm not sure I want to leave?</h3>
+                    <p class="sp-faq-answer">Perfect. Most of our clients start unsure. The process is designed to help you think clearly, not push you in any direction. Many people decide to stay—but with a much clearer understanding of why.</p>
+                  </div>
+
+                  <div class="sp-faq-item">
+                    <h3 class="sp-faq-question">How long does it take?</h3>
+                    <p class="sp-faq-answer">The free interview takes about 15 minutes. The full coaching program is three sessions over 1-2 weeks. Most clients have their complete action plan within 10 days.</p>
+                  </div>
+
+                  <div class="sp-faq-item sp-faq-item-last">
+                    <h3 class="sp-faq-question">Is this confidential?</h3>
+                    <p class="sp-faq-answer">Completely. We don't share any information with employers, and there's no record of your participation. Many clients specifically choose us because there's no HR involvement or paper trail.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="sp-section sp-section-border">
+        <div class="sp-container">
+          <div class="sp-cta-centered">
+            <h2 class="sp-display-section sp-text-center" data-testid="text-cta-heading">
+              Ready to think clearly about your career?
+            </h2>
+            <p class="sp-cta-lede">
+              Start with a free interview. In 15 minutes, you'll have more clarity than months of ruminating.
+            </p>
+            <a href="/app/interview" class="sp-btn sp-btn-primary sp-btn-lg" data-testid="button-start-interview-bottom">
               Start free interview
               <svg class="sp-btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
             </a>
-            <a href="#how-it-works" class="sp-btn sp-btn-ghost sp-btn-lg" data-testid="link-how-it-works">
-              <span class="sp-underline-hover">See how it works</span>
-            </a>
+            <p class="sp-cta-reassurance">No credit card required</p>
           </div>
-        </div>
-      </div>
-    </section>
+        </section>
+      </main>
 
-    <!-- Pull Quote Section -->
-    <section class="sp-section-border">
-      <div class="sp-container sp-quote-section">
-        <div class="sp-quote-elegant sp-quote-centered">
-          <blockquote data-testid="text-quote">
-            I spent months going in circles. One hour with this process gave me more clarity than a year of overthinking.
-          </blockquote>
-          <cite>
-            <span class="sp-quote-author">— VP of Engineering</span>
-            <span class="sp-quote-sep">·</span>
-            <span class="sp-quote-role">Series C startup</span>
-          </cite>
-        </div>
-      </div>
-    </section>
+      <%- include("partials/footer") %>
 
-    <!-- Situations Section - Sage Background -->
-    <section class="sp-section-sage sp-section-border" id="situations">
-      <div class="sp-container sp-section-padded">
-        <div class="sp-two-col-grid">
-          <div class="sp-col-left">
-            <p class="sp-eyebrow sp-text-primary">What brings people here</p>
-            <h2 class="sp-display-section" data-testid="text-situations-heading">
-              Career decisions shouldn't feel like guesswork
-            </h2>
-          </div>
-          
-          <div class="sp-col-right">
-            <div class="sp-situations-grid" data-testid="situations-grid">
-              <div class="sp-situation-card" data-testid="card-situation-0">
-                <div class="sp-situation-icon-wrap">
-                  <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 35 L20 20" />
-                    <path d="M20 20 L10 8" />
-                    <path d="M20 20 L30 8" />
-                    <circle cx="10" cy="6" r="2" />
-                    <circle cx="30" cy="6" r="2" />
-                    <circle cx="20" cy="37" r="2" fill="currentColor" />
-                  </svg>
-                </div>
-                <div class="sp-situation-content">
-                  <h3 class="sp-situation-title">Stay or go?</h3>
-                  <p class="sp-situation-desc">You've been thinking about leaving for months, but can't decide if it's the right move.</p>
-                </div>
-              </div>
-              
-              <div class="sp-situation-card" data-testid="card-situation-1">
-                <div class="sp-situation-icon-wrap">
-                  <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M8 22 Q8 16 14 16 Q14 12 20 12 Q26 12 26 16 Q32 16 32 22" />
-                    <path d="M12 22 L12 24" />
-                    <path d="M20 22 L20 26" />
-                    <path d="M28 22 L28 24" />
-                    <circle cx="20" cy="32" r="3" />
-                    <path d="M14 38 L20 35 L26 38" />
-                  </svg>
-                </div>
-                <div class="sp-situation-content">
-                  <h3 class="sp-situation-title">Bad manager</h3>
-                  <p class="sp-situation-desc">Your boss is making your life difficult. You're not sure if it's fixable or time to exit.</p>
-                </div>
-              </div>
-              
-              <div class="sp-situation-card" data-testid="card-situation-2">
-                <div class="sp-situation-icon-wrap">
-                  <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="6" y="12" width="24" height="16" rx="2" />
-                    <path d="M30 18 L34 18 L34 22 L30 22" />
-                    <rect x="9" y="15" width="4" height="10" fill="currentColor" opacity="0.3" />
-                    <path d="M16 20 L18 17 L20 23 L22 20" />
-                  </svg>
-                </div>
-                <div class="sp-situation-content">
-                  <h3 class="sp-situation-title">Burnout</h3>
-                  <p class="sp-situation-desc">You're exhausted and know something needs to change, but what? A new job? A break? A career shift?</p>
-                </div>
-              </div>
-              
-              <div class="sp-situation-card" data-testid="card-situation-3">
-                <div class="sp-situation-icon-wrap">
-                  <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M6 20 L12 14 L20 20 L28 14 L34 20" />
-                    <path d="M12 14 L12 28" />
-                    <path d="M28 14 L28 28" />
-                    <path d="M12 28 Q20 32 28 28" stroke-dasharray="3 2" />
-                  </svg>
-                </div>
-                <div class="sp-situation-content">
-                  <h3 class="sp-situation-title">Negotiating an exit</h3>
-                  <p class="sp-situation-desc">You've decided to leave. Now you need to navigate the conversation without burning bridges.</p>
-                </div>
-              </div>
-              
-              <div class="sp-situation-card" data-testid="card-situation-4">
-                <div class="sp-situation-icon-wrap">
-                  <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 6 L20 12" />
-                    <path d="M8 12 L32 12" />
-                    <path d="M8 12 L8 24" />
-                    <path d="M32 12 L32 20" />
-                    <path d="M4 24 Q8 28 12 24" />
-                    <path d="M28 20 Q32 24 36 20" />
-                    <path d="M18 30 Q18 26 20 26 Q22 26 22 28 Q22 30 20 31" />
-                    <circle cx="20" cy="34" r="1" fill="currentColor" />
-                  </svg>
-                </div>
-                <div class="sp-situation-content">
-                  <h3 class="sp-situation-title">Counter-offer dilemma</h3>
-                  <p class="sp-situation-desc">They matched your offer. Now you're second-guessing everything.</p>
-                </div>
-              </div>
-              
-              <div class="sp-situation-card" data-testid="card-situation-5">
-                <div class="sp-situation-icon-wrap">
-                  <svg class="sp-situation-icon" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="4" y="10" width="12" height="24" rx="1" />
-                    <rect x="24" y="10" width="12" height="24" rx="1" />
-                    <circle cx="13" cy="22" r="1.5" fill="currentColor" />
-                    <circle cx="27" cy="22" r="1.5" fill="currentColor" />
-                    <path d="M10 6 L10 8" opacity="0.5" />
-                    <path d="M30 6 L30 8" opacity="0.5" />
-                    <circle cx="20" cy="38" r="2" fill="currentColor" />
-                  </svg>
-                </div>
-                <div class="sp-situation-content">
-                  <h3 class="sp-situation-title">Two opportunities</h3>
-                  <p class="sp-situation-desc">You have options, but comparing them feels impossible. Different roles, different tradeoffs.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+      <script>
+        // Rotating situations text
+        const situations = [
+          "wondering if it's time to leave",
+          "dealing with a difficult manager",
+          "burned out but unsure what's next",
+          "negotiating your exit",
+          "considering a counter-offer",
+          "stuck between two opportunities"
+        ];
 
-    <!-- How it Works -->
-    <section class="sp-container sp-section sp-section-border" id="how-it-works">
-      <div class="sp-how-it-works">
-        <p class="sp-eyebrow sp-text-primary sp-text-center">The process</p>
-        <h2 class="sp-display-section sp-text-center" data-testid="text-process-heading">
-          Three sessions. One clear plan.
-        </h2>
-        
-        <div class="sp-process-wrapper">
-          <!-- Process Path SVG (desktop only) -->
-          <div class="sp-process-path-wrapper">
-            <svg class="sp-process-path" viewBox="0 0 1000 200" preserveAspectRatio="xMidYMid meet" fill="none">
-              <path d="M80 100 C 180 100, 220 50, 320 50 C 420 50, 420 100, 500 100 C 580 100, 580 150, 680 150 C 780 150, 820 100, 920 100" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>
-              <g>
-                <circle cx="80" cy="100" r="20" fill="hsl(var(--background))" stroke="hsl(var(--primary))" stroke-width="2" />
-                <circle cx="80" cy="100" r="12" fill="hsl(var(--primary) / 0.1)" />
-                <path d="M74 96 L86 96 L86 104 L81 104 L78 108 L78 104 L74 104 Z" stroke="hsl(var(--primary))" stroke-width="1.5" fill="none" />
-              </g>
-              <g>
-                <circle cx="500" cy="100" r="20" fill="hsl(var(--background))" stroke="hsl(var(--primary))" stroke-width="2" />
-                <circle cx="500" cy="100" r="12" fill="hsl(var(--primary) / 0.1)" />
-                <circle cx="500" cy="100" r="6" stroke="hsl(var(--primary))" stroke-width="1.5" fill="none" />
-                <circle cx="500" cy="100" r="2" fill="hsl(var(--primary))" />
-              </g>
-              <g>
-                <circle cx="920" cy="100" r="20" fill="hsl(var(--background))" stroke="hsl(var(--primary))" stroke-width="2" />
-                <circle cx="920" cy="100" r="12" fill="hsl(var(--primary) / 0.1)" />
-                <path d="M912 100 L918 106 L928 94" stroke="hsl(var(--primary))" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-              </g>
-              <g style="opacity: 0.5">
-                <circle cx="200" cy="75" r="3" fill="hsl(var(--sage-medium))" />
-                <circle cx="380" cy="60" r="2" fill="hsl(var(--terracotta))" />
-                <circle cx="620" cy="140" r="3" fill="hsl(var(--sage-medium))" />
-                <circle cx="800" cy="125" r="2" fill="hsl(var(--terracotta))" />
-              </g>
-              <g>
-                <polygon points="280,55 290,50 285,60" fill="hsl(var(--primary))" />
-                <polygon points="620,145 630,140 625,150" fill="hsl(var(--primary))" />
-              </g>
-            </svg>
-          </div>
-          
-          <div class="sp-process-steps">
-            <div class="sp-process-step" data-testid="step-1">
-              <div class="sp-step-number">01</div>
-              <h3 class="sp-step-title">The Interview</h3>
-              <p class="sp-step-desc">A free 15-minute AI conversation to understand your situation. We'll map out what's really going on.</p>
-              <p class="sp-step-note">Free, no commitment</p>
-            </div>
-            
-            <div class="sp-process-step" data-testid="step-2">
-              <div class="sp-step-number">02</div>
-              <h3 class="sp-step-title">The Coaching</h3>
-              <p class="sp-step-desc">Three focused modules tailored to your situation. Not generic advice—specific to you.</p>
-              <p class="sp-step-note">Personalized curriculum</p>
-            </div>
-            
-            <div class="sp-process-step" data-testid="step-3">
-              <div class="sp-step-number">03</div>
-              <h3 class="sp-step-title">The Plan</h3>
-              <p class="sp-step-desc">Walk away with scripts, timelines, and decision frameworks. Everything you need to act.</p>
-              <p class="sp-step-note">Concrete deliverables</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+        let currentIndex = 0;
+        const rotatingElement = document.getElementById('rotating-situation');
 
-    <!-- Social Proof Stats - Sage Background -->
-    <section class="sp-section-sage sp-section-border">
-      <div class="sp-container sp-stats-section">
-        <div class="sp-stats-row" data-testid="stats-row">
-          <div class="sp-stat">
-            <p class="sp-stat-value">500+</p>
-            <p class="sp-stat-label">Coaching sessions</p>
-          </div>
-          <div class="sp-stat-divider"></div>
-          <div class="sp-stat">
-            <p class="sp-stat-value">4.9/5</p>
-            <p class="sp-stat-label">Average rating</p>
-          </div>
-          <div class="sp-stat-divider"></div>
-          <div class="sp-stat">
-            <p class="sp-stat-value">VP+</p>
-            <p class="sp-stat-label">Senior professionals</p>
-          </div>
-        </div>
-      </div>
-    </section>
+        function rotateSituation() {
+          rotatingElement.style.opacity = '0';
+          rotatingElement.style.transform = 'translateY(8px)';
 
-    <!-- Why People Pay -->
-    <section class="sp-container sp-section sp-section-border">
-      <div class="sp-two-col-grid">
-        <div class="sp-col-left">
-          <p class="sp-eyebrow sp-text-primary">Why people pay</p>
-          <h2 class="sp-display-section" data-testid="text-why-heading">
-            This isn't therapy. It's strategy.
-          </h2>
-        </div>
-        
-        <div class="sp-col-right">
-          <div class="sp-value-props" data-testid="value-props">
-            <div class="sp-value-prop">
-              <h3 class="sp-value-title">Speed</h3>
-              <p class="sp-value-desc">Most people ruminate for months. Our clients get clarity in days. The AI interview alone surfaces insights that take weeks to reach in traditional coaching.</p>
-            </div>
-            
-            <div class="sp-value-prop">
-              <h3 class="sp-value-title">Specificity</h3>
-              <p class="sp-value-desc">No generic frameworks. Every recommendation is tailored to your exact situation, company context, and career goals. Scripts, timelines, decision trees—ready to use.</p>
-            </div>
-            
-            <div class="sp-value-prop">
-              <h3 class="sp-value-title">Stakes</h3>
-              <p class="sp-value-desc">At the VP+ level, career mistakes are expensive. A bad exit, a missed negotiation, or a wrong move can cost hundreds of thousands. This is insurance.</p>
-            </div>
-            
-            <div class="sp-value-prop">
-              <h3 class="sp-value-title">Discretion</h3>
-              <p class="sp-value-desc">No paper trail. No HR involvement. No awkward conversations with colleagues. Just you, working through your situation with complete privacy.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+          setTimeout(() => {
+            currentIndex = (currentIndex + 1) % situations.length;
+            rotatingElement.textContent = situations[currentIndex];
+            rotatingElement.style.opacity = '1';
+            rotatingElement.style.transform = 'translateY(0)';
+          }, 400);
+        }
 
-    <!-- FAQ Section - Sage Background -->
-    <section class="sp-section-sage sp-section-border">
-      <div class="sp-container sp-section-padded">
-        <div class="sp-two-col-grid">
-          <div class="sp-col-left">
-            <p class="sp-eyebrow sp-text-primary">FAQ</p>
-            <h2 class="sp-display-section" data-testid="text-faq-heading">
-              Common questions
-            </h2>
-          </div>
-          
-          <div class="sp-col-right">
-            <div class="sp-faq-list" data-testid="faq-list">
-              <div class="sp-faq-item">
-                <h3 class="sp-faq-question">Is this AI or human coaching?</h3>
-                <p class="sp-faq-answer">Both. The initial interview and situation analysis are AI-powered, but the coaching sessions include human oversight and review. You get the speed and availability of AI with the judgment of experienced career coaches.</p>
-              </div>
-              
-              <div class="sp-faq-item">
-                <h3 class="sp-faq-question">How is this different from talking to a friend or mentor?</h3>
-                <p class="sp-faq-answer">Friends tell you what you want to hear. Mentors give advice based on their experience, not yours. We give you structured frameworks, specific scripts, and concrete action plans based on your exact situation and goals.</p>
-              </div>
-              
-              <div class="sp-faq-item">
-                <h3 class="sp-faq-question">What if I'm not sure I want to leave?</h3>
-                <p class="sp-faq-answer">Perfect. Most of our clients start unsure. The process is designed to help you think clearly, not push you in any direction. Many people decide to stay—but with a much clearer understanding of why.</p>
-              </div>
-              
-              <div class="sp-faq-item">
-                <h3 class="sp-faq-question">How long does it take?</h3>
-                <p class="sp-faq-answer">The free interview takes about 15 minutes. The full coaching program is three sessions over 1-2 weeks. Most clients have their complete action plan within 10 days.</p>
-              </div>
-              
-              <div class="sp-faq-item sp-faq-item-last">
-                <h3 class="sp-faq-question">Is this confidential?</h3>
-                <p class="sp-faq-answer">Completely. We don't share any information with employers, and there's no record of your participation. Many clients specifically choose us because there's no HR involvement or paper trail.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="sp-container sp-section sp-section-border">
-      <div class="sp-cta-centered">
-        <h2 class="sp-display-section sp-text-center" data-testid="text-cta-heading">
-          Ready to think clearly about your career?
-        </h2>
-        <p class="sp-cta-lede">
-          Start with a free interview. In 15 minutes, you'll have more clarity than months of ruminating.
-        </p>
-        <a href="/app/interview" class="sp-btn sp-btn-primary sp-btn-lg" data-testid="button-start-interview-bottom">
-          Start free interview
-          <svg class="sp-btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
-        </a>
-        <p class="sp-cta-reassurance">No credit card required</p>
-      </div>
-    </section>
-  </main>
-
-  <%- include("partials/footer") %>
-
-  <script>
-    // Rotating situations text
-    const situations = [
-      "wondering if it's time to leave",
-      "dealing with a difficult manager",
-      "burned out but unsure what's next",
-      "negotiating your exit",
-      "considering a counter-offer",
-      "stuck between two opportunities"
-    ];
-    
-    let currentIndex = 0;
-    const rotatingElement = document.getElementById('rotating-situation');
-    
-    function rotateSituation() {
-      rotatingElement.style.opacity = '0';
-      rotatingElement.style.transform = 'translateY(8px)';
-      
-      setTimeout(() => {
-        currentIndex = (currentIndex + 1) % situations.length;
-        rotatingElement.textContent = situations[currentIndex];
-        rotatingElement.style.opacity = '1';
-        rotatingElement.style.transform = 'translateY(0)';
-      }, 400);
-    }
-    
-    setInterval(rotateSituation, 3500);
-  </script>
-</body>
-</html>
+        setInterval(rotateSituation, 3500);
+      </script>
+    </body>
+    </html>

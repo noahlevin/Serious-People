@@ -99,7 +99,7 @@ function generateArticleSchema(options: {
     },
     "inLanguage": "en-US"
   };
-  
+
   return `<script type="application/ld+json">${JSON.stringify(schema, null, 0)}</script>`;
 }
 
@@ -126,7 +126,7 @@ function generateWebPageSchema(options: {
       "url": getBaseUrl()
     }
   };
-  
+
   return `<script type="application/ld+json">${JSON.stringify(schema, null, 0)}</script>`;
 }
 
@@ -140,77 +140,77 @@ function generateOrganizationSchema(): string {
     "description": "Career coaching for executives and senior leaders facing serious career decisions.",
     "sameAs": []
   };
-  
+
   return `<script type="application/ld+json">${JSON.stringify(schema, null, 0)}</script>`;
 }
 
 // Simple markdown to HTML converter (no external dependencies)
 function markdownToHtml(markdown: string): string {
   let html = markdown;
-  
+
   // Remove frontmatter
   html = html.replace(/^---[\s\S]*?---\n*/m, "");
-  
+
   // Convert horizontal rules (standalone --- or *** or ___ on their own line)
   html = html.replace(/^(---|___|\*\*\*)\s*$/gm, "<hr>");
-  
+
   // Convert headers
   html = html.replace(/^### (.+)$/gm, "<h3>$1</h3>");
   html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
   html = html.replace(/^# (.+)$/gm, "<h1>$1</h1>");
-  
+
   // Convert links [text](url)
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
-  
+
   // Convert bold
   html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  
+
   // Convert italic
   html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
-  
+
   // Convert inline code
   html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
-  
+
   // Convert blockquotes
   html = html.replace(/^> (.+)$/gm, "<blockquote>$1</blockquote>");
-  
+
   // Convert unordered lists
   const lines = html.split("\n");
   let inList = false;
   const processedLines: string[] = [];
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const isListItem = /^- (.+)$/.test(line);
-    
+
     if (isListItem && !inList) {
       inList = true;
       processedLines.push("<ul>");
     }
-    
+
     if (!isListItem && inList) {
       inList = false;
       processedLines.push("</ul>");
     }
-    
+
     if (isListItem) {
       processedLines.push(line.replace(/^- (.+)$/, "<li>$1</li>"));
     } else {
       processedLines.push(line);
     }
   }
-  
+
   if (inList) {
     processedLines.push("</ul>");
   }
-  
+
   html = processedLines.join("\n");
-  
+
   // Convert numbered lists - look ahead past blank lines
   const lines2 = html.split("\n");
   let inOl = false;
   const processedLines2: string[] = [];
-  
+
   // Helper: check if there's another numbered item ahead (skipping blank lines)
   const hasMoreListItems = (startIdx: number): boolean => {
     for (let j = startIdx; j < lines2.length; j++) {
@@ -220,29 +220,29 @@ function markdownToHtml(markdown: string): string {
     }
     return false;
   };
-  
+
   for (let i = 0; i < lines2.length; i++) {
     const line = lines2[i];
     const isOlItem = /^\d+\. (.+)$/.test(line);
     const isBlank = !line.trim();
-    
+
     if (isOlItem && !inOl) {
       inOl = true;
       processedLines2.push("<ol>");
     }
-    
+
     // Only close list if this is non-blank, non-list content
     if (!isOlItem && !isBlank && inOl) {
       inOl = false;
       processedLines2.push("</ol>");
     }
-    
+
     // Close list on blank line only if no more list items ahead
     if (isBlank && inOl && !hasMoreListItems(i + 1)) {
       inOl = false;
       processedLines2.push("</ol>");
     }
-    
+
     if (isOlItem) {
       processedLines2.push(line.replace(/^\d+\. (.+)$/, "<li>$1</li>"));
     } else if (!isBlank || !inOl) {
@@ -250,13 +250,13 @@ function markdownToHtml(markdown: string): string {
       processedLines2.push(line);
     }
   }
-  
+
   if (inOl) {
     processedLines2.push("</ol>");
   }
-  
+
   html = processedLines2.join("\n");
-  
+
   // Convert paragraphs (lines that aren't already HTML)
   const paragraphLines = html.split("\n\n");
   html = paragraphLines
@@ -280,22 +280,22 @@ function markdownToHtml(markdown: string): string {
       return `<p>${block.replace(/\n/g, " ")}</p>`;
     })
     .join("\n\n");
-  
+
   return html;
 }
 
 // Parse frontmatter from markdown
 function parseFrontmatter(content: string): { data: Record<string, string>; content: string } {
   const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-  
+
   if (!frontmatterMatch) {
     return { data: {}, content };
   }
-  
+
   const frontmatter = frontmatterMatch[1];
   const body = frontmatterMatch[2];
   const data: Record<string, string> = {};
-  
+
   frontmatter.split("\n").forEach((line) => {
     const colonIndex = line.indexOf(":");
     if (colonIndex > 0) {
@@ -304,7 +304,7 @@ function parseFrontmatter(content: string): { data: Record<string, string>; cont
       data[key] = value;
     }
   });
-  
+
   return { data, content: body };
 }
 
@@ -384,7 +384,7 @@ const SITUATION_PILLARS: Record<string, string[]> = {
 // Get all programmatic pages for sitemap
 function getAllProgrammaticPages(): Array<{ role: string; situation: string }> {
   const pages: Array<{ role: string; situation: string }> = [];
-  
+
   // Based on the spec, generate pages for specific combinations
   const rolePages: Record<string, string[]> = {
     "vp-product": ["stay-or-go", "burnout", "bad-manager", "toxic-culture", "severance", "internal-pivot", "job-search", "offer-evaluation", "resignation", "layoff-risk"],
@@ -394,13 +394,13 @@ function getAllProgrammaticPages(): Array<{ role: string; situation: string }> {
     "ops-leader": ["stay-or-go", "burnout", "bad-manager", "toxic-culture", "internal-pivot", "job-search", "offer-evaluation", "resignation"],
     "founder": ["burnout", "stay-or-go", "toxic-culture", "internal-pivot"],
   };
-  
+
   for (const [role, situations] of Object.entries(rolePages)) {
     for (const situation of situations) {
       pages.push({ role, situation });
     }
   }
-  
+
   return pages;
 }
 
@@ -413,13 +413,13 @@ function loadProgrammaticContent(type: string, name: string): string {
   if (programmaticCache[cacheKey]) {
     return programmaticCache[cacheKey];
   }
-  
+
   const filePath = path.join(programmaticDir, type, `${name}.md`);
   if (!fs.existsSync(filePath)) {
     console.warn(`[SEO] Programmatic content not found: ${cacheKey}`);
     return "";
   }
-  
+
   const rawContent = fs.readFileSync(filePath, "utf-8");
   const { content } = parseFrontmatter(rawContent);
   programmaticCache[cacheKey] = content;
@@ -439,7 +439,7 @@ function selectVariant(slug: string, maxVariants: number): number {
 // Compose a programmatic page from modules
 function composeProgrammaticPage(role: string, situation: string): { content: string; wordCount: number } {
   const sections: string[] = [];
-  
+
   // 1. Framework section (select variant deterministically)
   const variant = selectVariant(`${role}-${situation}`, 2);
   let framework = loadProgrammaticContent("frameworks", `${situation}-v${variant}`);
@@ -449,7 +449,7 @@ function composeProgrammaticPage(role: string, situation: string): { content: st
   if (framework) {
     sections.push(framework);
   }
-  
+
   // 2. Mistakes section (role-specific)
   const mistakesFile = ROLE_MISTAKES[role];
   if (mistakesFile) {
@@ -458,7 +458,7 @@ function composeProgrammaticPage(role: string, situation: string): { content: st
       sections.push(mistakes);
     }
   }
-  
+
   // 3. Vignette section (role cluster)
   const vignetteFile = ROLE_VIGNETTES[role];
   if (vignetteFile) {
@@ -467,22 +467,22 @@ function composeProgrammaticPage(role: string, situation: string): { content: st
       sections.push(vignette);
     }
   }
-  
+
   // 4. Walkaway section
   const walkaway = loadProgrammaticContent("walkaway", "default");
   if (walkaway) {
     sections.push(walkaway);
   }
-  
+
   // 5. CTA
   const cta = loadModule("cta-coaching");
   if (cta && !cta.includes("Module not found")) {
     sections.push(cta);
   }
-  
+
   const content = sections.join("\n\n---\n\n");
   const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
-  
+
   return { content, wordCount };
 }
 
@@ -493,13 +493,13 @@ function loadModule(moduleId: string): string {
   if (moduleCache[moduleId]) {
     return moduleCache[moduleId];
   }
-  
+
   const modulePath = path.join(modulesDir, `${moduleId}.md`);
   if (!fs.existsSync(modulePath)) {
     console.warn(`[SEO] Module not found: ${moduleId}`);
     return `<!-- Module not found: ${moduleId} -->`;
   }
-  
+
   const rawContent = fs.readFileSync(modulePath, "utf-8");
   const { content } = parseFrontmatter(rawContent);
   moduleCache[moduleId] = content;
@@ -554,7 +554,7 @@ function getPillarTopics(slug: string): string[] {
 // Get related links for a pillar (smart topic-based, excluding self)
 function getRelatedLinks(currentSlug: string): Array<{ href: string; title: string }> {
   const currentTopics = getPillarTopics(currentSlug);
-  
+
   // Score pillars by topic overlap
   const scored = ALL_PILLARS
     .filter(p => p.slug !== currentSlug)
@@ -564,7 +564,7 @@ function getRelatedLinks(currentSlug: string): Array<{ href: string; title: stri
       return { ...p, score: overlap };
     })
     .sort((a, b) => b.score - a.score);
-  
+
   // Return top 4 related pillars
   return scored
     .slice(0, 4)
@@ -588,10 +588,10 @@ function getRelatedProgrammaticPages(pillarSlug: string): Array<{ href: string; 
     "layoff-risk-plan": ["layoff-risk", "severance", "job-search"],
     "toxic-boss-survival-or-exit": ["toxic-culture", "bad-manager", "stay-or-go"],
   };
-  
+
   const relevantSituations = pillarToSituations[pillarSlug] || [];
   if (relevantSituations.length === 0) return [];
-  
+
   const allPages = getAllProgrammaticPages();
   return allPages
     .filter(p => relevantSituations.includes(p.situation))
@@ -607,13 +607,13 @@ export async function renderGuide(req: Request, res: Response) {
   console.log("[SEO HIT]", req.method, req.originalUrl);
 
   const { slug } = req.params;
-  
+
   // Security: sanitize slug
   const safeSlug = slug.replace(/[^a-z0-9-]/gi, "");
-  
+
   // Try to load the pillar content
   const pillarPath = path.join(pillarsDir, `${safeSlug}.md`);
-  
+
   if (!fs.existsSync(pillarPath)) {
     return res.status(404).send(`
       <!DOCTYPE html>
@@ -627,29 +627,29 @@ export async function renderGuide(req: Request, res: Response) {
       </html>
     `);
   }
-  
+
   try {
     // Read and parse the markdown
     const rawContent = fs.readFileSync(pillarPath, "utf-8");
     const { data: frontmatter, content: markdownBody } = parseFrontmatter(rawContent);
-    
+
     // Process module includes ({{module:module-id}} syntax)
     let expandedMarkdown = processModuleIncludes(markdownBody);
-    
+
     // Get related links (other pillars + role-specific pages)
     const relatedLinks = getRelatedLinks(safeSlug);
     const relatedRolePages = getRelatedProgrammaticPages(safeSlug);
-    
+
     // Prepare template data
     const canonicalUrl = `${getBaseUrl()}/guides/${safeSlug}`;
     const title = frontmatter.title || "Guide";
     const description = frontmatter.description || "A career coaching guide from Serious People.";
-    
+
     // Calculate read time (average 200 words per minute)
     const wordCount = expandedMarkdown.split(/\s+/).length;
     const readTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
     const readTime = `${readTimeMinutes} min read`;
-    
+
     // Map slugs to short breadcrumb category names (matching GuideDetail.tsx)
     const SLUG_TO_CATEGORY: Record<string, string> = {
       "stay-or-go-framework": "Stay or Go",
@@ -666,7 +666,7 @@ export async function renderGuide(req: Request, res: Response) {
       "toxic-boss-survival-or-exit": "Toxic Boss",
     };
     const category = frontmatter.category || SLUG_TO_CATEGORY[safeSlug] || "Guide";
-    
+
     // Extract calculator/tool CTA from markdown (pattern: **label** [title](href) — description)
     let toolCta: { label: string; title: string; href: string; description: string } | null = null;
     const ctaPattern = /\*\*(.+?)\*\*\s*\[(.+?)\]\((.+?)\)\s*[—–-]\s*(.+?)(?:\.|$)/m;
@@ -681,17 +681,17 @@ export async function renderGuide(req: Request, res: Response) {
       // Remove the CTA line from markdown so it's not rendered inline
       expandedMarkdown = expandedMarkdown.replace(ctaPattern, '').trim();
     }
-    
+
     // Convert markdown to HTML (after extracting CTA)
     const htmlContent = markdownToHtml(expandedMarkdown);
-    
+
     // Generate Article schema for structured data
     const articleSchema = generateArticleSchema({
       title,
       description,
       url: canonicalUrl,
     });
-    
+
     const templateData = {
       title,
       description,
@@ -709,18 +709,18 @@ export async function renderGuide(req: Request, res: Response) {
       headExtra: articleSchema,
       organizationSchema: generateOrganizationSchema(),
     };
-    
+
     // Render the pillar template
     const pillarTemplatePath = path.join(templatesDir, "pillar.ejs");
     const pillarHtml = await ejs.renderFile(pillarTemplatePath, templateData);
-    
+
     // Render the pillar-specific layout (full-width sections, no sp-main wrapper)
     const layoutTemplatePath = path.join(templatesDir, "layout-pillar.ejs");
     const fullHtml = await ejs.renderFile(layoutTemplatePath, {
       ...templateData,
       body: pillarHtml,
     });
-    
+
     res.set("Content-Type", "text/html");
     res.set("X-SP-SEO", "1");
     res.send(fullHtml);
@@ -734,18 +734,18 @@ export async function renderGuide(req: Request, res: Response) {
 export async function renderGuidesIndex(_req: Request, res: Response) {
   console.log("[SEO HIT]", _req.method, _req.originalUrl);
   const baseUrl = getBaseUrl();
-  
+
   // Transform pillars to include descriptions
   const guides = ALL_PILLARS.map(p => ({
     title: p.title,
     slug: p.slug,
     description: "A practical framework for career decisions",
   }));
-  
+
   const canonicalUrl = `${baseUrl}/guides`;
   const title = "Career Guides";
   const description = "Practical career guides for executives and senior leaders. Frameworks, scripts, and action plans for career decisions.";
-  
+
   const templateData = {
     title,
     description,
@@ -756,17 +756,17 @@ export async function renderGuidesIndex(_req: Request, res: Response) {
     pageSlug: "guides",
     organizationSchema: generateOrganizationSchema(),
   };
-  
+
   try {
     const guidesTemplatePath = path.join(templatesDir, "guides.ejs");
     const guidesHtml = await ejs.renderFile(guidesTemplatePath, templateData);
-    
+
     const layoutTemplatePath = path.join(templatesDir, "layout-pillar.ejs");
     const fullHtml = await ejs.renderFile(layoutTemplatePath, {
       ...templateData,
       body: guidesHtml,
     });
-    
+
     res.set("Content-Type", "text/html");
     res.set("X-SP-SEO", "1");
     res.send(fullHtml);
@@ -791,10 +791,10 @@ Sitemap: ${baseUrl}/sitemap.xml
 // Sitemap.xml
 export function sitemap(_req: Request, res: Response) {
   const baseUrl = getBaseUrl();
-  
+
   // Static pages, pillars, and programmatic pages
   const programmaticPages = getAllProgrammaticPages();
-  
+
   const pages = [
     { loc: "/", priority: "1.0" },
     { loc: "/resources", priority: "0.9" },
@@ -804,7 +804,7 @@ export function sitemap(_req: Request, res: Response) {
     ...ALL_PILLARS.map(p => ({ loc: `/guides/${p.slug}`, priority: "0.8" })),
     ...programmaticPages.map(p => ({ loc: `/roles/${p.role}/situations/${p.situation}`, priority: "0.6" })),
   ];
-  
+
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${pages.map((p) => `  <url>
@@ -812,7 +812,7 @@ ${pages.map((p) => `  <url>
     <priority>${p.priority}</priority>
   </url>`).join("\n")}
 </urlset>`;
-  
+
   res.set("Content-Type", "application/xml");
   res.send(xml);
 }
@@ -820,7 +820,7 @@ ${pages.map((p) => `  <url>
 // Render a programmatic page
 export async function renderProgrammaticPage(req: Request, res: Response) {
   const { role, situation } = req.params;
-  
+
   // Validate role and situation
   if (!ROLES[role] || !SITUATIONS[situation]) {
     return res.status(404).send(`
@@ -835,24 +835,24 @@ export async function renderProgrammaticPage(req: Request, res: Response) {
       </html>
     `);
   }
-  
+
   try {
     const roleLabel = ROLES[role];
     const situationLabel = SITUATIONS[situation];
-    
+
     // Compose the page content
     const { content: markdown, wordCount } = composeProgrammaticPage(role, situation);
-    
+
     // Convert to HTML
     const htmlContent = markdownToHtml(markdown);
-    
+
     // Get related pillar links
     const pillarSlugs = SITUATION_PILLARS[situation] || [];
     const relatedLinks = pillarSlugs.map(slug => {
       const pillar = ALL_PILLARS.find(p => p.slug === slug);
       return pillar ? { href: `/guides/${slug}`, title: pillar.title } : null;
     }).filter(Boolean) as Array<{ href: string; title: string }>;
-    
+
     // Get related situations for the same role (other situations)
     const allSituations = [
       { slug: "stay-or-go", label: "Stay or Go" },
@@ -869,25 +869,25 @@ export async function renderProgrammaticPage(req: Request, res: Response) {
     const relatedSituations = allSituations
       .filter(s => s.slug !== situation)
       .slice(0, 6);
-    
+
     // Title patterns - matching RoleSituation.tsx lines 40-41 exactly
     const title = `${situationLabel} for ${roleLabel}: A Practical Framework`;
     const subtitle = `Practical guidance for ${roleLabel} professionals facing ${situationLabel.toLowerCase()} situations.`;
     const description = `A no-fluff guide to ${situationLabel.toLowerCase()} for ${roleLabel}—framework, common mistakes, examples, and scripts. Includes a 14-day plan and a clear next step.`;
-    
+
     // Check quality threshold (700 words minimum for programmatic)
     const shouldIndex = wordCount >= 700;
-    
+
     // Generate canonical URL
     const canonicalUrl = `${getBaseUrl()}/roles/${role}/situations/${situation}`;
-    
+
     // Generate Article schema for structured data
     const articleSchema = generateArticleSchema({
       title: `${title}: A Practical Framework`,
       description,
       url: canonicalUrl,
     });
-    
+
     // Prepare template data for role-situation.ejs
     const templateData = {
       title,
@@ -908,18 +908,18 @@ export async function renderProgrammaticPage(req: Request, res: Response) {
       headExtra: articleSchema,
       organizationSchema: generateOrganizationSchema(),
     };
-    
+
     // Render the role-situation template
     const roleSituationTemplatePath = path.join(templatesDir, "role-situation.ejs");
     const pageHtml = await ejs.renderFile(roleSituationTemplatePath, templateData);
-    
+
     // Render the layout with the page content
     const layoutTemplatePath = path.join(templatesDir, "layout-pillar.ejs");
     const fullHtml = await ejs.renderFile(layoutTemplatePath, {
       ...templateData,
       body: pageHtml,
     });
-    
+
     res.set("Content-Type", "text/html");
     res.set("X-SP-SEO", "1");
     res.send(fullHtml);
@@ -932,7 +932,7 @@ export async function renderProgrammaticPage(req: Request, res: Response) {
 // Render the roles index page
 export async function renderRolesIndex(_req: Request, res: Response) {
   const baseUrl = getBaseUrl();
-  
+
   // Define roles with descriptions (matching Roles.tsx)
   const roles = [
     { title: "VP Product", slug: "vp-product", description: "Strategic product leadership" },
@@ -942,7 +942,7 @@ export async function renderRolesIndex(_req: Request, res: Response) {
     { title: "Chief of Staff", slug: "chief-of-staff", description: "Executive operations" },
     { title: "VP Operations", slug: "vp-operations", description: "Operational excellence" },
   ];
-  
+
   // Define situations (matching Roles.tsx)
   const situations = [
     { slug: "stay-or-go", label: "Stay or Go" },
@@ -956,11 +956,11 @@ export async function renderRolesIndex(_req: Request, res: Response) {
     { slug: "resignation", label: "Resignation" },
     { slug: "layoff-risk", label: "Layoff Risk" },
   ];
-  
+
   const canonicalUrl = `${baseUrl}/roles`;
   const title = "Career Guidance by Role";
   const description = "Role-specific career guidance for executives and senior leaders. Practical frameworks for every situation.";
-  
+
   const templateData = {
     title,
     description,
@@ -972,17 +972,17 @@ export async function renderRolesIndex(_req: Request, res: Response) {
     pageSlug: "roles",
     organizationSchema: generateOrganizationSchema(),
   };
-  
+
   try {
     const rolesTemplatePath = path.join(templatesDir, "roles.ejs");
     const rolesHtml = await ejs.renderFile(rolesTemplatePath, templateData);
-    
+
     const layoutTemplatePath = path.join(templatesDir, "layout-pillar.ejs");
     const fullHtml = await ejs.renderFile(layoutTemplatePath, {
       ...templateData,
       body: rolesHtml,
     });
-    
+
     res.set("Content-Type", "text/html");
     res.set("X-SP-SEO", "1");
     res.send(fullHtml);
@@ -996,7 +996,7 @@ export async function renderRolesIndex(_req: Request, res: Response) {
 export async function renderRolePage(req: Request, res: Response) {
   const baseUrl = getBaseUrl();
   const { role } = req.params;
-  
+
   // Define roles with descriptions (matching Roles.tsx)
   const rolesData: Record<string, { title: string; description: string }> = {
     "vp-product": { title: "VP Product", description: "Strategic product leadership" },
@@ -1006,13 +1006,13 @@ export async function renderRolePage(req: Request, res: Response) {
     "chief-of-staff": { title: "Chief of Staff", description: "Executive operations" },
     "vp-operations": { title: "VP Operations", description: "Operational excellence" },
   };
-  
+
   const roleData = rolesData[role];
   if (!roleData) {
     res.status(404).send("Role not found");
     return;
   }
-  
+
   // Define situations (matching Roles.tsx)
   const situations = [
     { slug: "stay-or-go", label: "Stay or Go" },
@@ -1026,11 +1026,11 @@ export async function renderRolePage(req: Request, res: Response) {
     { slug: "resignation", label: "Resignation" },
     { slug: "layoff-risk", label: "Layoff Risk" },
   ];
-  
+
   const canonicalUrl = `${baseUrl}/roles/${role}`;
   const title = `${roleData.title} Career Guidance`;
   const description = `Career guidance for ${roleData.title}s. ${roleData.description}. Practical frameworks for every situation.`;
-  
+
   const templateData = {
     title,
     description,
@@ -1044,17 +1044,17 @@ export async function renderRolePage(req: Request, res: Response) {
     pageSlug: role,
     organizationSchema: generateOrganizationSchema(),
   };
-  
+
   try {
     const roleTemplatePath = path.join(templatesDir, "role.ejs");
     const roleHtml = await ejs.renderFile(roleTemplatePath, templateData);
-    
+
     const layoutTemplatePath = path.join(templatesDir, "layout-pillar.ejs");
     const fullHtml = await ejs.renderFile(layoutTemplatePath, {
       ...templateData,
       body: roleHtml,
     });
-    
+
     res.set("Content-Type", "text/html");
     res.set("X-SP-SEO", "1");
     res.send(fullHtml);
@@ -1068,18 +1068,18 @@ export async function renderRolePage(req: Request, res: Response) {
 export async function renderStayOrGoCalculator(_req: Request, res: Response) {
   const baseUrl = getBaseUrl();
   const templatesDir = path.join(process.cwd(), "seo", "templates");
-  
+
   const canonicalUrl = `${baseUrl}/tools/stay-or-go-calculator`;
   const title = "Should You Stay or Go? Career Decision Calculator";
   const description = "A 2-minute quiz to help you decide whether to stay at your current job or explore new opportunities. Get a personalized recommendation based on your situation.";
-  
+
   // Generate WebPage schema for structured data
   const webPageSchema = generateWebPageSchema({
     title,
     description,
     url: canonicalUrl,
   });
-  
+
   try {
     const templatePath = path.join(templatesDir, "stay-or-go-calculator.ejs");
     const html = await ejs.renderFile(templatePath, {
@@ -1087,7 +1087,7 @@ export async function renderStayOrGoCalculator(_req: Request, res: Response) {
       posthogKey: POSTHOG_KEY,
       structuredData: webPageSchema,
     });
-    
+
     res.set("Content-Type", "text/html");
     res.set("X-SP-SEO", "1");
     res.send(html);
@@ -1100,13 +1100,13 @@ export async function renderStayOrGoCalculator(_req: Request, res: Response) {
 // Render the SEO Content Hub page (Resources)
 export async function renderContentHub(_req: Request, res: Response) {
   const baseUrl = getBaseUrl();
-  
+
   // Transform pillars to guides format
   const guides = ALL_PILLARS.map(p => ({
     title: p.title,
     slug: p.slug,
   }));
-  
+
   // Define roles matching Resources.tsx
   const roles = [
     { title: "VP Product", slug: "vp-product" },
@@ -1116,11 +1116,11 @@ export async function renderContentHub(_req: Request, res: Response) {
     { title: "Chief of Staff", slug: "chief-of-staff" },
     { title: "VP Operations", slug: "vp-operations" },
   ];
-  
+
   const canonicalUrl = `${baseUrl}/resources`;
   const title = "Career Resources Hub";
   const description = "Complete career coaching resource library. Guides, frameworks, tools, and role-specific advice for executives navigating career transitions.";
-  
+
   const templateData = {
     title,
     description,
@@ -1132,17 +1132,17 @@ export async function renderContentHub(_req: Request, res: Response) {
     pageSlug: "resources",
     organizationSchema: generateOrganizationSchema(),
   };
-  
+
   try {
     const resourcesTemplatePath = path.join(templatesDir, "resources.ejs");
     const resourcesHtml = await ejs.renderFile(resourcesTemplatePath, templateData);
-    
+
     const layoutTemplatePath = path.join(templatesDir, "layout-pillar.ejs");
     const fullHtml = await ejs.renderFile(layoutTemplatePath, {
       ...templateData,
       body: resourcesHtml,
     });
-    
+
     res.set("Content-Type", "text/html");
     res.set("X-SP-SEO", "1");
     res.send(fullHtml);
