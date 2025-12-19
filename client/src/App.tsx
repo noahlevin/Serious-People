@@ -7,10 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { initPostHog } from "@/lib/posthog";
 
-import Landing from "@/pages/landing";
 import Login from "@/pages/login";
-import Prepare from "@/pages/prepare";
-import Interview from "@/pages/interview";
 import Offer from "@/pages/offer";
 import Success from "@/pages/success";
 import ModulePage from "@/pages/module";
@@ -41,25 +38,30 @@ function getBasePath(): string {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/__lovable" element={<LovableSmoke />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/prepare" element={<Prepare />} />
-      <Route path="/interview" element={<Interview />} />
-      <Route path="/offer" element={<Offer />} />
-      <Route path="/success" element={<Success />} />
-      <Route path="/module/:moduleNumber" element={<ModulePage />} />
-      <Route path="/progress" element={<Progress />} />
-      <Route path="/career-brief" element={<CareerBrief />} />
-      <Route path="/serious-plan" element={<SeriousPlan />} />
-      <Route path="/coach-chat" element={<CoachChat />} />
-      <Route path="/coach-letter" element={<CoachLetter />} />
+      {/* Canonical routes */}
       <Route path="/interview/start" element={<InterviewStart />} />
       <Route path="/interview/prepare" element={<InterviewPrepare />} />
       <Route path="/interview/chat" element={<InterviewChat />} />
+      <Route path="/offer" element={<Offer />} />
+      <Route path="/offer/success" element={<Success />} />
+      <Route path="/module/:moduleNumber" element={<ModulePage />} />
+      <Route path="/progress" element={<Progress />} />
+      <Route path="/coach-letter" element={<CoachLetter />} />
+      <Route path="/serious-plan" element={<SeriousPlan />} />
+      <Route path="/artifact/:artifactSlug" element={<Artifacts />} />
+      
+      {/* Supporting routes */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/career-brief" element={<CareerBrief />} />
+      <Route path="/coach-chat" element={<CoachChat />} />
+      <Route path="/artifacts" element={<Artifacts />} />
+      <Route path="/__lovable" element={<LovableSmoke />} />
+      
+      {/* Legacy aliases → redirect to canonical */}
+      <Route path="/" element={<Navigate to="/interview/start" replace />} />
       <Route path="/prepare" element={<Navigate to="/interview/prepare" replace />} />
       <Route path="/interview" element={<Navigate to="/interview/chat" replace />} />
-      <Route path="/artifacts" element={<Artifacts />} />
+      <Route path="/success" element={<Navigate to="/offer/success" replace />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
