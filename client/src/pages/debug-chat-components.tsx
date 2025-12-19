@@ -1,12 +1,35 @@
+import { useEffect } from "react";
 import WelcomeCard from "@/lovable/components/interview/WelcomeCard";
 import SectionDivider from "@/lovable/components/interview/SectionDivider";
 import UpsellCard from "@/lovable/components/interview/UpsellCard";
 import { ModuleTitleCard } from "@/components/ChatComponents";
+import { useAuth } from "@/hooks/useAuth";
 import "@/styles/serious-people.css";
 
 export default function DebugChatComponents() {
   // Route is only registered in dev builds (see App.tsx), so if we get here, we're in dev mode.
-  // No query param bypass - this page is only accessible in dev builds.
+  // Still require normal auth - redirect unauthenticated users to login.
+  const { isAuthenticated, isLoading, authChecked } = useAuth();
+
+  useEffect(() => {
+    if (authChecked && !isAuthenticated) {
+      const nextUrl = encodeURIComponent("/app/debug/chat-components");
+      window.location.replace(`/app/login?next=${nextUrl}`);
+    }
+  }, [authChecked, isAuthenticated]);
+
+  if (isLoading || !authChecked) {
+    return (
+      <div className="min-h-screen bg-background p-8 flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    // Redirect is happening via useEffect, show nothing
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background p-8">

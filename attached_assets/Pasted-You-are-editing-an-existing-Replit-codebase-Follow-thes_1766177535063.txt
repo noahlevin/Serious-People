@@ -1,0 +1,57 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Keep changes tiny and scoped.
+
+## 1) Goal (one sentence)
+GOAL: Require normal auth for /app/debug/chat-components in dev (redirect unauthenticated users to /app/login?next=...).
+
+## 2) Scope boundaries
+- You may edit ONLY these files:
+1) client/src/pages/debug-chat-components.tsx
+2) client/src/lovable/hooks/useAuth.tsx (ONLY if needed for a clean authenticated flag / bootstrap call)
+3) client/src/auth.ts (ONLY if needed for a canonical login URL helper)
+
+If you think other files are required, STOP and list them and why.
+
+## 3) Current behavior to preserve
+- Debug route remains dev-only (already handled in App.tsx).
+- Do not change server auth gating.
+- Do not change any API shapes.
+
+## 4) Implementation plan (small + explicit)
+1) In debug-chat-components.tsx, read auth state using the existing auth hook (useAuth).
+2) If auth is "loading", render a minimal loading state.
+3) If unauthenticated, redirect the browser to:
+   /app/login?next=<encodeURIComponent('/app/debug/chat-components')>
+   Use window.location.replace(...) so it doesn't pollute history.
+4) If authenticated, render the debug components normally.
+
+## 5) Exact edits
+For each file touched:
+- Path:
+- Change type: surgical edit
+- Diff-style summary
+
+## 6) Mandatory verification (must run and paste output)
+1) `npm test` if it exists, else say “no test script found”
+2) `npm run build`
+3) `npm run dev`
+
+Runtime sanity (no UI dependency):
+4) Confirm bootstrap shows unauthenticated when no cookies:
+- `curl -s http://localhost:5000/api/bootstrap | node -e "process.stdin.on('data',d=>{const j=JSON.parse(d); console.log('authenticated=',j.authenticated)})"`
+Success: prints `authenticated= false` when not logged in.
+
+Manual (minimal):
+5) Open /app/debug/chat-components in an incognito window:
+Success: you end up at /app/login with next=/app/debug/chat-components
+
+## 7) Acceptance criteria
+- Debug page still works in dev when logged in.
+- Debug page redirects to login when not logged in.
+- No prod exposure (route still dev-only).
+
+## 8) If verification fails
+Paste raw output and propose the smallest diagnostic next step.
