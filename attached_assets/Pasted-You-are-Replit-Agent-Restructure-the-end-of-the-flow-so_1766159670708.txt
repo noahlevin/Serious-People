@@ -1,0 +1,114 @@
+You are Replit Agent. Restructure the end of the flow so Serious Plan is the hub for real artifacts, and /artifact/:artifactSlug is the dedicated artifact viewer. Keep changes minimal and do not redesign unrelated pages.
+
+Hard rules:
+- No wouter in app pages (use react-router-dom).
+- No page-level auth redirects and no calling refetch() on mount. Server gating + AuthProvider own auth.
+- Prefer using existing API: GET /api/serious-plan/latest for all artifact data.
+- Do not add new backend endpoints unless absolutely necessary.
+- Keep Lovable UI where possible; reuse legacy rendering logic where it already works.
+- Output:
+  (1) diff-style summary
+  (2) full contents of changed files
+  (3) pasted output from Critical Verification commands at end (do NOT claim tests passed without output; if you can’t run commands, say so).
+
+What to build:
+
+A) Create a new hub page: client/src/lovable/pages/SeriousPlan.tsx (NEW)
+- Base it on the existing Lovable Artifacts page layout (grid, search, category tabs).
+- Replace mock artifacts with real data from:
+  - useQuery queryKey: ["/api/serious-plan/latest"]
+  - enabled: authChecked && isAuthenticated
+  - polling: every 2000ms while plan.status === "generating" OR any artifact.generationStatus in ["pending","generating"]; otherwise stop polling
+- Use useAuth() for authChecked/isAuthenticated; do NOT redirect.
+- Header:
+  - logo Link goes to "/progress"
+  - include <UserMenu /> on right (like other modern pages)
+  - remove fake “Dashboard” link and fake avatar bubble
+- Categories:
+  - derive category from artifact.type or importanceLevel
+  - Keep it simple:
+    - Tabs: All / Essential / Additional / Transcript (optional)
+    - “Essential” = importanceLevel === "must_read" (or legacy 'essential')
+- Card click behavior:
+  - navigate to `/artifact/${artifact.artifactKey}` (this is the canonical viewer route)
+- Show “generating” skeleton cards for artifacts still generating (can reuse a simple skeleton; don’t overbuild)
+- Ensure it renders even if plan.summaryMetadata is null.
+
+B) Convert client/src/pages/serious-plan.tsx into wrapper (MODIFY)
+- Replace its contents with:
+  - import SeriousPlan from "@/lovable/pages/SeriousPlan";
+  - export default () => <SeriousPlan />;
+- Remove all legacy code from this page (the legacy code will move into the viewer).
+
+C) Create a dedicated viewer page: client/src/lovable/pages/ArtifactViewer.tsx (NEW)
+- Route is already `/artifact/:artifactSlug` mapped to the current Artifacts wrapper — we’ll repoint it.
+- Use react-router-dom useParams() to read artifactSlug.
+- Fetch plan via GET /api/serious-plan/latest (same queryKey; can reuse/copy).
+- Find artifact by:
+  - plan.artifacts.find(a => a.artifactKey === artifactSlug)
+- Render states:
+  - loading: spinner / “Loading artifact…”
+  - missing artifact: show “Not found” + button back to `/serious-plan`
+  - generating artifact: show “Still generating…” (no crash)
+- Use the legacy artifact rendering logic you were given (markdown-ish rendering + TranscriptRenderer), but move it into this viewer component:
+  - preprocessMarkdownContent()
+  - parseMarkdownInline()
+  - TranscriptRenderer for transcript type
+- Add a back button that navigates to `/serious-plan` (don’t use window.history hacks; use navigate()).
+- Header logo should go to "/progress" + <UserMenu /> on right.
+
+D) Repoint current route wrapper for /artifact/:artifactSlug (MODIFY)
+- client/src/pages/artifacts.tsx currently wraps Lovable Artifacts.
+- Change it to:
+  - import ArtifactViewer from "@/lovable/pages/ArtifactViewer";
+  - export default () => <ArtifactViewer />;
+- (Optional) Keep the Lovable Artifacts page file around, but it’s no longer used as a route.
+
+E) Fix any bad internal links in the old Lovable Artifacts page if it remains referenced anywhere
+- But ideally it won’t be referenced by routing anymore.
+
+Critical Verification (must execute in Replit Shell and paste output)
+1) Basic checks (skip gracefully if not present):
+```bash
+npm run lint --if-present
+npm run typecheck --if-present
+npm run test --if-present
+npm run build --if-present
+Confirm bootstrap responds:
+
+bash
+Copy code
+PORT=${PORT:-5000}
+curl -sS -i "http://localhost:${PORT}/api/bootstrap" | head -n 25
+Confirm server gating exists for these routes when logged out:
+
+bash
+Copy code
+PORT=${PORT:-5000}
+curl -sS -I "http://localhost:${PORT}/app/serious-plan" | head -n 20
+curl -sS -I "http://localhost:${PORT}/app/artifact/decision-snapshot" | head -n 20
+Expected: 302 to /app/login?next=...
+
+(If DEV tools are available) verify final stage access after forcing COACH_LETTER -> SERIOUS_PLAN:
+
+If you already have a dev endpoint that flips hasSeriousPlan, call it and then verify routing:
+
+bash
+Copy code
+PORT=${PORT:-5000}
+DEV_TOOLS_SECRET="${DEV_TOOLS_SECRET:-}"
+echo "DEV_TOOLS_SECRET length: ${#DEV_TOOLS_SECRET}"
+
+# If you do NOT have a dev endpoint yet, do NOT fake it; just state that it’s missing.
+# If it exists, run it and paste output, then:
+curl -sS "http://localhost:${PORT}/api/dev/routing/USER_ID" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+Important: Do not claim tests passed unless you paste the command outputs.
+
+csharp
+Copy code
+
+After this lands, your app flow becomes coherent:
+- /coach-letter shows the letter + continue
+- /serious-plan shows the hub of real artifacts
+- /artifact/:slug shows the dedicated artifact viewer (deep-linkable)

@@ -1,5 +1,5 @@
-import Artifacts from "@/lovable/pages/Artifacts";
+import ArtifactViewer from "@/lovable/pages/ArtifactViewer";
 
 export default function ArtifactsPage() {
-  return <Artifacts />;
+  return <ArtifactViewer />;
 }
