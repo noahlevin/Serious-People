@@ -98,6 +98,14 @@ export interface IStorage {
   // Coach chat operations
   createCoachChatMessage(message: InsertCoachChatMessage): Promise<CoachChatMessage>;
   getCoachChatMessages(planId: string): Promise<CoachChatMessage[]>;
+  
+  // Dev/test helpers
+  getMostRecentUser(): Promise<User | undefined>;
+  updateTranscriptFlagsByUserId(userId: string, flags: {
+    interviewComplete?: boolean;
+    paymentVerified?: boolean;
+    stripeSessionId?: string | null;
+  }): Promise<InterviewTranscript | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -493,6 +501,31 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(coachChatMessages)
       .where(eq(coachChatMessages.planId, planId))
       .orderBy(asc(coachChatMessages.createdAt));
+  }
+
+  // Dev/test helpers
+  async getMostRecentUser(): Promise<User | undefined> {
+    const [user] = await db.select().from(users)
+      .orderBy(desc(users.createdAt))
+      .limit(1);
+    return user;
+  }
+
+  async updateTranscriptFlagsByUserId(userId: string, flags: {
+    interviewComplete?: boolean;
+    paymentVerified?: boolean;
+    stripeSessionId?: string | null;
+  }): Promise<InterviewTranscript | undefined> {
+    const updateData: any = { updatedAt: new Date() };
+    if (flags.interviewComplete !== undefined) updateData.interviewComplete = flags.interviewComplete;
+    if (flags.paymentVerified !== undefined) updateData.paymentVerified = flags.paymentVerified;
+    if (flags.stripeSessionId !== undefined) updateData.stripeSessionId = flags.stripeSessionId;
+    
+    const [updated] = await db.update(interviewTranscripts)
+      .set(updateData)
+      .where(eq(interviewTranscripts.userId, userId))
+      .returning();
+    return updated;
   }
 }
 

@@ -1,0 +1,150 @@
+You are Replit Agent. Add dev-only test endpoints to simulate the Stripe post-checkout flow without using the UI. Keep changes minimal and safe.
+
+Hard rules
+
+Only add functionality gated behind:
+
+process.env.NODE_ENV !== "production" AND
+
+a required secret process.env.DEV_TOOLS_SECRET
+
+Do not change existing production behavior.
+
+Do not modify client code.
+
+Return:
+
+diff-style summary (what/why)
+
+full contents of any changed files
+
+exact curl commands to run the test
+
+Goal
+
+Enable a no-UI smoke test that:
+
+Forces a user into CHECKOUT_PENDING (so /api/bootstrap returns journey.phase: "CHECKOUT_PENDING" and routing.canonicalPath: "/offer/success")
+
+Then flips to PURCHASED/paid (so /api/bootstrap returns a paid phase and canonical becomes /progress)
+
+Implementation requirements
+1) Add a tiny helper guard in server code
+
+Create a helper requireDevTools(req) that:
+
+returns 403 unless:
+
+NODE_ENV !== "production"
+
+header x-dev-tools-secret matches process.env.DEV_TOOLS_SECRET
+
+2) Add 2 endpoints in server/routes.ts
+
+Add these endpoints near other API routes:
+
+POST /api/dev/simulate-checkout-pending
+
+Guarded by requireDevTools
+
+Picks a target user deterministically:
+
+If request body includes { userId }, use that
+
+Else if body includes { email }, find that user
+
+Else use “most recently created user” (or first user found) as fallback
+
+Then set that user’s DB state so bootstrap phase becomes CHECKOUT_PENDING:
+
+Ensure interviewComplete = true
+
+Ensure paymentVerified = false
+
+Ensure transcript has a non-empty stripeSessionId (set to something like "dev_dummy_session_123")
+
+Return JSON including:
+
+userId, email (if known)
+
+the computed result from computeRoutingForUser(userId) (phase/canonical/resume/allowed)
+
+POST /api/dev/simulate-payment-verified
+
+Guarded by requireDevTools
+
+Same target-user selection as above
+
+Update DB to make paid:
+
+Set paymentVerified = true
+
+Return JSON including:
+
+userId
+
+computeRoutingForUser(userId) after update
+
+3) Use existing storage functions if possible
+
+Prefer using existing storage methods. If needed, add minimal new storage methods in server/storage.ts:
+
+getUserByEmail(email)
+
+getMostRecentUser()
+
+setJourneyState(userId, partialFlags) (or discrete setters)
+
+setTranscriptStripeSessionId(userId, stripeSessionId)
+
+Keep DB writes minimal—only the flags/fields necessary for bootstrap’s phase logic:
+
+journey flags: interviewComplete, paymentVerified
+
+transcript: stripeSessionId
+
+Do NOT refactor other storage logic.
+
+Deliverables
+
+After implementing, print exact commands to run:
+
+Set env var in Replit (tell me what to set):
+
+DEV_TOOLS_SECRET=...
+
+Curl calls (no UI):
+
+Force pending:
+
+curl -s -X POST "$REPL_URL/api/dev/simulate-checkout-pending" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: $DEV_TOOLS_SECRET" \
+  -d '{}'
+
+
+Verify bootstrap now shows CHECKOUT_PENDING (this call is already unauthenticated-friendly; should show authenticated false if not logged in—so include an optional note: if /api/bootstrap requires auth to show phase, add a dev-only GET /api/dev/bootstrap/:userId that returns computeRoutingForUser without auth, guarded by secret)
+
+Flip to paid:
+
+curl -s -X POST "$REPL_URL/api/dev/simulate-payment-verified" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: $DEV_TOOLS_SECRET" \
+  -d '{}'
+
+
+If /api/bootstrap currently requires a logged-in session to show phase and that prevents this no-UI test, add one more dev-only endpoint:
+
+GET /api/dev/routing/:userId
+
+Guarded by secret
+
+Returns computeRoutingForUser(userId) so we can validate phase changes purely via curl.
+
+Output format
+
+Diff-style summary
+
+Full file contents of any changed files
+
+A short “How to run the test” section with the exact curl commands

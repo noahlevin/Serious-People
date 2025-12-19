@@ -4698,6 +4698,133 @@ FORMAT:
   });
 
   // ==========================================================================
+  // DEV-ONLY TEST ENDPOINTS (gated by NODE_ENV and secret)
+  // ==========================================================================
+  
+  function requireDevTools(req: express.Request, res: express.Response): boolean {
+    if (process.env.NODE_ENV === "production") {
+      res.status(403).json({ error: "Dev tools disabled in production" });
+      return false;
+    }
+    const secret = req.headers["x-dev-tools-secret"];
+    if (!process.env.DEV_TOOLS_SECRET || secret !== process.env.DEV_TOOLS_SECRET) {
+      res.status(403).json({ error: "Invalid or missing x-dev-tools-secret header" });
+      return false;
+    }
+    return true;
+  }
+
+  async function resolveTargetUser(body: { userId?: string; email?: string }) {
+    if (body.userId) {
+      return storage.getUser(body.userId);
+    }
+    if (body.email) {
+      return storage.getUserByEmail(body.email);
+    }
+    return storage.getMostRecentUser();
+  }
+
+  // POST /api/dev/simulate-checkout-pending
+  // Sets user to CHECKOUT_PENDING phase (interviewComplete=true, paymentVerified=false, stripeSessionId set)
+  app.post("/api/dev/simulate-checkout-pending", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      // Ensure transcript exists with interviewComplete=true, paymentVerified=false, stripeSessionId set
+      let transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        // Create minimal transcript
+        transcript = await storage.upsertTranscriptByUserId(user.id, {
+          transcript: [{ role: "assistant", content: "Dev test transcript" }],
+          currentModule: "complete",
+          progress: 100,
+          interviewComplete: true,
+          paymentVerified: false,
+        });
+      }
+      
+      // Update flags
+      await storage.updateTranscriptFlagsByUserId(user.id, {
+        interviewComplete: true,
+        paymentVerified: false,
+        stripeSessionId: "dev_dummy_session_" + Date.now(),
+      });
+
+      const routing = await computeRoutingForUser(user.id);
+
+      res.json({
+        success: true,
+        userId: user.id,
+        email: user.email,
+        routing,
+      });
+    } catch (error: any) {
+      console.error("[DEV] simulate-checkout-pending error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/simulate-payment-verified
+  // Sets user to PURCHASED phase (paymentVerified=true)
+  app.post("/api/dev/simulate-payment-verified", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      // Update flags
+      await storage.updateTranscriptFlagsByUserId(user.id, {
+        paymentVerified: true,
+      });
+
+      const routing = await computeRoutingForUser(user.id);
+
+      res.json({
+        success: true,
+        userId: user.id,
+        email: user.email,
+        routing,
+      });
+    } catch (error: any) {
+      console.error("[DEV] simulate-payment-verified error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/dev/routing/:userId
+  // Returns routing for a specific user (for testing without auth)
+  app.get("/api/dev/routing/:userId", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const userId = req.params.userId;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const routing = await computeRoutingForUser(userId);
+
+      res.json({
+        userId,
+        email: user.email,
+        routing,
+      });
+    } catch (error: any) {
+      console.error("[DEV] routing error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ==========================================================================
   // SEO Routes (served before SPA catch-all)
   // ==========================================================================
   
