@@ -147,7 +147,7 @@ async function computeRoutingForUser(userId: string): Promise<RoutingResult> {
     default:
       canonicalPath = "/progress";
       resumePath = "/serious-plan";
-      allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3", "/coach-letter", "/serious-plan"];
+      allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3", "/coach-letter", "/serious-plan", "/artifact"];
       break;
   }
 
@@ -4886,6 +4886,66 @@ FORMAT:
       });
     } catch (error: any) {
       console.error("[DEV] modules/complete error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/serious-plan/complete
+  // Sets hasSeriousPlan=true by marking coach letter as seen (for testing)
+  app.post("/api/dev/serious-plan/complete", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      // Get the user's plan
+      const plan = await storage.getSeriousPlanByUserId(user.id);
+      if (!plan) {
+        // Create a minimal plan if none exists
+        const transcript = await storage.getTranscriptByUserId(user.id);
+        if (!transcript) {
+          return res.status(400).json({ error: "User has no transcript - cannot create plan" });
+        }
+        
+        const newPlan = await storage.createSeriousPlan({
+          userId: user.id,
+          transcriptId: transcript.id,
+          status: 'ready',
+          coachLetterStatus: 'complete',
+          coachNoteContent: 'Dev-generated coach letter for testing.',
+          coachLetterSeenAt: new Date(),
+        });
+        
+        const routing = await computeRoutingForUser(user.id);
+        return res.json({
+          ok: true,
+          userId: user.id,
+          planId: newPlan.id,
+          routing,
+        });
+      }
+
+      // Mark letter as seen (this triggers hasSeriousPlan=true)
+      await storage.markCoachLetterSeen(plan.id);
+      
+      // Also ensure plan status is ready
+      if (plan.status !== 'ready') {
+        await storage.updateSeriousPlanStatus(plan.id, 'ready');
+      }
+
+      const routing = await computeRoutingForUser(user.id);
+
+      res.json({
+        ok: true,
+        userId: user.id,
+        planId: plan.id,
+        routing,
+      });
+    } catch (error: any) {
+      console.error("[DEV] serious-plan/complete error:", error);
       res.status(500).json({ error: error.message });
     }
   });

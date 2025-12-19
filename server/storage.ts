@@ -359,7 +359,7 @@ export class DatabaseStorage implements IStorage {
       module1Complete: transcript.module1Complete || false,
       module2Complete: transcript.module2Complete || false,
       module3Complete: transcript.module3Complete || false,
-      hasSeriousPlan: !!plan && plan.status === 'ready',
+      hasSeriousPlan: !!plan && plan.status === 'ready' && !!plan.coachLetterSeenAt,
     };
   }
 

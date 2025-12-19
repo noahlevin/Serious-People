@@ -1,0 +1,122 @@
+You are Replit Agent. Implement the final state transition from COACH_LETTER -> SERIOUS_PLAN by explicitly setting journeyState.hasSeriousPlan = true when the user marks the coach letter as seen, and add a dev endpoint to set hasSeriousPlan without UI.
+
+Hard rules:
+- Keep changes minimal (no refactors).
+- Keep the existing endpoint taxonomy:
+  - POST /api/serious-plan/letter/seen stays the user-triggered transition point.
+- Dev endpoints must be secret-gated and dev-only like the other /api/dev/* tools.
+- Output:
+  (1) diff-style summary
+  (2) full contents of every changed file
+  (3) pasted output from the Critical Verification commands below. Do NOT claim tests passed without output.
+
+Step 1 — Server: make “letter seen” flip hasSeriousPlan
+In server/routes.ts, locate the handler:
+  POST /api/serious-plan/letter/seen
+
+After successfully marking the letter seen (seenAt, etc), also update the user’s journey state to:
+  hasSeriousPlan: true
+
+Use the existing storage/journey update pattern used elsewhere (e.g., how moduleNComplete flags are set).
+This must be idempotent (calling it twice should not break).
+
+Step 2 — Server: add a dev endpoint for serious plan completion
+Add:
+  POST /api/dev/serious-plan/complete
+Body: { userId: string }
+
+Behavior:
+- Require x-dev-tools-secret header (DEV_TOOLS_SECRET).
+- Require dev-only environment (same guard logic as other /api/dev endpoints).
+- Update that user’s journey state: hasSeriousPlan=true
+- Return:
+  { ok: true, userId, routing: computeRoutingForUser(userId) }
+
+Step 3 — Client (optional but recommended): prevent stale progress
+In client/src/lovable/pages/CoachLetter.tsx (the new Lovable one):
+- In the “seen” mutation onSuccess, before navigate("/serious-plan"):
+  - invalidate the bootstrap cache so /progress reflects the new state immediately:
+    queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] })
+  - (or call useAuth().refetch if that’s what you expose — but prefer invalidating react-query key)
+
+Keep this minimal.
+
+Critical Verification (must execute in Replit Shell and paste output)
+1) Basic checks (skip gracefully if not present):
+```bash
+npm run lint --if-present
+npm run typecheck --if-present
+npm run test --if-present
+npm run build --if-present
+Confirm bootstrap responds:
+
+bash
+Copy code
+PORT=${PORT:-5000}
+curl -sS -i "http://localhost:${PORT}/api/bootstrap" | head -n 25
+Verify state machine transitions end-to-end with dev tools (no UI):
+
+bash
+Copy code
+PORT=${PORT:-5000}
+DEV_TOOLS_SECRET="${DEV_TOOLS_SECRET:-}"
+echo "DEV_TOOLS_SECRET length: ${#DEV_TOOLS_SECRET}"
+
+# Create a paid user quickly
+curl -sS -X POST "http://localhost:${PORT}/api/dev/simulate-checkout-pending" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d '{}' | tee /tmp/dev_pending.json
+
+USER_ID=$(node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/dev_pending.json','utf8')); console.log(j.userId||'');")
+echo "USER_ID=$USER_ID"
+
+curl -sS -X POST "http://localhost:${PORT}/api/dev/simulate-payment-verified" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d "{\"userId\":\"${USER_ID}\"}" >/dev/null
+
+# Complete modules 1-3
+curl -sS -X POST "http://localhost:${PORT}/api/dev/modules/complete" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d "{\"userId\":\"${USER_ID}\",\"moduleNumber\":1}" >/dev/null
+
+curl -sS -X POST "http://localhost:${PORT}/api/dev/modules/complete" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d "{\"userId\":\"${USER_ID}\",\"moduleNumber\":2}" >/dev/null
+
+curl -sS -X POST "http://localhost:${PORT}/api/dev/modules/complete" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d "{\"userId\":\"${USER_ID}\",\"moduleNumber\":3}" >/dev/null
+
+echo "=== After module 3 complete ==="
+curl -sS "http://localhost:${PORT}/api/dev/routing/${USER_ID}" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+
+# Now flip serious plan
+echo "=== Complete serious plan (dev) ==="
+curl -sS -X POST "http://localhost:${PORT}/api/dev/serious-plan/complete" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d "{\"userId\":\"${USER_ID}\"}"
+
+echo "=== After serious plan complete ==="
+curl -sS "http://localhost:${PORT}/api/dev/routing/${USER_ID}" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+Expected:
+
+After module 3: phase COACH_LETTER, resumePath /coach-letter
+
+After serious plan complete: phase SERIOUS_PLAN, resumePath /serious-plan, allowedPaths include /serious-plan and artifact viewer paths
+
+Server gate sanity (logged out still redirects):
+
+bash
+Copy code
+PORT=${PORT:-5000}
+curl -sS -I "http://localhost:${PORT}/app/serious-plan" | head -n 10
+curl -sS -I "http://localhost:${PORT}/app/artifact/decision-snapshot" | head -n 10
+Do not claim tests passed unless you paste command output.

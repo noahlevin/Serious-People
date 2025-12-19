@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { UserMenu } from "@/components/UserMenu";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { GraduationCap, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -36,6 +36,7 @@ const CoachLetter = () => {
   const markSeenMutation = useMutation({
     mutationFn: () => apiRequest('POST', '/api/serious-plan/letter/seen'),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
       navigate('/serious-plan');
     },
   });
