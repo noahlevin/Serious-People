@@ -4950,6 +4950,29 @@ FORMAT:
     }
   });
 
+  // GET /api/dev/serious-plan/latest
+  // Returns the serious plan for a user (same shape as /api/serious-plan/latest)
+  app.get("/api/dev/serious-plan/latest", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const userId = req.query.userId as string;
+      if (!userId) {
+        return res.status(400).json({ error: "userId query param required" });
+      }
+
+      const plan = await getLatestSeriousPlan(userId);
+      if (!plan) {
+        return res.status(404).json({ error: "No Serious Plan found" });
+      }
+
+      res.json(plan);
+    } catch (error: any) {
+      console.error("[DEV] serious-plan/latest error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // GET /api/dev/routing/:userId
   // Returns routing for a specific user (for testing without auth)
   app.get("/api/dev/routing/:userId", async (req, res) => {
