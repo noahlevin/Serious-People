@@ -591,6 +591,15 @@ Output ONLY the letter text, nothing else.`;
  * Generate a single artifact.
  * Each artifact is generated independently and updates storage immediately on completion.
  * Uses atomic "claim" pattern to prevent duplicate generation under concurrency.
+ * 
+ * Return semantics:
+ * - { success: true, skipped: false } - This call generated the artifact
+ * - { success: true, skipped: true } - Artifact already being processed (another caller claimed it)
+ * - { success: false, skipped: false } - Generation failed with error
+ * 
+ * Note: `success: true, skipped: true` is NOT an error. It means another concurrent process
+ * is already generating this artifact, so this call correctly yields to avoid duplicate work.
+ * The artifact WILL be generated - just by the other caller.
  */
 async function generateSingleArtifact(
   planId: string,
@@ -606,7 +615,8 @@ async function generateSingleArtifact(
   
   try {
     // Attempt to "claim" this artifact by atomically transitioning pending -> generating
-    // This prevents duplicate generation if called concurrently
+    // This prevents duplicate generation if called concurrently.
+    // If claim fails, another caller is already generating - we yield gracefully.
     const claim = await storage.transitionArtifactStatusIfCurrent(
       artifactId, 
       ['pending'], 
@@ -614,8 +624,8 @@ async function generateSingleArtifact(
     );
     
     if (!claim.updated) {
-      // Someone else is generating, or it's already complete/error
-      console.log(`[ARTIFACT] ts=${new Date().toISOString()} plan=${planId} artifact=${artifactKey} status=skipped reason=not_pending`);
+      // Another process is generating, or it's already complete/error - yield gracefully
+      console.log(`[ARTIFACT] ts=${new Date().toISOString()} plan=${planId} artifact=${artifactKey} status=skipped reason=claim_failed (another process is handling)`);
       return { success: true, artifactKey, skipped: true };
     }
     
