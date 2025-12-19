@@ -1,0 +1,97 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- Prefer surgical edits.
+- If you touch auth/session/routing, include at least one curl check.
+
+## 1) Goal (one sentence)
+GOAL: Add prod-like, shell-first auth verification (Google OAuth + magic link) without needing a full production deployment.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+server/auth.ts
+server/routes.ts
+package.json
+scripts/smoke-auth.mjs
+
+If you think other files are required, STOP and list the additional file paths and why.
+
+## 3) Current behavior to preserve
+- Preserve existing route gating/state machine behavior.
+- Preserve existing API response shapes.
+- Do not change callback paths unless necessary.
+- Keep Google callback at /auth/google/callback (no /app) unless explicitly requested.
+
+## 4) Implementation plan (small + explicit)
+1) Add a dev-only debug endpoint that returns computed auth config (baseUrl, appBasePath, googleCallbackUrl, magicVerifyUrlTemplate).
+2) Add a Node smoke script that hits the auth endpoints and asserts status codes + shapes.
+3) Add npm scripts for easy running.
+
+## 5) Exact edits
+For each file you touch, produce:
+- Path:
+- Change type: surgical edit
+- Diff-style summary (what changed and why)
+
+### server/auth.ts
+- Export small helpers (or values) that compute:
+  - getBaseUrl()
+  - getAppBasePath() (default "/app")
+  - getGoogleCallbackUrl() -> `${getBaseUrl()}/auth/google/callback`
+  - getMagicVerifyUrlTemplate() -> `${getBaseUrl()}${getAppBasePath()}/auth/magic/verify?token=...`
+- Do NOT change existing passport strategy behavior other than exposing computed values safely.
+
+### server/routes.ts
+- Add GET /api/debug/auth-config
+  - Guard it: only enabled when NODE_ENV !== "production" OR an env var like DEBUG_AUTH=1
+  - Response JSON includes the computed values above
+- No other routing changes.
+
+### scripts/smoke-auth.mjs (new file)
+- Script should:
+  - Read ORIGIN from env (default "http://localhost:5001")
+  - Fetch `${ORIGIN}/auth/google` with redirect: "manual" and assert status is 302 and Location includes "accounts.google.com"
+  - Decode redirect_uri from Location and assert it contains "/auth/google/callback"
+  - POST `${ORIGIN}/app/auth/magic/start` with JSON body { email: "your-test-email@example.com" } and assert JSON.success === true
+  - Print PASS/FAIL with reasons and exit code 0/1
+
+### package.json
+- Add:
+  - "smoke:auth": "node scripts/smoke-auth.mjs"
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+### Build / type sanity
+1) `npm test` if it exists, else say “no test script found”
+2) `npm run build` (or the closest equivalent)
+3) `npm run lint` if it exists (otherwise state it doesn’t)
+
+### Runtime checks
+4) Start server: `npm run dev` (or workspace default)
+5) In a second shell:
+- `curl -s http://localhost:<PORT>/api/debug/auth-config | jq`
+  - success: JSON prints computed baseUrl/appBasePath/googleCallbackUrl
+- `ORIGIN=http://localhost:<PORT> npm run smoke:auth`
+  - success: script prints PASS lines and exits 0
+
+## 7) Acceptance criteria (must be met)
+- /api/debug/auth-config works in dev and is gated (not always-on in production).
+- smoke:auth validates Google 302 + redirect_uri path and magic start JSON success.
+- No changes to journey state machine behavior.
+
+## 8) If verification fails
+Do NOT keep making random edits.
+Instead:
+- Show the error output
+- Give the 2–3 most likely root causes
+- Propose the smallest next diagnostic step
+
+## 9) Deliverables
+A) Diff Summary
+B) Raw command outputs
+C) 3-step manual smoke checklist (only if needed)
+
+Now execute the plan.

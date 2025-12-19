@@ -1324,6 +1324,28 @@ export async function registerRoutes(
     }
   });
 
+  // ============== DEBUG ENDPOINTS ==============
+
+  // GET /api/debug/auth-config - Returns computed auth config (dev only)
+  app.get("/api/debug/auth-config", async (req, res) => {
+    const isProduction = process.env.REPLIT_DEPLOYMENT === "1" || process.env.NODE_ENV === "production";
+    const debugEnabled = process.env.DEBUG_AUTH === "1";
+    
+    if (isProduction && !debugEnabled) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    const { getBaseUrl, getAppBasePath, getGoogleCallbackUrl, getMagicVerifyUrlTemplate } = await import("./auth");
+    
+    res.json({
+      baseUrl: getBaseUrl(),
+      appBasePath: getAppBasePath(),
+      googleCallbackUrl: getGoogleCallbackUrl(),
+      magicVerifyUrlTemplate: getMagicVerifyUrlTemplate(),
+      googleConfigured: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    });
+  });
+
   // ============== AUTH ROUTES ==============
 
   // GET /auth/me - Get current authenticated user
