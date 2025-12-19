@@ -139,13 +139,13 @@ async function computeRoutingForUser(userId: string): Promise<RoutingResult> {
       allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3"];
       break;
     case "COACH_LETTER":
-      canonicalPath = "/progress";
+      canonicalPath = "/coach-letter";
       resumePath = "/coach-letter";
       allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3", "/coach-letter"];
       break;
     case "SERIOUS_PLAN":
     default:
-      canonicalPath = "/progress";
+      canonicalPath = "/serious-plan";
       resumePath = "/serious-plan";
       allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3", "/coach-letter", "/serious-plan", "/artifact"];
       break;

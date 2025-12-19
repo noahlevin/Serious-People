@@ -1,0 +1,100 @@
+You are Replit Agent. Run an end-to-end no-UI verification of the v1 flow using existing dev endpoints, and produce a concise “Release Readiness” report (facts only, no guessing).
+
+Hard rules:
+- Do not change code unless a test fails and the fix is truly minimal.
+- If you change code, include diff summary + full contents of changed files + rerun verification.
+- Must paste command outputs for verification.
+
+What to verify (no UI):
+1) Unauthenticated gating:
+- /app/interview/start -> 302 to /app/login?next=...
+- /app/progress -> 302 ...
+- /app/serious-plan -> 302 ...
+- /app/artifact/<slug> -> 302 ...
+
+2) State machine progression via dev endpoints:
+- checkout pending -> PURCHASED -> MODULE_2 -> MODULE_3 -> COACH_LETTER -> SERIOUS_PLAN
+- Confirm resumePath changes at each step.
+
+3) Artifact hub/viewer wiring (server-side checks only if auth simulation is hard):
+- Confirm /api/serious-plan/latest returns:
+  - status
+  - artifacts array with artifactKey values
+- Pick the first artifactKey and show it (print it).
+- Confirm allowedPaths in SERIOUS_PLAN supports artifact viewing (prefix or exact logic).
+
+4) Cache coherence:
+- Confirm that POST /api/serious-plan/letter/seen (or dev serious-plan complete) invalidates bootstrap in client code (static inspection is fine; point to file/line).
+
+Commands to run and paste output:
+
+A) Gate checks (logged out):
+```bash
+PORT=${PORT:-5000}
+for p in /app/interview/start /app/progress /app/serious-plan /app/artifact/decision-snapshot; do
+  echo "=== $p ==="
+  curl -sS -I "http://localhost:${PORT}${p}" | head -n 12
+done
+B) State machine progression:
+
+bash
+Copy code
+PORT=${PORT:-5000}
+DEV_TOOLS_SECRET="${DEV_TOOLS_SECRET:-}"
+echo "DEV_TOOLS_SECRET length: ${#DEV_TOOLS_SECRET}"
+
+curl -sS -X POST "http://localhost:${PORT}/api/dev/simulate-checkout-pending" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d '{}' | tee /tmp/dev_pending.json
+
+USER_ID=$(node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/dev_pending.json','utf8')); console.log(j.userId||'');")
+echo "USER_ID=$USER_ID"
+
+curl -sS -X POST "http://localhost:${PORT}/api/dev/simulate-payment-verified" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d "{\"userId\":\"${USER_ID}\"}" >/dev/null
+
+echo "=== After PURCHASED ==="
+curl -sS "http://localhost:${PORT}/api/dev/routing/${USER_ID}" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+
+for n in 1 2 3; do
+  curl -sS -X POST "http://localhost:${PORT}/api/dev/modules/complete" \
+    -H "content-type: application/json" \
+    -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+    -d "{\"userId\":\"${USER_ID}\",\"moduleNumber\":${n}}" >/dev/null
+  echo "=== After module ${n} complete ==="
+  curl -sS "http://localhost:${PORT}/api/dev/routing/${USER_ID}" \
+    -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+done
+
+echo "=== After COACH_LETTER (expected) ==="
+curl -sS "http://localhost:${PORT}/api/dev/routing/${USER_ID}" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+
+curl -sS -X POST "http://localhost:${PORT}/api/dev/serious-plan/complete" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d "{\"userId\":\"${USER_ID}\"}" >/dev/null
+
+echo "=== After SERIOUS_PLAN ==="
+curl -sS "http://localhost:${PORT}/api/dev/routing/${USER_ID}" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+C) Verify /api/serious-plan/latest structure (if there is a dev endpoint or auth bypass for the created user, use it; otherwise just print a note)
+
+If you already have or can add a minimal dev endpoint:
+GET /api/dev/serious-plan/latest?userId=...
+secret-gated, returns the same shape.
+Only add this if you cannot otherwise fetch plan data.
+
+Finally, produce “Release Readiness” report with:
+
+✅ What’s confirmed by outputs above
+
+⚠️ What could not be confirmed without UI/auth simulation
+
+Next 3 concrete release steps (e.g. env vars, Stripe webhooks, DB resets, etc.)
+
+Do not claim anything you cannot support.

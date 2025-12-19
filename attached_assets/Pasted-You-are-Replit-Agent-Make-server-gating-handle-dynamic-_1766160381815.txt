@@ -1,0 +1,94 @@
+You are Replit Agent. Make server gating handle dynamic artifact routes safely and deterministically, and sanity-check canonicalPath values for COACH_LETTER and SERIOUS_PLAN.
+
+Hard rules:
+- Minimal change. No refactors.
+- Do not weaken auth. Only adjust path matching logic.
+- Maintain the existing state machine behavior. Only improve correctness.
+- Output:
+  (1) diff-style summary
+  (2) full contents of any changed functions/blocks (you can paste only the modified middleware + computeRoutingForUser if that’s all that changed)
+  (3) pasted command outputs from Critical Verification below. Do NOT claim tests passed without output.
+
+Tasks:
+
+A) Fix dynamic artifact route gating
+Current allowedPaths includes "/artifact" for SERIOUS_PLAN. Ensure the server gate allows paths like:
+  /artifact/<slug>
+when the user's allowedPaths contains "/artifact" (or similar).
+Implement prefix-matching in the gate in the smallest safe way:
+- If internalPath is exactly in allowedPaths => allow.
+- Also allow if internalPath startsWith(prefix) for any prefix entry in allowedPaths where prefix is one of:
+  "/artifact" (and it should match "/artifact/" and "/artifact/<slug>")
+Optionally enforce "/artifact/" specifically to avoid matching "/artifactzzz".
+
+Do NOT make it overly generic. Keep it tight.
+
+B) Canonical path sanity
+In computeRoutingForUser (or wherever canonicalPath is computed):
+- For COACH_LETTER phase, canonicalPath should be "/coach-letter" (not "/progress")
+- For SERIOUS_PLAN phase, canonicalPath should be "/serious-plan" (not "/progress")
+Keep resumePath behavior unchanged.
+This is to ensure deterministic redirects if user lands on forbidden pages.
+
+Critical Verification (must execute in Replit Shell and paste output)
+
+1) Basic checks (skip gracefully if not present):
+```bash
+npm run lint --if-present
+npm run typecheck --if-present
+npm run test --if-present
+npm run build --if-present
+Verify server responds:
+
+bash
+Copy code
+PORT=${PORT:-5000}
+curl -sS -i "http://localhost:${PORT}/api/bootstrap" | head -n 25
+Verify artifact deep-link gating behavior using dev tools (no UI clicks):
+
+bash
+Copy code
+PORT=${PORT:-5000}
+DEV_TOOLS_SECRET="${DEV_TOOLS_SECRET:-}"
+echo "DEV_TOOLS_SECRET length: ${#DEV_TOOLS_SECRET}"
+
+# Create paid user
+curl -sS -X POST "http://localhost:${PORT}/api/dev/simulate-checkout-pending" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d '{}' | tee /tmp/dev_pending.json
+
+USER_ID=$(node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/dev_pending.json','utf8')); console.log(j.userId||'');")
+echo "USER_ID=$USER_ID"
+
+curl -sS -X POST "http://localhost:${PORT}/api/dev/simulate-payment-verified" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d "{\"userId\":\"${USER_ID}\"}" >/dev/null
+
+# Complete modules 1-3
+for n in 1 2 3; do
+  curl -sS -X POST "http://localhost:${PORT}/api/dev/modules/complete" \
+    -H "content-type: application/json" \
+    -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+    -d "{\"userId\":\"${USER_ID}\",\"moduleNumber\":${n}}" >/dev/null
+done
+
+# Flip serious plan (sets coachLetterSeenAt / hasSeriousPlan)
+curl -sS -X POST "http://localhost:${PORT}/api/dev/serious-plan/complete" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d "{\"userId\":\"${USER_ID}\"}" >/dev/null
+
+echo "=== Routing after SERIOUS_PLAN ==="
+curl -sS "http://localhost:${PORT}/api/dev/routing/${USER_ID}" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+
+# Confirm canonical paths in routing output:
+# Expect canonicalPath "/serious-plan", resumePath "/serious-plan" (or similar), allowedPaths includes "/artifact"
+
+# Gate behavior still: logged-out requests redirect (already proven)
+echo "=== Logged-out gate check ==="
+curl -sS -I "http://localhost:${PORT}/app/artifact/decision-snapshot" | head -n 12
+If you can simulate an authenticated deep-link request, do it; if not, state explicitly you cannot.
+Do NOT claim tests passed without pasted output.
