@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/lovable/components/ui/button";
 import { X } from "lucide-react";
 import ChatMessage from "@/lovable/components/interview/ChatMessage";
@@ -17,7 +17,37 @@ const firstQuestion: Message = {
   timestamp: new Date()
 };
 
+// Helper to persist a single message to the backend
+async function persistMessage(role: string, content: string) {
+  try {
+    await fetch("/api/interview/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ role, content, timestamp: new Date().toISOString() }),
+    });
+  } catch (err) {
+    console.error("[InterviewChat] Failed to persist message:", err);
+  }
+}
+
+// Helper to mark interview complete
+async function markInterviewComplete() {
+  try {
+    const res = await fetch("/api/interview/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+    return res.ok;
+  } catch (err) {
+    console.error("[InterviewChat] Failed to mark interview complete:", err);
+    return false;
+  }
+}
+
 const InterviewChat = () => {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([firstQuestion]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
@@ -36,6 +66,11 @@ const InterviewChat = () => {
     scrollToBottom();
   }, [messages, shownSections]);
 
+  // Persist the first question on mount
+  useEffect(() => {
+    persistMessage('assistant', firstQuestion.content);
+  }, []);
+
   // Check if we need to show a section divider before this question index
   const getSectionForQuestion = (qIndex: number) => {
     return interviewSections.find(s => s.startsAtQuestion === qIndex);
@@ -50,6 +85,9 @@ const InterviewChat = () => {
       timestamp: new Date()
     };
     setMessages(prev => [...prev, userMessage]);
+
+    // Persist user message (fire-and-forget)
+    persistMessage('user', content);
 
     const nextIndex = questionIndex + 1;
     setQuestionIndex(nextIndex);
@@ -75,7 +113,14 @@ const InterviewChat = () => {
           timestamp: new Date()
         };
         setMessages(prev => [...prev, finalMessage]);
+        
+        // Persist final assistant message
+        persistMessage('assistant', mockResponses[7]);
+        
         setIsComplete(true);
+
+        // Mark interview complete on the server
+        markInterviewComplete();
 
         // Show upsell card after a delay
         setTimeout(() => {
@@ -90,13 +135,16 @@ const InterviewChat = () => {
           timestamp: new Date()
         };
         setMessages(prev => [...prev, aiMessage]);
+        
+        // Persist assistant message
+        persistMessage('assistant', mockResponses[nextIndex]);
       }
     }, 1500);
   };
 
   const handleExit = () => {
     if (window.confirm("Are you sure you want to exit? Your progress will be saved.")) {
-      window.location.href = "/";
+      navigate("/interview/start");
     }
   };
 
@@ -153,7 +201,7 @@ const InterviewChat = () => {
       <header className="shrink-0">
         <div className="sp-container">
           <div className="flex items-center justify-between h-16 gap-4">
-            <Link to="/" className="font-display text-xl tracking-tight text-foreground shrink-0">
+            <Link to="/interview/start" className="font-display text-xl tracking-tight text-foreground shrink-0">
               Serious People
             </Link>
             

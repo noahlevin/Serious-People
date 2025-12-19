@@ -1,0 +1,117 @@
+You are Replit Agent. Make the interview chat functional again by persisting messages and explicitly marking the interview complete in the backend so the server-owned state machine advances to OFFER. Keep changes minimal.
+
+Hard rules
+
+Keep the Lovable UI intact; do not redesign.
+
+Prefer small, testable edits over refactors.
+
+Use existing auth/session cookies (credentials included).
+
+If an equivalent endpoint already exists, use it instead of adding a new one.
+
+Output: (1) diff-style summary, (2) full contents of changed files, (3) a short smoke test checklist with curl commands where possible.
+
+Files you may edit (only if needed)
+
+The Lovable interview chat component file that contains const InterviewChat = () => { ... } (find it by searching for mockInterview import or firstQuestion).
+
+server/routes.ts (to add endpoints if missing).
+
+server/storage.ts (only if you need a tiny helper to save messages / set flags).
+
+Part A — Client changes (minimal)
+
+In the Lovable InterviewChat component:
+
+Replace SPA-breaking navigation:
+
+Change the header logo link from to="/" to to="/interview/start" (stay inside SPA; do not send to EJS /).
+
+Replace window.location.href = "/" in handleExit() with SPA navigation:
+
+Use useNavigate() from react-router-dom
+
+Navigate to "/interview/start" (server gate will keep user in the right place)
+
+Persist messages as they’re sent (cheap DB write):
+
+After adding the user message locally in handleSendMessage, POST it to the server:
+
+POST /api/interview/messages
+
+body: { role: "user", content, timestamp }
+
+When the assistant message is added (even if still using mockResponses for now), POST it too:
+
+body: { role: "assistant", content, timestamp }
+
+Use fetch with credentials: "include" and JSON headers.
+
+If the POST fails, do not crash the UI—log and continue.
+
+On completion, explicitly mark the interview complete:
+
+When nextIndex >= totalQuestions and you set isComplete=true, also call:
+
+POST /api/journey/interview-complete
+
+After that POST succeeds, ensure the Upsell step can continue:
+
+If UpsellCard already has a CTA, wire it so clicking it navigates to "/offer".
+
+If UpsellCard has no usable CTA hook, render a simple Button under it:
+
+label: “Continue to offer”
+
+onClick: navigate to "/offer"
+
+Part B — Server endpoints (only if missing)
+
+In server/routes.ts:
+
+Add POST /api/interview/messages (auth required)
+
+Use existing requireAuth.
+
+Persist messages to the existing transcript storage if present.
+
+First, look for existing transcript/message APIs in routes.ts/storage.ts and reuse them.
+
+If none exist, minimally store an array of messages on the user’s transcript record (whatever structure storage uses).
+
+Return { ok: true }.
+
+Add POST /api/journey/interview-complete (auth required)
+
+Set interviewComplete = true for the user in the journey state (reuse existing storage setters).
+
+Return { ok: true }.
+
+Important: do not refactor journey logic. Just flip the existing flag(s) used by computeRoutingForUser().
+
+Smoke tests (must include)
+
+In the browser (logged in), go to /app/interview/chat and answer one message:
+
+Verify Network: POST /api/interview/messages returns 200.
+
+Force completion quickly (you can temporarily reduce totalQuestions to 1 in dev if needed, but revert it):
+
+Verify POST /api/journey/interview-complete returns 200.
+
+Verify you can navigate to /app/offer and server gating allows it.
+
+Curl verification (no UI) after completion:
+
+Use the existing dev routing endpoint you added:
+
+GET /api/dev/routing/:userId should now show phase OFFER when payment not verified.
+
+Output requirements
+
+Diff-style summary (what changed and why)
+
+Full updated contents of every file you touched
+
+Smoke test checklist

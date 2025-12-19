@@ -2604,6 +2604,52 @@ COMMUNICATION STYLE:
     }
   });
 
+  // POST /api/interview/messages - Append a single message to the transcript
+  // Lightweight persistence during the interview chat
+  app.post("/api/interview/messages", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { role, content, timestamp } = req.body;
+      if (!role || !content) {
+        return res.status(400).json({ error: "Missing role or content" });
+      }
+
+      // Get or create transcript for this user
+      let transcript = await storage.getTranscriptByUserId(user.id);
+      
+      if (!transcript) {
+        // Create a new transcript with this first message
+        const sessionToken = `interview_${user.id}_${Date.now()}`;
+        const newMessage = { role, content, timestamp: timestamp || new Date().toISOString() };
+        transcript = await storage.createTranscript({
+          sessionToken,
+          userId: user.id,
+          transcript: [newMessage] as any,
+          currentModule: "Interview",
+          progress: 0,
+        });
+      } else {
+        // Append to existing transcript
+        const existingMessages = Array.isArray(transcript.transcript) ? transcript.transcript : [];
+        const newMessage = { role, content, timestamp: timestamp || new Date().toISOString() };
+        const updatedMessages = [...existingMessages, newMessage] as any;
+        
+        await storage.updateTranscript(transcript.sessionToken, {
+          transcript: updatedMessages,
+        });
+      }
+
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("[INTERVIEW_MESSAGES] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // POST /api/transcript/revision - Increment revision count when user clicks "Change Something"
   app.post("/api/transcript/revision", async (req, res) => {
     try {
