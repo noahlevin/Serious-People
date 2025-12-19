@@ -110,7 +110,7 @@ export function setupAuth(app: Express): void {
         {
           clientID: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          callbackURL: `${getBaseUrl()}${getAppBasePath()}/auth/google/callback`,
+          callbackURL: `${getBaseUrl()}/auth/google/callback`,
           scope: ["email", "profile"],
         },
         async (accessToken, refreshToken, profile, done) => {

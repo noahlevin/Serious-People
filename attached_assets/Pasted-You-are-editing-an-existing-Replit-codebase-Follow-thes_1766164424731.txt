@@ -1,0 +1,80 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- Keep route gating/state machine behavior unchanged.
+
+## 1) Goal (one sentence)
+GOAL: Fix Google login 403 by restoring the OAuth redirect_uri back to /auth/google/callback while keeping the SPA served under /app.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+client/src/lovable/pages/Login.tsx
+server/auth.ts
+
+If you think other files are required, STOP and list the additional file paths and why.
+
+## 3) Current behavior to preserve
+- SPA remains served under /app.
+- Magic link flow stays working as-is.
+- Do not change session/cookie semantics.
+- Do not change API response shapes.
+
+## 4) Implementation plan (small + explicit)
+1) Update the Login page Google handler to redirect to /auth/google (not /app/auth/google). Preserve passing basePath=/app if it’s currently used.
+2) Update the server Google OAuth strategy callbackURL to use `${getBaseUrl()}/auth/google/callback` (no /app).
+3) Ensure the callback route handler path matches the callbackURL (it should already exist at /auth/google/callback). Do not add new flows.
+
+## 5) Exact edits
+For each file you touch, produce:
+- Path:
+- Change type: surgical edit
+- Diff-style summary (what changed and why)
+
+### File: client/src/lovable/pages/Login.tsx
+- Surgical edit: change handleGoogleLogin() to use:
+  window.location.assign(`/auth/google?basePath=/app`)
+  (or preserve whatever basePath variable exists, but the path must start with /auth/google)
+
+### File: server/auth.ts
+- Surgical edit: set Google strategy callbackURL to:
+  `${getBaseUrl()}/auth/google/callback`
+- Do NOT include APP_BASE_PATH in the callbackURL.
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+### Build / type sanity
+1) `npm test` if it exists, else skip and say “no test script found”
+2) `npm run build` (or closest available build script)
+3) `npm run lint` if it exists (otherwise state it doesn’t)
+
+### Runtime checks
+4) Start server: `npm run dev` (or the workspace default)
+5) In a second shell:
+- `curl -i http://localhost:<PORT>/auth/google | sed -n '1,15p'`
+Success looks like:
+  - HTTP 302
+  - Location: https://accounts.google.com/...redirect_uri=.../auth/google/callback...
+
+- `curl -i http://localhost:<PORT>/app/auth/google | sed -n '1,15p'`
+This may or may not be used by the UI after the change; if it still exists, it should also 302.
+
+### Output expectations
+- The Google redirect Location header MUST contain `redirect_uri=.../auth/google/callback` (no `/app/` in the redirect_uri).
+
+## 7) Acceptance criteria (must be met)
+- Clicking “Continue with Google” does not show a Google 403 error page.
+- OAuth start endpoint 302s to Google with redirect_uri pointing to /auth/google/callback.
+- Post-login still returns the user to the SPA under /app.
+
+## 8) If verification fails
+Do NOT keep making random edits.
+Instead:
+- Paste the raw curl output and any server logs.
+- List the 2–3 most likely root causes and the smallest next diagnostic step.
+
+## 9) Rollback note
+- `git diff` should show changes only in the two scoped files.
+- To rollback: `git checkout -- client/src/lovable/pages/Login.tsx server/auth.ts`

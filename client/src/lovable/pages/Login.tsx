@@ -51,7 +51,7 @@ const Login = () => {
 
   const handleGoogleLogin = () => {
     const basePath = getBasePath();
-    window.location.href = `${basePath}/auth/google?basePath=${encodeURIComponent(basePath)}`;
+    window.location.href = `/auth/google?basePath=${encodeURIComponent(basePath)}`;
   };
 
   return (
