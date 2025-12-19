@@ -8,12 +8,14 @@ import {
   Message, 
   TypingIndicator, 
   ModuleTitleCard, 
-  MessageComponent, 
   OptionsContainer,
   ModuleCompleteCard,
   extractTitleCard,
-  PlanCard
+  PlanCard,
+  formatContent
 } from "@/components/ChatComponents";
+import ChatMessage from "@/lovable/components/interview/ChatMessage";
+import ChatInput from "@/lovable/components/interview/ChatInput";
 import { DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
 import { analytics } from "@/lib/posthog";
 import "@/styles/serious-people.css";
@@ -476,21 +478,21 @@ export default function ModulePage() {
           <div className="sp-chat-window" ref={chatWindowRef} data-testid="chat-window">
             {transcript.map((msg, index) => {
               const titleCard = titleCards.find(tc => tc.index === index);
+              const lovableMessage = {
+                id: `msg-${index}`,
+                role: msg.role,
+                content: msg.content,
+                timestamp: new Date()
+              };
+              const formattedHtml = msg.role === 'assistant' ? formatContent(msg.content) : undefined;
               return (
-                <div key={index} className={`sp-message-wrapper ${msg.role}`}>
+                <div key={index} className="sp-message-wrapper-lovable">
                   {msg.role === "assistant" && titleCard && (
                     <ModuleTitleCard name={titleCard.name} time={titleCard.time} />
                   )}
-                  <MessageComponent
-                    role={msg.role}
-                    content={msg.content}
-                    animate={animatingMessageIndex === index}
-                    onComplete={() => {
-                      if (animatingMessageIndex === index) {
-                        setAnimatingMessageIndex(null);
-                      }
-                    }}
-                    onTyping={scrollToBottom}
+                  <ChatMessage
+                    message={lovableMessage}
+                    htmlContent={formattedHtml}
                   />
                 </div>
               );
@@ -509,39 +511,16 @@ export default function ModulePage() {
         </main>
 
         {!moduleComplete && (
-          <div className="sp-input-area">
-            <div className="sp-input-row">
-              <textarea
-                ref={textareaRef}
-                className="sp-textarea"
-                data-testid="input-message"
-                placeholder="Type your answer here..."
-                rows={1}
-                value={inputValue}
-                onChange={(e) => {
-                  setInputValue(e.target.value);
-                  autoResize();
-                }}
-                onKeyDown={handleKeyDown}
-                onFocus={() => {
-                  // On mobile, scroll input into view after keyboard appears
-                  if (isMobileDevice()) {
-                    setTimeout(() => {
-                      textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 300);
-                  }
-                }}
-              />
-              <button
-                className="sp-send-button"
-                data-testid="button-send"
-                onClick={handleSend}
-                disabled={isSending}
-              >
-                →
-              </button>
-            </div>
-            <div className="sp-status-line" data-testid="status-line">{status}</div>
+          <div className="sp-module-input-wrapper">
+            <ChatInput
+              onSend={(message) => {
+                setInputValue("");
+                sendMessage(message);
+              }}
+              disabled={isSending}
+              placeholder="Type your answer here..."
+            />
+            {status && <div className="sp-status-line" data-testid="status-line">{status}</div>}
           </div>
         )}
       </div>

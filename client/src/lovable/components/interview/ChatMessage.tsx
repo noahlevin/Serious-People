@@ -3,9 +3,10 @@ import { Message } from "@/lovable/data/mockInterview";
 interface ChatMessageProps {
   message: Message;
   isTyping?: boolean;
+  htmlContent?: string;
 }
 
-const ChatMessage = ({ message, isTyping = false }: ChatMessageProps) => {
+const ChatMessage = ({ message, isTyping = false, htmlContent }: ChatMessageProps) => {
   const isAssistant = message.role === 'assistant';
   
   return (
@@ -19,16 +20,23 @@ const ChatMessage = ({ message, isTyping = false }: ChatMessageProps) => {
             : 'bg-accent/15'
         }`}
       >
-        <p className="font-chat text-foreground text-[15px] leading-relaxed whitespace-pre-wrap">
-          {message.content}
-          {isTyping && (
-            <span className="inline-flex ml-1 items-center">
-              <span className="w-1 h-1 bg-accent/60 rounded-full animate-pulse" />
-              <span className="w-1 h-1 bg-accent/60 rounded-full animate-pulse ml-0.5" style={{ animationDelay: '0.2s' }} />
-              <span className="w-1 h-1 bg-accent/60 rounded-full animate-pulse ml-0.5" style={{ animationDelay: '0.4s' }} />
-            </span>
-          )}
-        </p>
+        {htmlContent ? (
+          <div 
+            className="font-chat text-foreground text-[15px] leading-relaxed sp-message-content"
+            dangerouslySetInnerHTML={{ __html: htmlContent }}
+          />
+        ) : (
+          <p className="font-chat text-foreground text-[15px] leading-relaxed whitespace-pre-wrap">
+            {message.content}
+            {isTyping && (
+              <span className="inline-flex ml-1 items-center">
+                <span className="w-1 h-1 bg-accent/60 rounded-full animate-pulse" />
+                <span className="w-1 h-1 bg-accent/60 rounded-full animate-pulse ml-0.5" style={{ animationDelay: '0.2s' }} />
+                <span className="w-1 h-1 bg-accent/60 rounded-full animate-pulse ml-0.5" style={{ animationDelay: '0.4s' }} />
+              </span>
+            )}
+          </p>
+        )}
       </div>
     </div>
   );
