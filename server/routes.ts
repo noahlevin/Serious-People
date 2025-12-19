@@ -1346,6 +1346,25 @@ export async function registerRoutes(
     });
   });
 
+  // GET /api/debug/magic-last-send - Returns last magic link send attempt (dev only)
+  app.get("/api/debug/magic-last-send", async (req, res) => {
+    const isProduction = process.env.REPLIT_DEPLOYMENT === "1" || process.env.NODE_ENV === "production";
+    const debugEnabled = process.env.DEBUG_AUTH === "1";
+    
+    if (isProduction && !debugEnabled) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    const { getLastMagicLinkSendAttempt } = await import("./resendClient");
+    const lastAttempt = getLastMagicLinkSendAttempt();
+    
+    if (!lastAttempt) {
+      return res.json({ message: "No magic link send attempts yet" });
+    }
+    
+    res.json(lastAttempt);
+  });
+
   // ============== AUTH ROUTES ==============
 
   // GET /auth/me - Get current authenticated user

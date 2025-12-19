@@ -1,0 +1,66 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- Prefer surgical edits.
+- Preserve existing API response shapes unless explicitly asked to change them.
+
+## 1) Goal (one sentence)
+GOAL: Make the magic-link email send path traceable so “email not received” can be diagnosed via shell output (provider accepted vs failed), without needing production.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+server/auth.ts
+server/resendClient.ts
+server/routes.ts
+
+If you think other files are required, STOP and list the additional file paths and why.
+
+## 3) Current behavior to preserve
+- Keep magic link start endpoint response shape: still returns { success: true, message: ... } on success.
+- Do not change the verify URL format (/app/auth/magic/verify?token=...).
+- Do not change Google OAuth behavior.
+
+## 4) Implementation plan (small + explicit)
+1) In the magic-link start handler, capture Resend (or email provider) response metadata: messageId, status, error if any.
+2) Log a single structured line to server logs on each send attempt (include email, messageId, error).
+3) Add a gated dev-only endpoint GET /api/debug/magic-last-send that returns the most recent send attempt metadata (in-memory; no DB changes).
+
+## 5) Exact edits
+For each file you touch, produce:
+- Path:
+- Change type: surgical edit
+- Diff-style summary (what changed and why)
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+### Build / type sanity
+1) `npm test` if it exists, else say “no test script found”
+2) `npm run build` (or closest equivalent)
+3) `npm run lint` if it exists (otherwise state it doesn’t)
+
+### Runtime checks
+4) Start server: `npm run dev` (or workspace default)
+5) In a second shell:
+- Trigger send:
+  `curl -i -X POST http://localhost:<PORT>/app/auth/magic/start -H 'content-type: application/json' -d '{"email":"<YOUR_EMAIL>"}'`
+  Success looks like: HTTP 200 + JSON { success: true, ... }
+- Fetch debug:
+  `curl -s http://localhost:<PORT>/api/debug/magic-last-send | jq`
+  Success looks like: JSON includes providerAccepted=true (or similar) AND a provider message id (or null with an error).
+
+## 7) Acceptance criteria (must be met)
+- We can prove from shell whether the provider accepted the email send.
+- No breaking changes to existing login flows.
+- Debug endpoint is gated (404 in production unless DEBUG_AUTH=1 or similar).
+
+## 8) If verification fails
+Do NOT keep making random edits.
+Instead:
+- Show the error output
+- Give the 2–3 most likely root causes
+- Propose the smallest next diagnostic step
+
+Now execute the plan.
