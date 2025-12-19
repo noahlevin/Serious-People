@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Check, Clock, Pause, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check, Clock, Pause, ShieldCheck, Loader2 } from "lucide-react";
 
 const Offer = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   // This would come from interview context
   const user = {
     name: "Sarah",
@@ -42,12 +46,42 @@ const Offer = () => {
     "Decision Timeline — when to push, when to pivot, when to leave",
   ];
 
+  const handleStartCheckout = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ basePath: "/app/offer" }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create checkout session");
+      }
+
+      if (data.url) {
+        window.location.assign(data.url);
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (err: any) {
+      console.error("[Offer] Checkout error:", err);
+      setError(err.message || "Something went wrong. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border">
         <div className="sp-container py-6">
-          <Link to="/" className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300">
+          <Link to="/offer" className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300">
             Serious People
           </Link>
         </div>
@@ -185,10 +219,30 @@ const Offer = () => {
                 <span className="text-lg text-muted-foreground line-through">$98</span>
               </div>
               
-              <button className="w-full py-4 bg-foreground text-background text-base font-medium hover:bg-foreground/90 transition-colors flex items-center justify-center gap-2 mb-6">
-                Start Your Session
-                <ArrowRight className="w-4 h-4" />
+              <button 
+                onClick={handleStartCheckout}
+                disabled={isLoading}
+                className="w-full py-4 bg-foreground text-background text-base font-medium hover:bg-foreground/90 transition-colors flex items-center justify-center gap-2 mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                data-testid="button-start-checkout"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Redirecting to checkout...
+                  </>
+                ) : (
+                  <>
+                    Start Your Session
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
+
+              {error && (
+                <p className="text-sm text-red-600 mb-4" data-testid="text-checkout-error">
+                  {error}
+                </p>
+              )}
 
               <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1.5">

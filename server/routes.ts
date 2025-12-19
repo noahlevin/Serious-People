@@ -2453,6 +2453,17 @@ COMMUNICATION STYLE:
 
       const session = await stripe.checkout.sessions.create(sessionOptions);
 
+      // Save stripeSessionId to transcript so bootstrap can detect CHECKOUT_PENDING phase
+      if (user?.id) {
+        const transcript = await storage.getTranscriptByUserId(user.id);
+        if (transcript) {
+          await storage.updateTranscript(transcript.sessionToken, {
+            stripeSessionId: session.id,
+          });
+          console.log(`[CHECKOUT] Saved stripeSessionId=${session.id.slice(0, 20)}... for user=${user.id}`);
+        }
+      }
+
       res.json({ url: session.url });
     } catch (error: any) {
       console.error("Checkout error:", error);
