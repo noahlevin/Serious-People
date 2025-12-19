@@ -317,6 +317,62 @@ async function main() {
   console.log('[PASS] All artifact IDs, statuses, and content stable across refetches');
   console.log('');
 
+  // Step 8: Verify idempotency (calling ensure-artifacts again should not regenerate)
+  console.log('[TEST] Step 8: Verify idempotency (second ensure-artifacts call)');
+  
+  const idempotencyResponse = await fetch(`${ORIGIN}/api/dev/serious-plan/ensure-artifacts`, {
+    method: 'POST',
+    headers: devHeaders,
+    body: JSON.stringify({ email: EMAIL, forceRegenerate: false }),
+  });
+  
+  if (!idempotencyResponse.ok) {
+    console.log(`[FAIL] Idempotency check: POST returned ${idempotencyResponse.status}`);
+    process.exit(1);
+  }
+  
+  const idempotencyResult = await idempotencyResponse.json();
+  console.log(`[INFO] Idempotency ensure-artifacts response:`);
+  console.log(`  created: ${idempotencyResult.created}`);
+  console.log(`  artifactCount: ${idempotencyResult.artifactCount}`);
+  
+  // Verify no new artifacts were created
+  if (idempotencyResult.created !== 0 && idempotencyResult.created !== false) {
+    console.log(`[FAIL] Idempotency violated: created=${idempotencyResult.created}, expected 0 or false`);
+    process.exit(1);
+  }
+  console.log('[PASS] Idempotency check: No new artifacts created on second call');
+  
+  // Verify all artifacts still have same terminal statuses
+  const afterIdempotency = await fetch(`${ORIGIN}/api/dev/serious-plan/latest?userId=${userId}`, {
+    headers: devHeaders,
+  });
+  const planAfterIdempotency = await afterIdempotency.json();
+  
+  const snapAfter = getArtifactSnapshot(planAfterIdempotency.artifacts);
+  let idempotencyStable = true;
+  
+  for (let i = 0; i < snap2.length; i++) {
+    if (snap2[i].id !== snapAfter[i]?.id) {
+      console.log(`[FAIL] Artifact ID changed after idempotency check for ${snap2[i].key}`);
+      idempotencyStable = false;
+    }
+    if (snap2[i].status !== snapAfter[i]?.status) {
+      console.log(`[FAIL] Artifact status changed after idempotency check for ${snap2[i].key}: ${snap2[i].status} -> ${snapAfter[i]?.status}`);
+      idempotencyStable = false;
+    }
+    if (snap2[i].contentHash !== snapAfter[i]?.contentHash) {
+      console.log(`[FAIL] Artifact content changed after idempotency check for ${snap2[i].key}`);
+      idempotencyStable = false;
+    }
+  }
+  
+  if (!idempotencyStable) {
+    process.exit(1);
+  }
+  console.log('[PASS] All artifacts stable after idempotency check');
+  console.log('');
+
   // Summary
   console.log('=== SMOKE TEST COMPLETE ===');
   console.log('All checks passed:');
@@ -327,6 +383,7 @@ async function main() {
   console.log(`  - Observed states: ${Array.from(observedStates).join(', ')}`);
   console.log(`  - Non-empty content: ${hasNonEmptyContent ? 'YES (real LLM generation)' : 'NO'}`);
   console.log(`  - Refresh-deterministic: IDs/status/content stable`);
+  console.log(`  - Idempotency: No duplicate generation on second call`);
 }
 
 main().catch(err => {
