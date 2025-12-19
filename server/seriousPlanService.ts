@@ -590,6 +590,7 @@ Output ONLY the letter text, nothing else.`;
 /**
  * Generate a single artifact.
  * Each artifact is generated independently and updates storage immediately on completion.
+ * Uses atomic "claim" pattern to prevent duplicate generation under concurrency.
  */
 async function generateSingleArtifact(
   planId: string,
@@ -599,13 +600,24 @@ async function generateSingleArtifact(
   coachingPlan: CoachingPlan,
   dossier: ClientDossier | null,
   planHorizon: { type: string; rationale: string }
-): Promise<{ success: boolean; artifactKey: string }> {
+): Promise<{ success: boolean; artifactKey: string; skipped?: boolean }> {
   const startTime = Date.now();
   console.log(`[ARTIFACT] ts=${new Date().toISOString()} plan=${planId} artifact=${artifactKey} status=started`);
   
   try {
-    // Mark as generating
-    await storage.updateArtifactGenerationStatus(artifactId, 'generating');
+    // Attempt to "claim" this artifact by atomically transitioning pending -> generating
+    // This prevents duplicate generation if called concurrently
+    const claim = await storage.transitionArtifactStatusIfCurrent(
+      artifactId, 
+      ['pending'], 
+      'generating'
+    );
+    
+    if (!claim.updated) {
+      // Someone else is generating, or it's already complete/error
+      console.log(`[ARTIFACT] ts=${new Date().toISOString()} plan=${planId} artifact=${artifactKey} status=skipped reason=not_pending`);
+      return { success: true, artifactKey, skipped: true };
+    }
     
     const prompt = buildSingleArtifactPrompt(artifactKey, clientName, coachingPlan, dossier, planHorizon);
     
