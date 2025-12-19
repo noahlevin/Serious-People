@@ -5,16 +5,8 @@ import { ModuleTitleCard } from "@/components/ChatComponents";
 import "@/styles/serious-people.css";
 
 export default function DebugChatComponents() {
-  const debugEnabled = import.meta.env.VITE_DEBUG_UI === "1" || 
-    (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1");
-
-  if (!debugEnabled) {
-    return (
-      <div className="p-8">
-        <p className="text-muted-foreground">Debug UI disabled</p>
-      </div>
-    );
-  }
+  // Route is only registered in dev builds (see App.tsx), so if we get here, we're in dev mode.
+  // No query param bypass - this page is only accessible in dev builds.
 
   return (
     <div className="min-h-screen bg-background p-8">

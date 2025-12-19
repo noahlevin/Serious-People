@@ -57,7 +57,10 @@ function AppRoutes() {
       <Route path="/coach-chat" element={<CoachChat />} />
       <Route path="/artifacts" element={<Artifacts />} />
       <Route path="/__lovable" element={<LovableSmoke />} />
-      <Route path="/debug/chat-components" element={<DebugChatComponents />} />
+      {/* Debug route: only register in dev mode or when VITE_DEBUG_UI=1 */}
+      {(import.meta.env.DEV || import.meta.env.VITE_DEBUG_UI === "1") && (
+        <Route path="/debug/chat-components" element={<DebugChatComponents />} />
+      )}
       
       {/* Legacy aliases → redirect to canonical */}
       <Route path="/" element={<Navigate to="/interview/start" replace />} />
