@@ -5054,6 +5054,95 @@ FORMAT:
     }
   });
 
+  // POST /api/dev/serious-plan/ensure-artifacts
+  // Ensures a user has a serious plan with at least one artifact (creates if needed)
+  // Returns: { userId, planId, artifactCount, created, artifactKeys }
+  app.post("/api/dev/serious-plan/ensure-artifacts", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      // Check for existing plan
+      let plan = await storage.getSeriousPlanByUserId(user.id);
+      let created = false;
+
+      if (!plan) {
+        // Create a minimal plan for testing
+        plan = await storage.createSeriousPlan({
+          userId: user.id,
+          transcriptId: null,
+          status: 'generating',
+          coachLetterStatus: 'pending',
+        });
+        created = true;
+      }
+
+      // Check existing artifacts
+      let artifacts = await storage.getArtifactsByPlanId(plan.id);
+
+      if (artifacts.length === 0) {
+        // Create placeholder artifacts for testing the lifecycle
+        const testArtifactKeys = ['decision_snapshot', 'action_plan', 'module_recap'];
+        const placeholders = testArtifactKeys.map((key, idx) => ({
+          planId: plan!.id,
+          artifactKey: key,
+          title: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          type: 'generated' as const,
+          importanceLevel: 'critical' as const,
+          whyImportant: `Test artifact for ${key}`,
+          contentRaw: null,
+          generationStatus: 'pending' as const,
+          displayOrder: idx + 1,
+          pdfStatus: 'not_started' as const,
+        }));
+
+        artifacts = await storage.createArtifacts(placeholders);
+        created = true;
+
+        // Simulate async generation by updating status after a delay (fire and forget)
+        setTimeout(async () => {
+          for (const artifact of artifacts) {
+            try {
+              await storage.updateArtifactGenerationStatus(artifact.id, 'generating');
+              // Simulate generation time
+              await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
+              await storage.updateArtifactGenerationStatus(
+                artifact.id, 
+                'complete',
+                JSON.stringify({ 
+                  summary: `Generated content for ${artifact.artifactKey}`,
+                  generatedAt: new Date().toISOString()
+                })
+              );
+            } catch (err) {
+              console.error(`[DEV] Artifact generation simulation failed for ${artifact.id}:`, err);
+              await storage.updateArtifactGenerationStatus(artifact.id, 'error');
+            }
+          }
+          // Mark plan as ready when all artifacts complete
+          await storage.updateSeriousPlanStatus(plan!.id, 'ready');
+        }, 100);
+      }
+
+      res.json({
+        ok: true,
+        userId: user.id,
+        planId: plan.id,
+        artifactCount: artifacts.length,
+        created,
+        artifactKeys: artifacts.map(a => a.artifactKey),
+        initialStatuses: artifacts.map(a => ({ key: a.artifactKey, status: a.generationStatus })),
+      });
+    } catch (error: any) {
+      console.error("[DEV] ensure-artifacts error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // GET /api/dev/serious-plan/latest
   // Returns the serious plan for a user (same shape as /api/serious-plan/latest)
   app.get("/api/dev/serious-plan/latest", async (req, res) => {

@@ -1,0 +1,51 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+
+## 1) Goal (one sentence)
+GOAL: Make the Serious Plan artifacts smoke test actually validate the full DB-mediated lifecycle by ensuring at least one artifact exists and is created/generated during the test (pending→generating→complete/error), and lock dev endpoints behind an explicit env flag.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+server/routes.ts
+scripts/smoke-serious-plan-artifacts.mjs
+
+If you think other files are required, STOP and list the additional file paths and why.
+
+## 3) Implementation plan (small + explicit)
+1) Update scripts/smoke-serious-plan-artifacts.mjs to accept EMAIL (default: noah@noahlevin.com) and STOP using “most recent user” as the primary path.
+2) Add a dev-only endpoint in server/routes.ts:
+   - POST /api/dev/serious-plan/ensure-artifacts
+   - Input: { email } (or { userId })
+   - Behavior:
+     a) locate/create the user (or locate by email only if creating users is risky)
+     b) locate/create their serious plan
+     c) if artifacts array is empty, create placeholder artifacts in DB with generationStatus=pending
+     d) kick off generation (if there is an existing server function/endpoint to do it); otherwise just leave placeholders as pending and return them
+   - Must be gated: return 404 unless DEV_TOOLS=1 (or similar explicit env var).
+3) Update the smoke script:
+   - Call POST /api/dev/serious-plan/ensure-artifacts first
+   - Require artifactCount >= 1 (fail hard if 0)
+   - Poll GET /api/dev/serious-plan/latest until all artifacts are terminal (complete or error), with a timeout
+   - Validate every artifact has generationStatus and that we observed at least one non-terminal state (pending/generating) at some point OR explain why not (e.g., generation too fast) but still require artifacts exist.
+   - Verify refresh determinism: after terminal, refetch twice and confirm artifact IDs + generationStatus + content fields are stable (no changes).
+4) Keep all existing API response shapes unchanged unless they are dev-only endpoints.
+
+## 4) Mandatory verification (must run and paste output)
+1) `npm test` if it exists, else say “no test script found”
+2) `npm run build` (or closest equivalent)
+3) Start server: `npm run dev`
+4) In second shell:
+   - `DEV_TOOLS=1 EMAIL=noah@noahlevin.com ORIGIN=http://localhost:5000 node scripts/smoke-serious-plan-artifacts.mjs`
+
+Success looks like:
+- The script FAILS if artifactCount is 0
+- The script prints status transitions (pending/generating/complete/error) for >=1 artifact
+- Determinism check confirms artifact IDs/status/content stable on refetch
+
+## 5) Rollback note
+If anything breaks, revert:
+- server/routes.ts (git checkout)
+- scripts/smoke-serious-plan-artifacts.mjs

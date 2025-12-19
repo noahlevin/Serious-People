@@ -1,263 +1,287 @@
 #!/usr/bin/env node
 /**
  * Smoke test for Serious Plan artifact generation.
- * Validates:
- * 1. POST /api/serious-plan returns 200 and planId (or alreadyExists)
- * 2. GET /api/serious-plan/latest returns artifacts with generationStatus
- * 3. Polling reaches all complete OR reports error statuses
+ * Validates the full DB-mediated lifecycle:
+ * 1. POST /api/dev/serious-plan/ensure-artifacts creates artifacts with pending status
+ * 2. GET /api/dev/serious-plan/latest returns artifacts with generationStatus
+ * 3. Polling observes status transitions (pending -> generating -> complete/error)
+ * 4. Refresh-deterministic: multiple fetches return stable artifact IDs/content
  * 
- * Usage: ORIGIN=http://localhost:5000 node scripts/smoke-serious-plan-artifacts.mjs
+ * Usage: EMAIL=noah@noahlevin.com ORIGIN=http://localhost:5000 node scripts/smoke-serious-plan-artifacts.mjs
  */
 
 const ORIGIN = process.env.ORIGIN || 'http://localhost:5000';
+const EMAIL = process.env.EMAIL || 'noah@noahlevin.com';
 const DEV_SECRET = process.env.DEV_TOOLS_SECRET || 'sp-dev-2024';
 const MAX_POLL_ATTEMPTS = 30;
-const POLL_INTERVAL_MS = 2000;
+const POLL_INTERVAL_MS = 1000;
 
 const devHeaders = {
   'x-dev-tools-secret': DEV_SECRET,
   'Content-Type': 'application/json',
 };
 
+// Track observed states for validation
+const observedStates = new Set();
+
 async function main() {
   console.log(`[INFO] Testing against ${ORIGIN}`);
+  console.log(`[INFO] Using EMAIL=${EMAIL}`);
   console.log('');
 
-  // Step 0: Get the most recent user to find a userId with a Serious Plan
-  console.log('[TEST] Step 0: Find a user with a Serious Plan');
+  // Step 1: Call ensure-artifacts to guarantee artifacts exist
+  console.log('[TEST] Step 1: Ensure artifacts exist for user');
   
-  let mostRecentUserResponse;
+  let ensureResponse;
   try {
-    mostRecentUserResponse = await fetch(`${ORIGIN}/api/dev/most-recent-user`, {
+    ensureResponse = await fetch(`${ORIGIN}/api/dev/serious-plan/ensure-artifacts`, {
+      method: 'POST',
       headers: devHeaders,
+      body: JSON.stringify({ email: EMAIL }),
     });
   } catch (err) {
     console.log(`[FAIL] Could not connect to ${ORIGIN}: ${err.message}`);
     process.exit(1);
   }
 
-  if (!mostRecentUserResponse.ok) {
-    // Try alternative approach - get users list or use placeholder
-    console.log(`[INFO] /api/dev/most-recent-user not available (${mostRecentUserResponse.status})`);
-    console.log('[INFO] Will attempt to discover userId from existing endpoints');
-    
-    // Try to get the first user with a plan by querying dev endpoint differently
-    const altResponse = await fetch(`${ORIGIN}/api/dev/serious-plan/latest?userId=test`, {
-      headers: devHeaders,
-    });
-    
-    if (altResponse.status === 400) {
-      console.log('[PASS] Dev endpoint exists and requires userId param');
-      console.log('[INFO] No userId available - skipping full test');
-      console.log('');
-      console.log('=== SMOKE TEST COMPLETE (no userId to test) ===');
-      console.log('To run full test: set USER_ID env var to a valid userId');
-      process.exit(0);
-    }
-  }
-  
-  let userId = process.env.USER_ID;
-  
-  if (!userId && mostRecentUserResponse?.ok) {
-    const userData = await mostRecentUserResponse.json();
-    userId = userData?.id;
-    console.log(`[INFO] Found most recent user: ${userId}`);
-  }
-  
-  if (!userId) {
-    console.log('[INFO] No userId available - testing endpoint structure only');
-    // Test that the endpoint exists and returns proper error
-    const testResponse = await fetch(`${ORIGIN}/api/dev/serious-plan/latest?userId=nonexistent`, {
-      headers: devHeaders,
-    });
-    if (testResponse.status === 404) {
-      const body = await testResponse.json();
-      if (body.error === 'No Serious Plan found') {
-        console.log('[PASS] Endpoint returns correct 404 shape for unknown user');
-      }
-    }
-    console.log('');
-    console.log('=== SMOKE TEST COMPLETE (no userId) ===');
-    process.exit(0);
-  }
-
-  // Step 1: Get the user's serious plan via dev endpoint
-  console.log(`[TEST] Step 1: Fetch serious plan for userId=${userId}`);
-  
-  let latestPlanResponse;
-  try {
-    latestPlanResponse = await fetch(`${ORIGIN}/api/dev/serious-plan/latest?userId=${userId}`, {
-      headers: devHeaders,
-    });
-  } catch (err) {
-    console.log(`[FAIL] Could not connect to ${ORIGIN}: ${err.message}`);
+  if (!ensureResponse.ok) {
+    const text = await ensureResponse.text();
+    console.log(`[FAIL] POST /api/dev/serious-plan/ensure-artifacts returned ${ensureResponse.status}`);
+    console.log(`  Response: ${text.slice(0, 300)}`);
     process.exit(1);
   }
 
-  if (latestPlanResponse.status === 404) {
-    console.log('[INFO] No serious plan found - this is expected if no user has completed modules');
-    console.log('[PASS] Dev endpoint returns 404 when no plan exists');
-    
-    // Try to check if the endpoint shape is correct by looking at the error
-    const body = await latestPlanResponse.json();
-    if (body.error === 'No Serious Plan found') {
-      console.log('[PASS] Error shape is correct');
-    }
-    console.log('');
-    console.log('=== SMOKE TEST COMPLETE (no plan to test) ===');
-    process.exit(0);
+  const ensureResult = await ensureResponse.json();
+  console.log(`[PASS] Ensure-artifacts returned 200`);
+  console.log(`  userId: ${ensureResult.userId}`);
+  console.log(`  planId: ${ensureResult.planId}`);
+  console.log(`  artifactCount: ${ensureResult.artifactCount}`);
+  console.log(`  created: ${ensureResult.created}`);
+  console.log(`  artifactKeys: ${ensureResult.artifactKeys?.join(', ')}`);
+  
+  if (ensureResult.initialStatuses) {
+    console.log(`  initialStatuses: ${JSON.stringify(ensureResult.initialStatuses)}`);
+    // Track initial states
+    ensureResult.initialStatuses.forEach(s => observedStates.add(s.status));
   }
+  console.log('');
 
-  if (!latestPlanResponse.ok) {
-    console.log(`[FAIL] GET /api/dev/serious-plan/latest returned ${latestPlanResponse.status}`);
-    const text = await latestPlanResponse.text();
-    console.log(`  Response: ${text.slice(0, 200)}`);
+  const userId = ensureResult.userId;
+  const planId = ensureResult.planId;
+
+  // Step 2: Verify artifactCount >= 1
+  console.log('[TEST] Step 2: Verify artifactCount >= 1');
+  if (ensureResult.artifactCount < 1) {
+    console.log(`[FAIL] artifactCount is ${ensureResult.artifactCount}, expected >= 1`);
+    process.exit(1);
+  }
+  console.log(`[PASS] artifactCount = ${ensureResult.artifactCount} (>= 1)`);
+  console.log('');
+
+  // Step 3: Fetch plan and validate artifact structure
+  console.log('[TEST] Step 3: Fetch plan and validate artifact structure');
+  
+  const latestResponse = await fetch(`${ORIGIN}/api/dev/serious-plan/latest?userId=${userId}`, {
+    headers: devHeaders,
+  });
+
+  if (!latestResponse.ok) {
+    console.log(`[FAIL] GET /api/dev/serious-plan/latest returned ${latestResponse.status}`);
     process.exit(1);
   }
 
-  const plan = await latestPlanResponse.json();
+  const plan = await latestResponse.json();
   console.log(`[PASS] GET /api/dev/serious-plan/latest returns 200`);
   console.log(`  planId: ${plan.id}`);
   console.log(`  status: ${plan.status}`);
   console.log(`  artifactCount: ${plan.artifacts?.length || 0}`);
-  console.log('');
 
-  // Step 2: Validate plan structure
-  console.log('[TEST] Step 2: Validate plan structure');
-  
-  if (!plan.id || typeof plan.id !== 'string') {
-    console.log('[FAIL] Plan missing id field');
+  if (!plan.id || plan.id !== planId) {
+    console.log(`[FAIL] Plan ID mismatch: ${plan.id} vs ${planId}`);
     process.exit(1);
   }
-  console.log('[PASS] Plan has id field');
 
   if (!Array.isArray(plan.artifacts)) {
     console.log('[FAIL] Plan missing artifacts array');
     process.exit(1);
   }
-  console.log('[PASS] Plan has artifacts array');
-  console.log('');
 
-  // Step 3: Validate artifact structure and generationStatus
-  console.log('[TEST] Step 3: Validate artifact structure');
-  
+  if (plan.artifacts.length < 1) {
+    console.log(`[FAIL] Plan has 0 artifacts, expected >= 1`);
+    process.exit(1);
+  }
+  console.log('[PASS] Plan has artifacts array with >= 1 artifact');
+
+  // Validate artifact structure
   const validStatuses = ['pending', 'generating', 'complete', 'error'];
-  let allValid = true;
-  const statusCounts = { pending: 0, generating: 0, complete: 0, error: 0 };
-
   for (const artifact of plan.artifacts) {
-    if (!artifact.id || !artifact.artifactKey || !artifact.generationStatus) {
+    if (!artifact.id || !artifact.artifactKey) {
       console.log(`[FAIL] Artifact missing required fields: ${JSON.stringify(artifact).slice(0, 100)}`);
-      allValid = false;
-      continue;
+      process.exit(1);
     }
-    
+    if (!artifact.generationStatus) {
+      console.log(`[FAIL] Artifact ${artifact.artifactKey} missing generationStatus`);
+      process.exit(1);
+    }
     if (!validStatuses.includes(artifact.generationStatus)) {
       console.log(`[FAIL] Invalid generationStatus "${artifact.generationStatus}" for ${artifact.artifactKey}`);
-      allValid = false;
+      process.exit(1);
+    }
+    observedStates.add(artifact.generationStatus);
+  }
+  console.log('[PASS] All artifacts have id, artifactKey, and valid generationStatus');
+  console.log('');
+
+  // Step 4: Poll until all artifacts reach terminal status
+  console.log('[TEST] Step 4: Poll for generation completion');
+  
+  let finalPlan = plan;
+  let attempts = 0;
+  
+  const getStatusCounts = (artifacts) => {
+    const counts = { pending: 0, generating: 0, complete: 0, error: 0 };
+    for (const a of artifacts) {
+      if (counts.hasOwnProperty(a.generationStatus)) {
+        counts[a.generationStatus]++;
+      }
+    }
+    return counts;
+  };
+
+  let statusCounts = getStatusCounts(plan.artifacts);
+  console.log(`[POLL] Initial: pending=${statusCounts.pending}, generating=${statusCounts.generating}, complete=${statusCounts.complete}, error=${statusCounts.error}`);
+  
+  while (statusCounts.pending + statusCounts.generating > 0 && attempts < MAX_POLL_ATTEMPTS) {
+    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+    attempts++;
+    
+    const pollResponse = await fetch(`${ORIGIN}/api/dev/serious-plan/latest?userId=${userId}`, {
+      headers: devHeaders,
+    });
+    
+    if (!pollResponse.ok) {
+      console.log(`[WARN] Poll attempt ${attempts} failed: ${pollResponse.status}`);
       continue;
     }
-
-    statusCounts[artifact.generationStatus]++;
+    
+    finalPlan = await pollResponse.json();
+    
+    // Track all observed states
+    for (const a of finalPlan.artifacts) {
+      observedStates.add(a.generationStatus);
+    }
+    
+    statusCounts = getStatusCounts(finalPlan.artifacts);
+    console.log(`[POLL] Attempt ${attempts}/${MAX_POLL_ATTEMPTS}: pending=${statusCounts.pending}, generating=${statusCounts.generating}, complete=${statusCounts.complete}, error=${statusCounts.error}`);
   }
-
-  if (!allValid) {
+  
+  if (statusCounts.pending + statusCounts.generating > 0) {
+    console.log(`[TIMEOUT] Polling timed out after ${MAX_POLL_ATTEMPTS} attempts`);
+    console.log(`  Final: pending=${statusCounts.pending}, generating=${statusCounts.generating}`);
+    console.log('[FAIL] Not all artifacts reached terminal status');
     process.exit(1);
   }
-  console.log('[PASS] All artifacts have required fields and valid generationStatus');
-  console.log(`  Status breakdown: pending=${statusCounts.pending}, generating=${statusCounts.generating}, complete=${statusCounts.complete}, error=${statusCounts.error}`);
+  
+  console.log('[PASS] All artifacts reached terminal status (complete or error)');
+  if (statusCounts.error > 0) {
+    console.log(`[WARN] ${statusCounts.error} artifacts have error status`);
+  }
   console.log('');
 
-  // Step 4: Check if all artifacts are complete (or poll if still generating)
-  console.log('[TEST] Step 4: Check generation completion');
+  // Step 5: Report observed states
+  console.log('[TEST] Step 5: Verify observed state transitions');
+  console.log(`[INFO] Observed states: ${Array.from(observedStates).join(', ')}`);
   
-  const incompleteCount = statusCounts.pending + statusCounts.generating;
+  // We expect to see at least 'pending' if artifacts were newly created, or 'complete' if pre-existing
+  const hasNonTerminal = observedStates.has('pending') || observedStates.has('generating');
+  const hasTerminal = observedStates.has('complete') || observedStates.has('error');
   
-  if (incompleteCount === 0) {
-    console.log('[PASS] All artifacts have terminal status (complete or error)');
-    if (statusCounts.error > 0) {
-      console.log(`[WARN] ${statusCounts.error} artifacts have error status`);
-      const errorArtifacts = plan.artifacts.filter(a => a.generationStatus === 'error');
-      errorArtifacts.forEach(a => console.log(`  - ${a.artifactKey}: error`));
-    }
-  } else {
-    console.log(`[INFO] ${incompleteCount} artifacts still generating, starting poll...`);
-    
-    // Poll until complete or timeout
-    let attempts = 0;
-    let lastStatusCounts = { ...statusCounts };
-    
-    while (attempts < MAX_POLL_ATTEMPTS) {
-      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
-      attempts++;
-      
-      const pollResponse = await fetch(`${ORIGIN}/api/dev/serious-plan/latest?userId=${userId}`, {
-        headers: devHeaders,
-      });
-      if (!pollResponse.ok) {
-        console.log(`[WARN] Poll attempt ${attempts} failed: ${pollResponse.status}`);
-        continue;
-      }
-      
-      const pollPlan = await pollResponse.json();
-      const pollCounts = { pending: 0, generating: 0, complete: 0, error: 0 };
-      
-      for (const artifact of pollPlan.artifacts || []) {
-        if (validStatuses.includes(artifact.generationStatus)) {
-          pollCounts[artifact.generationStatus]++;
-        }
-      }
-      
-      console.log(`[POLL] Attempt ${attempts}/${MAX_POLL_ATTEMPTS}: pending=${pollCounts.pending}, generating=${pollCounts.generating}, complete=${pollCounts.complete}, error=${pollCounts.error}`);
-      
-      const stillIncomplete = pollCounts.pending + pollCounts.generating;
-      if (stillIncomplete === 0) {
-        console.log('[PASS] All artifacts reached terminal status');
-        if (pollCounts.error > 0) {
-          console.log(`[WARN] ${pollCounts.error} artifacts have error status`);
-        }
-        break;
-      }
-      
-      lastStatusCounts = pollCounts;
-    }
-    
-    if (attempts >= MAX_POLL_ATTEMPTS) {
-      console.log(`[TIMEOUT] Polling timed out after ${MAX_POLL_ATTEMPTS} attempts`);
-      console.log(`  Final status: pending=${lastStatusCounts.pending}, generating=${lastStatusCounts.generating}, complete=${lastStatusCounts.complete}, error=${lastStatusCounts.error}`);
-      // Don't fail - timeout is informational
-    }
+  if (ensureResult.created && !hasNonTerminal) {
+    console.log('[WARN] Artifacts were created but no pending/generating state observed (generation was too fast)');
+  } else if (hasNonTerminal) {
+    console.log('[PASS] Observed non-terminal state (pending and/or generating)');
   }
   
+  if (!hasTerminal) {
+    console.log('[FAIL] No terminal state (complete/error) observed');
+    process.exit(1);
+  }
+  console.log('[PASS] Observed terminal state (complete and/or error)');
   console.log('');
 
-  // Step 5: Verify idempotency - calling /api/serious-plan again should return existing
-  console.log('[TEST] Step 5: Verify refresh-deterministic behavior');
+  // Step 6: Verify refresh-deterministic behavior
+  console.log('[TEST] Step 6: Verify refresh-deterministic behavior');
   
-  // Fetch again - should return same artifacts without re-triggering
-  const refetchResponse = await fetch(`${ORIGIN}/api/dev/serious-plan/latest?userId=${userId}`, {
+  // Fetch twice more and compare
+  const refetch1 = await fetch(`${ORIGIN}/api/dev/serious-plan/latest?userId=${userId}`, {
     headers: devHeaders,
   });
-  if (!refetchResponse.ok) {
-    console.log(`[FAIL] Refetch returned ${refetchResponse.status}`);
+  const plan1 = await refetch1.json();
+  
+  await new Promise(r => setTimeout(r, 500));
+  
+  const refetch2 = await fetch(`${ORIGIN}/api/dev/serious-plan/latest?userId=${userId}`, {
+    headers: devHeaders,
+  });
+  const plan2 = await refetch2.json();
+  
+  // Compare plan IDs
+  if (plan1.id !== planId || plan2.id !== planId) {
+    console.log(`[FAIL] Plan ID changed: original=${planId}, refetch1=${plan1.id}, refetch2=${plan2.id}`);
+    process.exit(1);
+  }
+  console.log('[PASS] Plan ID stable across refetches');
+  
+  // Compare artifact IDs and statuses
+  const getArtifactSnapshot = (artifacts) => {
+    return artifacts.map(a => ({
+      id: a.id,
+      key: a.artifactKey,
+      status: a.generationStatus,
+      contentHash: a.contentRaw ? a.contentRaw.slice(0, 50) : null,
+    })).sort((a, b) => a.key.localeCompare(b.key));
+  };
+  
+  const snap1 = getArtifactSnapshot(plan1.artifacts);
+  const snap2 = getArtifactSnapshot(plan2.artifacts);
+  
+  if (snap1.length !== snap2.length) {
+    console.log(`[FAIL] Artifact count changed: ${snap1.length} -> ${snap2.length}`);
     process.exit(1);
   }
   
-  const refetchPlan = await refetchResponse.json();
-  if (refetchPlan.id !== plan.id) {
-    console.log(`[FAIL] Refetch returned different plan ID: ${refetchPlan.id} vs ${plan.id}`);
+  let allStable = true;
+  for (let i = 0; i < snap1.length; i++) {
+    if (snap1[i].id !== snap2[i].id) {
+      console.log(`[FAIL] Artifact ID changed for ${snap1[i].key}: ${snap1[i].id} -> ${snap2[i].id}`);
+      allStable = false;
+    }
+    if (snap1[i].status !== snap2[i].status) {
+      console.log(`[FAIL] Artifact status changed for ${snap1[i].key}: ${snap1[i].status} -> ${snap2[i].status}`);
+      allStable = false;
+    }
+    if (snap1[i].contentHash !== snap2[i].contentHash) {
+      console.log(`[FAIL] Artifact content changed for ${snap1[i].key}`);
+      allStable = false;
+    }
+  }
+  
+  if (!allStable) {
     process.exit(1);
   }
   
-  if (refetchPlan.artifacts.length !== plan.artifacts.length) {
-    console.log(`[WARN] Artifact count changed: ${plan.artifacts.length} -> ${refetchPlan.artifacts.length}`);
-  }
-  
-  console.log('[PASS] Refetch returns same plan ID (refresh-deterministic)');
+  console.log('[PASS] All artifact IDs, statuses, and content stable across refetches');
   console.log('');
 
+  // Summary
   console.log('=== SMOKE TEST COMPLETE ===');
-  console.log('All checks passed.');
+  console.log('All checks passed:');
+  console.log(`  - Artifacts ensured for user ${EMAIL}`);
+  console.log(`  - artifactCount >= 1: ${ensureResult.artifactCount} artifacts`);
+  console.log(`  - All artifacts have generationStatus field`);
+  console.log(`  - All artifacts reached terminal status`);
+  console.log(`  - Observed states: ${Array.from(observedStates).join(', ')}`);
+  console.log(`  - Refresh-deterministic: IDs/status/content stable`);
 }
 
 main().catch(err => {
