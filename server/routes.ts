@@ -4848,7 +4848,8 @@ FORMAT:
   
   function requireDevTools(req: express.Request, res: express.Response): boolean {
     if (process.env.NODE_ENV === "production") {
-      res.status(403).json({ error: "Dev tools disabled in production" });
+      // Return 404 in production to hide existence of dev endpoints
+      res.status(404).json({ error: "Not found" });
       return false;
     }
     const secret = req.headers["x-dev-tools-secret"];
