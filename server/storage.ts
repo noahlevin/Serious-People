@@ -25,7 +25,7 @@ import {
   coachChatMessages 
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, isNull, gt, desc, asc } from "drizzle-orm";
+import { eq, and, isNull, gt, desc, asc, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -94,6 +94,12 @@ export interface IStorage {
   updateArtifact(id: string, updates: Partial<InsertSeriousPlanArtifact>): Promise<SeriousPlanArtifact | undefined>;
   updateArtifactPdf(id: string, status: PdfStatus, url?: string): Promise<SeriousPlanArtifact | undefined>;
   updateArtifactGenerationStatus(id: string, status: ArtifactGenerationStatus, content?: string): Promise<SeriousPlanArtifact | undefined>;
+  transitionArtifactStatusIfCurrent(
+    id: string, 
+    allowedCurrentStatuses: ArtifactGenerationStatus[], 
+    nextStatus: ArtifactGenerationStatus, 
+    content?: string
+  ): Promise<{ updated: boolean; artifact?: SeriousPlanArtifact }>;
   
   // Coach chat operations
   createCoachChatMessage(message: InsertCoachChatMessage): Promise<CoachChatMessage>;
@@ -489,6 +495,29 @@ export class DatabaseStorage implements IStorage {
       .where(eq(seriousPlanArtifacts.id, id))
       .returning();
     return updated;
+  }
+
+  async transitionArtifactStatusIfCurrent(
+    id: string, 
+    allowedCurrentStatuses: ArtifactGenerationStatus[], 
+    nextStatus: ArtifactGenerationStatus, 
+    content?: string
+  ): Promise<{ updated: boolean; artifact?: SeriousPlanArtifact }> {
+    const updateData: any = { generationStatus: nextStatus, updatedAt: new Date() };
+    if (content !== undefined) updateData.contentRaw = content;
+    
+    const result = await db.update(seriousPlanArtifacts)
+      .set(updateData)
+      .where(and(
+        eq(seriousPlanArtifacts.id, id),
+        inArray(seriousPlanArtifacts.generationStatus, allowedCurrentStatuses)
+      ))
+      .returning();
+    
+    if (result.length === 0) {
+      return { updated: false };
+    }
+    return { updated: true, artifact: result[0] };
   }
 
   // Coach chat operations

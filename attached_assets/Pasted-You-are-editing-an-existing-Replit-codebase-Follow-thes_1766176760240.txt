@@ -1,0 +1,95 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- If you touch auth/session/routing, include at least one curl check.
+
+## 1) Goal (one sentence)
+GOAL: Harden the Serious Plan artifact generation pipeline to be idempotent + refresh-deterministic under concurrency, and ensure all dev-only endpoints are unreachable in production.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+server/seriousPlanService.ts
+server/storage.ts
+server/routes.ts
+scripts/smoke-serious-plan-artifacts.mjs
+
+If you think other files are required, STOP and list the additional file paths and why.
+
+## 3) Current behavior to preserve
+- Preserve existing /api/serious-plan/latest response shape.
+- Preserve existing artifact statuses (pending/generating/complete/error).
+- Do not introduce any generation side-effects on GET endpoints.
+- Keep dev endpoints gated behind requireDevTools in non-prod.
+
+## 4) Implementation plan (small + explicit)
+1) Add a storage helper that transitions artifact status conditionally:
+   - transitionArtifactStatusIfCurrent(id, allowedCurrentStatuses[], nextStatus, optionalContent)
+   - It must do an UPDATE ... WHERE id=? AND generationStatus IN (...)
+   - Return { updated: boolean, artifact?: row } so the service can “claim” generation safely.
+
+2) Update seriousPlanService generation so it is idempotent:
+   - For each artifact, attempt to "claim" it by transitioning pending→generating (or error→generating only if FORCE_REGENERATE is true).
+   - If the claim update returns updated=false, SKIP generating that artifact (someone else is doing it, or it's already complete).
+   - Only write content + complete status if you successfully claimed it.
+
+3) Harden dev-only routing:
+   - Ensure ALL /api/dev/* routes return 404 in production (not 403) and still require x-dev-tools-secret in non-prod.
+   - Do the same for /api/debug/* routes (auth-config, magic-last-send, etc.) if present.
+
+4) Extend the smoke script:
+   - After ensure-artifacts, call ensure-artifacts AGAIN immediately (same EMAIL, FORCE_REGENERATE=false).
+   - Assert: same planId, same artifact IDs, and content lengths unchanged.
+   - If the second call causes regeneration or ID churn, FAIL hard with a clear message.
+
+## 5) Exact edits
+For each file you touch, produce:
+- Path:
+- Change type: (surgical edit | replace full contents)
+- Diff-style summary (what changed and why)
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+### Build / type sanity
+1) `npm test` if it exists, else skip and say “no test script found”
+2) `npm run build`
+3) `npm run lint` if it exists (otherwise state it doesn’t)
+
+### Runtime checks
+4) Start server: `npm run dev`
+
+5) In a second shell, run:
+- `EMAIL=noah@noahlevin.com FORCE_REGENERATE=1 node scripts/smoke-serious-plan-artifacts.mjs`
+  Success looks like:
+  - artifacts move generating → complete (or error)
+  - at least one artifact has non-empty content
+- `EMAIL=noah@noahlevin.com FORCE_REGENERATE=0 node scripts/smoke-serious-plan-artifacts.mjs`
+  Success looks like:
+  - second run does NOT change planId/artifactIds/content lengths
+  - status remains complete (terminal)
+
+### Production-gating sanity (without actually deploying)
+6) Simulate “prod” gating by temporarily setting NODE_ENV=production in the process env for a single request OR by running:
+- `NODE_ENV=production node -e "fetch('http://localhost:5000/api/dev/serious-plan/ensure-artifacts',{method:'POST'}).then(r=>console.log(r.status)).catch(e=>console.error(e))"`
+Success looks like:
+- status is 404 for /api/dev/* routes under NODE_ENV=production
+
+## 7) Acceptance criteria (must be met)
+- Artifact generation is safe under concurrency: no double-generation unless FORCE_REGENERATE=1.
+- Refresh-deterministic: planId/artifactIds/content stable across repeated calls when FORCE_REGENERATE=0.
+- /api/dev/* and /api/debug/* are 404 in production.
+
+## 8) If verification fails
+Do NOT keep making random edits.
+Instead:
+- Show the error output
+- Give the 2–3 most likely root causes
+- Propose the smallest next diagnostic step (grep, curl, or one log line)
+
+## 9) Deliverables
+At the end, produce:
+A) Diff Summary
+B) Raw command outputs from verification
+C) A rollback note (git diff / revert files)
