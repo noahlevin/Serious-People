@@ -1,0 +1,77 @@
+You are Replit Agent. Implement server-side gating for all /app/* routes so routing is owned by the journey state machine (same logic as /api/bootstrap), with the smallest possible changes.
+
+Hard rules:
+
+Only edit the minimum files needed.
+
+Prefer adding a small helper function and reusing it rather than duplicating logic.
+
+Do not refactor unrelated code.
+
+Do not change existing API behavior except as required for gating.
+
+Return: (1) diff-style summary, (2) full contents of changed files, (3) 7-step smoke test.
+
+Requirements:
+
+Reuse the same phase + routing computation used by GET /api/bootstrap.
+
+The routing computation returns app-internal paths without /app prefix:
+
+canonicalPath (e.g. "/interview/start", "/offer", "/offer/success", "/progress")
+
+allowedPaths array
+
+phase
+
+If you currently compute this inside /api/bootstrap, extract it into a helper like computeRoutingForUser(userId) in the same module and call it from both /api/bootstrap and the new /app/* gate so the logic cannot drift.
+
+Add an Express middleware gate for /app/* that runs before the SPA is served:
+
+If user is NOT authenticated:
+
+Allow /app/login to load (do not redirect it)
+
+For any other /app/*, redirect to: /app/login?next=<originalPathAndQuery>
+
+If user IS authenticated:
+
+Determine requested “internal path” by stripping the /app prefix from req.originalUrl (preserve query separately).
+
+Example: /app/interview/start?x=1 → internal path /interview/start
+
+Call computeRoutingForUser(userId) to get allowedPaths and canonicalPath
+
+Enforce rules:
+
+/app/progress is NOT allowed unless phase is PURCHASED or later (i.e., paid). This should be reflected via allowedPaths, so the gate just checks membership.
+
+If the internal path is not in allowedPaths, redirect to /app${canonicalPath}
+
+Otherwise call next() to let the SPA handle it
+
+Do NOT implement any client-side redirects in this chunk. Server gate only.
+
+Ensure /api/bootstrap continues to work exactly as before.
+
+Output:
+
+Diff-style summary (what/why)
+
+Full contents of any changed file(s)
+
+Smoke test checklist (7 steps), including:
+
+logged-out deep link to /app/progress redirects to login with next param
+
+logged-in deep link to forbidden route redirects to canonical
+
+logged-in allowed route loads SPA
+
+/app/login loads while logged out
+
+/api/bootstrap still returns correct payload
+
+refresh on /app/module/2 behaves deterministically
+
+query params preserved on redirect to login

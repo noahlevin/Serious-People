@@ -55,6 +55,105 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const dossierGenerationLocks = new Map<string, number>();
 const DOSSIER_LOCK_TIMEOUT_MS = 60000; // 60 seconds stale timeout
 
+// ============================================================================
+// ROUTING HELPER - Shared by /api/bootstrap and /app/* gating middleware
+// ============================================================================
+
+interface RoutingResult {
+  phase: string;
+  canonicalPath: string;
+  resumePath: string;
+  allowedPaths: string[];
+}
+
+async function computeRoutingForUser(userId: string): Promise<RoutingResult> {
+  // Fetch journey state
+  const journeyState = await storage.getJourneyState(userId);
+  const state: JourneyState = journeyState || {
+    interviewComplete: false,
+    paymentVerified: false,
+    module1Complete: false,
+    module2Complete: false,
+    module3Complete: false,
+    hasSeriousPlan: false,
+  };
+
+  // Determine phase
+  let phase: string;
+  if (!state.interviewComplete) {
+    phase = "INTERVIEW";
+  } else if (!state.paymentVerified) {
+    // Check if user has a pending checkout
+    const transcript = await storage.getTranscriptByUserId(userId);
+    if (transcript?.stripeSessionId) {
+      phase = "CHECKOUT_PENDING";
+    } else {
+      phase = "OFFER";
+    }
+  } else if (!state.module1Complete) {
+    phase = "PURCHASED";
+  } else if (!state.module2Complete) {
+    phase = "MODULE_2";
+  } else if (!state.module3Complete) {
+    phase = "MODULE_3";
+  } else if (!state.hasSeriousPlan) {
+    phase = "COACH_LETTER";
+  } else {
+    phase = "SERIOUS_PLAN";
+  }
+
+  // Compute routing (app-internal paths without /app prefix)
+  let canonicalPath: string;
+  let resumePath: string;
+  let allowedPaths: string[];
+
+  switch (phase) {
+    case "INTERVIEW":
+      canonicalPath = "/interview/start";
+      resumePath = "/interview/start";
+      allowedPaths = ["/interview/start", "/interview/prepare", "/interview/chat"];
+      break;
+    case "OFFER":
+      canonicalPath = "/offer";
+      resumePath = "/offer";
+      allowedPaths = ["/offer", "/offer/success"];
+      break;
+    case "CHECKOUT_PENDING":
+      canonicalPath = "/offer/success";
+      resumePath = "/offer/success";
+      allowedPaths = ["/offer", "/offer/success"];
+      break;
+    case "PURCHASED":
+      canonicalPath = "/progress";
+      resumePath = "/module/1";
+      allowedPaths = ["/progress", "/module/1"];
+      break;
+    case "MODULE_2":
+      canonicalPath = "/progress";
+      resumePath = "/module/2";
+      allowedPaths = ["/progress", "/module/1", "/module/2"];
+      break;
+    case "MODULE_3":
+      canonicalPath = "/progress";
+      resumePath = "/module/3";
+      allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3"];
+      break;
+    case "COACH_LETTER":
+      canonicalPath = "/progress";
+      resumePath = "/coach-letter";
+      allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3", "/coach-letter"];
+      break;
+    case "SERIOUS_PLAN":
+    default:
+      canonicalPath = "/progress";
+      resumePath = "/serious-plan";
+      allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3", "/coach-letter", "/serious-plan"];
+      break;
+  }
+
+  return { phase, canonicalPath, resumePath, allowedPaths };
+}
+
 function getBaseUrl(): string {
   if (process.env.BASE_URL) {
     return process.env.BASE_URL;
@@ -1122,6 +1221,58 @@ export async function registerRoutes(
   // Set up authentication (Passport, sessions, strategies)
   setupAuth(app);
 
+  // ============== /app/* SERVER-SIDE GATING ==============
+  // Gate all /app/* routes based on authentication and journey state
+  // This runs before SPA serving (vite or static) to enforce routing server-side
+  app.use("/app", async (req, res, next) => {
+    // Skip API/auth routes - let them pass through
+    if (req.originalUrl.startsWith("/app/api") || req.originalUrl.startsWith("/app/auth")) {
+      return next();
+    }
+
+    // Parse the internal path (strip /app prefix) and query string
+    const urlObj = new URL(req.originalUrl, `http://${req.headers.host}`);
+    const internalPath = urlObj.pathname.replace(/^\/app/, "") || "/";
+    const queryString = urlObj.search;
+
+    // Not authenticated - allow /login, redirect everything else
+    if (!req.isAuthenticated() || !req.user) {
+      if (internalPath === "/login" || internalPath === "/login/") {
+        return next(); // Allow login page
+      }
+      // Redirect to login with next param (preserve original path + query)
+      const nextParam = encodeURIComponent(req.originalUrl);
+      return res.redirect(`/app/login?next=${nextParam}`);
+    }
+
+    // Authenticated - check journey-based routing
+    try {
+      const userId = req.user.id;
+      const routing = await computeRoutingForUser(userId);
+
+      // Normalize internal path for comparison (remove trailing slash)
+      const normalizedPath = internalPath.replace(/\/$/, "") || "/";
+      
+      // Check if path is allowed
+      const isAllowed = routing.allowedPaths.some(allowed => {
+        const normalizedAllowed = allowed.replace(/\/$/, "") || "/";
+        return normalizedPath === normalizedAllowed || normalizedPath.startsWith(normalizedAllowed + "/");
+      });
+
+      if (!isAllowed) {
+        // Redirect to canonical path
+        return res.redirect(`/app${routing.canonicalPath}`);
+      }
+
+      // Path is allowed - let SPA handle it
+      return next();
+    } catch (error) {
+      console.error("[app-gate] Error computing routing:", error);
+      // On error, let SPA handle it
+      return next();
+    }
+  });
+
   // ============== PRICING API ==============
 
   // GET /api/pricing - Get current price and active coupon from Stripe
@@ -1235,7 +1386,7 @@ export async function registerRoutes(
         console.error("[bootstrap] Error fetching fresh user:", e);
       }
 
-      // Fetch journey state
+      // Fetch journey state for response
       const journeyState = await storage.getJourneyState(userId);
       const state: JourneyState = journeyState || {
         interviewComplete: false,
@@ -1246,78 +1397,8 @@ export async function registerRoutes(
         hasSeriousPlan: false,
       };
 
-      // Determine phase
-      let phase: string;
-      if (!state.interviewComplete) {
-        phase = "INTERVIEW";
-      } else if (!state.paymentVerified) {
-        // Check if user has a pending checkout
-        const transcript = await storage.getTranscriptByUserId(userId);
-        if (transcript?.stripeSessionId) {
-          phase = "CHECKOUT_PENDING";
-        } else {
-          phase = "OFFER";
-        }
-      } else if (!state.module1Complete) {
-        phase = "PURCHASED";
-      } else if (!state.module2Complete) {
-        phase = "MODULE_2";
-      } else if (!state.module3Complete) {
-        phase = "MODULE_3";
-      } else if (!state.hasSeriousPlan) {
-        phase = "COACH_LETTER";
-      } else {
-        phase = "SERIOUS_PLAN";
-      }
-
-      // Compute routing (app-internal paths without /app prefix)
-      let canonicalPath: string;
-      let resumePath: string;
-      let allowedPaths: string[];
-
-      switch (phase) {
-        case "INTERVIEW":
-          canonicalPath = "/interview/start";
-          resumePath = "/interview/start";
-          allowedPaths = ["/interview/start", "/interview/prepare", "/interview/chat"];
-          break;
-        case "OFFER":
-          canonicalPath = "/offer";
-          resumePath = "/offer";
-          allowedPaths = ["/offer", "/offer/success"];
-          break;
-        case "CHECKOUT_PENDING":
-          canonicalPath = "/offer/success";
-          resumePath = "/offer/success";
-          allowedPaths = ["/offer", "/offer/success"];
-          break;
-        case "PURCHASED":
-          canonicalPath = "/progress";
-          resumePath = "/module/1";
-          allowedPaths = ["/progress", "/module/1"];
-          break;
-        case "MODULE_2":
-          canonicalPath = "/progress";
-          resumePath = "/module/2";
-          allowedPaths = ["/progress", "/module/1", "/module/2"];
-          break;
-        case "MODULE_3":
-          canonicalPath = "/progress";
-          resumePath = "/module/3";
-          allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3"];
-          break;
-        case "COACH_LETTER":
-          canonicalPath = "/progress";
-          resumePath = "/coach-letter";
-          allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3", "/coach-letter"];
-          break;
-        case "SERIOUS_PLAN":
-        default:
-          canonicalPath = "/progress";
-          resumePath = "/serious-plan";
-          allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3", "/coach-letter", "/serious-plan"];
-          break;
-      }
+      // Use shared helper for routing computation
+      const routing = await computeRoutingForUser(userId);
 
       res.json({
         authenticated: true,
@@ -1329,12 +1410,12 @@ export async function registerRoutes(
         },
         journey: {
           state,
-          phase,
+          phase: routing.phase,
         },
         routing: {
-          canonicalPath,
-          resumePath,
-          allowedPaths,
+          canonicalPath: routing.canonicalPath,
+          resumePath: routing.resumePath,
+          allowedPaths: routing.allowedPaths,
         },
       });
     } catch (error: any) {
