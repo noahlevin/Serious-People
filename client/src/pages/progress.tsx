@@ -36,7 +36,7 @@ export default function Progress() {
       <div className="sp-page">
         <header className="sp-success-header">
           <div className="sp-header-content">
-            <Link to="/" className="sp-logo-link">
+            <Link to="/progress" className="sp-logo-link">
               <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
               <span className="sp-logo">Serious People</span>
             </Link>
@@ -114,7 +114,9 @@ export default function Progress() {
       label: "Your Serious Plan",
       status: state?.hasSeriousPlan 
         ? "completed" 
-        : "locked",
+        : state?.module3Complete 
+          ? "current" 
+          : "locked",
     },
   ];
 
