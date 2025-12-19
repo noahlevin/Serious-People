@@ -458,18 +458,24 @@ export default function ModulePage() {
   }
   
   return (
-    <div className="sp-interview-page">
-      <header className="sp-interview-header">
-        <div className="sp-header-content">
-          <Link href="/" className="sp-logo-link">
-            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-            <span className="sp-logo">Serious People</span>
-            <span className="sp-logo-subtitle"> · Module {moduleNumber}: {moduleInfo.name}</span>
-          </Link>
-          <UserMenu />
+    <div className="h-screen flex flex-col bg-background">
+      <header className="shrink-0">
+        <div className="sp-container">
+          <div className="flex items-center justify-between h-16 gap-4">
+            <Link href="/" className="font-display text-xl tracking-tight text-foreground shrink-0">
+              Serious People
+              <span className="text-muted-foreground font-normal text-base ml-2">
+                Module {moduleNumber}: {moduleInfo.name}
+              </span>
+            </Link>
+            <UserMenu />
+          </div>
         </div>
-        <div className="sp-progress-bar-container">
-          <div className="sp-progress-bar-fill" style={{ width: `${progress}%` }} />
+        <div className="h-[2px] bg-border relative">
+          <div 
+            className="absolute top-0 left-0 h-full bg-accent transition-all duration-500 ease-out"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       </header>
 

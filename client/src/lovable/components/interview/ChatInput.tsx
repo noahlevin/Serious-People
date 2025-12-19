@@ -46,7 +46,7 @@ const ChatInput = ({ onSend, disabled = false, placeholder = "Type your response
             placeholder={placeholder}
             disabled={disabled}
             rows={1}
-            className="flex-1 bg-transparent border-none outline-none resize-none font-chat text-foreground placeholder:text-muted-foreground text-[15px] leading-relaxed min-h-[24px] max-h-[120px] py-1"
+            className="sp-chat-input-textarea flex-1 bg-transparent border-none outline-none resize-none font-chat text-foreground placeholder:text-muted-foreground text-[15px] leading-relaxed min-h-[24px] max-h-[120px] py-1"
           />
           <Button
             size="icon"

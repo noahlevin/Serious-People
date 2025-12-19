@@ -547,6 +547,16 @@
   color: hsl(var(--muted-foreground));
 }
 
+/* Hide scrollbar in ChatInput textarea */
+.sp-chat-input-textarea {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.sp-chat-input-textarea::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
+}
+
 .sp-message {
   max-width: 85%;
   width: fit-content;

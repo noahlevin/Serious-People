@@ -1,0 +1,103 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- Prefer surgical edits.
+- Preserve existing route gating/state machine behavior.
+
+## 1) Goal (one sentence)
+GOAL: Make /app/module/:moduleNumber visually match the Interview/Chat header design, and hide the vertical scrollbar in the module response textbox.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+1) client/src/pages/module.tsx
+2) client/src/lovable/pages/InterviewChat.tsx
+3) client/src/lovable/components/interview/ChatInput.tsx
+4) client/src/styles/serious-people.css
+
+If you think other files are required, STOP and list the additional file paths and why.
+
+## 3) Current behavior to preserve
+- Preserve existing route gating/state machine behavior on module routes.
+- Do not change auth endpoints, callback URLs, or any server behavior.
+- Do not change InterviewChat behavior beyond extracting/reusing header markup if needed.
+
+## 4) Implementation plan (small + explicit)
+1) Inspect InterviewChat’s header markup (and any components it uses, like ProgressBar) and mirror that header structure in ModulePage.
+   - If InterviewChat uses a specific header component already, reuse it in ModulePage.
+   - If InterviewChat’s header is inline JSX, copy only the header portion into ModulePage (no other behavior changes).
+2) Remove/replace the old Module header markup so it matches Interview/Chat visually (spacing, typography, layout).
+3) Hide the vertical scrollbar in the ChatInput textarea used on ModulePage:
+   - Prefer adding a CSS class on the textarea in ChatInput (e.g. .sp-chat-input-textarea) and apply cross-browser “hide scrollbar” rules.
+   - Do NOT change ChatInput functionality or event handling.
+
+## 5) Exact edits
+For each file you touch, produce:
+- Path:
+- Change type: (surgical edit | replace full contents)
+- Diff-style summary (what changed and why)
+
+### Edit details
+
+A) client/src/pages/module.tsx (surgical)
+- Replace the existing module header JSX with the same header structure used in InterviewChat (same containers/classes).
+- Keep module routing/gating logic unchanged.
+- Keep message rendering + ChatInput integration unchanged (except any wrapper class needed for spacing).
+
+B) client/src/lovable/pages/InterviewChat.tsx (surgical)
+- ONLY if necessary to share header: extract header JSX into a small internal component inside this file, and reuse it in both InterviewChat and ModulePage by exporting it.
+- If you can copy the header JSX into ModulePage without exporting anything, do that instead and do NOT modify InterviewChat.tsx.
+
+C) client/src/lovable/components/interview/ChatInput.tsx (surgical)
+- Ensure the textarea has a stable className we can target (e.g. "sp-chat-input-textarea").
+- Do not alter behavior; only add className (if missing).
+
+D) client/src/styles/serious-people.css (surgical)
+- Add CSS to hide vertical scrollbars for the targeted textarea class, cross-browser:
+  - scrollbar-width: none; (Firefox)
+  - -ms-overflow-style: none; (old Edge)
+  - ::-webkit-scrollbar { display: none; } (Chrome/Safari)
+- Do NOT globally hide scrollbars—scope it to the ChatInput textarea class.
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+### Build / type sanity
+1) `npm test` if it exists, else say “no test script found”
+2) `npm run build` (or the repo’s equivalent build command)
+3) `npm run lint` if it exists, else say “no lint script found”
+
+### Runtime checks
+4) Start server: `npm run dev` (or the workspace default)
+5) In a second shell:
+- `curl -i http://localhost:5000/app/module/1 | head -n 20`
+  Success looks like:
+  - 302 to /app/login when unauthenticated (this is OK)
+  - or 200 when authenticated
+- Optional (if you have an authenticated cookie flow already): confirm the HTML includes the new header container/classes you copied from InterviewChat.
+  (Use grep on the curl output if useful.)
+
+## 7) Acceptance criteria (must be met)
+- Module page header matches Interview/Chat header structure (same container/classes and visual layout).
+- Module response textbox does not show a vertical scrollbar in Chrome/Safari/Firefox.
+- No TypeScript/build errors from the changes.
+- No changes to server auth/routing behavior.
+
+## 8) If verification fails
+Do NOT keep making random edits.
+Instead:
+- Paste the error output
+- Give the 2–3 most likely root causes
+- Propose the smallest next diagnostic step (grep, log line, or revert a single file)
+
+## 9) Rollback note
+If anything goes sideways:
+- `git diff` to see exact edits
+- revert just these files:
+  - client/src/pages/module.tsx
+  - client/src/lovable/pages/InterviewChat.tsx
+  - client/src/lovable/components/interview/ChatInput.tsx
+  - client/src/styles/serious-people.css
+
+Now execute the plan.
