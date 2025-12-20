@@ -169,30 +169,7 @@ const Artifacts = () => {
   });
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="sp-container py-6 flex items-center justify-between">
-          <Link
-            to="/"
-            className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300"
-          >
-            Serious People
-          </Link>
-
-          <div className="flex items-center gap-4">
-            <Link
-              to="/app/dashboard"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Dashboard
-            </Link>
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-sm font-medium text-primary">S</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <div>
       {/* Hero */}
       <section className="py-12 md:py-16 border-b border-border">
         <div className="sp-container-medium">

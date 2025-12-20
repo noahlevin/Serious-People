@@ -53,32 +53,7 @@ const ModuleWrapUp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="sp-container py-6 flex items-center justify-between">
-          <Link to="/" className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300">
-            Serious People
-          </Link>
-          
-          {/* Progress indicator */}
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">
-              Module {progress.completed} of {progress.total}
-            </span>
-            <div className="flex gap-1">
-              {Array.from({ length: progress.total }).map((_, i) => (
-                <div 
-                  key={i}
-                  className={`w-8 h-1 rounded-full transition-colors ${
-                    i < progress.completed ? 'bg-primary' : 'bg-border'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <div>
       {/* Hero */}
       <section className="py-12 md:py-16 border-b border-border">
         <div className="sp-container-medium">

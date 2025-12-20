@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { ArrowRight, Check, Clock, Pause, ShieldCheck, Loader2 } from "lucide-react";
 
 const Offer = () => {
@@ -77,16 +76,7 @@ const Offer = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="sp-container py-6">
-          <Link to="/offer" className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300">
-            Serious People
-          </Link>
-        </div>
-      </header>
-
+    <div>
       {/* Hero - The Hook */}
       <section className="py-16 md:py-24 border-b border-border">
         <div className="sp-container-medium">
