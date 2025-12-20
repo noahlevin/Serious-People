@@ -74,8 +74,10 @@ The interview chat uses an **app_events** table to stream structured UI events t
 
 **Smoke Test:**
 - Location: `scripts/smoke-interview-chat.mjs`
-- Run: `node scripts/smoke-interview-chat.mjs`
-- Coverage: 17 checks including name capture, structured outcomes lifecycle, finalization, artifact generation, token-free verification
+- Run: `node scripts/smoke-interview-chat.mjs` (full suite, ~3-5 min)
+- Fast mode: `DEV_FAST=1 node scripts/smoke-interview-chat.mjs` (~30 sec, uses testskip)
+- Coverage: 17 checks including name capture, structured outcomes lifecycle, finalization, artifact generation, token-free verification (full mode) or 5 checks (DEV_FAST mode)
+- Env vars: `TURN_TIMEOUT_MS` (default 120000), `MAX_RETRIES` (default 2), `DEV_FAST=1` (testskip mode)
 - Strict mode: Test fails (not warns) when expected events are missing
 
 **Module Event-Driven Architecture:**

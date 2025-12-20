@@ -6,32 +6,92 @@
  * Tests finalize interview lifecycle: finalize -> verify artifacts -> verify final card
  * 
  * Usage: ORIGIN=http://localhost:5000 EMAIL=noah@noahlevin.com DEV_TOOLS_SECRET=sp-dev-2024 node scripts/smoke-interview-chat.mjs
+ * 
+ * Environment variables:
+ *   TURN_TIMEOUT_MS - timeout per LLM turn (default: 120000 = 2 min)
+ *   MAX_RETRIES - max retries for LLM turns (default: 2)
  */
 
 const ORIGIN = process.env.ORIGIN || "http://localhost:5000";
 const EMAIL = process.env.EMAIL || "noah@noahlevin.com";
 const DEV_TOOLS_SECRET = process.env.DEV_TOOLS_SECRET || "sp-dev-2024";
+const TURN_TIMEOUT_MS = parseInt(process.env.TURN_TIMEOUT_MS || "120000", 10);
+const MAX_RETRIES = parseInt(process.env.MAX_RETRIES || "2", 10);
+const DEV_FAST = process.env.DEV_FAST === "1";
 
 console.log(`[INFO] Testing against ${ORIGIN}`);
 console.log(`[INFO] Using EMAIL=${EMAIL}`);
+console.log(`[INFO] TURN_TIMEOUT_MS=${TURN_TIMEOUT_MS}, MAX_RETRIES=${MAX_RETRIES}`);
+if (DEV_FAST) {
+  console.log(`[INFO] DEV_FAST=1: Using testskip mode for faster testing`);
+}
 console.log("");
 
-async function callTurn(message) {
-  const res = await fetch(`${ORIGIN}/api/dev/interview/turn`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-dev-tools-secret": DEV_TOOLS_SECRET,
-    },
-    body: JSON.stringify({ email: EMAIL, message }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`HTTP ${res.status}: ${text}`);
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    return res;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeoutMs}ms`);
+    }
+    throw err;
   }
+}
 
-  return res.json();
+async function callTurnWithRetry(message, retries = MAX_RETRIES) {
+  let lastError = null;
+  
+  for (let attempt = 1; attempt <= retries + 1; attempt++) {
+    try {
+      const res = await fetchWithTimeout(
+        `${ORIGIN}/api/dev/interview/turn`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-dev-tools-secret": DEV_TOOLS_SECRET,
+          },
+          body: JSON.stringify({ email: EMAIL, message }),
+        },
+        TURN_TIMEOUT_MS
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+
+      const result = await res.json();
+      
+      // If success but empty reply, LLM may have had an issue - retry if we have attempts left
+      // Exception: if planCard is present (testskip mode), empty reply is acceptable
+      if (result.success && (!result.reply || result.reply.length === 0) && !result.planCard && attempt <= retries) {
+        console.log(`[RETRY] Turn returned empty reply, attempt ${attempt}/${retries + 1}`);
+        lastError = new Error("Empty reply from LLM");
+        continue;
+      }
+      
+      return result;
+    } catch (err) {
+      lastError = err;
+      if (attempt <= retries) {
+        console.log(`[RETRY] Attempt ${attempt} failed: ${err.message}, retrying...`);
+        await new Promise(r => setTimeout(r, 2000)); // Wait 2s before retry
+      }
+    }
+  }
+  
+  throw lastError || new Error("All retry attempts failed");
+}
+
+async function callTurn(message) {
+  return callTurnWithRetry(message);
 }
 
 async function resetUserName() {
@@ -114,6 +174,80 @@ async function main() {
   }
   console.log("");
 
+  // DEV_FAST mode: use testskip to bypass slow LLM turns
+  if (DEV_FAST) {
+    console.log("=== DEV_FAST MODE: Using testskip ===");
+    console.log("");
+    console.log("[TEST] Sending 'testskip' to fast-track interview...");
+    try {
+      const skipResult = await callTurn("testskip");
+      if (skipResult.success && skipResult.planCard) {
+        console.log(`[PASS] testskip returned planCard with ${skipResult.planCard.modules?.length || 0} modules`);
+        passed++;
+      } else if (skipResult.success) {
+        console.log("[FAIL] testskip returned success but no planCard");
+        failed++;
+      } else {
+        console.log("[FAIL] testskip did not return success");
+        failed++;
+      }
+      
+      // Skip to finalize tests
+      console.log("");
+      console.log("=== FINALIZE INTERVIEW LIFECYCLE TESTS (DEV_FAST) ===");
+      console.log("");
+      
+      console.log("[TEST] Forcing interview finalization...");
+      const finalizeResult = await forceFinalize();
+      
+      if (finalizeResult.success) {
+        console.log(`[PASS] Finalize returned success=true`);
+        passed++;
+        
+        if (finalizeResult.interviewComplete) {
+          console.log(`[PASS] Interview marked complete=true`);
+          passed++;
+        } else {
+          console.log(`[FAIL] Interview not marked complete`);
+          failed++;
+        }
+        
+        if (finalizeResult.finalEvent?.modulesCount > 0) {
+          console.log(`[PASS] Final next steps event exists with ${finalizeResult.finalEvent.modulesCount} modules`);
+          passed++;
+        } else {
+          console.log(`[FAIL] No final next steps event or 0 modules`);
+          failed++;
+        }
+        
+        if (finalizeResult.hasSeriousPlan && finalizeResult.artifactsCount > 0) {
+          console.log(`[PASS] Serious plan exists with ${finalizeResult.artifactsCount} artifacts`);
+          passed++;
+        } else {
+          console.log(`[FAIL] No serious plan or no artifacts`);
+          failed++;
+        }
+      } else {
+        console.log(`[FAIL] Finalize did not return success=true`);
+        failed++;
+      }
+      
+      console.log("");
+      console.log("=== SMOKE TEST COMPLETE (DEV_FAST) ===");
+      if (failed === 0) {
+        console.log(`PASS: All ${passed} checks passed`);
+        process.exit(0);
+      } else {
+        console.log(`FAIL: ${passed} passed, ${failed} failed`);
+        process.exit(1);
+      }
+    } catch (err) {
+      console.log(`[FAIL] DEV_FAST error: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  // Normal mode: full test suite
   // Test 1: First turn - say hello
   console.log("[TEST] Turn 1: Sending 'hello'...");
   try {
