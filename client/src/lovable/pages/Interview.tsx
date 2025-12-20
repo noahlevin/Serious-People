@@ -13,7 +13,7 @@ const Interview = () => {
   const handleBeginInterview = () => {
     setIsStarting(true);
     setTimeout(() => {
-      navigate("/interview/chat");
+      navigate("/interview/prepare");
     }, 400);
   };
 
