@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/lovable/components/ui/button";
 import { ArrowRight, Clock, Lock, FileText, MessageCircle } from "lucide-react";
 import { useScrollReveal } from "@/lovable/hooks/useScrollReveal";
+import { UserMenu } from "@/components/UserMenu";
 
 const Interview = () => {
   const navigate = useNavigate();
@@ -45,13 +46,11 @@ const Interview = () => {
       {/* Header */}
       <header className="border-b border-border">
         <div className="sp-container">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-12">
             <Link to="/" className="font-display text-xl tracking-tight text-foreground">
               Serious People
             </Link>
-            <span className="text-sm text-muted-foreground font-medium">
-              Step 1 of 4
-            </span>
+            <UserMenu />
           </div>
         </div>
       </header>
@@ -135,7 +134,7 @@ const Interview = () => {
       <footer className="border-t border-border mt-auto">
         <div className="sp-container py-6">
           <p className="text-sm text-muted-foreground text-center">
-            Your responses are confidential and encrypted.
+            Your responses are confidential.
           </p>
         </div>
       </footer>

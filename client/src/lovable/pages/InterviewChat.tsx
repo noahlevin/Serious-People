@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/lovable/components/ui/button";
-import { X } from "lucide-react";
+import { Link } from "react-router-dom";
 import ChatMessage from "@/lovable/components/interview/ChatMessage";
+import { UserMenu } from "@/components/UserMenu";
 import ChatInput from "@/lovable/components/interview/ChatInput";
 import WelcomeCard from "@/lovable/components/interview/WelcomeCard";
 import SectionDivider from "@/lovable/components/interview/SectionDivider";
@@ -53,7 +52,6 @@ async function markInterviewComplete() {
 }
 
 const InterviewChat = () => {
-  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [progress, setProgress] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
@@ -151,12 +149,6 @@ const InterviewChat = () => {
     }
   };
 
-  const handleExit = () => {
-    if (window.confirm("Are you sure you want to exit? Your progress will be saved.")) {
-      navigate("/interview/start");
-    }
-  };
-
   // Build the chat content with section dividers interspersed
   const renderChatContent = () => {
     const elements: React.ReactNode[] = [];
@@ -209,20 +201,11 @@ const InterviewChat = () => {
       {/* Header */}
       <header className="shrink-0">
         <div className="sp-container">
-          <div className="flex items-center justify-between h-16 gap-4">
+          <div className="flex items-center justify-between h-12 gap-4">
             <Link to="/interview/start" className="font-display text-xl tracking-tight text-foreground shrink-0">
               Serious People
             </Link>
-            
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={handleExit}
-              className="text-muted-foreground hover:text-foreground shrink-0"
-            >
-              Save and Exit
-              <X className="h-4 w-4 ml-1" />
-            </Button>
+            <UserMenu />
           </div>
         </div>
         

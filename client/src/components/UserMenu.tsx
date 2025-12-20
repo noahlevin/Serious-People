@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 
 function useTypingAnimation(text: string, delay: number = 80) {
   const [displayedText, setDisplayedText] = useState(text);
@@ -44,7 +44,7 @@ function useTypingAnimation(text: string, delay: number = 80) {
 export function UserMenu() {
   const { user, isAuthenticated, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const menuRef = useRef<HTMLDivElement>(null);
   
   const displayName = user?.providedName || user?.name || user?.email?.split("@")[0] || "User";
@@ -73,7 +73,7 @@ export function UserMenu() {
   const handleLogout = async () => {
     setIsOpen(false);
     await logout();
-    setLocation("/");
+    navigate("/");
   };
   
   // Use animated text if typing, otherwise use display name

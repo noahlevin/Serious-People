@@ -1,15 +1,19 @@
 import { Link } from "react-router-dom";
 import { Clock, Lock, ArrowRight } from "lucide-react";
+import { UserMenu } from "@/components/UserMenu";
 
 const Prepare = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border shrink-0">
-        <div className="sp-container py-6">
-          <Link to="/" className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300">
-            Serious People
-          </Link>
+        <div className="sp-container">
+          <div className="flex items-center justify-between h-12">
+            <Link to="/" className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300">
+              Serious People
+            </Link>
+            <UserMenu />
+          </div>
         </div>
       </header>
 
