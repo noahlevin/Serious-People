@@ -101,6 +101,7 @@ The interview chat uses an **app_events** table to stream structured UI events t
 
 ## Recent Changes
 
+- **Dec 20, 2025:** Completed AppShell rollout - all routes now share consistent header/footer via AppShell component. Removed duplicated headers/footers from 15+ page components. Chat pages use flex-based layouts (flex-1 min-h-0) for proper scrolling within shell.
 - **Dec 20, 2025:** Completed Batch B token migration - ALL legacy interview tokens eliminated. Added `append_value_bullets` and `append_social_proof` tools. Extended interview smoke test to 17 checks with token-free verification. All tokens now replaced by tool-based event streaming.
 - **Dec 20, 2025:** Implemented plan-derived module names: /api/journey and /api/bootstrap now return modules array from planCard.modules. Updated progress.tsx to use journey.modules instead of hardcoded placeholders. Extended module smoke test to 13 checks with plan-derived modules verification (all passing).
 - **Dec 20, 2025:** Converted all 3 module flows to tool-based event streaming architecture (Batch A complete). Added module state endpoint, dev endpoints, and smoke test. Module tokens removed; interview tokens remain for Batch B.

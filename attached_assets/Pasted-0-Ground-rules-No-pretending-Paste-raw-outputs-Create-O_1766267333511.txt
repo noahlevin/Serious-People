@@ -1,0 +1,99 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Create ONE shared layout component (AppShell) used across all pages.
+- Be extremely conservative about CSS:
+  - Prefer a small set of dedicated `.sp-*` classes in serious-people.css
+  - Do NOT mix Tailwind utility soup + inline styles + custom CSS on the same container element.
+  - Avoid overlapping classes with conflicting padding/margins.
+- No visual redesign—keep spacing similar to current “good” pages.
+
+1) Goal
+Introduce a shared AppShell (Header + Footer + main container) and apply it to ALL routes so:
+- The user menu is always in the upper-right on every page
+- Header height is consistent and not “way too tall”
+- Footer is consistent
+- Main content never hides behind header
+- We reduce per-page layout duplication (less drift)
+
+2) Scope (ONLY)
+- client/src/components/AppShell.tsx (new)
+- client/src/styles/serious-people.css (add only shell/header/footer styles; avoid touching unrelated rules)
+- client/src/App.tsx (wrap routes with AppShell)
+- Any page components that currently render their own header/footer (edit only to remove duplicated wrappers once AppShell is applied)
+
+3) Discovery (required BEFORE edits)
+- grep -R "<header" client/src || true
+- grep -R "<footer" client/src || true
+- grep -R "sp-interview-header" client/src/styles/serious-people.css || true
+- Provide a short list of pages that currently implement their own header/footer and what classnames they use.
+
+4) CSS hygiene guardrails (must enforce during migration)
+These are the two classic failure modes—actively check for them and fix them:
+
+A) Double padding / content offset bugs
+- Watch for pages that already had padding-top / margin-top hacks for fixed headers
+- If AppShell introduces main padding/offset, remove per-page offsets to avoid “double push-down”
+- Confirm content is not hidden behind header and not overly pushed down
+
+B) Conflicting height/layout definitions
+- Avoid having header height defined in multiple places (e.g., Tailwind h-12 AND CSS padding/height rules)
+- Single source of truth: define header sizing in ONE place (prefer the sp-shell-header CSS rule)
+- Keep header child elements minimal; don’t stack multiple wrapper divs with their own spacing rules
+
+5) Implementation requirements
+A) AppShell structure
+- <div className="sp-shell">
+    <header className="sp-shell-header"> (logo/link left, <UserMenu/> right)
+    <main className="sp-shell-main">{children}</main>
+    <footer className="sp-shell-footer">...</footer>
+  </div>
+
+B) CSS: single-source header height + offsets
+- Define header height once (CSS variable or explicit height)
+- Ensure main top padding/margin matches header height
+- Decide: header is either fixed everywhere or static everywhere. Pick one and apply consistently.
+
+C) Migration
+- Wrap all routes in App.tsx with AppShell.
+- Remove per-page headers/footers that would result in duplicates.
+- Remove per-page padding-top/margin-top hacks that compensated for fixed headers (if header is fixed).
+
+D) Safety against CSS conflicts
+- When removing per-page header markup, also remove conflicting classes if no longer used.
+- Do NOT delete global CSS unless grep confirms it is unused.
+
+6) Visual verification (required)
+After implementation, manually inspect (in browser) EACH of these routes at:
+- Mobile width (~390px)
+- Tablet width (~768px)
+- Desktop width (~1200px+)
+
+Routes to check:
+- /
+- /interview/start
+- /interview/prepare
+- /interview/chat
+- /module/1
+- /seriousplan
+
+For each, confirm explicitly:
+- Exactly one header rendered
+- UserMenu present (when logged in)
+- Header height reasonable (not too tall)
+- Content not hidden behind header
+- Footer rendered and not overlapping content
+- No horizontal overflow / weird wrapping at small widths
+
+7) Verification (paste raw outputs)
+- npm run build
+- node scripts/smoke-interview-chat.mjs
+- node scripts/smoke-module-chat.mjs
+- grep -R "<header" client/src | head -n 50
+- grep -R "<footer" client/src | head -n 50
+
+8) Acceptance criteria
+- Every page has a single consistent header with UserMenu.
+- Header height consistent and not oversized at all widths.
+- No double headers, no hidden content behind header, no double padding.
+- Footer present and stable across pages.
+- Build + both smokes pass.
