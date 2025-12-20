@@ -364,22 +364,38 @@ async function main() {
           failed++;
         }
         
-        // Test 12: Verify final next steps event exists with modules
+        // Test 12: Verify final next steps event exists with modules > 0
         console.log("");
-        console.log("[TEST] Verifying final next steps event exists...");
-        if (finalizeResult.finalEvent) {
-          const modulesCount = finalizeResult.finalEvent.modulesCount || 0;
-          console.log(`[PASS] Final next steps event exists with ${modulesCount} modules`);
-          passed++;
-          
-          // Log module titles for visibility
-          if (finalizeResult.finalEvent.modules?.length > 0) {
-            console.log(`[INFO] Module titles: ${finalizeResult.finalEvent.modules.map(m => m.title).join(', ')}`);
-          }
-        } else {
+        console.log("[TEST] Verifying final next steps event exists with modules...");
+        if (!finalizeResult.finalEvent) {
           console.log(`[FAIL] No final next steps event found`);
           console.log(`[INFO] Events: ${JSON.stringify(finalizeResult.events?.map(e => e.type))}`);
           failed++;
+        } else {
+          const modulesCount = finalizeResult.finalEvent.modulesCount || 0;
+          if (modulesCount === 0) {
+            console.log(`[FAIL] Final next steps event has 0 modules`);
+            failed++;
+          } else {
+            console.log(`[PASS] Final next steps event exists with ${modulesCount} modules`);
+            console.log(`[INFO] Module titles: ${finalizeResult.finalEvent.modules.map(m => m.title).join(', ')}`);
+            passed++;
+          }
+        }
+        
+        // Test 12b: Verify serious plan and artifacts were created
+        console.log("");
+        console.log("[TEST] Verifying serious plan artifacts exist...");
+        if (!finalizeResult.hasSeriousPlan) {
+          console.log(`[FAIL] No serious plan created`);
+          failed++;
+        } else if (finalizeResult.artifactsCount === 0) {
+          console.log(`[FAIL] Serious plan exists but no artifacts created`);
+          failed++;
+        } else {
+          console.log(`[PASS] Serious plan exists with ${finalizeResult.artifactsCount} artifacts`);
+          console.log(`[INFO] Artifact keys: ${finalizeResult.artifacts?.map(a => a.key).join(', ')}`);
+          passed++;
         }
         
         // Test 13: Verify idempotency - calling finalize again should not create duplicate event
