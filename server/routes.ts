@@ -2749,6 +2749,204 @@ COMMUNICATION STYLE:
     }
   });
 
+  // POST /api/interview/turn - Send a message and get AI response
+  // This replaces the dummy dialogue with real LLM-powered interview
+  app.post("/api/interview/turn", requireAuth, async (req, res) => {
+    await handleInterviewTurn(req.user as any, req.body, res);
+  });
+
+  // Shared interview turn handler (used by both auth and dev endpoints)
+  async function handleInterviewTurn(
+    user: { id: string },
+    body: { message: string },
+    res: express.Response
+  ) {
+    try {
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { message } = body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      // Get or create transcript for this user
+      let transcript = await storage.getTranscriptByUserId(user.id);
+      const existingMessages: { role: string; content: string }[] = transcript
+        ? (Array.isArray(transcript.transcript) ? transcript.transcript : [])
+        : [];
+
+      // If no transcript exists or it's empty, we need to get the first assistant message first
+      if (existingMessages.length === 0) {
+        // Call LLM to get the initial greeting
+        const initialReply = await callInterviewLLM([]);
+        const sessionToken = `interview_${user.id}_${Date.now()}`;
+        const initialMessage = { role: "assistant", content: initialReply.reply };
+        
+        transcript = await storage.createTranscript({
+          sessionToken,
+          userId: user.id,
+          transcript: [initialMessage] as any,
+          currentModule: "Interview",
+          progress: 0,
+        });
+        
+        existingMessages.push(initialMessage);
+      }
+
+      // Append user message
+      const userMessage = { role: "user", content: message };
+      existingMessages.push(userMessage);
+
+      // Call LLM with full transcript
+      const llmResult = await callInterviewLLM(existingMessages);
+
+      // Append assistant reply
+      const assistantMessage = { role: "assistant", content: llmResult.reply };
+      existingMessages.push(assistantMessage);
+
+      // Persist updated transcript
+      await storage.updateTranscript(transcript!.sessionToken, {
+        transcript: existingMessages as any,
+        progress: llmResult.progress ?? transcript!.progress,
+      });
+
+      // If planCard was returned, save it
+      if (llmResult.planCard) {
+        await storage.updateTranscript(transcript!.sessionToken, {
+          planCard: llmResult.planCard as any,
+        });
+      }
+
+      res.json({
+        success: true,
+        transcript: existingMessages,
+        reply: llmResult.reply,
+        done: llmResult.done,
+        progress: llmResult.progress,
+        options: llmResult.options,
+        planCard: llmResult.planCard,
+        valueBullets: llmResult.valueBullets,
+        socialProof: llmResult.socialProof,
+      });
+    } catch (error: any) {
+      console.error("[INTERVIEW_TURN] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // Helper to call the interview LLM (extracted from POST /interview)
+  async function callInterviewLLM(transcript: { role: string; content: string }[]) {
+    if (!useAnthropic && !process.env.OPENAI_API_KEY) {
+      throw new Error("No AI API key configured");
+    }
+
+    // Check if user sent "testskip" command
+    const lastUserMessage = [...transcript].reverse().find((t) => t.role === "user");
+    const isTestSkip = lastUserMessage?.content?.toLowerCase().trim() === "testskip";
+
+    const testSkipPrompt = isTestSkip
+      ? `
+
+IMPORTANT OVERRIDE - TESTSKIP MODE:
+The user has entered "testskip" which is a testing command. Generate the full plan card and interview complete markers.
+`
+      : "";
+
+    let reply: string;
+    const systemPromptToUse = INTERVIEW_SYSTEM_PROMPT + testSkipPrompt;
+
+    if (useAnthropic && anthropic) {
+      const claudeMessages: { role: "user" | "assistant"; content: string }[] = [];
+      for (const turn of transcript) {
+        if (turn?.role && turn?.content) {
+          claudeMessages.push({
+            role: turn.role as "user" | "assistant",
+            content: turn.content,
+          });
+        }
+      }
+      if (transcript.length === 0) {
+        claudeMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
+      }
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 2048,
+        system: systemPromptToUse,
+        messages: claudeMessages,
+      });
+      reply = response.content[0].type === "text" ? response.content[0].text : "";
+    } else {
+      const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+        { role: "system", content: systemPromptToUse },
+      ];
+      for (const turn of transcript) {
+        if (turn?.role && turn?.content) {
+          messages.push({ role: turn.role as "user" | "assistant", content: turn.content });
+        }
+      }
+      if (transcript.length === 0) {
+        messages.push({ role: "user", content: "Start the interview. Ask your first question." });
+      }
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages,
+        max_completion_tokens: 1024,
+      });
+      reply = response.choices[0].message.content || "";
+    }
+
+    // Parse structured tokens from reply
+    let done = false;
+    let progress: number | null = null;
+    let options: string[] | null = null;
+    let planCard: any = null;
+    let valueBullets: string | null = null;
+    let socialProof: string | null = null;
+
+    // Parse progress
+    const progressMatch = reply.match(/\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/);
+    if (progressMatch) {
+      progress = parseInt(progressMatch[1], 10);
+      if (isNaN(progress) || progress < 0 || progress > 100) progress = null;
+    }
+
+    // Parse options
+    const optionsMatch = reply.match(/\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/);
+    if (optionsMatch) {
+      const rawOptions = optionsMatch[1].trim();
+      let parsedOptions = rawOptions.split("\n").map((opt) => opt.trim()).filter((opt) => opt.length > 0);
+      if (parsedOptions.length === 1 && parsedOptions[0].includes("|")) {
+        parsedOptions = parsedOptions[0].split("|").map((opt) => opt.trim()).filter((opt) => opt.length > 0);
+      }
+      options = parsedOptions;
+    }
+
+    // Parse value bullets
+    const bulletMatch = reply.match(/\[\[VALUE_BULLETS\]\]([\s\S]*?)\[\[END_VALUE_BULLETS\]\]/);
+    if (bulletMatch) valueBullets = bulletMatch[1].trim();
+
+    // Parse social proof
+    const socialProofMatch = reply.match(/\[\[SOCIAL_PROOF\]\]([\s\S]*?)\[\[END_SOCIAL_PROOF\]\]/);
+    if (socialProofMatch) socialProof = socialProofMatch[1].trim();
+
+    // Check for interview completion
+    if (reply.includes("[[INTERVIEW_COMPLETE]]")) done = true;
+
+    // Sanitize reply
+    reply = reply
+      .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, "")
+      .replace(/\[\[INTERVIEW_COMPLETE\]\]/g, "")
+      .replace(/\[\[VALUE_BULLETS\]\][\s\S]*?\[\[END_VALUE_BULLETS\]\]/g, "")
+      .replace(/\[\[SOCIAL_PROOF\]\][\s\S]*?\[\[END_SOCIAL_PROOF\]\]/g, "")
+      .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, "")
+      .replace(/\[\[PLAN_CARD\]\][\s\S]*?\[\[END_PLAN_CARD\]\]/g, "")
+      .trim();
+
+    return { reply, done, progress, options, planCard, valueBullets, socialProof };
+  }
+
   // POST /api/transcript/revision - Increment revision count when user clicks "Change Something"
   app.post("/api/transcript/revision", async (req, res) => {
     try {
@@ -4869,6 +5067,24 @@ FORMAT:
     }
     return storage.getMostRecentUser();
   }
+
+  // POST /api/dev/interview/turn - Dev-only interview turn (no auth cookie required)
+  // Allows testing interview chat from shell without browser session
+  app.post("/api/dev/interview/turn", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      await handleInterviewTurn(user, req.body, res);
+    } catch (error: any) {
+      console.error("[DEV] interview/turn error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   // POST /api/dev/simulate-checkout-pending
   // Sets user to CHECKOUT_PENDING phase (interviewComplete=true, paymentVerified=false, stripeSessionId set)

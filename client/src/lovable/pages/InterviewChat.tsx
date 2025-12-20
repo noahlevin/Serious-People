@@ -7,27 +7,33 @@ import ChatInput from "@/lovable/components/interview/ChatInput";
 import WelcomeCard from "@/lovable/components/interview/WelcomeCard";
 import SectionDivider from "@/lovable/components/interview/SectionDivider";
 import UpsellCard from "@/lovable/components/interview/UpsellCard";
-import { Message, mockResponses, interviewQuestions, interviewSections } from "@/lovable/data/mockInterview";
+import { Message, interviewSections } from "@/lovable/data/mockInterview";
 
-// First message without the intro (welcome card handles that)
-const firstQuestion: Message = {
-  id: '1',
-  role: 'assistant',
-  content: "Let's start with the basics—tell me about your current role. What company are you with, and what's your title?",
-  timestamp: new Date()
-};
-
-// Helper to persist a single message to the backend
-async function persistMessage(role: string, content: string) {
+// Helper to call the interview turn endpoint (real LLM)
+async function callInterviewTurn(message: string): Promise<{
+  success: boolean;
+  reply?: string;
+  transcript?: { role: string; content: string }[];
+  done?: boolean;
+  progress?: number;
+  planCard?: any;
+  error?: string;
+}> {
   try {
-    await fetch("/api/interview/messages", {
+    const res = await fetch("/api/interview/turn", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ role, content, timestamp: new Date().toISOString() }),
+      body: JSON.stringify({ message }),
     });
-  } catch (err) {
-    console.error("[InterviewChat] Failed to persist message:", err);
+    if (!res.ok) {
+      const text = await res.text();
+      return { success: false, error: `HTTP ${res.status}: ${text}` };
+    }
+    return res.json();
+  } catch (err: any) {
+    console.error("[InterviewChat] Failed to call interview turn:", err);
+    return { success: false, error: err.message };
   }
 }
 
@@ -48,15 +54,14 @@ async function markInterviewComplete() {
 
 const InterviewChat = () => {
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<Message[]>([firstQuestion]);
-  const [questionIndex, setQuestionIndex] = useState(0);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [progress, setProgress] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
   const [shownSections, setShownSections] = useState<string[]>(['context']);
+  const [isInitialized, setIsInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const totalQuestions = interviewQuestions.length;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -66,18 +71,38 @@ const InterviewChat = () => {
     scrollToBottom();
   }, [messages, shownSections]);
 
-  // Persist the first question on mount
+  // Initialize interview by getting first AI message
   useEffect(() => {
-    persistMessage('assistant', firstQuestion.content);
-  }, []);
+    if (isInitialized) return;
+    setIsInitialized(true);
+    
+    // Get the initial greeting from the LLM
+    (async () => {
+      setIsTyping(true);
+      const result = await callInterviewTurn("start");
+      setIsTyping(false);
+      
+      if (result.success && result.transcript) {
+        // Convert transcript to Message format
+        const msgs: Message[] = result.transcript.map((t, i) => ({
+          id: String(i),
+          role: t.role as 'user' | 'assistant',
+          content: t.content,
+          timestamp: new Date(),
+        }));
+        setMessages(msgs);
+        if (result.progress) setProgress(result.progress);
+      }
+    })();
+  }, [isInitialized]);
 
   // Check if we need to show a section divider before this question index
   const getSectionForQuestion = (qIndex: number) => {
     return interviewSections.find(s => s.startsAtQuestion === qIndex);
   };
 
-  const handleSendMessage = (content: string) => {
-    // Add user message
+  const handleSendMessage = async (content: string) => {
+    // Add user message optimistically
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -85,61 +110,45 @@ const InterviewChat = () => {
       timestamp: new Date()
     };
     setMessages(prev => [...prev, userMessage]);
-
-    // Persist user message (fire-and-forget)
-    persistMessage('user', content);
-
-    const nextIndex = questionIndex + 1;
-    setQuestionIndex(nextIndex);
-
-    // Check if next question triggers a new section
-    const nextSection = getSectionForQuestion(nextIndex);
-    if (nextSection && !shownSections.includes(nextSection.id)) {
-      setShownSections(prev => [...prev, nextSection.id]);
-    }
-
-    // Simulate AI typing
     setIsTyping(true);
 
-    setTimeout(() => {
-      setIsTyping(false);
+    // Call the real LLM endpoint
+    const result = await callInterviewTurn(content);
+    setIsTyping(false);
+
+    if (result.success && result.reply) {
+      // Add AI response
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: result.reply,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
       
-      if (nextIndex >= totalQuestions) {
-        // Final message before upsell
-        const finalMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: mockResponses[7],
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, finalMessage]);
-        
-        // Persist final assistant message
-        persistMessage('assistant', mockResponses[7]);
-        
+      // Update progress if provided
+      if (result.progress) setProgress(result.progress);
+
+      // Check if interview is complete
+      if (result.done) {
         setIsComplete(true);
-
-        // Mark interview complete on the server
         markInterviewComplete();
-
+        
         // Show upsell card after a delay
         setTimeout(() => {
           setShowUpsell(true);
         }, 2000);
-      } else {
-        // Add AI response
-        const aiMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: mockResponses[nextIndex],
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, aiMessage]);
-        
-        // Persist assistant message
-        persistMessage('assistant', mockResponses[nextIndex]);
       }
-    }, 1500);
+    } else {
+      // Show error in chat
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "I'm sorry, something went wrong. Please try again.",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
   };
 
   const handleExit = () => {
@@ -221,7 +230,7 @@ const InterviewChat = () => {
         <div className="h-[2px] bg-border relative">
           <div 
             className="absolute top-0 left-0 h-full bg-accent transition-all duration-500 ease-out"
-            style={{ width: `${(questionIndex / totalQuestions) * 100}%` }}
+            style={{ width: `${progress}%` }}
           />
         </div>
       </header>
