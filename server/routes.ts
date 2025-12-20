@@ -3229,6 +3229,139 @@ COMMUNICATION STYLE:
     ],
   };
 
+  // Module tool definitions for both providers
+  const MODULE_TOOLS = {
+    anthropic: [
+      {
+        name: "append_structured_outcomes",
+        description: "Display clickable pill options for the user to choose from. Use this instead of writing options as plain text.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            prompt: { type: "string", description: "Optional prompt text above the options" },
+            options: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string", description: "Optional unique ID for the option" },
+                  label: { type: "string", description: "Short display text for the pill" },
+                  value: { type: "string", description: "Full text sent as user message when clicked" },
+                },
+                required: ["label", "value"],
+              },
+              description: "Array of options to display as clickable pills",
+            },
+          },
+          required: ["options"],
+        },
+      },
+      {
+        name: "set_progress",
+        description: "Update the module progress indicator. Call this on every turn.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            progress: { type: "number", description: "Progress percentage from 5 to 100" },
+          },
+          required: ["progress"],
+        },
+      },
+      {
+        name: "complete_module",
+        description: "Call this ONCE when the module is complete. Provide a structured summary of what was covered.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            summary: {
+              type: "object",
+              properties: {
+                insights: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Key insights from the module (3-5 items)",
+                },
+                assessment: { type: "string", description: "2-3 sentence summary of what was covered" },
+                takeaway: { type: "string", description: "One concrete insight they can carry forward" },
+              },
+              required: ["insights", "assessment", "takeaway"],
+            },
+          },
+          required: ["summary"],
+        },
+      },
+    ],
+    openai: [
+      {
+        type: "function" as const,
+        function: {
+          name: "append_structured_outcomes",
+          description: "Display clickable pill options for the user to choose from. Use this instead of writing options as plain text.",
+          parameters: {
+            type: "object",
+            properties: {
+              prompt: { type: "string", description: "Optional prompt text above the options" },
+              options: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string", description: "Optional unique ID for the option" },
+                    label: { type: "string", description: "Short display text for the pill" },
+                    value: { type: "string", description: "Full text sent as user message when clicked" },
+                  },
+                  required: ["label", "value"],
+                },
+                description: "Array of options to display as clickable pills",
+              },
+            },
+            required: ["options"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "set_progress",
+          description: "Update the module progress indicator. Call this on every turn.",
+          parameters: {
+            type: "object",
+            properties: {
+              progress: { type: "number", description: "Progress percentage from 5 to 100" },
+            },
+            required: ["progress"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "complete_module",
+          description: "Call this ONCE when the module is complete. Provide a structured summary of what was covered.",
+          parameters: {
+            type: "object",
+            properties: {
+              summary: {
+                type: "object",
+                properties: {
+                  insights: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Key insights from the module (3-5 items)",
+                  },
+                  assessment: { type: "string", description: "2-3 sentence summary of what was covered" },
+                  takeaway: { type: "string", description: "One concrete insight they can carry forward" },
+                },
+                required: ["insights", "assessment", "takeaway"],
+              },
+            },
+            required: ["summary"],
+          },
+        },
+      },
+    ],
+  };
+
   // Helper to call the interview LLM with tool support
   async function callInterviewLLM(
     transcript: { role: string; content: string }[],
@@ -4347,45 +4480,30 @@ Speak with genuine expertise about their industry and function:
 - Share relevant insights about career paths, compensation, and industry norms
 - Use appropriate terminology and demonstrate understanding of their field
 
-### Structured Options (USE FREQUENTLY)
+### UI Tools (USE THESE FOR STRUCTURED UI ELEMENTS)
 
-Use [[OPTIONS]]...[[END_OPTIONS]] liberally — at least every 2-3 turns. When exploring a new topic, provide 4-5 thought starters with "Something else" as an option, then follow up with less structured questions.
+You have access to tools for injecting UI elements:
+
+1. **append_structured_outcomes** - Use to present clickable option buttons. Call with an array of options (objects with label and value). Use this instead of writing options as plain text. Use liberally - at least every 2-3 turns.
+
+2. **set_progress** - Call on every turn with progress percentage (5-100).
+
+3. **complete_module** - Call ONCE when the module is complete. Provide a structured summary object with insights (array), assessment (string), and takeaway (string).
 
 ### Session Structure
-1. **Opening (1 message)**: Start with a title card, then briefly introduce the module's purpose. Reference something specific from their interview to show you remember their situation.
+1. **Opening (1 message)**: Start with a warm introduction. Call set_progress(5). Reference something specific from their interview.
 2. **Deep Dive (4-6 exchanges)**: Ask questions that explore:
    - What specifically frustrates them day-to-day?
    - What aspects of the job did they used to enjoy (if any)?
    - Is the problem the role, the company, the manager, or something else?
    - What would need to change for them to want to stay?
-3. **Wrap-up**: When you feel you have a clear picture, output [[MODULE_COMPLETE]] along with a summary.
+3. **Wrap-up**: When you have a clear picture, call complete_module with a structured summary.
 
-### First Message Format
-On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
-— Job Autopsy (est. 10–20 minutes) —
-
-CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, ASCII box art, or markdown heading prefixes like #.
-
-Then introduce the module and ask your first probing question based on what you know about their situation.
+### First Message
+On your first message, warmly introduce the module topic. Call set_progress(5).
 
 ### Progress Tracking
-Include [[PROGRESS]]<number>[[END_PROGRESS]] in each response (5-100).
-
-### Completion
-When the module is complete, include:
-[[MODULE_COMPLETE]]
-[[SUMMARY]]
-**The Mirror** (what they said, reflected clearly)
-- Key point 1
-- Key point 2
-- Key point 3
-
-**Diagnosis**
-Your assessment of the core issue in 2-3 sentences.
-
-**Key Takeaway**
-One concrete insight they can carry forward.
-[[END_SUMMARY]]`,
+Call set_progress on every turn with a number from 5 to 100.`,
 
     2: `You are an experienced, plain-spoken career coach conducting Module 2: Fork in the Road.
 
@@ -4421,45 +4539,30 @@ Speak with genuine expertise about their industry and function:
 - Offer domain-specific advice about how to evaluate options
 - Suggest industry-relevant resources or frameworks
 
-### Structured Options (USE FREQUENTLY)
+### UI Tools (USE THESE FOR STRUCTURED UI ELEMENTS)
 
-Use [[OPTIONS]]...[[END_OPTIONS]] liberally — at least every 2-3 turns. When exploring a new topic, provide 4-5 thought starters with "Something else" as an option, then follow up with less structured questions.
+You have access to tools for injecting UI elements:
+
+1. **append_structured_outcomes** - Use to present clickable option buttons. Call with an array of options (objects with label and value). Use this instead of writing options as plain text. Use liberally - at least every 2-3 turns.
+
+2. **set_progress** - Call on every turn with progress percentage (5-100).
+
+3. **complete_module** - Call ONCE when the module is complete. Provide a structured summary object with insights (array), assessment (string), and takeaway (string).
 
 ### Session Structure
-1. **Opening (1 message)**: Start with a title card, then briefly recap what you learned in Module 1 and introduce this module's focus.
+1. **Opening (1 message)**: Start with a warm intro. Call set_progress(5). Briefly recap Module 1 and introduce this module's focus.
 2. **Options Exploration (4-6 exchanges)**: Ask questions that explore:
    - What are their actual options? (stay and negotiate, internal move, leave entirely)
    - What constraints are real vs. assumed?
    - What's the cost of staying another year?
    - What would make leaving worth the risk?
-3. **Wrap-up**: When you've mapped their options, output [[MODULE_COMPLETE]] with a summary.
+3. **Wrap-up**: When you've mapped their options, call complete_module with a structured summary.
 
-### First Message Format
-On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
-— Fork in the Road (est. 10–20 minutes) —
-
-CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, ASCII box art, or markdown heading prefixes like #.
-
-Then recap their situation briefly and ask your first question about options.
+### First Message
+On your first message, warmly recap their situation and introduce the module topic. Call set_progress(5).
 
 ### Progress Tracking
-Include [[PROGRESS]]<number>[[END_PROGRESS]] in each response (5-100).
-
-### Completion
-When the module is complete, include:
-[[MODULE_COMPLETE]]
-[[SUMMARY]]
-**Options Map**
-- Option A: [description] — Trade-offs: [brief]
-- Option B: [description] — Trade-offs: [brief]
-- Option C: [description] — Trade-offs: [brief]
-
-**Risk Snapshot**
-What they risk by staying vs. leaving.
-
-**Key Insight**
-One reframe or insight that might change how they see their choice.
-[[END_SUMMARY]]`,
+Call set_progress on every turn with a number from 5 to 100.`,
 
     3: `You are an experienced, plain-spoken career coach conducting Module 3: The Great Escape Plan.
 
@@ -4495,45 +4598,30 @@ Speak with genuine expertise about their industry and function:
 - Offer relevant resources, communities, or approaches for their industry
 - Provide practical scripts and talking points tailored to their situation
 
-### Structured Options (USE FREQUENTLY)
+### UI Tools (USE THESE FOR STRUCTURED UI ELEMENTS)
 
-Use [[OPTIONS]]...[[END_OPTIONS]] liberally — at least every 2-3 turns. When exploring a new topic, provide 4-5 thought starters with "Something else" as an option, then follow up with less structured questions.
+You have access to tools for injecting UI elements:
+
+1. **append_structured_outcomes** - Use to present clickable option buttons. Call with an array of options (objects with label and value). Use this instead of writing options as plain text. Use liberally - at least every 2-3 turns.
+
+2. **set_progress** - Call on every turn with progress percentage (5-100).
+
+3. **complete_module** - Call ONCE when the module is complete. Provide a structured summary object with insights (array), assessment (string), and takeaway (string). **Do NOT write a personalized farewell letter or closing message** - just transition naturally to calling complete_module.
 
 ### Session Structure
-1. **Opening (1 message)**: Start with a title card, briefly recap their options and which direction they're leaning, then dive into planning.
+1. **Opening (1 message)**: Start with a warm intro. Call set_progress(5). Briefly recap their options and which direction they're leaning.
 2. **Action Planning (4-6 exchanges)**: Cover:
    - What's their timeline? What needs to happen first?
    - Who do they need to talk to and what will they say?
    - What's their backup plan if things don't go as expected?
    - What support do they need?
-3. **Wrap-up**: When you have a clear action plan, output [[MODULE_COMPLETE]] with a summary. **Do NOT write a personalized farewell letter or closing message before [[MODULE_COMPLETE]].** Just transition naturally to the completion — no "let's bring this home" or inspirational send-off paragraphs. The summary inside [[SUMMARY]]...[[END_SUMMARY]] is the only closing content needed.
+3. **Wrap-up**: When you have a clear action plan, call complete_module with a structured summary.
 
-### First Message Format
-On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
-— The Great Escape Plan (est. 10–20 minutes) —
-
-CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, ASCII box art, or markdown heading prefixes like #.
-
-Then recap where they landed and start building the plan.
+### First Message
+On your first message, warmly recap where they landed and start building the plan. Call set_progress(5).
 
 ### Progress Tracking
-Include [[PROGRESS]]<number>[[END_PROGRESS]] in each response (5-100).
-
-### Completion
-When the module is complete, include:
-[[MODULE_COMPLETE]]
-[[SUMMARY]]
-**Action Timeline**
-- Week 1-2: [specific actions]
-- Week 3-4: [specific actions]
-- Month 2+: [specific actions]
-
-**Key Conversations**
-Brief talking points for the 1-2 most important conversations they need to have.
-
-**Your Anchor**
-A reminder of why they're doing this and what success looks like.
-[[END_SUMMARY]]`,
+Call set_progress on every turn with a number from 5 to 100.`,
   };
 
   // Helper function to format the dossier context for the AI
@@ -4685,25 +4773,25 @@ CRITICAL RULES:
         role: "discovery/unpacking",
         context:
           "The user has completed an initial interview where they shared their career situation. They've paid for coaching and are now starting the first module. You have complete access to the interview transcript and your analysis of their situation.",
-        structure: `1. **Opening (1 message)**: Start with a title card, then briefly introduce the module's purpose. Reference something specific from their interview to show you remember their situation.
+        structure: `1. **Opening (1 message)**: Introduce the module. Call set_progress(5). Reference something specific from their interview.
 2. **Deep Dive (4-6 exchanges)**: ${approach}
-3. **Wrap-up**: When you feel you have a clear picture, output [[MODULE_COMPLETE]] along with a summary.`,
+3. **Wrap-up**: When you have a clear picture, call complete_module with a structured summary.`,
       },
       2: {
         role: "exploring motivations/options/constraints",
         context:
           "The user has completed Module 1. You have the full transcript and analysis from that module. Now they need to explore their motivations, constraints, and options.",
-        structure: `1. **Opening (1 message)**: Start with a title card, then briefly recap what you learned in Module 1 and introduce this module's focus.
+        structure: `1. **Opening (1 message)**: Recap Module 1 and introduce this module's focus. Call set_progress(5).
 2. **Exploration (4-6 exchanges)**: ${approach}
-3. **Wrap-up**: When you've mapped their options and constraints, output [[MODULE_COMPLETE]] with a summary.`,
+3. **Wrap-up**: When you've mapped their options and constraints, call complete_module with a structured summary.`,
       },
       3: {
         role: "action planning",
         context:
           "The user has completed Modules 1 and 2. You have the full transcripts and analyses from both modules. Now it's time to build an action plan.",
-        structure: `1. **Opening (1 message)**: Start with a title card, briefly recap their situation and direction, then dive into planning.
+        structure: `1. **Opening (1 message)**: Recap their situation and direction. Call set_progress(5).
 2. **Action Planning (4-6 exchanges)**: ${approach}
-3. **Wrap-up**: When you have a clear action plan, output [[MODULE_COMPLETE]] with a summary.`,
+3. **Wrap-up**: When you have a clear action plan, call complete_module with a structured summary.`,
       },
     };
 
@@ -4726,35 +4814,24 @@ ${outcome}
 - No corporate jargon, no empty validation
 - Sound like a coach who has helped hundreds of people through this
 
+### UI Tools (USE THESE FOR STRUCTURED UI ELEMENTS)
+
+You have access to tools for injecting UI elements:
+
+1. **append_structured_outcomes** - Use to present clickable option buttons. Use this instead of writing options as plain text. Use liberally - at least every 2-3 turns.
+
+2. **set_progress** - Call on every turn with progress percentage (5-100).
+
+3. **complete_module** - Call ONCE when the module is complete. Provide a structured summary object with insights (array), assessment (string), and takeaway (string).
+
 ### Session Structure
 ${info.structure}
 
-### First Message Format
-On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
-— ${name} (est. 10–20 minutes) —
-
-CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, ASCII box art, or markdown heading prefixes like #.
-
-Then introduce the module and ask your first probing question based on what you know about their situation.
+### First Message
+On your first message, warmly introduce the module topic. Call set_progress(5).
 
 ### Progress Tracking
-Include [[PROGRESS]]<number>[[END_PROGRESS]] in each response (5-100).
-
-### Completion
-When the module is complete, include:
-[[MODULE_COMPLETE]]
-[[SUMMARY]]
-**Key Insights**
-- Insight 1 (written in second person - "you", not their name)
-- Insight 2
-- Insight 3
-
-**Summary**
-Your assessment of what was covered in 2-3 sentences. IMPORTANT: Write in second person ("you discovered", "your situation") - NOT third person with their name.
-
-**Key Takeaway**
-One concrete insight they can carry forward (in second person).
-[[END_SUMMARY]]
+Call set_progress on every turn with a number from 5 to 100.
 
 ${dossierContext}`;
   }
@@ -4895,27 +4972,26 @@ The user has entered "testskip" which is a testing command. You must now:
 2. Fabricate plausible, realistic answers for ALL remaining module questions
 3. Start your response with: "Skipping ahead for testing purposes..."
 4. List bullet points of fabricated insights and decisions for this module
-5. Then ask for confirmation: "Does this summary capture your situation correctly? If so, I'll wrap up this module."
+5. Call set_progress(95) immediately.
+6. Ask for confirmation: "Does this summary capture your situation correctly? If so, I'll wrap up this module."
 
-After the user confirms (or on the next message), immediately complete the module by outputting [[MODULE_COMPLETE]] and the [[SUMMARY]] with fabricated but realistic key insights.
-
-Example fabricated module insights:
-- Key realization about their work situation
-- Decision or clarity gained during this module
-- Specific action they're considering
-
-Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] with [[SUMMARY]] on confirmation.
+After the user confirms (or on the next message), immediately call complete_module with a fabricated but realistic summary.
 `;
       }
 
-      let reply: string;
+      // Module stream key for event persistence
+      const moduleStreamKey = `module:${userId}:${moduleNumber}`;
+      const afterMessageIndex = transcript.length > 0 ? transcript.length - 1 : -1;
+
+      let reply: string = "";
+      let done = false;
+      let summary: string | null = null;
+      let options: { id: string; label: string; value: string }[] | null = null;
+      let progress: number | null = null;
 
       if (useAnthropic && anthropic) {
-        // Use Anthropic Claude
-        const claudeMessages: {
-          role: "user" | "assistant";
-          content: string;
-        }[] = [];
+        // Use Anthropic Claude with tools
+        const claudeMessages: any[] = [];
 
         for (const turn of transcript) {
           if (turn && turn.role && turn.content) {
@@ -4929,8 +5005,7 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
         if (transcript.length === 0) {
           claudeMessages.push({
             role: "user",
-            content:
-              "Start the module. Introduce it and ask your first question.",
+            content: "Start the module. Introduce it and ask your first question.",
           });
         }
 
@@ -4939,16 +5014,70 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
           max_tokens: isTestSkip ? 2048 : 1024,
           system: systemPrompt,
           messages: claudeMessages,
+          tools: MODULE_TOOLS.anthropic,
         });
 
-        reply =
-          response.content[0].type === "text" ? response.content[0].text : "";
+        // Process response content - handle text and tool_use blocks
+        for (const block of response.content) {
+          if (block.type === "text") {
+            reply += block.text;
+          } else if (block.type === "tool_use") {
+            const toolUse = block as { id: string; name: string; input: any };
+            
+            if (toolUse.name === "append_structured_outcomes") {
+              const input = toolUse.input as { prompt?: string; options: { id?: string; label: string; value: string }[] };
+              const optionsWithIds = input.options.map((opt, idx) => ({
+                id: opt.id || `opt_${idx}`,
+                label: opt.label,
+                value: opt.value,
+              }));
+              options = optionsWithIds;
+              
+              // Persist event
+              const event = await storage.appendEvent(moduleStreamKey, {
+                type: "module.structured_outcomes_added",
+                payload: { prompt: input.prompt, options: optionsWithIds, afterMessageIndex },
+              });
+              console.log(`[MODULE_TOOL] append_structured_outcomes: ${optionsWithIds.length} options, eventSeq=${event.eventSeq}`);
+              
+            } else if (toolUse.name === "set_progress") {
+              const input = toolUse.input as { progress: number };
+              progress = Math.min(100, Math.max(0, input.progress));
+              
+              // Persist event
+              await storage.appendEvent(moduleStreamKey, {
+                type: "module.progress_updated",
+                payload: { progress, afterMessageIndex },
+              });
+              console.log(`[MODULE_TOOL] set_progress: ${progress}%`);
+              
+            } else if (toolUse.name === "complete_module") {
+              const input = toolUse.input as { summary: { insights: string[]; assessment: string; takeaway: string } };
+              done = true;
+              
+              // Format summary for storage
+              const summaryText = `**Key Insights**\n${input.summary.insights.map(i => `- ${i}`).join('\n')}\n\n**Assessment**\n${input.summary.assessment}\n\n**Key Takeaway**\n${input.summary.takeaway}`;
+              summary = summaryText;
+              
+              // Persist event
+              await storage.appendEvent(moduleStreamKey, {
+                type: "module.complete",
+                payload: { summary: input.summary, afterMessageIndex },
+              });
+              
+              // Mark module as complete in database
+              try {
+                await storage.updateModuleComplete(userId, moduleNumber as 1 | 2 | 3, true);
+                console.log(`[MODULE_TOOL] complete_module: Module ${moduleNumber} marked complete for user ${userId}`);
+              } catch (err) {
+                console.error("[MODULE_TOOL] Failed to mark module complete:", err);
+              }
+            }
+          }
+        }
       } else {
-        // Fall back to OpenAI
-        const messages: {
-          role: "system" | "user" | "assistant";
-          content: string;
-        }[] = [{ role: "system", content: systemPrompt }];
+        // Fall back to OpenAI with tools
+        const messages: any[] = [{ role: "system", content: systemPrompt }];
 
         for (const turn of transcript) {
           if (turn && turn.role && turn.content) {
@@ -4962,8 +5091,7 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
         if (transcript.length === 0) {
           messages.push({
             role: "user",
-            content:
-              "Start the module. Introduce it and ask your first question.",
+            content: "Start the module. Introduce it and ask your first question.",
           });
         }
 
@@ -4971,80 +5099,71 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
           model: "gpt-4.1-mini",
           messages,
           max_completion_tokens: isTestSkip ? 2048 : 1024,
+          tools: MODULE_TOOLS.openai,
         });
 
-        reply = response.choices[0].message.content || "";
-      }
-      let done = false;
-      let summary: string | null = null;
-      let options: string[] | null = null;
-      let progress: number | null = null;
-
-      // Parse progress token
-      const progressMatch = reply.match(
-        /\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/,
-      );
-      if (progressMatch) {
-        progress = parseInt(progressMatch[1], 10);
-        if (isNaN(progress) || progress < 0 || progress > 100) {
-          progress = null;
+        const choice = response.choices[0];
+        reply = choice.message.content || "";
+        
+        // Handle tool calls
+        if (choice.message.tool_calls) {
+          for (const toolCall of choice.message.tool_calls) {
+            const toolName = toolCall.function.name;
+            const toolArgs = JSON.parse(toolCall.function.arguments || "{}");
+            
+            if (toolName === "append_structured_outcomes") {
+              const optionsWithIds = (toolArgs.options || []).map((opt: any, idx: number) => ({
+                id: opt.id || `opt_${idx}`,
+                label: opt.label,
+                value: opt.value,
+              }));
+              options = optionsWithIds;
+              
+              // Persist event
+              const event = await storage.appendEvent(moduleStreamKey, {
+                type: "module.structured_outcomes_added",
+                payload: { prompt: toolArgs.prompt, options: optionsWithIds, afterMessageIndex },
+              });
+              console.log(`[MODULE_TOOL] append_structured_outcomes: ${optionsWithIds.length} options, eventSeq=${event.eventSeq}`);
+              
+            } else if (toolName === "set_progress") {
+              progress = Math.min(100, Math.max(0, toolArgs.progress || 0));
+              
+              // Persist event
+              await storage.appendEvent(moduleStreamKey, {
+                type: "module.progress_updated",
+                payload: { progress, afterMessageIndex },
+              });
+              console.log(`[MODULE_TOOL] set_progress: ${progress}%`);
+              
+            } else if (toolName === "complete_module") {
+              done = true;
+              
+              // Format summary for storage
+              const summaryInput = toolArgs.summary || { insights: [], assessment: "", takeaway: "" };
+              const summaryText = `**Key Insights**\n${summaryInput.insights.map((i: string) => `- ${i}`).join('\n')}\n\n**Assessment**\n${summaryInput.assessment}\n\n**Key Takeaway**\n${summaryInput.takeaway}`;
+              summary = summaryText;
+              
+              // Persist event
+              await storage.appendEvent(moduleStreamKey, {
+                type: "module.complete",
+                payload: { summary: summaryInput, afterMessageIndex },
+              });
+              
+              // Mark module as complete in database
+              try {
+                await storage.updateModuleComplete(userId, moduleNumber as 1 | 2 | 3, true);
+                console.log(`[MODULE_TOOL] complete_module: Module ${moduleNumber} marked complete for user ${userId}`);
+              } catch (err) {
+                console.error("[MODULE_TOOL] Failed to mark module complete:", err);
+              }
+            }
+          }
         }
       }
 
-      // Parse structured options (handles both newline and pipe-separated)
-      const optionsMatch = reply.match(
-        /\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/,
-      );
-      if (optionsMatch) {
-        const rawOptions = optionsMatch[1].trim();
-        // Split on newlines first, then on pipes if we only got one option
-        let parsedOptions = rawOptions
-          .split("\n")
-          .map((opt) => opt.trim())
-          .filter((opt) => opt.length > 0);
-        if (parsedOptions.length === 1 && parsedOptions[0].includes("|")) {
-          parsedOptions = parsedOptions[0]
-            .split("|")
-            .map((opt) => opt.trim())
-            .filter((opt) => opt.length > 0);
-        }
-        options = parsedOptions;
-      }
-
-      // Check for module completion
-      if (reply.includes("[[MODULE_COMPLETE]]")) {
-        done = true;
-
-        const summaryMatch = reply.match(
-          /\[\[SUMMARY\]\]([\s\S]*?)\[\[END_SUMMARY\]\]/,
-        );
-        if (summaryMatch) {
-          summary = summaryMatch[1].trim();
-        }
-
-        // Mark module as complete in database (user is already authenticated at this point)
-        try {
-          await storage.updateModuleComplete(
-            userId,
-            moduleNumber as 1 | 2 | 3,
-            true,
-          );
-          console.log(
-            `Module ${moduleNumber} marked complete for user ${userId}`,
-          );
-        } catch (err) {
-          console.error("Failed to mark module complete:", err);
-        }
-      }
-
-      // Sanitize reply - remove all control tokens
-      reply = reply
-        .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, "")
-        .replace(/\[\[MODULE_COMPLETE\]\]\s*/g, "")
-        .replace(/\[\[SUMMARY\]\][\s\S]*?\[\[END_SUMMARY\]\]\s*/g, "")
-        .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, "")
-        .replace(/\n\s*\n\s*\n/g, "\n\n") // Clean up excessive blank lines
-        .trim();
+      // Clean reply text
+      reply = reply.trim();
 
       res.json({ reply, done, summary, options, progress });
     } catch (error: any) {
@@ -5416,6 +5535,132 @@ FORMAT:
       });
     } catch (error: any) {
       console.error("Get modules status error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/module/:moduleNumber/state - Get module state (transcript + events) for deterministic rendering
+  app.get("/api/module/:moduleNumber/state", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const moduleNumber = parseInt(req.params.moduleNumber) as 1 | 2 | 3;
+
+      if (![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "Invalid module number" });
+      }
+
+      // Get module transcript data
+      const moduleData = await storage.getModuleData(userId, moduleNumber);
+      const transcript = moduleData?.transcript || [];
+
+      // Get events from app_events using module stream key
+      const moduleStreamKey = `module:${userId}:${moduleNumber}`;
+      const events = await storage.listEvents(moduleStreamKey);
+
+      res.json({
+        success: true,
+        transcript,
+        events,
+        complete: moduleData?.complete || false,
+        summary: moduleData?.summary || null,
+      });
+    } catch (error: any) {
+      console.error("[MODULE_STATE] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/module/:moduleNumber/outcomes/select - Select a module outcome option
+  app.post("/api/module/:moduleNumber/outcomes/select", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const moduleNumber = parseInt(req.params.moduleNumber) as 1 | 2 | 3;
+
+      if (![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "Invalid module number" });
+      }
+
+      const { eventSeq: rawEventSeq, optionId } = req.body;
+      if (rawEventSeq === undefined || rawEventSeq === null || !optionId) {
+        return res.status(400).json({ error: "eventSeq and optionId are required" });
+      }
+
+      const eventSeq = typeof rawEventSeq === "string" ? parseInt(rawEventSeq, 10) : rawEventSeq;
+      if (typeof eventSeq !== "number" || isNaN(eventSeq)) {
+        return res.status(400).json({ error: "eventSeq must be a valid number" });
+      }
+
+      const moduleStreamKey = `module:${userId}:${moduleNumber}`;
+      const events = await storage.listEvents(moduleStreamKey);
+
+      // Find the structured outcomes event by eventSeq
+      const outcomesEvent = events.find(e => e.eventSeq === eventSeq && e.type === "module.structured_outcomes_added");
+      if (!outcomesEvent) {
+        return res.status(404).json({ error: "Outcomes event not found" });
+      }
+
+      // Check if already selected
+      const existingSelection = events.find(e => 
+        e.type === "module.outcome_selected" && 
+        (e.payload as any)?.eventSeq === eventSeq
+      );
+      
+      if (existingSelection) {
+        const existingOptionId = (existingSelection.payload as any)?.optionId;
+        if (existingOptionId === optionId) {
+          // Idempotent success
+          const moduleData = await storage.getModuleData(userId, moduleNumber);
+          return res.json({
+            success: true,
+            transcript: moduleData?.transcript || [],
+            events,
+            note: "Option already selected (idempotent)",
+          });
+        } else {
+          return res.status(409).json({ error: "A different option was already selected for this event" });
+        }
+      }
+
+      // Find the option
+      const options = (outcomesEvent.payload as any)?.options || [];
+      const selectedOption = options.find((opt: any) => opt.id === optionId);
+      if (!selectedOption) {
+        return res.status(404).json({ error: "Option not found" });
+      }
+
+      // Get module transcript for afterMessageIndex calculation
+      const moduleData = await storage.getModuleData(userId, moduleNumber);
+      const transcript = moduleData?.transcript || [];
+      const afterMessageIndex = transcript.length > 0 ? transcript.length - 1 : -1;
+
+      // Append selection event
+      await storage.appendEvent(moduleStreamKey, {
+        type: "module.outcome_selected",
+        payload: {
+          eventSeq,
+          optionId,
+          value: selectedOption.value,
+          afterMessageIndex,
+        },
+      });
+
+      console.log(`[MODULE_TOOL] outcome_selected: eventSeq=${eventSeq}, optionId=${optionId}`);
+
+      // Append user message to transcript
+      const userMessage = { role: "user", content: selectedOption.value };
+      const updatedTranscript = [...transcript, userMessage];
+      await storage.updateModuleData(userId, moduleNumber, { transcript: updatedTranscript as any });
+
+      const updatedEvents = await storage.listEvents(moduleStreamKey);
+
+      res.json({
+        success: true,
+        transcript: updatedTranscript,
+        events: updatedEvents,
+        selectedValue: selectedOption.value,
+      });
+    } catch (error: any) {
+      console.error("[MODULE_OUTCOME_SELECT] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -5954,6 +6199,212 @@ FORMAT:
       });
     } catch (error: any) {
       console.error("[DEV] interview/finalize error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // MODULE DEV ENDPOINTS (404 in production)
+  // ============================================
+
+  // POST /api/dev/module/inject-outcomes - Dev-only endpoint to inject test outcomes event for a module
+  app.post("/api/dev/module/inject-outcomes", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const { moduleNumber } = req.body;
+      if (!moduleNumber || ![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "moduleNumber must be 1, 2, or 3" });
+      }
+
+      const moduleStreamKey = `module:${user.id}:${moduleNumber}`;
+      const moduleData = await storage.getModuleData(user.id, moduleNumber as 1 | 2 | 3);
+      const transcript = moduleData?.transcript || [];
+      const afterMessageIndex = transcript.length > 0 ? transcript.length - 1 : -1;
+
+      // Create test outcomes with deterministic IDs
+      const testOptions = [
+        { id: "mod_opt_1", label: "Explore more", value: "I'd like to explore this more deeply" },
+        { id: "mod_opt_2", label: "Move on", value: "I'm ready to move on to the next topic" },
+        { id: "mod_opt_3", label: "Something else", value: "I have something else in mind" },
+      ];
+
+      // Create the event
+      const event = await storage.appendEvent(moduleStreamKey, {
+        type: "module.structured_outcomes_added",
+        payload: {
+          prompt: "What would you like to do next?",
+          options: testOptions,
+          afterMessageIndex,
+        },
+      });
+
+      const allEvents = await storage.listEvents(moduleStreamKey);
+
+      res.json({
+        success: true,
+        eventSeq: event.eventSeq,
+        options: testOptions,
+        events: allEvents,
+      });
+    } catch (error: any) {
+      console.error("[DEV] module/inject-outcomes error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/module/outcomes/select - Dev-only endpoint to select an option (no auth required)
+  app.post("/api/dev/module/outcomes/select", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const { moduleNumber, eventSeq: rawEventSeq, optionId } = req.body;
+      if (!moduleNumber || ![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "moduleNumber must be 1, 2, or 3" });
+      }
+
+      if (rawEventSeq === undefined || rawEventSeq === null || !optionId) {
+        return res.status(400).json({ error: "eventSeq and optionId are required" });
+      }
+
+      const eventSeq = typeof rawEventSeq === "string" ? parseInt(rawEventSeq, 10) : rawEventSeq;
+      const moduleStreamKey = `module:${user.id}:${moduleNumber}`;
+      const events = await storage.listEvents(moduleStreamKey);
+
+      // Find the outcomes event
+      const outcomesEvent = events.find(e => e.eventSeq === eventSeq && e.type === "module.structured_outcomes_added");
+      if (!outcomesEvent) {
+        return res.status(404).json({ error: "Outcomes event not found" });
+      }
+
+      // Check if already selected
+      const existingSelection = events.find(e => 
+        e.type === "module.outcome_selected" && 
+        (e.payload as any)?.eventSeq === eventSeq
+      );
+      
+      if (existingSelection) {
+        const existingOptionId = (existingSelection.payload as any)?.optionId;
+        if (existingOptionId === optionId) {
+          const moduleData = await storage.getModuleData(user.id, moduleNumber as 1 | 2 | 3);
+          return res.json({
+            success: true,
+            transcript: moduleData?.transcript || [],
+            events,
+            note: "Option already selected (idempotent)",
+          });
+        } else {
+          return res.status(409).json({ error: "A different option was already selected" });
+        }
+      }
+
+      // Find the option
+      const options = (outcomesEvent.payload as any)?.options || [];
+      const selectedOption = options.find((opt: any) => opt.id === optionId);
+      if (!selectedOption) {
+        return res.status(404).json({ error: "Option not found" });
+      }
+
+      // Get module data
+      const moduleData = await storage.getModuleData(user.id, moduleNumber as 1 | 2 | 3);
+      const transcript = moduleData?.transcript || [];
+      const afterMessageIndex = transcript.length > 0 ? transcript.length - 1 : -1;
+
+      // Append selection event
+      await storage.appendEvent(moduleStreamKey, {
+        type: "module.outcome_selected",
+        payload: {
+          eventSeq,
+          optionId,
+          value: selectedOption.value,
+          afterMessageIndex,
+        },
+      });
+
+      // Append user message to transcript
+      const userMessage = { role: "user", content: selectedOption.value };
+      const updatedTranscript = [...transcript, userMessage];
+      await storage.updateModuleData(user.id, moduleNumber as 1 | 2 | 3, { transcript: updatedTranscript as any });
+
+      const updatedEvents = await storage.listEvents(moduleStreamKey);
+
+      res.json({
+        success: true,
+        transcript: updatedTranscript,
+        events: updatedEvents,
+        selectedValue: selectedOption.value,
+      });
+    } catch (error: any) {
+      console.error("[DEV] module/outcomes/select error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/module/complete - Dev-only endpoint to force complete a module
+  app.post("/api/dev/module/complete", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const { moduleNumber } = req.body;
+      if (!moduleNumber || ![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "moduleNumber must be 1, 2, or 3" });
+      }
+
+      const moduleStreamKey = `module:${user.id}:${moduleNumber}`;
+      const moduleData = await storage.getModuleData(user.id, moduleNumber as 1 | 2 | 3);
+      const transcript = moduleData?.transcript || [];
+      const afterMessageIndex = transcript.length > 0 ? transcript.length - 1 : -1;
+
+      // Create test summary
+      const testSummary = {
+        insights: [
+          "You identified a key pattern in your work situation",
+          "Your values and priorities became clearer",
+          "You recognized what needs to change",
+        ],
+        assessment: "Through this conversation, you've gained clarity on your situation and the path forward.",
+        takeaway: "Trust your instincts about what you need next.",
+      };
+
+      // Create completion event
+      await storage.appendEvent(moduleStreamKey, {
+        type: "module.complete",
+        payload: { summary: testSummary, afterMessageIndex },
+      });
+
+      // Mark module complete in database
+      await storage.updateModuleComplete(user.id, moduleNumber as 1 | 2 | 3, true);
+
+      // Format summary text
+      const summaryText = `**Key Insights**\n${testSummary.insights.map(i => `- ${i}`).join('\n')}\n\n**Assessment**\n${testSummary.assessment}\n\n**Key Takeaway**\n${testSummary.takeaway}`;
+      await storage.updateModuleData(user.id, moduleNumber as 1 | 2 | 3, { summary: summaryText, complete: true });
+
+      const allEvents = await storage.listEvents(moduleStreamKey);
+
+      res.json({
+        success: true,
+        moduleNumber,
+        complete: true,
+        summary: testSummary,
+        events: allEvents,
+      });
+    } catch (error: any) {
+      console.error("[DEV] module/complete error:", error);
       res.status(500).json({ error: error.message });
     }
   });
