@@ -827,11 +827,13 @@ This is a structured coaching session with distinct phases:
 
 ### Title cards and section headers (USE TOOLS)
 
-You have access to two tools for visual structure:
+You have access to several tools:
 
 1. **append_title_card** - Use this ONCE at the very start of the interview to introduce the session. Call it with a title like "Interview" and subtitle like "Getting to know your situation".
 
 2. **append_section_header** - Use this when transitioning to a new major topic or phase. For example, when shifting from rapport-building to problem exploration, or from problem exploration to goal-setting.
+
+3. **finalize_interview** - Call this ONCE when the interview is complete and you have generated the coaching plan (after including the PLAN_CARD token). This marks the interview as finished, triggers artifact generation, and displays a final next steps card to the user.
 
 **IMPORTANT:**
 - Call append_title_card exactly ONCE near the very beginning if no title card has been added yet.
@@ -1097,7 +1099,9 @@ A single sentence that either: cites a relevant stat about career transitions/co
 5. After the above tokens, include the interview completion marker:
 [[INTERVIEW_COMPLETE]]
 
-6. Then your visible message text should be a brief, warm statement like: "I've put together a personalized coaching plan for you."
+6. Call the finalize_interview tool to mark the interview as complete and trigger next steps.
+
+7. Then your visible message text should be a brief, warm statement like: "I've put together a personalized coaching plan for you."
 
 Do NOT ask for confirmation or show options. The frontend UI will display a teaser card that invites the user to see their plan.
 
@@ -2984,6 +2988,86 @@ COMMUNICATION STYLE:
     }
   }
 
+  // Handler for finalize_interview tool
+  // Marks interview complete, triggers artifact generation, appends final next steps event
+  async function handleFinalizeInterview(
+    sessionToken: string, 
+    userId: string,
+    afterMessageIndex: number
+  ): Promise<void> {
+    const startTime = Date.now();
+    console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} session=${sessionToken} status=started`);
+    
+    try {
+      // Check for existing finalization (idempotency)
+      const existingEvents = await storage.listInterviewEvents(sessionToken);
+      if (existingEvents.some(e => e.type === "chat.final_next_steps_added")) {
+        console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=skipped_already_finalized`);
+        return;
+      }
+      
+      // Get transcript for plan data
+      const transcript = await storage.getTranscriptByUserId(userId);
+      if (!transcript) {
+        console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=error_no_transcript`);
+        return;
+      }
+      
+      // Mark interview as complete
+      if (!transcript.interviewComplete) {
+        await storage.updateTranscript(transcript.sessionToken, {
+          interviewComplete: true,
+          progress: 100,
+        });
+        console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=marked_complete`);
+      }
+      
+      // Get coaching plan from transcript - required for finalization
+      const coachingPlan = transcript.planCard as CoachingPlan | null;
+      if (!coachingPlan?.modules || coachingPlan.modules.length === 0) {
+        console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=error_no_plan_modules`);
+        // Don't finalize without modules - the UI would show an empty card
+        return;
+      }
+      
+      // Trigger artifact generation (idempotent - initializeSeriousPlan checks for existing plan)
+      const dossier = transcript.clientDossier as any || null;
+      const result = await initializeSeriousPlan(
+        userId,
+        transcript.id,
+        coachingPlan,
+        dossier,
+        transcript
+      );
+      console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=artifacts_init planId=${result.planId} success=${result.success}`);
+      
+      if (!result.success) {
+        console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=error_artifacts_failed error="${result.error}"`);
+        // Don't create final event if artifact initialization failed
+        return;
+      }
+      
+      // Build modules list for final card from coaching plan (coachingPlan guaranteed to have modules at this point)
+      const modules = coachingPlan.modules.map((m, idx) => ({
+        slug: `module-${idx + 1}`,
+        title: m.name || `Module ${idx + 1}`,
+        description: m.objective || m.outcome || '',
+      }));
+      
+      // Append final next steps event
+      await storage.appendInterviewEvent(sessionToken, "chat.final_next_steps_added", {
+        render: { afterMessageIndex },
+        modules,
+      });
+      
+      const durationMs = Date.now() - startTime;
+      console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=complete moduleCount=${modules.length} durationMs=${durationMs}`);
+    } catch (error: any) {
+      const durationMs = Date.now() - startTime;
+      console.error(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=error error="${error.message}" durationMs=${durationMs}`);
+    }
+  }
+
   // Tool definitions for interview LLM
   const interviewTools = {
     anthropic: [
@@ -3044,6 +3128,15 @@ COMMUNICATION STYLE:
             },
           },
           required: ["options"],
+        },
+      },
+      {
+        name: "finalize_interview",
+        description: "Call this ONCE when the interview is complete and you have generated the coaching plan. This marks the interview as finished, triggers artifact generation, and displays a final next steps card to the user.",
+        input_schema: {
+          type: "object" as const,
+          properties: {},
+          required: [],
         },
       },
     ],
@@ -3116,6 +3209,18 @@ COMMUNICATION STYLE:
               },
             },
             required: ["options"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "finalize_interview",
+          description: "Call this ONCE when the interview is complete and you have generated the coaching plan. This marks the interview as finished, triggers artifact generation, and displays a final next steps card to the user.",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: [],
           },
         },
       },
@@ -3287,6 +3392,8 @@ The user has entered "testskip" which is a testing command. Generate the full pl
                 console.log(`[INTERVIEW_TOOL] Appended structured_outcomes with ${optionsWithIds.length} options`);
               }
             }
+          } else if (toolUse.name === "finalize_interview" && sessionToken && userId) {
+            await handleFinalizeInterview(sessionToken, userId, afterMessageIndex);
           }
           
           toolResults.push({
@@ -3440,6 +3547,8 @@ The user has entered "testskip" which is a testing command. Generate the full pl
             } catch (parseError: any) {
               console.log(`[INTERVIEW_TOOL] Failed to parse structured_outcomes args: ${parseError.message}`);
             }
+          } else if (toolName === "finalize_interview" && sessionToken && userId) {
+            await handleFinalizeInterview(sessionToken, userId, afterMessageIndex);
           }
           
           toolResults.push({
@@ -5774,6 +5883,64 @@ FORMAT:
       });
     } catch (error: any) {
       console.error("[DEV] inject-outcomes error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/interview/finalize - Dev-only endpoint to force finalize interview
+  // Used by smoke tests since LLM tool calls are not deterministic
+  app.post("/api/dev/interview/finalize", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.status(400).json({ error: "No interview session found" });
+      }
+
+      const sessionToken = transcript.sessionToken;
+      const existingMessages = transcript.transcript || [];
+      const afterMessageIndex = existingMessages.length > 0 ? existingMessages.length - 1 : -1;
+
+      // Call the finalize handler
+      await handleFinalizeInterview(sessionToken, user.id, afterMessageIndex);
+
+      // Fetch updated state
+      const updatedTranscript = await storage.getTranscriptByUserId(user.id);
+      const allEvents = await storage.listInterviewEvents(sessionToken);
+      
+      // Check if serious plan was created
+      const seriousPlan = await storage.getSeriousPlanByUserId(user.id);
+      const artifacts = seriousPlan ? await storage.getArtifactsByPlanId(seriousPlan.id) : [];
+      
+      // Find final next steps event
+      const finalEvent = allEvents.find(e => e.type === "chat.final_next_steps_added");
+
+      res.json({
+        success: true,
+        interviewComplete: updatedTranscript?.interviewComplete || false,
+        hasSeriousPlan: !!seriousPlan,
+        planId: seriousPlan?.id || null,
+        planStatus: seriousPlan?.status || null,
+        artifactsCount: artifacts.length,
+        artifacts: artifacts.map(a => ({
+          key: a.artifactKey,
+          status: a.generationStatus,
+        })),
+        finalEvent: finalEvent ? {
+          eventSeq: finalEvent.eventSeq,
+          modulesCount: (finalEvent.payload as any)?.modules?.length || 0,
+          modules: (finalEvent.payload as any)?.modules || [],
+        } : null,
+        events: allEvents,
+      });
+    } catch (error: any) {
+      console.error("[DEV] interview/finalize error:", error);
       res.status(500).json({ error: error.message });
     }
   });

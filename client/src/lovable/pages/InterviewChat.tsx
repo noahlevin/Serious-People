@@ -6,6 +6,7 @@ import ChatInput from "@/lovable/components/interview/ChatInput";
 import SectionDivider from "@/lovable/components/interview/SectionDivider";
 import UpsellCard from "@/lovable/components/interview/UpsellCard";
 import StructuredOutcomes from "@/lovable/components/interview/StructuredOutcomes";
+import FinalNextStepsCard from "@/lovable/components/interview/FinalNextStepsCard";
 import { Clock, Lock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -30,6 +31,7 @@ interface AppEvent {
     options?: StructuredOption[];  // for structured_outcomes_added events
     eventSeq?: number;  // for structured_outcome_selected events (references outcomes event)
     optionId?: string;  // for structured_outcome_selected events
+    modules?: { slug: string; title: string; description?: string }[];  // for final_next_steps_added events
   };
   createdAt: string;
 }
@@ -376,6 +378,13 @@ const InterviewChat = () => {
             options={event.payload.options}
             onSelect={handleOutcomeSelect}
             disabled={isOutcomeSelected(event.eventSeq) || isTyping}
+          />
+        );
+      } else if (event.type === "chat.final_next_steps_added" && event.payload.modules) {
+        return (
+          <FinalNextStepsCard
+            key={`event-${event.eventSeq}`}
+            modules={event.payload.modules}
           />
         );
       }
