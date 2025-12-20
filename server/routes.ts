@@ -1484,6 +1484,19 @@ export async function registerRoutes(
       // Use shared helper for routing computation
       const routing = await computeRoutingForUser(userId);
 
+      // Get plan-derived modules if interview is complete
+      let modules = null;
+      if (state.interviewComplete) {
+        const transcript = await storage.getTranscriptByUserId(userId);
+        if (transcript?.planCard?.modules) {
+          modules = transcript.planCard.modules.map((mod: any, i: number) => ({
+            moduleNumber: i + 1,
+            title: mod.name,
+            description: mod.objective,
+          }));
+        }
+      }
+
       res.json({
         authenticated: true,
         user: {
@@ -1495,6 +1508,7 @@ export async function registerRoutes(
         journey: {
           state,
           phase: routing.phase,
+          modules,
         },
         routing: {
           canonicalPath: routing.canonicalPath,
@@ -1528,16 +1542,31 @@ export async function registerRoutes(
           state: defaultState,
           currentStep: "interview",
           currentPath: "/interview",
+          modules: null, // No plan yet
         });
       }
 
       const currentStep = getCurrentJourneyStep(journeyState);
       const currentPath = getStepPath(currentStep);
 
+      // Get plan-derived modules if interview is complete and planCard exists
+      let modules = null;
+      if (journeyState.interviewComplete) {
+        const transcript = await storage.getTranscriptByUserId(userId);
+        if (transcript?.planCard?.modules) {
+          modules = transcript.planCard.modules.map((mod: any, i: number) => ({
+            moduleNumber: i + 1,
+            title: mod.name,
+            description: mod.objective,
+          }));
+        }
+      }
+
       res.json({
         state: journeyState,
         currentStep,
         currentPath,
+        modules,
       });
     } catch (error: any) {
       console.error("Journey state error:", error);
@@ -6405,6 +6434,49 @@ FORMAT:
       });
     } catch (error: any) {
       console.error("[DEV] module/complete error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/journey - Get journey state for a user (for smoke testing plan-derived modules)
+  app.post("/api/dev/journey", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const journeyState = await storage.getJourneyState(user.id);
+      const state: JourneyState = journeyState || {
+        interviewComplete: false,
+        paymentVerified: false,
+        module1Complete: false,
+        module2Complete: false,
+        module3Complete: false,
+        hasSeriousPlan: false,
+      };
+
+      // Get plan-derived modules if interview is complete
+      let modules = null;
+      if (state.interviewComplete) {
+        const transcript = await storage.getTranscriptByUserId(user.id);
+        if (transcript?.planCard?.modules) {
+          modules = transcript.planCard.modules.map((mod: any, i: number) => ({
+            moduleNumber: i + 1,
+            title: mod.name,
+            description: mod.objective,
+          }));
+        }
+      }
+
+      res.json({
+        state,
+        modules,
+      });
+    } catch (error: any) {
+      console.error("[DEV] journey error:", error);
       res.status(500).json({ error: error.message });
     }
   });

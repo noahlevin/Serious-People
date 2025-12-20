@@ -3,10 +3,17 @@ import { useLocation } from "wouter";
 import { useEffect } from "react";
 import type { JourneyState, JourneyStep } from "@shared/schema";
 
+export interface PlanModule {
+  moduleNumber: number;
+  title: string;
+  description: string;
+}
+
 interface JourneyResponse {
   state: JourneyState;
   currentStep: JourneyStep;
   currentPath: string;
+  modules?: PlanModule[] | null;
 }
 
 export function useJourney() {
@@ -26,6 +33,7 @@ export function useJourney() {
     journeyState: data?.state ?? null,
     currentStep: data?.currentStep ?? null,
     currentPath: data?.currentPath ?? null,
+    modules: data?.modules ?? null,
     isLoading: loading,
     error,
     refetch,

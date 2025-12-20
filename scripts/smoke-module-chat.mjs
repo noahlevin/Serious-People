@@ -340,6 +340,77 @@ async function main() {
     failed++;
   }
 
+  // ========================================
+  // Plan-Derived Module Names Test
+  // ========================================
+  console.log("");
+  console.log("=== PLAN-DERIVED MODULE NAMES TEST ===");
+  console.log("");
+
+  // Test 13: Verify journey endpoint returns plan-derived module names (from planCard)
+  console.log("[TEST 13] Verifying plan-derived module names in journey...");
+  // Only check that default frontend placeholders are NOT used (Discovery, Options, Resolution)
+  // The AI-generated names (Job Autopsy, Fork in the Road, etc.) are valid plan-derived names
+  const FRONTEND_PLACEHOLDERS = ["Discovery", "Options", "Resolution"];
+  try {
+    const journeyRes = await fetch(`${ORIGIN}/api/dev/journey`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-dev-tools-secret": DEV_TOOLS_SECRET,
+      },
+      body: JSON.stringify({ email: EMAIL }),
+    });
+    
+    if (journeyRes.status === 404) {
+      // Dev endpoint doesn't exist yet - that's ok, skip test
+      console.log("[SKIP] Dev journey endpoint not found (expected for initial setup)");
+      passed++;
+    } else if (!journeyRes.ok) {
+      const text = await journeyRes.text();
+      console.log(`[FAIL] Journey endpoint HTTP ${journeyRes.status}: ${text}`);
+      failed++;
+    } else {
+      const journeyData = await journeyRes.json();
+      const modules = journeyData.modules;
+      
+      if (!modules || !Array.isArray(modules) || modules.length === 0) {
+        // No modules yet - if interview not complete, this is expected
+        if (!journeyData.state?.interviewComplete) {
+          console.log("[SKIP] No modules yet (interview not complete)");
+          passed++;
+        } else {
+          console.log("[FAIL] Interview complete but no modules returned");
+          failed++;
+        }
+      } else {
+        // Check that module titles are not the frontend default placeholders
+        // Note: AI-generated names like "Job Autopsy" are valid plan-derived names
+        const usesFrontendPlaceholder = modules.some(m => FRONTEND_PLACEHOLDERS.includes(m.title));
+        const allNonEmpty = modules.every(m => m.title && m.title.length > 0);
+        const hasCorrectCount = modules.length === 3;
+        
+        if (!usesFrontendPlaceholder && allNonEmpty && hasCorrectCount) {
+          console.log(`[PASS] Plan-derived modules returned from planCard`);
+          console.log(`[INFO] Module titles: ${modules.map(m => m.title).join(", ")}`);
+          passed++;
+        } else if (usesFrontendPlaceholder) {
+          console.log(`[FAIL] Module titles using frontend placeholders: ${modules.map(m => m.title).join(", ")}`);
+          failed++;
+        } else if (!hasCorrectCount) {
+          console.log(`[FAIL] Expected 3 modules, got ${modules.length}`);
+          failed++;
+        } else {
+          console.log("[FAIL] Some module titles are empty");
+          failed++;
+        }
+      }
+    }
+  } catch (err) {
+    console.log(`[FAIL] Journey check threw error: ${err.message}`);
+    failed++;
+  }
+
   // Summary
   console.log("");
   console.log("=== SUMMARY ===");

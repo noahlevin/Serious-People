@@ -19,9 +19,16 @@ interface JourneyState {
   hasSeriousPlan: boolean;
 }
 
+interface PlanModule {
+  moduleNumber: number;
+  title: string;
+  description: string;
+}
+
 interface JourneyData {
   state: JourneyState;
   phase: string;
+  modules?: PlanModule[] | null;
 }
 
 interface RoutingData {

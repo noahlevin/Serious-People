@@ -57,6 +57,18 @@ export default function Progress() {
   }
 
   const state = journey?.state;
+  const modules = journey?.modules;
+  
+  // Get module labels: use plan-derived names if available, otherwise fallback to placeholders
+  const module1Label = modules?.[0]?.title 
+    ? `Module 1: ${modules[0].title}` 
+    : "Module 1: Discovery";
+  const module2Label = modules?.[1]?.title 
+    ? `Module 2: ${modules[1].title}` 
+    : "Module 2: Options";
+  const module3Label = modules?.[2]?.title 
+    ? `Module 3: ${modules[2].title}` 
+    : "Module 3: Resolution";
   
   const steps: Step[] = [
     {
@@ -75,7 +87,7 @@ export default function Progress() {
     },
     {
       id: "module1",
-      label: "Module 1: Job Autopsy",
+      label: module1Label,
       status: state?.module1Complete 
         ? "completed" 
         : state?.paymentVerified 
@@ -84,7 +96,7 @@ export default function Progress() {
     },
     {
       id: "module2",
-      label: "Module 2: Fork in the Road",
+      label: module2Label,
       status: state?.module2Complete 
         ? "completed" 
         : state?.module1Complete 
@@ -93,7 +105,7 @@ export default function Progress() {
     },
     {
       id: "module3",
-      label: "Module 3: The Great Escape Plan",
+      label: module3Label,
       status: state?.module3Complete 
         ? "completed" 
         : state?.module2Complete 
