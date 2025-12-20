@@ -17,12 +17,15 @@ import {
   type SeriousPlanStatus,
   type CoachLetterStatus,
   type ArtifactGenerationStatus,
+  type AppEvent,
+  type AppEventPayload,
   users,
   interviewTranscripts,
   magicLinkTokens,
   seriousPlans,
   seriousPlanArtifacts,
-  coachChatMessages 
+  coachChatMessages,
+  appEvents,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, isNull, gt, desc, asc, inArray } from "drizzle-orm";
@@ -112,6 +115,14 @@ export interface IStorage {
     paymentVerified?: boolean;
     stripeSessionId?: string | null;
   }): Promise<InterviewTranscript | undefined>;
+  
+  // App event operations
+  listEvents(stream: string): Promise<AppEvent[]>;
+  appendEvent(stream: string, event: { type: string; payload: AppEventPayload }): Promise<AppEvent>;
+  
+  // Convenience helpers for interview events
+  listInterviewEvents(sessionToken: string): Promise<AppEvent[]>;
+  appendInterviewEvent(sessionToken: string, type: string, payload: AppEventPayload): Promise<AppEvent>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -555,6 +566,31 @@ export class DatabaseStorage implements IStorage {
       .where(eq(interviewTranscripts.userId, userId))
       .returning();
     return updated;
+  }
+
+  // App event operations
+  async listEvents(stream: string): Promise<AppEvent[]> {
+    return db.select().from(appEvents)
+      .where(eq(appEvents.stream, stream))
+      .orderBy(asc(appEvents.eventSeq));
+  }
+
+  async appendEvent(stream: string, event: { type: string; payload: AppEventPayload }): Promise<AppEvent> {
+    const [created] = await db.insert(appEvents).values({
+      stream,
+      type: event.type,
+      payload: event.payload,
+    } as any).returning();
+    return created;
+  }
+
+  // Convenience helpers for interview events
+  async listInterviewEvents(sessionToken: string): Promise<AppEvent[]> {
+    return this.listEvents(`interview:${sessionToken}`);
+  }
+
+  async appendInterviewEvent(sessionToken: string, type: string, payload: AppEventPayload): Promise<AppEvent> {
+    return this.appendEvent(`interview:${sessionToken}`, { type, payload });
   }
 }
 

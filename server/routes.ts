@@ -27,6 +27,8 @@ import {
   getCurrentJourneyStep,
   getStepPath,
   type JourneyState,
+  type AppEvent,
+  type AppEventPayload,
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import {
@@ -823,25 +825,25 @@ This is a structured coaching session with distinct phases:
 - Build action plan
 - End with action outline + rough talking points
 
-### Module title cards
+### Title cards and section headers (USE TOOLS)
 
-At the START of each phase, output an inline title card on its own line like:
+You have access to two tools for visual structure:
 
-— Interview (est. 5–10 minutes) —
+1. **append_title_card** - Use this ONCE at the very start of the interview to introduce the session. Call it with a title like "Interview" and subtitle like "Getting to know your situation".
 
-— Module 1: Job Autopsy (est. 10–20 minutes) —
+2. **append_section_header** - Use this when transitioning to a new major topic or phase. For example, when shifting from rapport-building to problem exploration, or from problem exploration to goal-setting.
 
-— Module 2: Fork in the Road (est. 10–20 minutes) —
-
-— Module 3: The Great Escape Plan (est. 10–20 minutes) —
-
-The frontend will detect these, style them elegantly, and update the header.
+**IMPORTANT:**
+- Call append_title_card exactly ONCE near the very beginning if no title card has been added yet.
+- Call append_section_header when you're shifting to a distinctly new topic area.
+- Do NOT print fake dividers, dashes, or title text in your message content. Use the tools instead.
+- Keep your text responses clean and conversational.
 
 ### How to start (first reply)
 
 On your **very first reply** (when there is no prior conversation history):
 
-1. Output the intro title card on its own line: — Interview (est. 5–10 minutes) —
+1. Call the append_title_card tool with title "Interview" and subtitle "Getting to know your situation".
 
 2. Be warm and welcoming. Establish rapport. Set context: this is a structured coaching session, not just venting.
 
@@ -2778,10 +2780,13 @@ COMMUNICATION STYLE:
         : [];
 
       // If no transcript exists or it's empty, we need to get the first assistant message first
+      let sessionToken: string;
       if (existingMessages.length === 0) {
-        // Call LLM to get the initial greeting
-        const initialReply = await callInterviewLLM([]);
-        const sessionToken = `interview_${user.id}_${Date.now()}`;
+        // Generate sessionToken first so we can pass it to callInterviewLLM for event persistence
+        sessionToken = `interview_${user.id}_${Date.now()}`;
+        
+        // Call LLM to get the initial greeting (with sessionToken for tool events)
+        const initialReply = await callInterviewLLM([], sessionToken);
         const initialMessage = { role: "assistant", content: initialReply.reply };
         
         transcript = await storage.createTranscript({
@@ -2793,14 +2798,16 @@ COMMUNICATION STYLE:
         });
         
         existingMessages.push(initialMessage);
+      } else {
+        sessionToken = transcript!.sessionToken;
       }
 
       // Append user message
       const userMessage = { role: "user", content: message };
       existingMessages.push(userMessage);
 
-      // Call LLM with full transcript
-      const llmResult = await callInterviewLLM(existingMessages);
+      // Call LLM with full transcript and sessionToken for event persistence
+      const llmResult = await callInterviewLLM(existingMessages, sessionToken);
 
       // Append assistant reply
       const assistantMessage = { role: "assistant", content: llmResult.reply };
@@ -2819,6 +2826,9 @@ COMMUNICATION STYLE:
         });
       }
 
+      // Fetch events for this interview session
+      const events = await storage.listInterviewEvents(sessionToken);
+
       res.json({
         success: true,
         transcript: existingMessages,
@@ -2829,6 +2839,7 @@ COMMUNICATION STYLE:
         planCard: llmResult.planCard,
         valueBullets: llmResult.valueBullets,
         socialProof: llmResult.socialProof,
+        events,
       });
     } catch (error: any) {
       console.error("[INTERVIEW_TURN] Error:", error.message);
@@ -2836,8 +2847,73 @@ COMMUNICATION STYLE:
     }
   }
 
-  // Helper to call the interview LLM (extracted from POST /interview)
-  async function callInterviewLLM(transcript: { role: string; content: string }[]) {
+  // Tool definitions for interview LLM
+  const interviewTools = {
+    anthropic: [
+      {
+        name: "append_title_card",
+        description: "Add a title card to the chat interface. Use this ONCE at the very start of the interview.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            title: { type: "string", description: "The main title (e.g., 'Interview')" },
+            subtitle: { type: "string", description: "Optional subtitle (e.g., 'Getting to know your situation')" },
+          },
+          required: ["title"],
+        },
+      },
+      {
+        name: "append_section_header",
+        description: "Add a section header when transitioning to a new major topic.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            title: { type: "string", description: "The section title" },
+            subtitle: { type: "string", description: "Optional section subtitle" },
+          },
+          required: ["title"],
+        },
+      },
+    ],
+    openai: [
+      {
+        type: "function" as const,
+        function: {
+          name: "append_title_card",
+          description: "Add a title card to the chat interface. Use this ONCE at the very start of the interview.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "The main title (e.g., 'Interview')" },
+              subtitle: { type: "string", description: "Optional subtitle (e.g., 'Getting to know your situation')" },
+            },
+            required: ["title"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "append_section_header",
+          description: "Add a section header when transitioning to a new major topic.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "The section title" },
+              subtitle: { type: "string", description: "Optional section subtitle" },
+            },
+            required: ["title"],
+          },
+        },
+      },
+    ],
+  };
+
+  // Helper to call the interview LLM with tool support
+  async function callInterviewLLM(
+    transcript: { role: string; content: string }[],
+    sessionToken?: string
+  ) {
     if (!useAnthropic && !process.env.OPENAI_API_KEY) {
       throw new Error("No AI API key configured");
     }
@@ -2854,11 +2930,15 @@ The user has entered "testskip" which is a testing command. Generate the full pl
 `
       : "";
 
-    let reply: string;
+    let reply: string = "";
     const systemPromptToUse = INTERVIEW_SYSTEM_PROMPT + testSkipPrompt;
+    
+    // Calculate afterMessageIndex: -1 for empty transcript (title card before first message), 
+    // otherwise current transcript length - 1 (before we add the assistant reply)
+    const afterMessageIndex = transcript.length > 0 ? transcript.length - 1 : -1;
 
     if (useAnthropic && anthropic) {
-      const claudeMessages: { role: "user" | "assistant"; content: string }[] = [];
+      const claudeMessages: any[] = [];
       for (const turn of transcript) {
         if (turn?.role && turn?.content) {
           claudeMessages.push({
@@ -2870,15 +2950,75 @@ The user has entered "testskip" which is a testing command. Generate the full pl
       if (transcript.length === 0) {
         claudeMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
       }
-      const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 2048,
-        system: systemPromptToUse,
-        messages: claudeMessages,
-      });
-      reply = response.content[0].type === "text" ? response.content[0].text : "";
+      
+      // Loop to handle tool calls until we get a final text response
+      let maxIterations = 5;
+      while (maxIterations-- > 0) {
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-4-5",
+          max_tokens: 2048,
+          system: systemPromptToUse,
+          messages: claudeMessages,
+          tools: interviewTools.anthropic,
+        });
+        
+        // Collect tool uses and text from response
+        const toolUses: { id: string; name: string; input: any }[] = [];
+        let textContent = "";
+        
+        for (const block of response.content) {
+          if (block.type === "text") {
+            textContent += block.text;
+          } else if (block.type === "tool_use") {
+            toolUses.push({ id: block.id, name: block.name, input: block.input });
+          }
+        }
+        
+        // If no tool calls, we're done
+        if (toolUses.length === 0) {
+          reply = textContent;
+          break;
+        }
+        
+        // Process tool calls and build tool results
+        const toolResults: { type: "tool_result"; tool_use_id: string; content: string }[] = [];
+        
+        for (const toolUse of toolUses) {
+          const toolInput = toolUse.input as { title: string; subtitle?: string };
+          
+          if ((toolUse.name === "append_title_card" || toolUse.name === "append_section_header") && sessionToken) {
+            const eventType = toolUse.name === "append_title_card" 
+              ? "chat.title_card_added" 
+              : "chat.section_header_added";
+            
+            const payload: AppEventPayload = {
+              render: { afterMessageIndex },
+              title: toolInput.title,
+              subtitle: toolInput.subtitle,
+            };
+            
+            await storage.appendInterviewEvent(sessionToken, eventType, payload);
+            console.log(`[INTERVIEW_TOOL] Appended ${eventType} for session ${sessionToken}`);
+          }
+          
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: JSON.stringify({ ok: true }),
+          });
+        }
+        
+        // Add assistant message with tool uses, then user message with tool results
+        claudeMessages.push({ role: "assistant", content: response.content });
+        claudeMessages.push({ role: "user", content: toolResults });
+        
+        // If there was text along with tool calls, capture it
+        if (textContent) {
+          reply = textContent;
+        }
+      }
     } else {
-      const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+      const messages: any[] = [
         { role: "system", content: systemPromptToUse },
       ];
       for (const turn of transcript) {
@@ -2889,12 +3029,69 @@ The user has entered "testskip" which is a testing command. Generate the full pl
       if (transcript.length === 0) {
         messages.push({ role: "user", content: "Start the interview. Ask your first question." });
       }
-      const response = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
-        messages,
-        max_completion_tokens: 1024,
-      });
-      reply = response.choices[0].message.content || "";
+      
+      // Loop to handle tool calls until we get a final text response
+      let maxIterations = 5;
+      while (maxIterations-- > 0) {
+        const response = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          messages,
+          max_completion_tokens: 1024,
+          tools: interviewTools.openai,
+        });
+        
+        const message = response.choices[0].message;
+        
+        // If no tool calls and we have content, we're done
+        if (!message.tool_calls || message.tool_calls.length === 0) {
+          if (message.content) {
+            reply = message.content;
+          }
+          // Break if we have content OR if there are no tool calls to process
+          break;
+        }
+        
+        // Process tool calls
+        const toolResults: { role: "tool"; tool_call_id: string; content: string }[] = [];
+        
+        for (const toolCall of message.tool_calls) {
+          if (toolCall.type !== "function") continue;
+          const toolName = (toolCall as any).function?.name;
+          const toolArgs = (toolCall as any).function?.arguments;
+          if (!toolName || !toolArgs) continue;
+          const toolInput = JSON.parse(toolArgs) as { title: string; subtitle?: string };
+          
+          if ((toolName === "append_title_card" || toolName === "append_section_header") && sessionToken) {
+            const eventType = toolName === "append_title_card" 
+              ? "chat.title_card_added" 
+              : "chat.section_header_added";
+            
+            const payload: AppEventPayload = {
+              render: { afterMessageIndex },
+              title: toolInput.title,
+              subtitle: toolInput.subtitle,
+            };
+            
+            await storage.appendInterviewEvent(sessionToken, eventType, payload);
+            console.log(`[INTERVIEW_TOOL] Appended ${eventType} for session ${sessionToken}`);
+          }
+          
+          toolResults.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ ok: true }),
+          });
+        }
+        
+        // Add assistant message with tool calls, then tool results
+        messages.push(message);
+        messages.push(...toolResults);
+        
+        // If there was text along with tool calls, capture it
+        if (message.content) {
+          reply = message.content;
+        }
+      }
     }
 
     // Parse structured tokens from reply

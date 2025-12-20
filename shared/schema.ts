@@ -256,6 +256,39 @@ export const coachChatMessages = pgTable("coach_chat_messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// ============================================
+// APP EVENTS TABLE (generic event stream)
+// ============================================
+
+// Generic app-wide event stream for UI components like title cards, section headers
+export const appEvents = pgTable("app_events", {
+  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  stream: text("stream").notNull(),  // e.g. "interview:<sessionToken>"
+  eventSeq: serial("event_seq").notNull(),  // global monotonic ordering
+  type: text("type").notNull(),  // e.g. "chat.title_card_added", "chat.section_header_added"
+  payload: json("payload").$type<AppEventPayload>().notNull(),  // placement + content
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Type for event payload
+export interface AppEventPayload {
+  render: {
+    afterMessageIndex: number;  // where to insert in the chat
+  };
+  title: string;
+  subtitle?: string;
+  [key: string]: any;
+}
+
+export const insertAppEventSchema = createInsertSchema(appEvents).omit({
+  id: true,
+  eventSeq: true,
+  createdAt: true,
+});
+
+export type InsertAppEvent = z.infer<typeof insertAppEventSchema>;
+export type AppEvent = typeof appEvents.$inferSelect;
+
 // Insert schemas for new tables
 export const insertSeriousPlanSchema = createInsertSchema(seriousPlans).omit({
   id: true,

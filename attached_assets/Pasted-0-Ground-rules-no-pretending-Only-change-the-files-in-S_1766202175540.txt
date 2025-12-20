@@ -1,0 +1,79 @@
+0) Ground rules (no pretending)
+- Only change the files in Scope.
+- Don’t refactor unrelated code.
+- Paste raw outputs for verification commands.
+
+1) Goal
+Add a generic app-wide event stream table (app_events) and wire interview LLM tool calls to append two event types:
+- chat.title_card_added
+- chat.section_header_added
+These events must be persisted in DB and returned from /api/interview/turn.
+
+2) Scope boundaries (ONLY these files)
+- server/schema.ts
+- server/storage.ts
+- server/routes.ts
+
+3) Requirements
+
+A) Schema: add app_events table
+- New table: app_events
+- Columns:
+  - id: uuid primary key (use same pattern as other tables: varchar length 36 default gen_random_uuid())
+  - stream: text NOT NULL (e.g. "interview:<sessionToken>")
+  - eventSeq: serial NOT NULL (global monotonic ordering)
+  - type: text NOT NULL (e.g. "chat.title_card_added")
+  - payload: json NOT NULL (store placement + content)
+  - createdAt: timestamp defaultNow NOT NULL
+- Export types:
+  - AppEvent = typeof appEvents.$inferSelect
+  - InsertAppEvent via createInsertSchema(appEvents).omit({ id: true, eventSeq: true, createdAt: true })
+
+B) Storage: add generic event methods + thin interview wrappers
+- Extend IStorage with:
+  - listEvents(stream: string): Promise<AppEvent[]>
+  - appendEvent(stream: string, event: { type: string; payload: any }): Promise<AppEvent>
+- Implement in DatabaseStorage:
+  - listEvents orders by appEvents.eventSeq asc
+  - appendEvent inserts stream/type/payload and returns inserted row
+- Add convenience helpers (optional but nice):
+  - listInterviewEvents(sessionToken) => listEvents(`interview:${sessionToken}`)
+  - appendInterviewEvent(sessionToken, type, payload) => appendEvent(...)
+
+C) routes.ts: tool calling for interview LLM
+- Update callInterviewLLM(...) to support tools for BOTH Anthropic and OpenAI paths.
+- Define two tools:
+  1) append_title_card: input { title: string, subtitle?: string }
+  2) append_section_header: input { title: string, subtitle?: string }
+- When a tool is called:
+  - Determine stream = `interview:${sessionToken}`
+  - Determine placement = afterMessageIndex = (current transcript length - 1) at time of tool execution
+    (because server appends the user message before calling LLM)
+  - Persist an app event with payload:
+    {
+      render: { afterMessageIndex: number },
+      ...tool input fields...
+    }
+  - Return a tool result (simple { ok: true })
+
+IMPORTANT: do NOT rely on token parsing for these components anymore. Tools must be the only source of title cards and section headers.
+
+D) /api/interview/turn response
+- Include events in the JSON response:
+  { success, reply, transcript, events }
+- events should be listEvents(stream) after the turn completes.
+
+E) Prompt update (within routes.ts)
+- Update the interview system prompt to instruct:
+  - If no title card event exists yet, call append_title_card once near the beginning.
+  - When shifting to a new high-level topic, call append_section_header.
+  - Do not print fake dividers or titles in plain text.
+
+4) Verification (paste raw output)
+- npm run build
+- Optional: add a quick curl or node snippet to hit /api/interview/turn and confirm JSON includes "events": [...]
+
+5) Acceptance criteria
+- Build passes.
+- /api/interview/turn returns events: [...] (empty initially is fine).
+- When the model tool-calls append_title_card / append_section_header, rows appear in app_events under stream interview:<sessionToken>.
