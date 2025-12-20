@@ -78,9 +78,18 @@ The interview chat uses an **app_events** table to stream structured UI events t
 - Coverage: 15 checks including name capture, structured outcomes lifecycle, finalization, and artifact generation
 - Strict mode: Test fails (not warns) when expected events are missing
 
-**Legacy Token Parsing:**
-- Some output tokens (`[[PROGRESS]]`, `[[PLAN_CARD]]`, `[[VALUE_BULLETS]]`, `[[SOCIAL_PROOF]]`, `[[INTERVIEW_COMPLETE]]`) are still parsed for backwards compatibility
-- Located in isolated block in `server/routes.ts` with TODO comments for migration
+**Module Event-Driven Architecture:**
+- Module chat now uses the same event streaming pattern as interview chat
+- **Module Event Types:** `module.structured_outcomes_added`, `module.outcome_selected`, `module.progress_updated`, `module.complete`
+- **Module Stream Key:** `module:${userId}:${moduleNumber}` (moduleNumber is 1-3)
+- **Module Tools:** `append_structured_outcomes`, `set_progress`, `complete_module` for LLM to inject UI elements
+- **Module State Endpoint:** `GET /api/module/:moduleNumber/state` returns transcript + events for deterministic rendering
+- **Module Dev Endpoints:** `/api/dev/module/inject-outcomes`, `/api/dev/module/outcomes/select`, `/api/dev/module/complete`
+- **Module Smoke Test:** `scripts/smoke-module-chat.mjs` with 12 checks
+
+**Legacy Token Parsing (Interview only):**
+- Some interview tokens (`[[PROGRESS]]`, `[[PLAN_CARD]]`, `[[VALUE_BULLETS]]`, `[[SOCIAL_PROOF]]`, `[[INTERVIEW_COMPLETE]]`) are still parsed for backwards compatibility
+- Located in isolated block in `server/routes.ts` with TODO comments for migration (Batch B scope)
 - `[[OPTIONS]]` replaced by `append_structured_outcomes` tool (fallback parsing still exists)
 
 ## External Dependencies
@@ -93,4 +102,5 @@ The interview chat uses an **app_events** table to stream structured UI events t
 
 ## Recent Changes
 
+- **Dec 20, 2025:** Converted all 3 module flows to tool-based event streaming architecture (Batch A complete). Added module state endpoint, dev endpoints, and smoke test (12/12 passing). Module tokens removed; interview tokens remain for Batch B.
 - **Dec 19, 2025:** Fixed mobile horizontal overflow on SEO landing page by hiding `.sp-situation-hover` on mobile viewports. Fixed quote centering with explicit `text-align: center` on blockquote/cite elements.
