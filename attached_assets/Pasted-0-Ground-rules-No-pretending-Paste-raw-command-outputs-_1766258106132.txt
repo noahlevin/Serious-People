@@ -1,0 +1,56 @@
+0) Ground rules
+- No pretending. Paste raw command outputs.
+- Smallest possible changes. No refactors. Only touch files in Scope.
+
+1) Goal
+Make /interview/chat render title cards + section headers from DB-backed app_events (tool-driven), remove any demo-scripted dividers/sections, update progress based only on section_header events, and make refresh deterministic by adding GET /api/interview/state.
+
+2) Scope (ONLY)
+- server/routes.ts
+- client/src/lovable/pages/InterviewChat.tsx
+
+3) Requirements
+
+A) Server: GET /api/interview/state
+- Auth required (same as /api/interview/turn).
+- Load transcript for the authenticated user/session (reuse whatever handleInterviewTurn currently uses).
+- Load events: storage.listInterviewEvents(sessionToken).
+- Return: { success: true, transcript, events }
+
+B) Client: InterviewChat.tsx
+1) Remove demo/scripted insertions
+- Delete the initial hardcoded divider and any title-card auto-render that isn’t coming from events.
+- Remove dependency on mockInterview/interviewSections for section transitions and progress updates.
+- Do NOT insert dividers based on message count heuristics.
+
+2) Render from transcript + events
+- On mount, fetch GET /api/interview/state.
+- Store transcript as your source of truth, and separately store events from server.
+- Render order rule:
+  - Events with payload.render.afterMessageIndex === -1 render before the first transcript message.
+  - For each transcript message at index i: render message i, then render events with afterMessageIndex === i.
+- Event mapping:
+  - type "chat.title_card_added" -> render the title card component (use existing title card UI; if it's currently baked into WelcomeCard, extract/compose minimally)
+  - type "chat.section_header_added" -> render SectionDivider (subtitle optional; ensure it looks good when subtitle missing)
+
+3) Progress bar behavior
+- Define TOTAL_SECTIONS as a constant for this module (pick an initial number; 4 is fine for now).
+- Progress should be derived from number of section header events:
+  progressPct = min( (countSectionHeaders / TOTAL_SECTIONS) * 100, 100 )
+- Do not update progress on message count.
+
+4) /api/interview/turn integration
+- After sending a message and receiving response, update local transcript from server response and replace events with server response events array (don’t append locally; treat server as authority).
+
+C) Optional but recommended (server-side idempotency)
+- Prevent duplicate title cards: if a chat.title_card_added already exists for the stream, skip inserting a second one.
+
+4) Verification (paste raw output)
+- npm run build
+- node scripts/smoke-interview-chat.mjs
+- (optional) curl GET /api/interview/state and show it returns events:[...] when title/section tools have been called
+
+5) Acceptance criteria
+- No title card / section headers appear unless they were tool-called and persisted (refresh shows same placement).
+- Progress only changes when a new section header event exists.
+- No demo-scripted "Your Context" header at the top unless the model created it (and we actually want none at top).

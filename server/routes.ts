@@ -2751,6 +2751,33 @@ COMMUNICATION STYLE:
     }
   });
 
+  // GET /api/interview/state - Get current interview state (transcript + events)
+  app.get("/api/interview/state", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.json({ success: true, transcript: [], events: [] });
+      }
+
+      const messages = Array.isArray(transcript.transcript) ? transcript.transcript : [];
+      const events = await storage.listInterviewEvents(transcript.sessionToken);
+
+      res.json({
+        success: true,
+        transcript: messages,
+        events,
+      });
+    } catch (error: any) {
+      console.error("[INTERVIEW_STATE] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // POST /api/interview/turn - Send a message and get AI response
   // This replaces the dummy dialogue with real LLM-powered interview
   app.post("/api/interview/turn", requireAuth, async (req, res) => {
@@ -2991,14 +3018,26 @@ The user has entered "testskip" which is a testing command. Generate the full pl
               ? "chat.title_card_added" 
               : "chat.section_header_added";
             
-            const payload: AppEventPayload = {
-              render: { afterMessageIndex },
-              title: toolInput.title,
-              subtitle: toolInput.subtitle,
-            };
+            // Idempotency: skip duplicate title cards
+            let skipped = false;
+            if (toolUse.name === "append_title_card") {
+              const existingEvents = await storage.listInterviewEvents(sessionToken);
+              if (existingEvents.some(e => e.type === "chat.title_card_added")) {
+                console.log(`[INTERVIEW_TOOL] Skipping duplicate title card for session ${sessionToken}`);
+                skipped = true;
+              }
+            }
             
-            await storage.appendInterviewEvent(sessionToken, eventType, payload);
-            console.log(`[INTERVIEW_TOOL] Appended ${eventType} for session ${sessionToken}`);
+            if (!skipped) {
+              const payload: AppEventPayload = {
+                render: { afterMessageIndex },
+                title: toolInput.title,
+                subtitle: toolInput.subtitle,
+              };
+              
+              await storage.appendInterviewEvent(sessionToken, eventType, payload);
+              console.log(`[INTERVIEW_TOOL] Appended ${eventType} for session ${sessionToken}`);
+            }
           }
           
           toolResults.push({
@@ -3066,14 +3105,26 @@ The user has entered "testskip" which is a testing command. Generate the full pl
               ? "chat.title_card_added" 
               : "chat.section_header_added";
             
-            const payload: AppEventPayload = {
-              render: { afterMessageIndex },
-              title: toolInput.title,
-              subtitle: toolInput.subtitle,
-            };
+            // Idempotency: skip duplicate title cards
+            let skipped = false;
+            if (toolName === "append_title_card") {
+              const existingEvents = await storage.listInterviewEvents(sessionToken);
+              if (existingEvents.some(e => e.type === "chat.title_card_added")) {
+                console.log(`[INTERVIEW_TOOL] Skipping duplicate title card for session ${sessionToken}`);
+                skipped = true;
+              }
+            }
             
-            await storage.appendInterviewEvent(sessionToken, eventType, payload);
-            console.log(`[INTERVIEW_TOOL] Appended ${eventType} for session ${sessionToken}`);
+            if (!skipped) {
+              const payload: AppEventPayload = {
+                render: { afterMessageIndex },
+                title: toolInput.title,
+                subtitle: toolInput.subtitle,
+              };
+              
+              await storage.appendInterviewEvent(sessionToken, eventType, payload);
+              console.log(`[INTERVIEW_TOOL] Appended ${eventType} for session ${sessionToken}`);
+            }
           }
           
           toolResults.push({

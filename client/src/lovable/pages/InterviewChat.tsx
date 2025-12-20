@@ -3,16 +3,62 @@ import { Link } from "react-router-dom";
 import ChatMessage from "@/lovable/components/interview/ChatMessage";
 import { UserMenu } from "@/components/UserMenu";
 import ChatInput from "@/lovable/components/interview/ChatInput";
-import WelcomeCard from "@/lovable/components/interview/WelcomeCard";
 import SectionDivider from "@/lovable/components/interview/SectionDivider";
 import UpsellCard from "@/lovable/components/interview/UpsellCard";
-import { Message, interviewSections } from "@/lovable/data/mockInterview";
+import { Clock, Lock } from "lucide-react";
+
+// Types for events from server
+interface AppEvent {
+  id: number;
+  stream: string;
+  type: string;
+  payload: {
+    render: { afterMessageIndex: number };
+    title: string;
+    subtitle?: string;
+  };
+  createdAt: string;
+}
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+// Total sections for progress calculation
+const TOTAL_SECTIONS = 4;
+
+// Helper to fetch interview state
+async function fetchInterviewState(): Promise<{
+  success: boolean;
+  transcript?: { role: string; content: string }[];
+  events?: AppEvent[];
+  error?: string;
+}> {
+  try {
+    const res = await fetch("/api/interview/state", {
+      method: "GET",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      return { success: false, error: `HTTP ${res.status}: ${text}` };
+    }
+    return res.json();
+  } catch (err: any) {
+    console.error("[InterviewChat] Failed to fetch state:", err);
+    return { success: false, error: err.message };
+  }
+}
 
 // Helper to call the interview turn endpoint (real LLM)
 async function callInterviewTurn(message: string): Promise<{
   success: boolean;
   reply?: string;
   transcript?: { role: string; content: string }[];
+  events?: AppEvent[];
   done?: boolean;
   progress?: number;
   planCard?: any;
@@ -51,15 +97,50 @@ async function markInterviewComplete() {
   }
 }
 
+// Title card component (rendered from events)
+const TitleCard = ({ title, subtitle }: { title: string; subtitle?: string }) => {
+  return (
+    <div className="animate-fade-in mb-6">
+      <div className="bg-muted/50 rounded-2xl p-6">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+          Intake Interview
+        </p>
+        <h1 className="font-display text-2xl md:text-3xl text-foreground mb-3">
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="text-muted-foreground text-[15px] leading-relaxed max-w-md mb-4">
+            {subtitle}
+          </p>
+        )}
+        
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            <span>~15 minutes</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Lock className="h-3.5 w-3.5" />
+            <span>Confidential</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const InterviewChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [progress, setProgress] = useState(0);
+  const [events, setEvents] = useState<AppEvent[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
-  const [shownSections, setShownSections] = useState<string[]>(['context']);
   const [isInitialized, setIsInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Calculate progress from section header events
+  const sectionHeaderCount = events.filter(e => e.type === "chat.section_header_added").length;
+  const progress = Math.min((sectionHeaderCount / TOTAL_SECTIONS) * 100, 100);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,37 +148,46 @@ const InterviewChat = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, shownSections]);
+  }, [messages, events]);
 
-  // Initialize interview by getting first AI message
+  // Initialize interview by fetching state or starting fresh
   useEffect(() => {
     if (isInitialized) return;
     setIsInitialized(true);
     
-    // Get the initial greeting from the LLM
     (async () => {
-      setIsTyping(true);
-      const result = await callInterviewTurn("start");
-      setIsTyping(false);
+      // First try to load existing state
+      const state = await fetchInterviewState();
       
-      if (result.success && result.transcript) {
-        // Convert transcript to Message format
-        const msgs: Message[] = result.transcript.map((t, i) => ({
+      if (state.success && state.transcript && state.transcript.length > 0) {
+        // Existing session - load from server
+        const msgs: Message[] = state.transcript.map((t, i) => ({
           id: String(i),
           role: t.role as 'user' | 'assistant',
           content: t.content,
           timestamp: new Date(),
         }));
         setMessages(msgs);
-        if (result.progress) setProgress(result.progress);
+        setEvents(state.events || []);
+      } else {
+        // No existing session - start fresh by calling turn
+        setIsTyping(true);
+        const result = await callInterviewTurn("start");
+        setIsTyping(false);
+        
+        if (result.success && result.transcript) {
+          const msgs: Message[] = result.transcript.map((t, i) => ({
+            id: String(i),
+            role: t.role as 'user' | 'assistant',
+            content: t.content,
+            timestamp: new Date(),
+          }));
+          setMessages(msgs);
+          setEvents(result.events || []);
+        }
       }
     })();
   }, [isInitialized]);
-
-  // Check if we need to show a section divider before this question index
-  const getSectionForQuestion = (qIndex: number) => {
-    return interviewSections.find(s => s.startsAtQuestion === qIndex);
-  };
 
   const handleSendMessage = async (content: string) => {
     // Add user message optimistically
@@ -115,17 +205,30 @@ const InterviewChat = () => {
     setIsTyping(false);
 
     if (result.success && result.reply) {
-      // Add AI response
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: result.reply,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiMessage]);
+      // Update from server transcript (authority)
+      if (result.transcript) {
+        const msgs: Message[] = result.transcript.map((t, i) => ({
+          id: String(i),
+          role: t.role as 'user' | 'assistant',
+          content: t.content,
+          timestamp: new Date(),
+        }));
+        setMessages(msgs);
+      } else {
+        // Fallback: add AI response locally
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: result.reply,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, aiMessage]);
+      }
       
-      // Update progress if provided
-      if (result.progress) setProgress(result.progress);
+      // Replace events from server (authority)
+      if (result.events) {
+        setEvents(result.events);
+      }
 
       // Check if interview is complete
       if (result.done) {
@@ -149,48 +252,67 @@ const InterviewChat = () => {
     }
   };
 
-  // Build the chat content with section dividers interspersed
+  // Build the chat content with events interspersed based on afterMessageIndex
   const renderChatContent = () => {
     const elements: React.ReactNode[] = [];
-    let messageIndex = 0;
 
-    // Add welcome card first
-    elements.push(<WelcomeCard key="welcome" />);
-
-    // Add first section divider
-    const firstSection = interviewSections[0];
-    if (firstSection) {
-      elements.push(
-        <SectionDivider 
-          key={`section-${firstSection.id}`}
-          title={firstSection.title}
-          subtitle={firstSection.subtitle}
-        />
-      );
+    // Group events by afterMessageIndex
+    const eventsByIndex = new Map<number, AppEvent[]>();
+    for (const event of events) {
+      const idx = event.payload?.render?.afterMessageIndex ?? -1;
+      if (!eventsByIndex.has(idx)) {
+        eventsByIndex.set(idx, []);
+      }
+      eventsByIndex.get(idx)!.push(event);
     }
 
-    // Now render messages, inserting section dividers as needed
+    // Render events with afterMessageIndex === -1 first (before any messages)
+    const preEvents = eventsByIndex.get(-1) || [];
+    for (const event of preEvents) {
+      if (event.type === "chat.title_card_added") {
+        elements.push(
+          <TitleCard
+            key={`event-${event.id}`}
+            title={event.payload.title}
+            subtitle={event.payload.subtitle}
+          />
+        );
+      } else if (event.type === "chat.section_header_added") {
+        elements.push(
+          <SectionDivider
+            key={`event-${event.id}`}
+            title={event.payload.title}
+            subtitle={event.payload.subtitle}
+          />
+        );
+      }
+    }
+
+    // Render messages, inserting events after each message as needed
     messages.forEach((message, idx) => {
-      // Check if this message triggers a new section (for AI messages after question 0)
-      if (message.role === 'assistant' && idx > 0) {
-        // Figure out which question this corresponds to
-        const assistantMessages = messages.slice(0, idx + 1).filter(m => m.role === 'assistant');
-        const qIdx = assistantMessages.length - 1;
-        
-        const section = getSectionForQuestion(qIdx);
-        if (section && section.startsAtQuestion > 0) {
+      elements.push(<ChatMessage key={message.id} message={message} />);
+      
+      // Render events that should appear after this message
+      const postEvents = eventsByIndex.get(idx) || [];
+      for (const event of postEvents) {
+        if (event.type === "chat.title_card_added") {
           elements.push(
-            <SectionDivider 
-              key={`section-${section.id}`}
-              title={section.title}
-              subtitle={section.subtitle}
+            <TitleCard
+              key={`event-${event.id}`}
+              title={event.payload.title}
+              subtitle={event.payload.subtitle}
+            />
+          );
+        } else if (event.type === "chat.section_header_added") {
+          elements.push(
+            <SectionDivider
+              key={`event-${event.id}`}
+              title={event.payload.title}
+              subtitle={event.payload.subtitle}
             />
           );
         }
       }
-
-      elements.push(<ChatMessage key={message.id} message={message} />);
-      messageIndex++;
     });
 
     return elements;
@@ -202,7 +324,7 @@ const InterviewChat = () => {
       <header className="shrink-0">
         <div className="sp-container">
           <div className="flex items-center justify-between h-12 gap-4">
-            <Link to="/interview/start" className="font-display text-xl tracking-tight text-foreground shrink-0">
+            <Link to="/interview/start" className="font-display text-xl tracking-tight text-foreground shrink-0" data-testid="link-logo">
               Serious People
             </Link>
             <UserMenu />
@@ -214,6 +336,7 @@ const InterviewChat = () => {
           <div 
             className="absolute top-0 left-0 h-full bg-accent transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
+            data-testid="progress-bar"
           />
         </div>
       </header>
