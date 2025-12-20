@@ -178,9 +178,9 @@ async function main() {
     const allNameEvents = turn2Events.filter(e => e.type === "user.provided_name_set");
     
     if (allNameEvents.length === 0) {
-      console.log("[WARN] No user.provided_name_set events found");
+      console.log("[FAIL] No user.provided_name_set events found after 'Call me Noah.'");
       console.log("[INFO] Event types present: " + JSON.stringify([...new Set(turn2Events.map(e => e.type))]));
-      passed++;
+      failed++;
     } else {
       const latestNameEvent = allNameEvents.reduce((a, b) => 
         (a.eventSeq || 0) > (b.eventSeq || 0) ? a : b

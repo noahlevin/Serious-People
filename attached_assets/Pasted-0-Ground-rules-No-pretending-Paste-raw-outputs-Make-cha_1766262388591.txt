@@ -1,0 +1,62 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Make changes in small, reversible chunks. No refactors outside scope.
+
+1) Goal
+Clean up the interview prompting + parsing so we are tool-first:
+- Dedupe redundant prompt sections (coach personality, formatting rules)
+- Remove or quarantine legacy token parsing that’s been superseded by tools/events
+- Tighten smoke test so it fails when expected behavior doesn’t occur (no “WARN then pass” for core checks)
+
+2) Scope (ONLY)
+- server/routes.ts
+- scripts/smoke-interview-chat.mjs
+- replit.md (update at end)
+
+3) Requirements
+
+A) Prompt cleanup (routes.ts)
+- Extract repeated “coach personality / tone / constraints” text into a single constant (string) used by both provider paths.
+- Make the system prompt explicitly describe the tool-based UI events:
+  - append_title_card
+  - append_section_header
+  - append_structured_outcomes
+  - set_provided_name
+  - finalize_interview
+- Remove redundant/obsolete instructions that conflict with tools (e.g. “print section headers like …” if we now tool-call them).
+
+B) Legacy token parsing cleanup (routes.ts)
+- Identify all token parsing for the interview flow (e.g. [[OPTIONS]], [[PROGRESS]], PLAN_CARD, INTERVIEW_COMPLETE, PROVIDED_NAME, etc).
+- For each token:
+  - If replaced by a tool/event: remove parsing + remove references from prompt.
+  - If still needed temporarily: move parsing behind a clearly named “legacy compatibility” block with a comment and a TODO to delete (don’t let it remain scattered).
+- Do NOT break existing clients—keep response shape stable.
+
+C) Smoke test tightening (smoke-interview-chat.mjs)
+- Name-set check: if user.provided_name_set is missing after “Call me Noah.”, FAIL (no WARN+pass).
+- Outcome selection: keep strict assertions.
+- Finalize: keep strict assertions.
+- Keep the “Turn 2 reply may be empty” allowance only if the test still confirms the intended side effect (name event present).
+
+D) App-wide “encrypted” cleanup (routes.ts + repo grep)
+- Run grep for “encrypted” across repo.
+- Remove/replace any remaining false claims. (If any are outside scope, list them and stop.)
+
+E) Update replit.md
+- Add a short section “Event-driven UI architecture”:
+  - app_events streams
+  - afterMessageIndex placement rules
+  - dev tools gating (404 in prod)
+  - what smoke covers and how to run it
+
+4) Verification (paste raw output)
+- npm run build
+- node scripts/smoke-interview-chat.mjs
+- grep -R "encrypted" . || true
+- grep -R "PROVIDED_NAME" . || true
+
+5) Acceptance criteria
+- Prompts are consolidated and clearer; no contradictory instructions.
+- Tool-first behavior is canonical; legacy token parsing is removed or isolated.
+- Smoke fails when name event is missing (no silent pass).
+- replit.md reflects the current architecture and workflow.
