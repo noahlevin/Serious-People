@@ -1020,20 +1020,6 @@ Rules:
 - Aim to use append_structured_outcomes **at least every 2 turns**
 - After reflections/synthesis, ALWAYS offer options to confirm or clarify
 
-### Progress tracking (LEGACY OUTPUT TOKEN - still required)
-
-Include in **every** reply:
-
-[[PROGRESS]]
-NN
-[[END_PROGRESS]]
-
-Where NN is 5–100. Progress is **per-module**:
-- When you start a new module (output a title card), mentally reset progress to ~5
-- Increase towards ~95 by the end of that module
-- Progress should increase by at least 2 on every reply
-- Progress should track roughly with your progress through the module agenda -- e.g. if you've finished 2 of 3 major topics, progress should be around 65
-
 ### Custom 3-module plan (pre-paywall)
 
 Once you understand the user's situation reasonably well (after understanding big problem, desired outcome, and key constraints), propose a custom 3-module coaching plan.
@@ -1050,49 +1036,34 @@ Once you understand the user's situation reasonably well (after understanding bi
 2. **Module 2: Exploring Options** — Map motivations, constraints, and possibilities
 3. **Module 3: Action Planning** — Build a concrete plan with next steps
 
-**Present the plan in this specific order:**
+**Complete the interview using these tool calls in this exact order:**
 
-1. Say: "Here's the coaching plan I've designed for your situation:"
+1. Say a brief, warm statement like: "I've put together a personalized coaching plan for you."
 
-2. Output the plan card using this EXACT format (all fields required):
+2. Call **append_value_bullets** with 3-4 bullets tailored to their specific situation:
+   - A bullet about their boss/work dynamics
+   - A bullet about their money/family/constraint context
+   - A bullet about their internal dilemma/tension
 
-[[PLAN_CARD]]
-NAME: [User's first name]
-MODULE1_NAME: [Creative, situation-specific name for the discovery module]
-MODULE1_OBJECTIVE: [What we're trying to understand or uncover — 1 sentence]
-MODULE1_APPROACH: [How we'll work through this — 1 sentence]
-MODULE1_OUTCOME: [What they'll have at the end — 1 sentence]
-MODULE2_NAME: [Creative, situation-specific name for the options module]
-MODULE2_OBJECTIVE: [What decisions or trade-offs we're clarifying — 1 sentence]
-MODULE2_APPROACH: [How we'll explore the options — 1 sentence]
-MODULE2_OUTCOME: [What clarity they'll gain — 1 sentence]
-MODULE3_NAME: [Creative, situation-specific name for the action module]
-MODULE3_OBJECTIVE: [What concrete plan we're building — 1 sentence]
-MODULE3_APPROACH: [How we'll build the plan — 1 sentence]
-MODULE3_OUTCOME: [What they'll walk away with — 1 sentence]
-CAREER_BRIEF: [2-3 sentences describing the final deliverable - a structured document with their situation mirror, diagnosis, options map, action plan, and conversation scripts tailored to their specific people and dynamics]
-SERIOUS_PLAN_SUMMARY: [One sentence describing their personalized Serious Plan - the comprehensive coaching packet they'll receive after completing all modules]
-PLANNED_ARTIFACTS: [Comma-separated list of artifact types planned for this client. Always include: decision_snapshot, action_plan, module_recap, resources. Include boss_conversation if they have manager issues. Include partner_conversation if they mentioned a spouse/partner. Include self_narrative if identity/values are central. Add at least three custom artifacts that are uniquely helpful for their situation and will delight the user with how specifically and thoughtfully they address their situational needs.]
-[[END_PLAN_CARD]]
+3. Call **append_social_proof** with a single sentence that either cites a relevant stat about career transitions/coaching effectiveness OR provides context about why structured coaching helps in their specific situation. Make it feel natural and relevant. Do NOT make up fake testimonials. Do NOT reference pricing.
 
-3. IMMEDIATELY after the plan card, include value bullets tailored to them:
-[[VALUE_BULLETS]]
-- bullet about their boss/work dynamics
-- bullet about their money/family/constraint context  
-- bullet about their internal dilemma/tension
-[[END_VALUE_BULLETS]]
+4. Call **finalize_interview** to mark the interview as complete and trigger artifact generation. This tool will save the coaching plan and generate the final next steps card.
 
-4. After the value bullets, append ONE context-relevant piece of social proof:
-[[SOCIAL_PROOF]]
-A single sentence that either: cites a relevant stat about career transitions/coaching effectiveness, OR provides context about why structured coaching helps in their specific situation. Make it feel natural and relevant to what they shared. Do NOT make up fake testimonials or specific client references. Do NOT reference pricing.
-[[END_SOCIAL_PROOF]]
+**IMPORTANT:** When calling finalize_interview, the plan card data must be included in your visible message text using this EXACT JSON format embedded in your response (the system will parse it):
 
-5. After the above tokens, include the interview completion marker:
-[[INTERVIEW_COMPLETE]]
-
-6. Call the finalize_interview tool to mark the interview as complete and trigger next steps.
-
-7. Then your visible message text should be a brief, warm statement like: "I've put together a personalized coaching plan for you."
+\`\`\`plancard
+{
+  "name": "[User's first name]",
+  "modules": [
+    {"name": "[Module 1 creative name]", "objective": "[1 sentence]", "approach": "[1 sentence]", "outcome": "[1 sentence]"},
+    {"name": "[Module 2 creative name]", "objective": "[1 sentence]", "approach": "[1 sentence]", "outcome": "[1 sentence]"},
+    {"name": "[Module 3 creative name]", "objective": "[1 sentence]", "approach": "[1 sentence]", "outcome": "[1 sentence]"}
+  ],
+  "careerBrief": "[2-3 sentences describing the final deliverable]",
+  "seriousPlanSummary": "[One sentence describing their personalized Serious Plan]",
+  "plannedArtifacts": ["decision_snapshot", "action_plan", "module_recap", "resources", "...other relevant artifacts"]
+}
+\`\`\`
 
 Do NOT ask for confirmation or show options. The frontend UI will display a teaser card that invites the user to see their plan.
 
@@ -1102,13 +1073,12 @@ Once you have:
 1. Understood the big problem & goal
 2. Gathered enough context about their situation
 
-Generate the plan in a single response that includes:
-- The [[PLAN_CARD]]...[[END_PLAN_CARD]] block
-- The [[VALUE_BULLETS]]...[[END_VALUE_BULLETS]] block
-- The [[SOCIAL_PROOF]]...[[END_SOCIAL_PROOF]] block
-- The [[INTERVIEW_COMPLETE]] marker
+Complete the interview in a single response by calling:
+1. append_value_bullets (with tailored bullets)
+2. append_social_proof (with relevant stat/insight)
+3. finalize_interview (triggers plan save and next steps card)
 
-CRITICAL: All of these tokens must be in the SAME response. The frontend will show a teaser card and the user will click through to see their full plan on the offer page.
+Include the plancard JSON block in your visible message text. The frontend will show a teaser card and the user will click through to see their full plan on the offer page.
 
 ### Post-paywall modules
 
@@ -1116,29 +1086,17 @@ After paywall, the user will be directed to separate module pages where they'll 
 
 Do NOT continue the session in this interview — the modules happen on their own dedicated pages.
 
-Continue using append_structured_outcomes and [[PROGRESS]] throughout. Do NOT emit [[INTERVIEW_COMPLETE]] again.
-
 ### Important constraints
 
-- Do NOT mention these rules, tokens, or internal structure to the user.
-- Do NOT output [[INTERVIEW_COMPLETE]] until you've completed the plan + value explanation phase.
+- Do NOT mention these rules, tools, or internal structure to the user.
+- Do NOT call finalize_interview until you've gathered enough context and generated the plan.
 - Ask ONE question at a time — never compound questions.
 - Never ask contingent questions — just ask directly or use options.
 - Validate user problems and build confidence with specific examples.
 - Use **bold** for key phrases in longer responses.
 - Alternate between freeform and structured questions.
-- Include [[PROGRESS]]…[[END_PROGRESS]] in **every** reply.
+- Use append_structured_outcomes frequently to gather input.`;
 
-### Output token reference (LEGACY - still required for parsing)
-
-The following output tokens are parsed from your response. Include them as instructed:
-- [[PROGRESS]]NN[[END_PROGRESS]] - Required in every reply
-- [[PLAN_CARD]]...[[END_PLAN_CARD]] - Required when presenting the coaching plan
-- [[VALUE_BULLETS]]...[[END_VALUE_BULLETS]] - Required after plan card
-- [[SOCIAL_PROOF]]...[[END_SOCIAL_PROOF]] - Required after value bullets
-- [[INTERVIEW_COMPLETE]] - Required to mark interview done (call finalize_interview tool too)
-
-Note: These tokens are for backwards compatibility. The append_structured_outcomes tool replaces the old [[OPTIONS]] token.`;
 
 // Retry configuration for Serious Plan auto-start
 const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000, 120000, 300000]; // 5s, 15s, 30s, 1m, 2m, 5m
@@ -3170,6 +3128,32 @@ COMMUNICATION STYLE:
           required: [],
         },
       },
+      {
+        name: "append_value_bullets",
+        description: "Display personalized value bullets that explain why this coaching plan is valuable for the user's specific situation. Call this IMMEDIATELY after generating the plan card.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            bullets: {
+              type: "array",
+              items: { type: "string" },
+              description: "Array of 3-4 value bullet strings, each highlighting a specific benefit tailored to their situation",
+            },
+          },
+          required: ["bullets"],
+        },
+      },
+      {
+        name: "append_social_proof",
+        description: "Display a single piece of relevant social proof or statistic. Call this after the value bullets.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            content: { type: "string", description: "A single sentence with a relevant stat or insight about career coaching effectiveness" },
+          },
+          required: ["content"],
+        },
+      },
     ],
     openai: [
       {
@@ -3252,6 +3236,38 @@ COMMUNICATION STYLE:
             type: "object",
             properties: {},
             required: [],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "append_value_bullets",
+          description: "Display personalized value bullets that explain why this coaching plan is valuable for the user's specific situation. Call this IMMEDIATELY after generating the plan card.",
+          parameters: {
+            type: "object",
+            properties: {
+              bullets: {
+                type: "array",
+                items: { type: "string" },
+                description: "Array of 3-4 value bullet strings, each highlighting a specific benefit tailored to their situation",
+              },
+            },
+            required: ["bullets"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "append_social_proof",
+          description: "Display a single piece of relevant social proof or statistic. Call this after the value bullets.",
+          parameters: {
+            type: "object",
+            properties: {
+              content: { type: "string", description: "A single sentence with a relevant stat or insight about career coaching effectiveness" },
+            },
+            required: ["content"],
           },
         },
       },
@@ -3556,6 +3572,24 @@ The user has entered "testskip" which is a testing command. Generate the full pl
                 console.log(`[INTERVIEW_TOOL] Appended structured_outcomes with ${optionsWithIds.length} options`);
               }
             }
+          } else if (toolUse.name === "append_value_bullets" && sessionToken) {
+            const bulletsInput = toolUse.input as { bullets: string[] };
+            if (Array.isArray(bulletsInput.bullets) && bulletsInput.bullets.length > 0) {
+              await storage.appendInterviewEvent(sessionToken, "chat.value_bullets_added", {
+                render: { afterMessageIndex },
+                bullets: bulletsInput.bullets,
+              });
+              console.log(`[INTERVIEW_TOOL] Appended value_bullets with ${bulletsInput.bullets.length} bullets`);
+            }
+          } else if (toolUse.name === "append_social_proof" && sessionToken) {
+            const proofInput = toolUse.input as { content: string };
+            if (proofInput.content && proofInput.content.trim()) {
+              await storage.appendInterviewEvent(sessionToken, "chat.social_proof_added", {
+                render: { afterMessageIndex },
+                content: proofInput.content.trim(),
+              });
+              console.log(`[INTERVIEW_TOOL] Appended social_proof`);
+            }
           } else if (toolUse.name === "finalize_interview" && sessionToken && userId) {
             await handleFinalizeInterview(sessionToken, userId, afterMessageIndex);
           }
@@ -3711,6 +3745,32 @@ The user has entered "testskip" which is a testing command. Generate the full pl
             } catch (parseError: any) {
               console.log(`[INTERVIEW_TOOL] Failed to parse structured_outcomes args: ${parseError.message}`);
             }
+          } else if (toolName === "append_value_bullets" && sessionToken) {
+            try {
+              const bulletsInput = JSON.parse(toolArgs) as { bullets: string[] };
+              if (Array.isArray(bulletsInput.bullets) && bulletsInput.bullets.length > 0) {
+                await storage.appendInterviewEvent(sessionToken, "chat.value_bullets_added", {
+                  render: { afterMessageIndex },
+                  bullets: bulletsInput.bullets,
+                });
+                console.log(`[INTERVIEW_TOOL] Appended value_bullets with ${bulletsInput.bullets.length} bullets`);
+              }
+            } catch (parseError: any) {
+              console.log(`[INTERVIEW_TOOL] Failed to parse value_bullets args: ${parseError.message}`);
+            }
+          } else if (toolName === "append_social_proof" && sessionToken) {
+            try {
+              const proofInput = JSON.parse(toolArgs) as { content: string };
+              if (proofInput.content && proofInput.content.trim()) {
+                await storage.appendInterviewEvent(sessionToken, "chat.social_proof_added", {
+                  render: { afterMessageIndex },
+                  content: proofInput.content.trim(),
+                });
+                console.log(`[INTERVIEW_TOOL] Appended social_proof`);
+              }
+            } catch (parseError: any) {
+              console.log(`[INTERVIEW_TOOL] Failed to parse social_proof args: ${parseError.message}`);
+            }
           } else if (toolName === "finalize_interview" && sessionToken && userId) {
             await handleFinalizeInterview(sessionToken, userId, afterMessageIndex);
           }
@@ -3733,65 +3793,22 @@ The user has entered "testskip" which is a testing command. Generate the full pl
       }
     }
 
-    // ============================================================================
-    // LEGACY TOKEN PARSING BLOCK
-    // TODO: Migrate remaining tokens to tool-based approach:
-    // - [[PROGRESS]] → progress tool (not yet implemented)
-    // - [[PLAN_CARD]] → plan_card tool (not yet implemented)
-    // - [[VALUE_BULLETS]] / [[SOCIAL_PROOF]] → bundled in plan output
-    // - [[INTERVIEW_COMPLETE]] → already handled by finalize_interview tool
-    // - [[OPTIONS]] → replaced by append_structured_outcomes tool (kept for fallback)
-    // ============================================================================
-    let done = false;
-    let progress: number | null = null;
-    let options: string[] | null = null;
+    // Parse plancard JSON block from reply (new format replaces [[PLAN_CARD]] tokens)
     let planCard: any = null;
-    let valueBullets: string | null = null;
-    let socialProof: string | null = null;
-
-    // Legacy: Parse progress token
-    const progressMatch = reply.match(/\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/);
-    if (progressMatch) {
-      progress = parseInt(progressMatch[1], 10);
-      if (isNaN(progress) || progress < 0 || progress > 100) progress = null;
-    }
-
-    // Legacy: Parse options token (fallback - prefer append_structured_outcomes tool)
-    const optionsMatch = reply.match(/\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/);
-    if (optionsMatch) {
-      const rawOptions = optionsMatch[1].trim();
-      let parsedOptions = rawOptions.split("\n").map((opt) => opt.trim()).filter((opt) => opt.length > 0);
-      if (parsedOptions.length === 1 && parsedOptions[0].includes("|")) {
-        parsedOptions = parsedOptions[0].split("|").map((opt) => opt.trim()).filter((opt) => opt.length > 0);
+    const plancardMatch = reply.match(/```plancard\s*([\s\S]*?)\s*```/);
+    if (plancardMatch) {
+      try {
+        planCard = JSON.parse(plancardMatch[1]);
+        console.log(`[INTERVIEW] Parsed plancard JSON with ${planCard.modules?.length || 0} modules`);
+      } catch (e: any) {
+        console.log(`[INTERVIEW] Failed to parse plancard JSON: ${e.message}`);
       }
-      options = parsedOptions;
     }
 
-    // Legacy: Parse value bullets
-    const bulletMatch = reply.match(/\[\[VALUE_BULLETS\]\]([\s\S]*?)\[\[END_VALUE_BULLETS\]\]/);
-    if (bulletMatch) valueBullets = bulletMatch[1].trim();
+    // Strip plancard block from visible output
+    reply = reply.replace(/```plancard[\s\S]*?```/g, "").trim();
 
-    // Legacy: Parse social proof
-    const socialProofMatch = reply.match(/\[\[SOCIAL_PROOF\]\]([\s\S]*?)\[\[END_SOCIAL_PROOF\]\]/);
-    if (socialProofMatch) socialProof = socialProofMatch[1].trim();
-
-    // Legacy: Check for interview completion token
-    if (reply.includes("[[INTERVIEW_COMPLETE]]")) done = true;
-
-    // Sanitize reply: strip all legacy tokens from visible output
-    reply = reply
-      .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, "")
-      .replace(/\[\[INTERVIEW_COMPLETE\]\]/g, "")
-      .replace(/\[\[VALUE_BULLETS\]\][\s\S]*?\[\[END_VALUE_BULLETS\]\]/g, "")
-      .replace(/\[\[SOCIAL_PROOF\]\][\s\S]*?\[\[END_SOCIAL_PROOF\]\]/g, "")
-      .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, "")
-      .replace(/\[\[PLAN_CARD\]\][\s\S]*?\[\[END_PLAN_CARD\]\]/g, "")
-      .trim();
-    // ============================================================================
-    // END LEGACY TOKEN PARSING BLOCK
-    // ============================================================================
-
-    return { reply, done, progress, options, planCard, valueBullets, socialProof };
+    return { reply, planCard };
   }
 
   // POST /api/transcript/revision - Increment revision count when user clicks "Change Something"
@@ -4046,8 +4063,7 @@ IMPORTANT OVERRIDE - TESTSKIP MODE:
 The user has entered "testskip" which is a testing command. You must now:
 1. Review the conversation so far
 2. Fabricate plausible, realistic answers for ALL remaining interview questions
-3. Start your response with a brief summary of what you're fabricating
-4. IMMEDIATELY output the full plan card, value bullets, social proof, and interview complete markers
+3. Call the required tools to complete the interview
 
 Generate everything in THIS SINGLE RESPONSE. Use fabricated but realistic details:
 - Name: Sarah Chen
@@ -4057,50 +4073,34 @@ Generate everything in THIS SINGLE RESPONSE. Use fabricated but realistic detail
 - Constraints: Partner expecting first child in 6 months, needs stable health insurance
 - Goals: Either get promoted here or find a role with more growth opportunity
 
-Your response format:
+In testskip mode, you MUST:
+1. Call set_provided_name with name "Sarah"
+2. Call append_value_bullets with these bullets:
+   - "Get clarity on whether your manager is actually in your corner — we'll decode the 'supportive in 1-on-1s but doesn't advocate in calibrations' dynamic"
+   - "Make a decision that accounts for your family timeline — this isn't just career moves, it's about planning around parental leave"
+   - "Stop spinning on 'am I good enough?' — the vague feedback is designed to keep you guessing; we'll break that cycle"
+3. Call append_social_proof with: "Research shows that 73% of people who feel 'stuck' at their level say the biggest barrier isn't skill — it's lack of clarity about what the organization actually wants."
+4. Call finalize_interview to complete
 
----
+Your visible message should include the plancard JSON block:
 
-Skipping ahead for testing purposes. I've fabricated a realistic client story:
+Skipping ahead for testing purposes. I've fabricated a realistic client story.
 
-Sarah is a Senior PM who's been at her company for 3 years. She feels stuck - her manager says the right things but hasn't advocated for her promotion. With her first child coming in 6 months, she needs to figure out whether to push for promotion here or start looking elsewhere.
+\`\`\`plancard
+{
+  "name": "Sarah",
+  "modules": [
+    {"name": "The Performance Paradox", "objective": "Understand why doing good work hasn't translated to advancement", "approach": "We'll examine the gap between your contributions and how they're perceived", "outcome": "Clarity on what's actually blocking your promotion"},
+    {"name": "The Family Factor", "objective": "Map your options with realistic timelines and constraints", "approach": "We'll stress-test each path against your family timeline", "outcome": "A clear view of 2-3 paths that work with your life"},
+    {"name": "The Decisive Move", "objective": "Build a concrete action plan for the next 90 days", "approach": "We'll sequence the conversations and decisions you need to make", "outcome": "A step-by-step plan with decision points and fallback options"}
+  ],
+  "careerBrief": "Senior PM at 3 years, stuck at current level despite strong performance, needs clarity before parental leave",
+  "seriousPlanSummary": "Your personalized Serious Plan will include a decision framework, conversation scripts for your manager, and a 90-day action timeline.",
+  "plannedArtifacts": ["decision_snapshot", "boss_conversation", "action_plan", "module_recap", "resources"]
+}
+\`\`\`
 
-(Note: In testskip mode, call set_provided_name with name "Sarah" to save the name.)
-
-[[PROGRESS]]90[[END_PROGRESS]]
-
-[[PLAN_CARD]]
-NAME: Sarah
-MODULE1_NAME: The Performance Paradox
-MODULE1_OBJECTIVE: Understand why "doing good work" hasn't translated to advancement
-MODULE1_APPROACH: We'll examine the gap between your contributions and how they're perceived
-MODULE1_OUTCOME: Clarity on what's actually blocking your promotion
-MODULE2_NAME: The Family Factor
-MODULE2_OBJECTIVE: Map your options with realistic timelines and constraints
-MODULE2_APPROACH: We'll stress-test each path against your family timeline
-MODULE2_OUTCOME: A clear view of 2-3 paths that work with your life
-MODULE3_NAME: The Decisive Move
-MODULE3_OBJECTIVE: Build a concrete action plan for the next 90 days
-MODULE3_APPROACH: We'll sequence the conversations and decisions you need to make
-MODULE3_OUTCOME: A step-by-step plan with decision points and fallback options
-CAREER_BRIEF: Senior PM at 3 years, stuck at current level despite strong performance, needs clarity before parental leave
-SERIOUS_PLAN_SUMMARY: Your personalized Serious Plan will include a decision framework, conversation scripts for your manager, and a 90-day action timeline.
-PLANNED_ARTIFACTS: decision_snapshot, boss_conversation, action_plan, module_recap, resources
-[[END_PLAN_CARD]]
-
-[[VALUE_BULLETS]]
-- **Get clarity on whether your manager is actually in your corner** — we'll decode the "supportive in 1-on-1s but doesn't advocate in calibrations" dynamic
-- **Make a decision that accounts for your family timeline** — this isn't just career moves, it's about planning around parental leave
-- **Stop spinning on "am I good enough?"** — the vague feedback is designed to keep you guessing; we'll break that cycle
-[[END_VALUE_BULLETS]]
-
-[[SOCIAL_PROOF]]
-Research shows that 73% of people who feel "stuck" at their level say the biggest barrier isn't skill — it's lack of clarity about what the organization actually wants.
-[[END_SOCIAL_PROOF]]
-
-[[INTERVIEW_COMPLETE]]
-
----
+I've put together a personalized coaching plan for you.
 `
         : "";
 
@@ -4170,301 +4170,53 @@ Research shows that 73% of people who feel "stuck" at their level say the bigges
 
         reply = response.choices[0].message.content || "";
       }
-      let done = false;
-      let valueBullets: string | null = null;
-      let socialProof: string | null = null;
-      let options: string[] | null = null;
-      let progress: number | null = null;
-      let planCard: {
-        name: string;
-        modules: {
-          name: string;
-          objective: string;
-          approach: string;
-          outcome: string;
-        }[];
-        careerBrief: string;
-        seriousPlanSummary: string;
-        plannedArtifacts: {
-          key: string;
-          title: string;
-          type: string;
-          description: string;
-          importance: string;
-        }[];
-      } | null = null;
 
-      // Parse progress token
-      const progressMatch = reply.match(
-        /\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/,
-      );
-      if (progressMatch) {
-        progress = parseInt(progressMatch[1], 10);
-        if (isNaN(progress) || progress < 0 || progress > 100) {
-          progress = null;
-        }
-      }
-
-      // Parse structured options (handles both newline and pipe-separated)
-      const optionsMatch = reply.match(
-        /\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/,
-      );
-      if (optionsMatch) {
-        const rawOptions = optionsMatch[1].trim();
-        // Split on newlines first, then on pipes if we only got one option
-        let parsedOptions = rawOptions
-          .split("\n")
-          .map((opt) => opt.trim())
-          .filter((opt) => opt.length > 0);
-        if (parsedOptions.length === 1 && parsedOptions[0].includes("|")) {
-          parsedOptions = parsedOptions[0]
-            .split("|")
-            .map((opt) => opt.trim())
-            .filter((opt) => opt.length > 0);
-        }
-        options = parsedOptions;
-      }
-
-      // Parse plan card with expanded format (objectives, approach, outcome)
-      const planCardMatch = reply.match(
-        /\[\[PLAN_CARD\]\]([\s\S]*?)\[\[END_PLAN_CARD\]\]/,
-      );
-      console.log(
-        `[INTERVIEW] isTestSkip=${isTestSkip} hasPlanCardMatch=${!!planCardMatch} replyLength=${reply.length}`,
-      );
-      if (isTestSkip) {
-        console.log(
-          `[INTERVIEW_TESTSKIP] Raw reply (first 2000 chars): ${reply.substring(0, 2000)}`,
-        );
-      }
-      if (planCardMatch) {
-        const cardContent = planCardMatch[1].trim();
-        const nameMatch = cardContent.match(/NAME:\s*(.+)/);
-
-        // Module 1
-        const module1NameMatch = cardContent.match(/MODULE1_NAME:\s*(.+)/);
-        const module1ObjectiveMatch = cardContent.match(
-          /MODULE1_OBJECTIVE:\s*(.+)/,
-        );
-        const module1ApproachMatch = cardContent.match(
-          /MODULE1_APPROACH:\s*(.+)/,
-        );
-        const module1OutcomeMatch = cardContent.match(
-          /MODULE1_OUTCOME:\s*(.+)/,
-        );
-
-        // Module 2
-        const module2NameMatch = cardContent.match(/MODULE2_NAME:\s*(.+)/);
-        const module2ObjectiveMatch = cardContent.match(
-          /MODULE2_OBJECTIVE:\s*(.+)/,
-        );
-        const module2ApproachMatch = cardContent.match(
-          /MODULE2_APPROACH:\s*(.+)/,
-        );
-        const module2OutcomeMatch = cardContent.match(
-          /MODULE2_OUTCOME:\s*(.+)/,
-        );
-
-        // Module 3
-        const module3NameMatch = cardContent.match(/MODULE3_NAME:\s*(.+)/);
-        const module3ObjectiveMatch = cardContent.match(
-          /MODULE3_OBJECTIVE:\s*(.+)/,
-        );
-        const module3ApproachMatch = cardContent.match(
-          /MODULE3_APPROACH:\s*(.+)/,
-        );
-        const module3OutcomeMatch = cardContent.match(
-          /MODULE3_OUTCOME:\s*(.+)/,
-        );
-
-        const careerBriefMatch = cardContent.match(/CAREER_BRIEF:\s*(.+)/);
-        const seriousPlanSummaryMatch = cardContent.match(
-          /SERIOUS_PLAN_SUMMARY:\s*(.+)/,
-        );
-        const plannedArtifactsMatch = cardContent.match(
-          /PLANNED_ARTIFACTS:\s*(.+)/,
-        );
-
-        // Parse planned artifacts into structured format
-        const parseArtifacts = (
-          artifactList: string,
-        ): {
-          key: string;
-          title: string;
-          type: string;
-          description: string;
-          importance: string;
-        }[] => {
-          const artifactKeys = artifactList
-            .split(",")
-            .map((a) => a.trim().toLowerCase().replace(/\s+/g, "_"));
-          const artifactDefinitions: Record<
-            string,
-            {
-              title: string;
-              type: string;
-              description: string;
-              importance: string;
-            }
-          > = {
-            decision_snapshot: {
-              title: "Decision Snapshot",
-              type: "snapshot",
-              description:
-                "A concise summary of your situation, options, and recommended path forward",
-              importance: "must_read",
-            },
-            action_plan: {
-              title: "Action Plan",
-              type: "plan",
-              description:
-                "A time-boxed plan with concrete steps and decision checkpoints",
-              importance: "must_read",
-            },
-            boss_conversation: {
-              title: "Boss Conversation Plan",
-              type: "conversation",
-              description:
-                "Scripts and strategies for navigating your manager conversation",
-              importance: "must_read",
-            },
-            partner_conversation: {
-              title: "Partner Conversation Plan",
-              type: "conversation",
-              description:
-                "Talking points for discussing this transition with your partner",
-              importance: "recommended",
-            },
-            self_narrative: {
-              title: "Clarity Memo",
-              type: "narrative",
-              description:
-                "The story you tell yourself about this transition and what you want",
-              importance: "recommended",
-            },
-            module_recap: {
-              title: "Module Recap",
-              type: "recap",
-              description:
-                "Key insights and decisions from each coaching session",
-              importance: "recommended",
-            },
-            resources: {
-              title: "Curated Resources",
-              type: "resources",
-              description:
-                "Articles, books, and tools specifically chosen for your situation",
-              importance: "optional",
-            },
-            risk_map: {
-              title: "Risk & Fallback Map",
-              type: "plan",
-              description:
-                "Identified risks with mitigation strategies and backup plans",
-              importance: "recommended",
-            },
-            negotiation_toolkit: {
-              title: "Negotiation Toolkit",
-              type: "conversation",
-              description:
-                "Strategies and scripts for salary or terms negotiation",
-              importance: "recommended",
-            },
-            networking_plan: {
-              title: "Networking Plan",
-              type: "plan",
-              description:
-                "A targeted approach to building connections for your next move",
-              importance: "optional",
-            },
-          };
-
-          return artifactKeys.map((key) => {
-            const def = artifactDefinitions[key] || {
-              title: key
-                .replace(/_/g, " ")
-                .replace(/\b\w/g, (c) => c.toUpperCase()),
-              type: "custom",
-              description: "Custom artifact for your situation",
-              importance: "recommended",
+      // Parse plancard JSON block from reply (new format replaces [[PLAN_CARD]] tokens)
+      let planCard: any = null;
+      const plancardMatch = reply.match(/```plancard\s*([\s\S]*?)\s*```/);
+      if (plancardMatch) {
+        try {
+          const rawPlanCard = JSON.parse(plancardMatch[1]);
+          
+          // Convert plannedArtifacts array of strings to structured format
+          const parseArtifacts = (artifactKeys: string[]): { key: string; title: string; type: string; description: string; importance: string }[] => {
+            const artifactDefinitions: Record<string, { title: string; type: string; description: string; importance: string }> = {
+              decision_snapshot: { title: "Decision Snapshot", type: "snapshot", description: "A concise summary of your situation, options, and recommended path forward", importance: "must_read" },
+              action_plan: { title: "Action Plan", type: "plan", description: "A time-boxed plan with concrete steps and decision checkpoints", importance: "must_read" },
+              boss_conversation: { title: "Boss Conversation Plan", type: "conversation", description: "Scripts and strategies for navigating your manager conversation", importance: "must_read" },
+              partner_conversation: { title: "Partner Conversation Plan", type: "conversation", description: "Talking points for discussing this transition with your partner", importance: "recommended" },
+              self_narrative: { title: "Clarity Memo", type: "narrative", description: "The story you tell yourself about this transition and what you want", importance: "recommended" },
+              module_recap: { title: "Module Recap", type: "recap", description: "Key insights and decisions from each coaching session", importance: "recommended" },
+              resources: { title: "Curated Resources", type: "resources", description: "Articles, books, and tools specifically chosen for your situation", importance: "optional" },
+              risk_map: { title: "Risk & Fallback Map", type: "plan", description: "Identified risks with mitigation strategies and backup plans", importance: "recommended" },
+              negotiation_toolkit: { title: "Negotiation Toolkit", type: "conversation", description: "Strategies and scripts for salary or terms negotiation", importance: "recommended" },
+              networking_plan: { title: "Networking Plan", type: "plan", description: "A targeted approach to building connections for your next move", importance: "optional" },
             };
-            return { key, ...def };
-          });
-        };
-
-        if (nameMatch) {
-          const artifactList =
-            plannedArtifactsMatch?.[1]?.trim() ||
-            "decision_snapshot, action_plan, module_recap, resources";
-          planCard = {
-            name: nameMatch[1].trim(),
-            modules: [
-              {
-                name: module1NameMatch?.[1]?.trim() || "Discovery",
-                objective: module1ObjectiveMatch?.[1]?.trim() || "",
-                approach: module1ApproachMatch?.[1]?.trim() || "",
-                outcome: module1OutcomeMatch?.[1]?.trim() || "",
-              },
-              {
-                name: module2NameMatch?.[1]?.trim() || "Options",
-                objective: module2ObjectiveMatch?.[1]?.trim() || "",
-                approach: module2ApproachMatch?.[1]?.trim() || "",
-                outcome: module2OutcomeMatch?.[1]?.trim() || "",
-              },
-              {
-                name: module3NameMatch?.[1]?.trim() || "Action Plan",
-                objective: module3ObjectiveMatch?.[1]?.trim() || "",
-                approach: module3ApproachMatch?.[1]?.trim() || "",
-                outcome: module3OutcomeMatch?.[1]?.trim() || "",
-              },
-            ],
-            careerBrief: careerBriefMatch?.[1]?.trim() || "",
-            seriousPlanSummary:
-              seriousPlanSummaryMatch?.[1]?.trim() ||
-              "Your personalized Serious Plan with tailored coaching artifacts",
-            plannedArtifacts: parseArtifacts(artifactList),
+            return artifactKeys.map((key) => {
+              const normalizedKey = key.trim().toLowerCase().replace(/\s+/g, "_");
+              const def = artifactDefinitions[normalizedKey] || { title: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), type: "custom", description: "Custom artifact for your situation", importance: "recommended" };
+              return { key: normalizedKey, ...def };
+            });
           };
+          
+          planCard = {
+            name: rawPlanCard.name || "",
+            modules: rawPlanCard.modules || [],
+            careerBrief: rawPlanCard.careerBrief || "",
+            seriousPlanSummary: rawPlanCard.seriousPlanSummary || "Your personalized Serious Plan with tailored coaching artifacts",
+            plannedArtifacts: parseArtifacts(rawPlanCard.plannedArtifacts || ["decision_snapshot", "action_plan", "module_recap", "resources"]),
+          };
+          console.log(`[INTERVIEW] Parsed plancard JSON with ${planCard.modules?.length || 0} modules`);
+        } catch (e: any) {
+          console.log(`[INTERVIEW] Failed to parse plancard JSON: ${e.message}`);
         }
       }
 
-      // Parse value bullets (can appear with plan card or interview complete)
-      const bulletMatch = reply.match(
-        /\[\[VALUE_BULLETS\]\]([\s\S]*?)\[\[END_VALUE_BULLETS\]\]/,
-      );
-      if (bulletMatch) {
-        valueBullets = bulletMatch[1].trim();
-      }
-
-      // Parse social proof (can appear with plan card or interview complete)
-      const socialProofMatch = reply.match(
-        /\[\[SOCIAL_PROOF\]\]([\s\S]*?)\[\[END_SOCIAL_PROOF\]\]/,
-      );
-      if (socialProofMatch) {
-        socialProof = socialProofMatch[1].trim();
-      }
-
-      // Check for interview completion
-      if (reply.includes("[[INTERVIEW_COMPLETE]]")) {
-        done = true;
-      }
-
-      // Sanitize reply - remove all control tokens
-      reply = reply
-        .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, "")
-        .replace(/\[\[INTERVIEW_COMPLETE\]\]/g, "")
-        .replace(/\[\[VALUE_BULLETS\]\][\s\S]*?\[\[END_VALUE_BULLETS\]\]/g, "")
-        .replace(/\[\[SOCIAL_PROOF\]\][\s\S]*?\[\[END_SOCIAL_PROOF\]\]/g, "")
-        .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, "")
-        .replace(/\[\[PLAN_CARD\]\][\s\S]*?\[\[END_PLAN_CARD\]\]/g, "")
-        .trim();
+      // Strip plancard block from visible output
+      reply = reply.replace(/```plancard[\s\S]*?```/g, "").trim();
 
       res.json({
         reply,
-        done,
-        valueBullets,
-        socialProof,
-        options,
-        progress,
         planCard,
       });
     } catch (error: any) {

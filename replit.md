@@ -63,9 +63,9 @@ When maintaining visual parity between SEO pages (EJS + seo.css) and React SPA (
 The interview chat uses an **app_events** table to stream structured UI events to the frontend, enabling rich interactive elements beyond plain text messages.
 
 **Core Concepts:**
-- **Event Types:** `chat.title_card_added`, `chat.section_header_added`, `chat.structured_outcomes_added`, `chat.outcome_selected`, `user.provided_name_set`, `chat.final_next_steps_added`
+- **Event Types:** `chat.title_card_added`, `chat.section_header_added`, `chat.structured_outcomes_added`, `chat.outcome_selected`, `user.provided_name_set`, `chat.value_bullets_added`, `chat.social_proof_added`, `chat.final_next_steps_added`
 - **afterMessageIndex:** Each event specifies where it should appear in the chat timeline (after which message index)
-- **Tool-Based Approach:** LLM uses tools (`append_title_card`, `append_section_header`, `append_structured_outcomes`, `set_provided_name`, `finalize_interview`) to inject UI elements rather than embedding tokens in text
+- **Tool-Based Approach:** LLM uses tools (`append_title_card`, `append_section_header`, `append_structured_outcomes`, `set_provided_name`, `append_value_bullets`, `append_social_proof`, `finalize_interview`) to inject UI elements rather than embedding tokens in text
 
 **Dev Tools:**
 - Development-only endpoints under `/api/dev/interview/*` (returns 404 in production)
@@ -75,7 +75,7 @@ The interview chat uses an **app_events** table to stream structured UI events t
 **Smoke Test:**
 - Location: `scripts/smoke-interview-chat.mjs`
 - Run: `node scripts/smoke-interview-chat.mjs`
-- Coverage: 15 checks including name capture, structured outcomes lifecycle, finalization, and artifact generation
+- Coverage: 17 checks including name capture, structured outcomes lifecycle, finalization, artifact generation, token-free verification
 - Strict mode: Test fails (not warns) when expected events are missing
 
 **Module Event-Driven Architecture:**
@@ -87,10 +87,9 @@ The interview chat uses an **app_events** table to stream structured UI events t
 - **Module Dev Endpoints:** `/api/dev/module/inject-outcomes`, `/api/dev/module/outcomes/select`, `/api/dev/module/complete`
 - **Module Smoke Test:** `scripts/smoke-module-chat.mjs` with 13 checks (includes plan-derived module names verification)
 
-**Legacy Token Parsing (Interview only):**
-- Some interview tokens (`[[PROGRESS]]`, `[[PLAN_CARD]]`, `[[VALUE_BULLETS]]`, `[[SOCIAL_PROOF]]`, `[[INTERVIEW_COMPLETE]]`) are still parsed for backwards compatibility
-- Located in isolated block in `server/routes.ts` with TODO comments for migration (Batch B scope)
-- `[[OPTIONS]]` replaced by `append_structured_outcomes` tool (fallback parsing still exists)
+**Plancard Format:**
+- Plan card data is passed as JSON in ```plancard``` code blocks (parsed and stripped from visible output)
+- Replaces legacy `[[PLAN_CARD]]` token approach
 
 ## External Dependencies
 
@@ -102,6 +101,7 @@ The interview chat uses an **app_events** table to stream structured UI events t
 
 ## Recent Changes
 
+- **Dec 20, 2025:** Completed Batch B token migration - ALL legacy interview tokens eliminated. Added `append_value_bullets` and `append_social_proof` tools. Extended interview smoke test to 17 checks with token-free verification. All tokens now replaced by tool-based event streaming.
 - **Dec 20, 2025:** Implemented plan-derived module names: /api/journey and /api/bootstrap now return modules array from planCard.modules. Updated progress.tsx to use journey.modules instead of hardcoded placeholders. Extended module smoke test to 13 checks with plan-derived modules verification (all passing).
 - **Dec 20, 2025:** Converted all 3 module flows to tool-based event streaming architecture (Batch A complete). Added module state endpoint, dev endpoints, and smoke test. Module tokens removed; interview tokens remain for Batch B.
 - **Dec 19, 2025:** Fixed mobile horizontal overflow on SEO landing page by hiding `.sp-situation-hover` on mobile viewports. Fixed quote centering with explicit `text-align: center` on blockquote/cite elements.

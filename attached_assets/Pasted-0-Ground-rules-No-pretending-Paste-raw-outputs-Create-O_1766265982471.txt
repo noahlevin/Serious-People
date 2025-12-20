@@ -1,0 +1,69 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Create ONE shared layout component (AppShell) used across all pages.
+- Be extremely conservative about CSS:
+  - Prefer a small set of dedicated `.sp-*` classes in serious-people.css
+  - Do NOT mix Tailwind utility soup + inline styles + custom CSS on the same container element.
+  - Avoid overlapping classes with conflicting padding/margins.
+- No visual redesign; keep spacing similar to current “good” pages.
+
+1) Goal
+Introduce a shared AppShell (Header + Footer + main container) and apply it to ALL routes so:
+- The user menu is always in the upper-right on every page
+- Header height is consistent and not “way too tall”
+- Footer is consistent
+- Main content never hides behind header
+- We reduce per-page layout duplication (less drift)
+
+2) Scope (ONLY)
+- client/src/components/AppShell.tsx (new)
+- client/src/styles/serious-people.css (add only shell/header/footer styles; avoid touching unrelated rules)
+- client/src/App.tsx (wrap routes with AppShell)
+- Any page components that currently render their own header/footer (edit only to remove duplicated wrappers once AppShell is applied)
+
+3) Discovery (required BEFORE edits)
+- grep -R "<header" client/src || true
+- grep -R "<footer" client/src || true
+- grep -R "sp-interview-header" client/src/styles/serious-people.css || true
+- Provide a short list of pages that currently implement their own header/footer and what classnames they use.
+
+4) Implementation requirements
+A) AppShell structure
+- <div className="sp-shell">
+    <header className="sp-shell-header"> (logo left, <UserMenu/> right)
+    <main className="sp-shell-main">{children}</main>
+    <footer className="sp-shell-footer">...</footer>
+  </div>
+
+B) CSS: single-source header height + offsets
+- Define header height once (CSS variable or explicit height)
+- Ensure main top padding/margin matches header height
+- If header is fixed, make it fixed everywhere; if not, make it static everywhere. Pick one and apply consistently.
+
+C) Migration
+- Wrap all routes in App.tsx with AppShell.
+- Remove per-page headers/footers that would result in duplicates.
+- Remove any per-page “padding-top” hacks that were compensating for fixed headers.
+
+D) Safety against CSS conflicts
+- When removing per-page header markup, also remove the associated conflicting classes if they are no longer used.
+- Do NOT delete global CSS unless grep confirms it is unused.
+
+5) Verification (paste raw outputs)
+- npm run build
+- grep -R "<header" client/src | head
+- grep -R "<footer" client/src | head
+- Manual sanity list (no screenshots needed):
+  - / (landing)
+  - /interview/start
+  - /interview/prepare
+  - /interview/chat
+  - /module/1
+  - /seriousplan
+  Confirm: single header, menu present, content visible, footer present.
+
+6) Acceptance criteria
+- Every page has a single consistent header with UserMenu.
+- Header height is consistent and not oversized.
+- No double headers, no hidden content behind header.
+- Build passes.
