@@ -85,7 +85,7 @@ The interview chat uses an **app_events** table to stream structured UI events t
 - **Module Tools:** `append_structured_outcomes`, `set_progress`, `complete_module` for LLM to inject UI elements
 - **Module State Endpoint:** `GET /api/module/:moduleNumber/state` returns transcript + events for deterministic rendering
 - **Module Dev Endpoints:** `/api/dev/module/inject-outcomes`, `/api/dev/module/outcomes/select`, `/api/dev/module/complete`
-- **Module Smoke Test:** `scripts/smoke-module-chat.mjs` with 12 checks
+- **Module Smoke Test:** `scripts/smoke-module-chat.mjs` with 13 checks (includes plan-derived module names verification)
 
 **Legacy Token Parsing (Interview only):**
 - Some interview tokens (`[[PROGRESS]]`, `[[PLAN_CARD]]`, `[[VALUE_BULLETS]]`, `[[SOCIAL_PROOF]]`, `[[INTERVIEW_COMPLETE]]`) are still parsed for backwards compatibility
@@ -102,5 +102,6 @@ The interview chat uses an **app_events** table to stream structured UI events t
 
 ## Recent Changes
 
-- **Dec 20, 2025:** Converted all 3 module flows to tool-based event streaming architecture (Batch A complete). Added module state endpoint, dev endpoints, and smoke test (12/12 passing). Module tokens removed; interview tokens remain for Batch B.
+- **Dec 20, 2025:** Implemented plan-derived module names: /api/journey and /api/bootstrap now return modules array from planCard.modules. Updated progress.tsx to use journey.modules instead of hardcoded placeholders. Extended module smoke test to 13 checks with plan-derived modules verification (all passing).
+- **Dec 20, 2025:** Converted all 3 module flows to tool-based event streaming architecture (Batch A complete). Added module state endpoint, dev endpoints, and smoke test. Module tokens removed; interview tokens remain for Batch B.
 - **Dec 19, 2025:** Fixed mobile horizontal overflow on SEO landing page by hiding `.sp-situation-hover` on mobile viewports. Fixed quote centering with explicit `text-align: center` on blockquote/cite elements.
