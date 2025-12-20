@@ -2782,6 +2782,8 @@ COMMUNICATION STYLE:
   });
 
   // POST /api/interview/outcomes/select - Select a structured outcome option
+  // Uses eventSeq (number) as the canonical identifier for outcomes events
+  // Idempotency: same option = success (no-op), different option = 409 Conflict
   app.post("/api/interview/outcomes/select", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
@@ -2789,19 +2791,19 @@ COMMUNICATION STYLE:
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      const { eventId: rawEventId, optionId } = req.body;
-      if (rawEventId === undefined || rawEventId === null || !optionId) {
-        return res.status(400).json({ error: "eventId and optionId are required" });
+      const { eventSeq: rawEventSeq, optionId } = req.body;
+      if (rawEventSeq === undefined || rawEventSeq === null || !optionId) {
+        return res.status(400).json({ error: "eventSeq and optionId are required" });
       }
 
-      // Ensure eventId is a number
-      const eventId = typeof rawEventId === "string" ? parseInt(rawEventId, 10) : rawEventId;
-      if (typeof eventId !== "number" || isNaN(eventId)) {
-        return res.status(400).json({ error: "eventId must be a valid number" });
+      // Ensure eventSeq is a number
+      const eventSeq = typeof rawEventSeq === "string" ? parseInt(rawEventSeq, 10) : rawEventSeq;
+      if (typeof eventSeq !== "number" || isNaN(eventSeq)) {
+        return res.status(400).json({ error: "eventSeq must be a valid number" });
       }
 
-      // Get or create transcript
-      let transcript = await storage.getTranscriptByUserId(user.id);
+      // Get transcript
+      const transcript = await storage.getTranscriptByUserId(user.id);
       if (!transcript) {
         return res.status(400).json({ error: "No interview session found" });
       }
@@ -2809,19 +2811,34 @@ COMMUNICATION STYLE:
       const sessionToken = transcript.sessionToken;
       const events = await storage.listInterviewEvents(sessionToken);
 
-      // Find the structured outcomes event
-      const outcomesEvent = events.find(e => e.id === eventId && e.type === "chat.structured_outcomes_added");
+      // Find the structured outcomes event by eventSeq
+      const outcomesEvent = events.find(e => e.eventSeq === eventSeq && e.type === "chat.structured_outcomes_added");
       if (!outcomesEvent) {
         return res.status(404).json({ error: "Outcomes event not found" });
       }
 
-      // Check if already selected
-      const alreadySelected = events.some(e => 
+      // Check if already selected for this outcomes event
+      const existingSelection = events.find(e => 
         e.type === "chat.structured_outcome_selected" && 
-        (e.payload as any)?.eventId === eventId
+        (e.payload as any)?.eventSeq === eventSeq
       );
-      if (alreadySelected) {
-        return res.status(400).json({ error: "Option already selected for this event" });
+      
+      if (existingSelection) {
+        const existingOptionId = (existingSelection.payload as any)?.optionId;
+        if (existingOptionId === optionId) {
+          // Same option selected again - idempotent success, return current state
+          const existingMessages = transcript.transcript || [];
+          res.json({
+            success: true,
+            transcript: existingMessages,
+            events,
+            note: "Option already selected (idempotent)",
+          });
+          return;
+        } else {
+          // Different option selected - conflict
+          return res.status(409).json({ error: "A different option was already selected for this event" });
+        }
       }
 
       // Find the option
@@ -2832,13 +2849,13 @@ COMMUNICATION STYLE:
       }
 
       // Calculate afterMessageIndex for the selection event
-      const existingMessages = transcript.messages || [];
+      const existingMessages = transcript.transcript || [];
       const afterMessageIndex = existingMessages.length > 0 ? existingMessages.length - 1 : -1;
 
-      // Append the selection event
+      // Append the selection event (using eventSeq as reference)
       await storage.appendInterviewEvent(sessionToken, "chat.structured_outcome_selected", {
         render: { afterMessageIndex },
-        eventId,
+        eventSeq,
         optionId,
         value: selectedOption.value,
       });
@@ -2846,7 +2863,7 @@ COMMUNICATION STYLE:
       // Append user message to transcript
       const userMessage = { role: "user", content: selectedOption.value };
       const updatedMessages = [...existingMessages, userMessage];
-      await storage.updateTranscript(sessionToken, { messages: updatedMessages as any });
+      await storage.updateTranscript(sessionToken, { transcript: updatedMessages as any });
 
       // Call LLM for response
       const llmResult = await callInterviewLLM(updatedMessages as any, sessionToken, user.id);
@@ -2854,7 +2871,7 @@ COMMUNICATION STYLE:
       // Append AI response to transcript
       const aiMessage = { role: "assistant", content: llmResult.reply };
       const finalMessages = [...updatedMessages, aiMessage];
-      await storage.updateTranscript(sessionToken, { messages: finalMessages as any });
+      await storage.updateTranscript(sessionToken, { transcript: finalMessages as any });
 
       // Fetch updated events
       const updatedEvents = await storage.listInterviewEvents(sessionToken);
@@ -5606,6 +5623,8 @@ FORMAT:
   });
 
   // POST /api/dev/interview/outcomes/select - Dev-only outcome selection (no auth)
+  // Uses eventSeq (number) as the canonical identifier for outcomes events
+  // Idempotency: same option = success (no-op), different option = 409 Conflict
   app.post("/api/dev/interview/outcomes/select", async (req, res) => {
     if (!requireDevTools(req, res)) return;
 
@@ -5615,18 +5634,18 @@ FORMAT:
         return res.status(404).json({ error: "No user found" });
       }
 
-      const { eventId: rawEventId, optionId } = req.body;
-      if (rawEventId === undefined || rawEventId === null || !optionId) {
-        return res.status(400).json({ error: "eventId and optionId are required" });
+      const { eventSeq: rawEventSeq, optionId } = req.body;
+      if (rawEventSeq === undefined || rawEventSeq === null || !optionId) {
+        return res.status(400).json({ error: "eventSeq and optionId are required" });
       }
 
-      // Ensure eventId is a number
-      const eventId = typeof rawEventId === "string" ? parseInt(rawEventId, 10) : rawEventId;
-      if (typeof eventId !== "number" || isNaN(eventId)) {
-        return res.status(400).json({ error: "eventId must be a valid number" });
+      // Ensure eventSeq is a number
+      const eventSeq = typeof rawEventSeq === "string" ? parseInt(rawEventSeq, 10) : rawEventSeq;
+      if (typeof eventSeq !== "number" || isNaN(eventSeq)) {
+        return res.status(400).json({ error: "eventSeq must be a valid number" });
       }
 
-      let transcript = await storage.getTranscriptByUserId(user.id);
+      const transcript = await storage.getTranscriptByUserId(user.id);
       if (!transcript) {
         return res.status(400).json({ error: "No interview session found" });
       }
@@ -5634,17 +5653,34 @@ FORMAT:
       const sessionToken = transcript.sessionToken;
       const eventsData = await storage.listInterviewEvents(sessionToken);
 
-      const outcomesEvent = eventsData.find(e => e.id === eventId && e.type === "chat.structured_outcomes_added");
+      // Find the structured outcomes event by eventSeq
+      const outcomesEvent = eventsData.find(e => e.eventSeq === eventSeq && e.type === "chat.structured_outcomes_added");
       if (!outcomesEvent) {
         return res.status(404).json({ error: "Outcomes event not found" });
       }
 
-      const alreadySelected = eventsData.some(e => 
+      // Check if already selected for this outcomes event
+      const existingSelection = eventsData.find(e => 
         e.type === "chat.structured_outcome_selected" && 
-        (e.payload as any)?.eventId === eventId
+        (e.payload as any)?.eventSeq === eventSeq
       );
-      if (alreadySelected) {
-        return res.status(400).json({ error: "Option already selected for this event" });
+      
+      if (existingSelection) {
+        const existingOptionId = (existingSelection.payload as any)?.optionId;
+        if (existingOptionId === optionId) {
+          // Same option selected again - idempotent success, return current state
+          const existingMessages = transcript.transcript || [];
+          res.json({
+            success: true,
+            transcript: existingMessages,
+            events: eventsData,
+            note: "Option already selected (idempotent)",
+          });
+          return;
+        } else {
+          // Different option selected - conflict
+          return res.status(409).json({ error: "A different option was already selected for this event" });
+        }
       }
 
       const options = (outcomesEvent.payload as any)?.options || [];
@@ -5653,25 +5689,26 @@ FORMAT:
         return res.status(404).json({ error: "Option not found" });
       }
 
-      const existingMessages = transcript.messages || [];
+      const existingMessages = transcript.transcript || [];
       const afterMessageIndex = existingMessages.length > 0 ? existingMessages.length - 1 : -1;
 
+      // Append the selection event (using eventSeq as reference)
       await storage.appendInterviewEvent(sessionToken, "chat.structured_outcome_selected", {
         render: { afterMessageIndex },
-        eventId,
+        eventSeq,
         optionId,
         value: selectedOption.value,
       });
 
       const userMessage = { role: "user", content: selectedOption.value };
       const updatedMessages = [...existingMessages, userMessage];
-      await storage.updateTranscript(sessionToken, { messages: updatedMessages as any });
+      await storage.updateTranscript(sessionToken, { transcript: updatedMessages as any });
 
       const llmResult = await callInterviewLLM(updatedMessages as any, sessionToken, user.id);
 
       const aiMessage = { role: "assistant", content: llmResult.reply };
       const finalMessages = [...updatedMessages, aiMessage];
-      await storage.updateTranscript(sessionToken, { messages: finalMessages as any });
+      await storage.updateTranscript(sessionToken, { transcript: finalMessages as any });
 
       const updatedEvents = await storage.listInterviewEvents(sessionToken);
 
@@ -5689,6 +5726,54 @@ FORMAT:
       });
     } catch (error: any) {
       console.error("[DEV] outcomes/select error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/interview/inject-outcomes - Dev-only endpoint to inject test outcomes event
+  // Used by smoke tests since LLM tool calls are not deterministic
+  app.post("/api/dev/interview/inject-outcomes", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.status(400).json({ error: "No interview session found" });
+      }
+
+      const sessionToken = transcript.sessionToken;
+      const existingMessages = transcript.transcript || [];
+      const afterMessageIndex = existingMessages.length > 0 ? existingMessages.length - 1 : -1;
+
+      // Create test outcomes with deterministic IDs
+      const testOptions = [
+        { id: "test_opt_1", label: "Option A", value: "I choose option A" },
+        { id: "test_opt_2", label: "Option B", value: "I choose option B" },
+        { id: "test_opt_3", label: "Option C", value: "I choose option C" },
+      ];
+
+      const event = await storage.appendInterviewEvent(sessionToken, "chat.structured_outcomes_added", {
+        render: { afterMessageIndex },
+        prompt: "Which option would you like?",
+        options: testOptions,
+      });
+
+      const allEvents = await storage.listInterviewEvents(sessionToken);
+
+      res.json({
+        success: true,
+        event,
+        eventSeq: event.eventSeq,
+        options: testOptions,
+        events: allEvents,
+      });
+    } catch (error: any) {
+      console.error("[DEV] inject-outcomes error:", error);
       res.status(500).json({ error: error.message });
     }
   });

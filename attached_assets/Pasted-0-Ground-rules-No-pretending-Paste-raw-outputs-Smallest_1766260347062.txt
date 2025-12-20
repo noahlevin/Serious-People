@@ -1,0 +1,64 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Smallest change that closes verification gaps.
+
+1) Goal
+Harden structured outcomes so:
+- Selection targets the correct event identifier deterministically
+- Dev endpoints are hidden (404) in prod
+- Smoke test proves outcomes lifecycle: tool adds pills → user selects → pills resolve on refresh
+
+2) Scope (ONLY)
+- server/routes.ts
+- server/storage.ts (only if needed for lookup helpers)
+- client/src/lovable/pages/InterviewChat.tsx
+- scripts/smoke-interview-chat.mjs
+
+3) Requirements
+
+A) Confirm and standardize the identifier used for outcome selection
+- If "eventId" is intended to be app_events.id (UUID), then:
+  - /api/interview/outcomes/select must accept string UUID and validate as UUID
+  - client must pass UUID
+- If "eventId" is intended to be app_events.eventSeq (number), then:
+  - rename request field to eventSeq (or accept both for backwards compatibility)
+  - server must look up the event by (stream, eventSeq)
+  - client must pass eventSeq
+Pick one canonical id and make it consistent across:
+  - event payloads
+  - client selection calls
+  - server validation/lookup
+Do NOT leave this ambiguous.
+
+B) Idempotency + correctness
+- If the same option is selected twice:
+  - server should no-op and return the current transcript+events (success)
+- If a different option is selected for an already-selected outcomes event:
+  - server should reject with 409 or treat as no-op (choose one; document it in code comments)
+
+C) Prod safety for dev endpoint
+- Ensure /api/dev/interview/outcomes/select returns 404 in production (not 403)
+- Use the same dev gating pattern already used elsewhere in routes.ts
+
+D) Smoke test: outcomes end-to-end
+Update scripts/smoke-interview-chat.mjs to:
+- Reset state (clear events for stream + clear providedName if needed)
+- Run a turn that triggers structured outcomes deterministically
+  - If the LLM tool call is not reliable for smoke, add a dev-only mechanism:
+    - either a special header (DEV_TOOLS_SECRET) to force insert a test outcomes event, OR
+    - a dev-only endpoint to append a test outcomes event
+- Verify:
+  1) events include one chat.structured_outcomes_added with >= 2 options
+  2) call /api/interview/outcomes/select selecting option 1
+  3) response transcript length increases and contains the selected option text as a user message
+  4) events now include chat.structured_outcome_selected for the same outcomes event
+  5) GET /api/interview/state shows the outcomes as resolved (i.e., selection exists so pills should not render)
+
+4) Verification (paste raw output)
+- npm run build
+- node scripts/smoke-interview-chat.mjs
+
+5) Acceptance criteria
+- Selection API uses a single, correct identifier (UUID or eventSeq) end-to-end
+- Dev endpoint is 404 in prod
+- Smoke proves outcomes lifecycle and refresh determinism

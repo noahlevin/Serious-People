@@ -17,7 +17,8 @@ interface StructuredOption {
 }
 
 interface AppEvent {
-  id: number;
+  id: string;  // UUID
+  eventSeq: number;  // Canonical numeric identifier used for selection
   stream: string;
   type: string;
   payload: {
@@ -27,7 +28,7 @@ interface AppEvent {
     name?: string;  // for user.provided_name_set events
     prompt?: string;  // for structured_outcomes_added events
     options?: StructuredOption[];  // for structured_outcomes_added events
-    eventId?: number;  // for structured_outcome_selected events
+    eventSeq?: number;  // for structured_outcome_selected events (references outcomes event)
     optionId?: string;  // for structured_outcome_selected events
   };
   createdAt: string;
@@ -156,21 +157,21 @@ const InterviewChat = () => {
   const sectionHeaderCount = events.filter(e => e.type === "chat.section_header_added").length;
   const progress = Math.min((sectionHeaderCount / TOTAL_SECTIONS) * 100, 100);
 
-  // Check if a structured outcomes event has been selected
-  const isOutcomeSelected = useCallback((eventId: number): boolean => {
+  // Check if a structured outcomes event has been selected (using eventSeq)
+  const isOutcomeSelected = useCallback((eventSeq: number): boolean => {
     return events.some(e => 
       e.type === "chat.structured_outcome_selected" && 
-      e.payload.eventId === eventId
+      e.payload.eventSeq === eventSeq
     );
   }, [events]);
 
-  // Handle structured outcome selection
-  const handleOutcomeSelect = useCallback(async (eventId: string, optionId: string) => {
+  // Handle structured outcome selection (eventSeq is passed as string, converted to number)
+  const handleOutcomeSelect = useCallback(async (eventSeqStr: string, optionId: string) => {
     setIsTyping(true);
     
-    const numericEventId = parseInt(eventId, 10);
-    if (isNaN(numericEventId)) {
-      console.error("[InterviewChat] Invalid eventId:", eventId);
+    const eventSeq = parseInt(eventSeqStr, 10);
+    if (isNaN(eventSeq)) {
+      console.error("[InterviewChat] Invalid eventSeq:", eventSeqStr);
       setIsTyping(false);
       return;
     }
@@ -180,7 +181,7 @@ const InterviewChat = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ eventId: numericEventId, optionId }),
+        body: JSON.stringify({ eventSeq, optionId }),
       });
 
       if (!res.ok) {
@@ -369,12 +370,12 @@ const InterviewChat = () => {
       } else if (event.type === "chat.structured_outcomes_added" && event.payload.options) {
         return (
           <StructuredOutcomes
-            key={`event-${event.id}`}
-            eventId={String(event.id)}
+            key={`event-${event.eventSeq}`}
+            eventId={String(event.eventSeq)}
             prompt={event.payload.prompt}
             options={event.payload.options}
             onSelect={handleOutcomeSelect}
-            disabled={isOutcomeSelected(event.id) || isTyping}
+            disabled={isOutcomeSelected(event.eventSeq) || isTyping}
           />
         );
       }
