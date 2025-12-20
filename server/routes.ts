@@ -2781,6 +2781,102 @@ COMMUNICATION STYLE:
     await handleInterviewTurn(req.user as any, req.body, res);
   });
 
+  // POST /api/interview/outcomes/select - Select a structured outcome option
+  app.post("/api/interview/outcomes/select", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { eventId: rawEventId, optionId } = req.body;
+      if (rawEventId === undefined || rawEventId === null || !optionId) {
+        return res.status(400).json({ error: "eventId and optionId are required" });
+      }
+
+      // Ensure eventId is a number
+      const eventId = typeof rawEventId === "string" ? parseInt(rawEventId, 10) : rawEventId;
+      if (typeof eventId !== "number" || isNaN(eventId)) {
+        return res.status(400).json({ error: "eventId must be a valid number" });
+      }
+
+      // Get or create transcript
+      let transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.status(400).json({ error: "No interview session found" });
+      }
+
+      const sessionToken = transcript.sessionToken;
+      const events = await storage.listInterviewEvents(sessionToken);
+
+      // Find the structured outcomes event
+      const outcomesEvent = events.find(e => e.id === eventId && e.type === "chat.structured_outcomes_added");
+      if (!outcomesEvent) {
+        return res.status(404).json({ error: "Outcomes event not found" });
+      }
+
+      // Check if already selected
+      const alreadySelected = events.some(e => 
+        e.type === "chat.structured_outcome_selected" && 
+        (e.payload as any)?.eventId === eventId
+      );
+      if (alreadySelected) {
+        return res.status(400).json({ error: "Option already selected for this event" });
+      }
+
+      // Find the option
+      const options = (outcomesEvent.payload as any)?.options || [];
+      const selectedOption = options.find((opt: any) => opt.id === optionId);
+      if (!selectedOption) {
+        return res.status(404).json({ error: "Option not found" });
+      }
+
+      // Calculate afterMessageIndex for the selection event
+      const existingMessages = transcript.messages || [];
+      const afterMessageIndex = existingMessages.length > 0 ? existingMessages.length - 1 : -1;
+
+      // Append the selection event
+      await storage.appendInterviewEvent(sessionToken, "chat.structured_outcome_selected", {
+        render: { afterMessageIndex },
+        eventId,
+        optionId,
+        value: selectedOption.value,
+      });
+
+      // Append user message to transcript
+      const userMessage = { role: "user", content: selectedOption.value };
+      const updatedMessages = [...existingMessages, userMessage];
+      await storage.updateTranscript(sessionToken, { messages: updatedMessages as any });
+
+      // Call LLM for response
+      const llmResult = await callInterviewLLM(updatedMessages as any, sessionToken, user.id);
+
+      // Append AI response to transcript
+      const aiMessage = { role: "assistant", content: llmResult.reply };
+      const finalMessages = [...updatedMessages, aiMessage];
+      await storage.updateTranscript(sessionToken, { messages: finalMessages as any });
+
+      // Fetch updated events
+      const updatedEvents = await storage.listInterviewEvents(sessionToken);
+
+      res.json({
+        success: true,
+        transcript: finalMessages,
+        reply: llmResult.reply,
+        done: llmResult.done,
+        progress: llmResult.progress,
+        options: llmResult.options,
+        planCard: llmResult.planCard,
+        valueBullets: llmResult.valueBullets,
+        socialProof: llmResult.socialProof,
+        events: updatedEvents,
+      });
+    } catch (error: any) {
+      console.error("[OUTCOMES_SELECT] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Shared interview turn handler (used by both auth and dev endpoints)
   async function handleInterviewTurn(
     user: { id: string },
@@ -2909,6 +3005,30 @@ COMMUNICATION STYLE:
           required: ["name"],
         },
       },
+      {
+        name: "append_structured_outcomes",
+        description: "Display clickable pill options for the user to choose from. Use this instead of writing options as plain text. When you use this tool, do NOT include the options in your message text.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            prompt: { type: "string", description: "Optional prompt text above the options" },
+            options: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string", description: "Optional unique ID for the option" },
+                  label: { type: "string", description: "Short display text for the pill" },
+                  value: { type: "string", description: "Full text sent as user message when clicked" },
+                },
+                required: ["label", "value"],
+              },
+              description: "Array of options to display as clickable pills",
+            },
+          },
+          required: ["options"],
+        },
+      },
     ],
     openai: [
       {
@@ -2952,6 +3072,33 @@ COMMUNICATION STYLE:
               name: { type: "string", description: "The user's name exactly as they provided it" },
             },
             required: ["name"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "append_structured_outcomes",
+          description: "Display clickable pill options for the user to choose from. Use this instead of writing options as plain text. When you use this tool, do NOT include the options in your message text.",
+          parameters: {
+            type: "object",
+            properties: {
+              prompt: { type: "string", description: "Optional prompt text above the options" },
+              options: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string", description: "Optional unique ID for the option" },
+                    label: { type: "string", description: "Short display text for the pill" },
+                    value: { type: "string", description: "Full text sent as user message when clicked" },
+                  },
+                  required: ["label", "value"],
+                },
+                description: "Array of options to display as clickable pills",
+              },
+            },
+            required: ["options"],
           },
         },
       },
@@ -3092,6 +3239,37 @@ The user has entered "testskip" which is a testing command. Generate the full pl
             } else {
               console.log(`[INTERVIEW_TOOL] Rejected invalid name: "${name}"`);
             }
+          } else if (toolUse.name === "append_structured_outcomes" && sessionToken) {
+            const outcomesInput = toolUse.input as { prompt?: string; options: { id?: string; label: string; value: string }[] };
+            
+            // Validate options array
+            if (!Array.isArray(outcomesInput.options) || outcomesInput.options.length === 0) {
+              console.log(`[INTERVIEW_TOOL] Skipping structured_outcomes - invalid or empty options`);
+            } else {
+              // Validate each option has required fields
+              const validOptions = outcomesInput.options.filter(opt => 
+                opt && typeof opt.label === "string" && opt.label.trim() && 
+                typeof opt.value === "string" && opt.value.trim()
+              );
+              
+              if (validOptions.length === 0) {
+                console.log(`[INTERVIEW_TOOL] Skipping structured_outcomes - no valid options`);
+              } else {
+                // Generate IDs for options that don't have them
+                const optionsWithIds = validOptions.map((opt, idx) => ({
+                  id: opt.id || `opt_${Date.now()}_${idx}`,
+                  label: opt.label.trim(),
+                  value: opt.value.trim(),
+                }));
+                
+                await storage.appendInterviewEvent(sessionToken, "chat.structured_outcomes_added", {
+                  render: { afterMessageIndex },
+                  prompt: outcomesInput.prompt,
+                  options: optionsWithIds,
+                });
+                console.log(`[INTERVIEW_TOOL] Appended structured_outcomes with ${optionsWithIds.length} options`);
+              }
+            }
           }
           
           toolResults.push({
@@ -3209,6 +3387,41 @@ The user has entered "testskip" which is a testing command. Generate the full pl
               }
             } else {
               console.log(`[INTERVIEW_TOOL] Rejected invalid name: "${name}"`);
+            }
+          } else if (toolName === "append_structured_outcomes" && sessionToken) {
+            try {
+              const outcomesInput = JSON.parse(toolArgs) as { prompt?: string; options: { id?: string; label: string; value: string }[] };
+              
+              // Validate options array
+              if (!Array.isArray(outcomesInput.options) || outcomesInput.options.length === 0) {
+                console.log(`[INTERVIEW_TOOL] Skipping structured_outcomes - invalid or empty options`);
+              } else {
+                // Validate each option has required fields
+                const validOptions = outcomesInput.options.filter(opt => 
+                  opt && typeof opt.label === "string" && opt.label.trim() && 
+                  typeof opt.value === "string" && opt.value.trim()
+                );
+                
+                if (validOptions.length === 0) {
+                  console.log(`[INTERVIEW_TOOL] Skipping structured_outcomes - no valid options`);
+                } else {
+                  // Generate IDs for options that don't have them
+                  const optionsWithIds = validOptions.map((opt, idx) => ({
+                    id: opt.id || `opt_${Date.now()}_${idx}`,
+                    label: opt.label.trim(),
+                    value: opt.value.trim(),
+                  }));
+                  
+                  await storage.appendInterviewEvent(sessionToken, "chat.structured_outcomes_added", {
+                    render: { afterMessageIndex },
+                    prompt: outcomesInput.prompt,
+                    options: optionsWithIds,
+                  });
+                  console.log(`[INTERVIEW_TOOL] Appended structured_outcomes with ${optionsWithIds.length} options`);
+                }
+              }
+            } catch (parseError: any) {
+              console.log(`[INTERVIEW_TOOL] Failed to parse structured_outcomes args: ${parseError.message}`);
             }
           }
           
@@ -5388,6 +5601,94 @@ FORMAT:
       await handleInterviewTurn(user, req.body, res);
     } catch (error: any) {
       console.error("[DEV] interview/turn error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/interview/outcomes/select - Dev-only outcome selection (no auth)
+  app.post("/api/dev/interview/outcomes/select", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const { eventId: rawEventId, optionId } = req.body;
+      if (rawEventId === undefined || rawEventId === null || !optionId) {
+        return res.status(400).json({ error: "eventId and optionId are required" });
+      }
+
+      // Ensure eventId is a number
+      const eventId = typeof rawEventId === "string" ? parseInt(rawEventId, 10) : rawEventId;
+      if (typeof eventId !== "number" || isNaN(eventId)) {
+        return res.status(400).json({ error: "eventId must be a valid number" });
+      }
+
+      let transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.status(400).json({ error: "No interview session found" });
+      }
+
+      const sessionToken = transcript.sessionToken;
+      const eventsData = await storage.listInterviewEvents(sessionToken);
+
+      const outcomesEvent = eventsData.find(e => e.id === eventId && e.type === "chat.structured_outcomes_added");
+      if (!outcomesEvent) {
+        return res.status(404).json({ error: "Outcomes event not found" });
+      }
+
+      const alreadySelected = eventsData.some(e => 
+        e.type === "chat.structured_outcome_selected" && 
+        (e.payload as any)?.eventId === eventId
+      );
+      if (alreadySelected) {
+        return res.status(400).json({ error: "Option already selected for this event" });
+      }
+
+      const options = (outcomesEvent.payload as any)?.options || [];
+      const selectedOption = options.find((opt: any) => opt.id === optionId);
+      if (!selectedOption) {
+        return res.status(404).json({ error: "Option not found" });
+      }
+
+      const existingMessages = transcript.messages || [];
+      const afterMessageIndex = existingMessages.length > 0 ? existingMessages.length - 1 : -1;
+
+      await storage.appendInterviewEvent(sessionToken, "chat.structured_outcome_selected", {
+        render: { afterMessageIndex },
+        eventId,
+        optionId,
+        value: selectedOption.value,
+      });
+
+      const userMessage = { role: "user", content: selectedOption.value };
+      const updatedMessages = [...existingMessages, userMessage];
+      await storage.updateTranscript(sessionToken, { messages: updatedMessages as any });
+
+      const llmResult = await callInterviewLLM(updatedMessages as any, sessionToken, user.id);
+
+      const aiMessage = { role: "assistant", content: llmResult.reply };
+      const finalMessages = [...updatedMessages, aiMessage];
+      await storage.updateTranscript(sessionToken, { messages: finalMessages as any });
+
+      const updatedEvents = await storage.listInterviewEvents(sessionToken);
+
+      res.json({
+        success: true,
+        transcript: finalMessages,
+        reply: llmResult.reply,
+        done: llmResult.done,
+        progress: llmResult.progress,
+        options: llmResult.options,
+        planCard: llmResult.planCard,
+        valueBullets: llmResult.valueBullets,
+        socialProof: llmResult.socialProof,
+        events: updatedEvents,
+      });
+    } catch (error: any) {
+      console.error("[DEV] outcomes/select error:", error);
       res.status(500).json({ error: error.message });
     }
   });

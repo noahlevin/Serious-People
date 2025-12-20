@@ -1,14 +1,21 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import ChatMessage from "@/lovable/components/interview/ChatMessage";
 import { UserMenu } from "@/components/UserMenu";
 import ChatInput from "@/lovable/components/interview/ChatInput";
 import SectionDivider from "@/lovable/components/interview/SectionDivider";
 import UpsellCard from "@/lovable/components/interview/UpsellCard";
+import StructuredOutcomes from "@/lovable/components/interview/StructuredOutcomes";
 import { Clock, Lock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 // Types for events from server
+interface StructuredOption {
+  id: string;
+  label: string;
+  value: string;
+}
+
 interface AppEvent {
   id: number;
   stream: string;
@@ -18,6 +25,10 @@ interface AppEvent {
     title?: string;
     subtitle?: string;
     name?: string;  // for user.provided_name_set events
+    prompt?: string;  // for structured_outcomes_added events
+    options?: StructuredOption[];  // for structured_outcomes_added events
+    eventId?: number;  // for structured_outcome_selected events
+    optionId?: string;  // for structured_outcome_selected events
   };
   createdAt: string;
 }
@@ -144,6 +155,69 @@ const InterviewChat = () => {
   // Calculate progress from section header events
   const sectionHeaderCount = events.filter(e => e.type === "chat.section_header_added").length;
   const progress = Math.min((sectionHeaderCount / TOTAL_SECTIONS) * 100, 100);
+
+  // Check if a structured outcomes event has been selected
+  const isOutcomeSelected = useCallback((eventId: number): boolean => {
+    return events.some(e => 
+      e.type === "chat.structured_outcome_selected" && 
+      e.payload.eventId === eventId
+    );
+  }, [events]);
+
+  // Handle structured outcome selection
+  const handleOutcomeSelect = useCallback(async (eventId: string, optionId: string) => {
+    setIsTyping(true);
+    
+    const numericEventId = parseInt(eventId, 10);
+    if (isNaN(numericEventId)) {
+      console.error("[InterviewChat] Invalid eventId:", eventId);
+      setIsTyping(false);
+      return;
+    }
+    
+    try {
+      const res = await fetch("/api/interview/outcomes/select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ eventId: numericEventId, optionId }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+
+      const result = await res.json();
+      
+      if (result.success && result.transcript) {
+        const msgs: Message[] = result.transcript.map((t: any, i: number) => ({
+          id: String(i),
+          role: t.role as 'user' | 'assistant',
+          content: t.content,
+          timestamp: new Date(),
+        }));
+        setMessages(msgs);
+        
+        if (result.events) {
+          setEvents(result.events);
+          if (result.events.some((e: AppEvent) => e.type === "user.provided_name_set")) {
+            refetch();
+          }
+        }
+
+        if (result.done) {
+          setIsComplete(true);
+          markInterviewComplete();
+          setTimeout(() => setShowUpsell(true), 2000);
+        }
+      }
+    } catch (error) {
+      console.error("[InterviewChat] Outcome selection failed:", error);
+    } finally {
+      setIsTyping(false);
+    }
+  }, [refetch]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -274,11 +348,10 @@ const InterviewChat = () => {
       eventsByIndex.get(idx)!.push(event);
     }
 
-    // Render events with afterMessageIndex === -1 first (before any messages)
-    const preEvents = eventsByIndex.get(-1) || [];
-    for (const event of preEvents) {
+    // Helper to render an event
+    const renderEvent = (event: AppEvent) => {
       if (event.type === "chat.title_card_added" && event.payload.title) {
-        elements.push(
+        return (
           <TitleCard
             key={`event-${event.id}`}
             title={event.payload.title}
@@ -286,14 +359,33 @@ const InterviewChat = () => {
           />
         );
       } else if (event.type === "chat.section_header_added" && event.payload.title) {
-        elements.push(
+        return (
           <SectionDivider
             key={`event-${event.id}`}
             title={event.payload.title}
             subtitle={event.payload.subtitle}
           />
         );
+      } else if (event.type === "chat.structured_outcomes_added" && event.payload.options) {
+        return (
+          <StructuredOutcomes
+            key={`event-${event.id}`}
+            eventId={String(event.id)}
+            prompt={event.payload.prompt}
+            options={event.payload.options}
+            onSelect={handleOutcomeSelect}
+            disabled={isOutcomeSelected(event.id) || isTyping}
+          />
+        );
       }
+      return null;
+    };
+
+    // Render events with afterMessageIndex === -1 first (before any messages)
+    const preEvents = eventsByIndex.get(-1) || [];
+    for (const event of preEvents) {
+      const el = renderEvent(event);
+      if (el) elements.push(el);
     }
 
     // Render messages, inserting events after each message as needed
@@ -303,23 +395,8 @@ const InterviewChat = () => {
       // Render events that should appear after this message
       const postEvents = eventsByIndex.get(idx) || [];
       for (const event of postEvents) {
-        if (event.type === "chat.title_card_added" && event.payload.title) {
-          elements.push(
-            <TitleCard
-              key={`event-${event.id}`}
-              title={event.payload.title}
-              subtitle={event.payload.subtitle}
-            />
-          );
-        } else if (event.type === "chat.section_header_added" && event.payload.title) {
-          elements.push(
-            <SectionDivider
-              key={`event-${event.id}`}
-              title={event.payload.title}
-              subtitle={event.payload.subtitle}
-            />
-          );
-        }
+        const el = renderEvent(event);
+        if (el) elements.push(el);
       }
     });
 
