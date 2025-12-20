@@ -3063,19 +3063,31 @@ The user has entered "testskip" which is a testing command. Generate the full pl
             }
           } else if (toolUse.name === "set_provided_name" && userId) {
             const nameInput = toolUse.input as { name: string };
-            const name = nameInput.name?.trim();
+            const rawName = nameInput.name;
+            const name = rawName?.trim();
+            
+            if (process.env.NODE_ENV !== "production") {
+              console.log(`[INTERVIEW_TOOL] set_provided_name called with input="${rawName}", trimmed="${name}"`);
+            }
             
             // Validate name: 1-50 chars, not all punctuation
             if (name && name.length >= 1 && name.length <= 50 && /[a-zA-Z0-9]/.test(name)) {
-              await storage.updateUser(userId, { providedName: name });
-              console.log(`[INTERVIEW_TOOL] Set providedName="${name}" for user ${userId}`);
-              
-              // Append event for client tracking
-              if (sessionToken) {
-                await storage.appendInterviewEvent(sessionToken, "user.provided_name_set", {
-                  render: { afterMessageIndex },
-                  name,
-                });
+              // Idempotency: skip if user already has a providedName
+              const existingUser = await storage.getUser(userId);
+              if (existingUser?.providedName) {
+                console.log(`[INTERVIEW_TOOL] Skipping set_provided_name - user already has providedName="${existingUser.providedName}"`);
+              } else {
+                await storage.updateUser(userId, { providedName: name });
+                console.log(`[INTERVIEW_TOOL] Persisted providedName="${name}" for user ${userId}`);
+                
+                // Append event for client tracking
+                if (sessionToken) {
+                  await storage.appendInterviewEvent(sessionToken, "user.provided_name_set", {
+                    render: { afterMessageIndex },
+                    name,
+                  });
+                  console.log(`[INTERVIEW_TOOL] Appended user.provided_name_set event with name="${name}"`);
+                }
               }
             } else {
               console.log(`[INTERVIEW_TOOL] Rejected invalid name: "${name}"`);
@@ -3169,19 +3181,31 @@ The user has entered "testskip" which is a testing command. Generate the full pl
             }
           } else if (toolName === "set_provided_name" && userId) {
             const nameInput = JSON.parse(toolArgs) as { name: string };
-            const name = nameInput.name?.trim();
+            const rawName = nameInput.name;
+            const name = rawName?.trim();
+            
+            if (process.env.NODE_ENV !== "production") {
+              console.log(`[INTERVIEW_TOOL] set_provided_name called with input="${rawName}", trimmed="${name}"`);
+            }
             
             // Validate name: 1-50 chars, not all punctuation
             if (name && name.length >= 1 && name.length <= 50 && /[a-zA-Z0-9]/.test(name)) {
-              await storage.updateUser(userId, { providedName: name });
-              console.log(`[INTERVIEW_TOOL] Set providedName="${name}" for user ${userId}`);
-              
-              // Append event for client tracking
-              if (sessionToken) {
-                await storage.appendInterviewEvent(sessionToken, "user.provided_name_set", {
-                  render: { afterMessageIndex },
-                  name,
-                });
+              // Idempotency: skip if user already has a providedName
+              const existingUser = await storage.getUser(userId);
+              if (existingUser?.providedName) {
+                console.log(`[INTERVIEW_TOOL] Skipping set_provided_name - user already has providedName="${existingUser.providedName}"`);
+              } else {
+                await storage.updateUser(userId, { providedName: name });
+                console.log(`[INTERVIEW_TOOL] Persisted providedName="${name}" for user ${userId}`);
+                
+                // Append event for client tracking
+                if (sessionToken) {
+                  await storage.appendInterviewEvent(sessionToken, "user.provided_name_set", {
+                    render: { afterMessageIndex },
+                    name,
+                  });
+                  console.log(`[INTERVIEW_TOOL] Appended user.provided_name_set event with name="${name}"`);
+                }
               }
             } else {
               console.log(`[INTERVIEW_TOOL] Rejected invalid name: "${name}"`);
@@ -5364,6 +5388,34 @@ FORMAT:
       await handleInterviewTurn(user, req.body, res);
     } catch (error: any) {
       console.error("[DEV] interview/turn error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/reset-user-name - Reset user's providedName to null and clear events for testing
+  app.post("/api/dev/reset-user-name", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      // Reset providedName
+      await storage.updateUser(user.id, { providedName: null });
+      console.log(`[DEV] Reset providedName to null for user ${user.id}`);
+
+      // Also clear interview events if there's a transcript with a session token
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (transcript?.sessionToken) {
+        await storage.clearInterviewEvents(transcript.sessionToken);
+        console.log(`[DEV] Cleared interview events for session ${transcript.sessionToken}`);
+      }
+
+      res.json({ success: true, userId: user.id });
+    } catch (error: any) {
+      console.error("[DEV] reset-user-name error:", error);
       res.status(500).json({ error: error.message });
     }
   });

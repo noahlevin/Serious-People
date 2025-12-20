@@ -123,6 +123,7 @@ export interface IStorage {
   // Convenience helpers for interview events
   listInterviewEvents(sessionToken: string): Promise<AppEvent[]>;
   appendInterviewEvent(sessionToken: string, type: string, payload: AppEventPayload): Promise<AppEvent>;
+  clearInterviewEvents(sessionToken: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -591,6 +592,10 @@ export class DatabaseStorage implements IStorage {
 
   async appendInterviewEvent(sessionToken: string, type: string, payload: AppEventPayload): Promise<AppEvent> {
     return this.appendEvent(`interview:${sessionToken}`, { type, payload });
+  }
+
+  async clearInterviewEvents(sessionToken: string): Promise<void> {
+    await db.delete(appEvents).where(eq(appEvents.stream, `interview:${sessionToken}`));
   }
 }
 
