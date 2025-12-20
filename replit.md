@@ -74,11 +74,21 @@ The interview chat uses an **app_events** table to stream structured UI events t
 
 **Smoke Test:**
 - Location: `scripts/smoke-interview-chat.mjs`
-- Run: `node scripts/smoke-interview-chat.mjs` (full suite, ~3-5 min)
-- Fast mode: `DEV_FAST=1 node scripts/smoke-interview-chat.mjs` (~30 sec, uses testskip)
-- Coverage: 17 checks including name capture, structured outcomes lifecycle, finalization, artifact generation, token-free verification (full mode) or 5 checks (DEV_FAST mode)
-- Env vars: `TURN_TIMEOUT_MS` (default 120000), `MAX_RETRIES` (default 2), `DEV_FAST=1` (testskip mode)
-- Strict mode: Test fails (not warns) when expected events are missing
+- **Two modes with strict separation:**
+  - **Full Suite** (default): `node scripts/smoke-interview-chat.mjs`
+    - Tests real LLM integration with strict assertions
+    - Empty replies = FAILURE (no exceptions)
+    - 16 checks including name capture, structured outcomes lifecycle, finalization, artifact generation, token-free verification
+    - Runtime: ~3-5 min depending on LLM latency
+  - **Fast Suite** (DEV_FAST=1): `DEV_FAST=1 node scripts/smoke-interview-chat.mjs`
+    - Tests dev endpoints only, NO LLM calls
+    - 6 deterministic checks: inject outcomes, select option, finalize, interview complete, modules exist, artifacts exist
+    - Runtime: ~5 seconds
+    - Clearly labeled "LLM NOT EXERCISED" in output
+- Env vars: `TURN_TIMEOUT_MS` (default 120000), `MAX_RETRIES` (default 2)
+- When to use each:
+  - **Full Suite**: Before releases, after LLM prompt changes, validating end-to-end flow
+  - **Fast Suite**: Quick dev iteration, CI/CD gates, validating non-LLM functionality
 
 **Module Event-Driven Architecture:**
 - Module chat now uses the same event streaming pattern as interview chat
