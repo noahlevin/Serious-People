@@ -6,6 +6,7 @@ import ChatInput from "@/lovable/components/interview/ChatInput";
 import SectionDivider from "@/lovable/components/interview/SectionDivider";
 import UpsellCard from "@/lovable/components/interview/UpsellCard";
 import { Clock, Lock } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 // Types for events from server
 interface AppEvent {
@@ -14,8 +15,9 @@ interface AppEvent {
   type: string;
   payload: {
     render: { afterMessageIndex: number };
-    title: string;
+    title?: string;
     subtitle?: string;
+    name?: string;  // for user.provided_name_set events
   };
   createdAt: string;
 }
@@ -130,6 +132,7 @@ const TitleCard = ({ title, subtitle }: { title: string; subtitle?: string }) =>
 };
 
 const InterviewChat = () => {
+  const { refetch } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -228,6 +231,11 @@ const InterviewChat = () => {
       // Replace events from server (authority)
       if (result.events) {
         setEvents(result.events);
+        
+        // If name was set, refetch auth to update UserMenu
+        if (result.events.some(e => e.type === "user.provided_name_set")) {
+          refetch();
+        }
       }
 
       // Check if interview is complete
@@ -269,7 +277,7 @@ const InterviewChat = () => {
     // Render events with afterMessageIndex === -1 first (before any messages)
     const preEvents = eventsByIndex.get(-1) || [];
     for (const event of preEvents) {
-      if (event.type === "chat.title_card_added") {
+      if (event.type === "chat.title_card_added" && event.payload.title) {
         elements.push(
           <TitleCard
             key={`event-${event.id}`}
@@ -277,7 +285,7 @@ const InterviewChat = () => {
             subtitle={event.payload.subtitle}
           />
         );
-      } else if (event.type === "chat.section_header_added") {
+      } else if (event.type === "chat.section_header_added" && event.payload.title) {
         elements.push(
           <SectionDivider
             key={`event-${event.id}`}
@@ -295,7 +303,7 @@ const InterviewChat = () => {
       // Render events that should appear after this message
       const postEvents = eventsByIndex.get(idx) || [];
       for (const event of postEvents) {
-        if (event.type === "chat.title_card_added") {
+        if (event.type === "chat.title_card_added" && event.payload.title) {
           elements.push(
             <TitleCard
               key={`event-${event.id}`}
@@ -303,7 +311,7 @@ const InterviewChat = () => {
               subtitle={event.payload.subtitle}
             />
           );
-        } else if (event.type === "chat.section_header_added") {
+        } else if (event.type === "chat.section_header_added" && event.payload.title) {
           elements.push(
             <SectionDivider
               key={`event-${event.id}`}

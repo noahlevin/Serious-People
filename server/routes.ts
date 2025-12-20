@@ -853,10 +853,7 @@ That's it. Wait for their answer before asking anything else.
 
 ### Second turn (after getting their name)
 
-IMPORTANT: When the user provides their name, you MUST output this token on its own line FIRST, before any other content:
-[[PROVIDED_NAME:TheirName]]
-
-Replace "TheirName" with exactly what they told you (just the name, nothing else). This saves their name to their profile.
+When the user provides their name, call the **set_provided_name** tool with exactly what they told you. This saves their name to their profile.
 
 Then greet them warmly by name and offer structured options with natural phrasing:
 
@@ -2813,7 +2810,7 @@ COMMUNICATION STYLE:
         sessionToken = `interview_${user.id}_${Date.now()}`;
         
         // Call LLM to get the initial greeting (with sessionToken for tool events)
-        const initialReply = await callInterviewLLM([], sessionToken);
+        const initialReply = await callInterviewLLM([], sessionToken, user.id);
         const initialMessage = { role: "assistant", content: initialReply.reply };
         
         transcript = await storage.createTranscript({
@@ -2834,7 +2831,7 @@ COMMUNICATION STYLE:
       existingMessages.push(userMessage);
 
       // Call LLM with full transcript and sessionToken for event persistence
-      const llmResult = await callInterviewLLM(existingMessages, sessionToken);
+      const llmResult = await callInterviewLLM(existingMessages, sessionToken, user.id);
 
       // Append assistant reply
       const assistantMessage = { role: "assistant", content: llmResult.reply };
@@ -2901,6 +2898,17 @@ COMMUNICATION STYLE:
           required: ["title"],
         },
       },
+      {
+        name: "set_provided_name",
+        description: "Save the user's name to their profile. Call this when the user tells you their name.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            name: { type: "string", description: "The user's name exactly as they provided it" },
+          },
+          required: ["name"],
+        },
+      },
     ],
     openai: [
       {
@@ -2933,13 +2941,28 @@ COMMUNICATION STYLE:
           },
         },
       },
+      {
+        type: "function" as const,
+        function: {
+          name: "set_provided_name",
+          description: "Save the user's name to their profile. Call this when the user tells you their name.",
+          parameters: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "The user's name exactly as they provided it" },
+            },
+            required: ["name"],
+          },
+        },
+      },
     ],
   };
 
   // Helper to call the interview LLM with tool support
   async function callInterviewLLM(
     transcript: { role: string; content: string }[],
-    sessionToken?: string
+    sessionToken?: string,
+    userId?: string
   ) {
     if (!useAnthropic && !process.env.OPENAI_API_KEY) {
       throw new Error("No AI API key configured");
@@ -3038,6 +3061,25 @@ The user has entered "testskip" which is a testing command. Generate the full pl
               await storage.appendInterviewEvent(sessionToken, eventType, payload);
               console.log(`[INTERVIEW_TOOL] Appended ${eventType} for session ${sessionToken}`);
             }
+          } else if (toolUse.name === "set_provided_name" && userId) {
+            const nameInput = toolUse.input as { name: string };
+            const name = nameInput.name?.trim();
+            
+            // Validate name: 1-50 chars, not all punctuation
+            if (name && name.length >= 1 && name.length <= 50 && /[a-zA-Z0-9]/.test(name)) {
+              await storage.updateUser(userId, { providedName: name });
+              console.log(`[INTERVIEW_TOOL] Set providedName="${name}" for user ${userId}`);
+              
+              // Append event for client tracking
+              if (sessionToken) {
+                await storage.appendInterviewEvent(sessionToken, "user.provided_name_set", {
+                  render: { afterMessageIndex },
+                  name,
+                });
+              }
+            } else {
+              console.log(`[INTERVIEW_TOOL] Rejected invalid name: "${name}"`);
+            }
           }
           
           toolResults.push({
@@ -3124,6 +3166,25 @@ The user has entered "testskip" which is a testing command. Generate the full pl
               
               await storage.appendInterviewEvent(sessionToken, eventType, payload);
               console.log(`[INTERVIEW_TOOL] Appended ${eventType} for session ${sessionToken}`);
+            }
+          } else if (toolName === "set_provided_name" && userId) {
+            const nameInput = JSON.parse(toolArgs) as { name: string };
+            const name = nameInput.name?.trim();
+            
+            // Validate name: 1-50 chars, not all punctuation
+            if (name && name.length >= 1 && name.length <= 50 && /[a-zA-Z0-9]/.test(name)) {
+              await storage.updateUser(userId, { providedName: name });
+              console.log(`[INTERVIEW_TOOL] Set providedName="${name}" for user ${userId}`);
+              
+              // Append event for client tracking
+              if (sessionToken) {
+                await storage.appendInterviewEvent(sessionToken, "user.provided_name_set", {
+                  render: { afterMessageIndex },
+                  name,
+                });
+              }
+            } else {
+              console.log(`[INTERVIEW_TOOL] Rejected invalid name: "${name}"`);
             }
           }
           
@@ -3466,7 +3527,7 @@ Skipping ahead for testing purposes. I've fabricated a realistic client story:
 
 Sarah is a Senior PM who's been at her company for 3 years. She feels stuck - her manager says the right things but hasn't advocated for her promotion. With her first child coming in 6 months, she needs to figure out whether to push for promotion here or start looking elsewhere.
 
-[[PROVIDED_NAME:Sarah]]
+(Note: In testskip mode, call set_provided_name with name "Sarah" to save the name.)
 
 [[PROGRESS]]90[[END_PROGRESS]]
 
@@ -4782,32 +4843,6 @@ FORMAT:
         return res.status(400).json({ error: "Invalid transcript format" });
       }
 
-      // Parse PROVIDED_NAME token from AI responses and update user profile
-      // Token format: [[PROVIDED_NAME:TheirName]]
-      let providedNameUpdated = false;
-      for (const message of transcript) {
-        if (message.role === "assistant" && message.content) {
-          const nameMatch = message.content.match(
-            /\[\[PROVIDED_NAME:([^\]]+)\]\]/,
-          );
-          if (nameMatch && nameMatch[1]) {
-            const providedName = nameMatch[1].trim();
-            if (providedName) {
-              // Check if user already has a providedName
-              const existingUser = await storage.getUser(userId);
-              if (existingUser && !existingUser.providedName) {
-                await storage.updateUser(userId, { providedName });
-                providedNameUpdated = true;
-                console.log(
-                  `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} providedName="${providedName}" status=updated`,
-                );
-              }
-            }
-            break; // Only process the first name token
-          }
-        }
-      }
-
       // Check if we need to generate dossier BEFORE upsert (to get existing state)
       let dossierTriggered = false;
       let existingHasDossier = false;
@@ -4877,14 +4912,13 @@ FORMAT:
 
       const durationMs = Date.now() - requestStart;
       console.log(
-        `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=success upsertDurationMs=${upsertDurationMs} dossierTriggered=${dossierTriggered} providedNameUpdated=${providedNameUpdated} durationMs=${durationMs}`,
+        `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=success upsertDurationMs=${upsertDurationMs} dossierTriggered=${dossierTriggered} durationMs=${durationMs}`,
       );
 
       res.json({
         success: true,
         id: result.id,
         dossierTriggered,
-        providedNameUpdated,
       });
     } catch (error: any) {
       const durationMs = Date.now() - requestStart;

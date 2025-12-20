@@ -275,8 +275,9 @@ export interface AppEventPayload {
   render: {
     afterMessageIndex: number;  // where to insert in the chat
   };
-  title: string;
+  title?: string;  // for title_card and section_header events
   subtitle?: string;
+  name?: string;  // for user.provided_name_set events
   [key: string]: any;
 }
 
