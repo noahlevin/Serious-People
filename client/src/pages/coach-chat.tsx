@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { UserMenu } from "@/components/UserMenu";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { analytics } from "@/lib/posthog";
 import "@/styles/serious-people.css";
@@ -110,27 +109,16 @@ export default function CoachChatPage() {
 
   if (!plan) {
     return (
-      <div className="sp-page">
-        <header className="sp-success-header">
-          <div className="sp-header-content">
-            <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-              <span className="sp-logo">Serious People</span>
-            </Link>
-            <UserMenu />
-          </div>
-        </header>
-        <main className="sp-container">
-          <div className="sp-graduation-note" style={{ textAlign: 'center' }}>
-            <h1 className="sp-headline" style={{ marginBottom: '1rem' }}>Coach Chat</h1>
-            <p className="sp-body" style={{ marginBottom: '2rem' }}>
-              Complete your coaching modules and generate your Serious Plan to unlock coach chat.
-            </p>
-            <Link href="/progress" className="sp-button sp-button-primary" data-testid="link-progress">
-              View Progress
-            </Link>
-          </div>
-        </main>
+      <div className="sp-container">
+        <div className="sp-graduation-note" style={{ textAlign: 'center' }}>
+          <h1 className="sp-headline" style={{ marginBottom: '1rem' }}>Coach Chat</h1>
+          <p className="sp-body" style={{ marginBottom: '2rem' }}>
+            Complete your coaching modules and generate your Serious Plan to unlock coach chat.
+          </p>
+          <Link href="/progress" className="sp-button sp-button-primary" data-testid="link-progress">
+            View Progress
+          </Link>
+        </div>
       </div>
     );
   }
@@ -138,22 +126,13 @@ export default function CoachChatPage() {
   const clientName = plan.summaryMetadata?.clientName || 'there';
 
   return (
-    <div className="sp-interview-page">
-      <header className="sp-interview-header">
-        <div className="sp-header-content">
-          <div className="sp-header-left">
-            <Link href="/" className="sp-logo-link" data-testid="link-home">
-              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-              <span className="sp-logo">Serious People</span>
-            </Link>
-            <div className="sp-header-separator"></div>
-            <div className="sp-header-subtitle">Coach Chat</div>
-          </div>
-          <UserMenu />
-        </div>
-      </header>
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Context bar */}
+      <div className="shrink-0 px-4 py-2 text-sm text-muted-foreground border-b border-border">
+        Coach Chat
+      </div>
 
-      <div className="sp-interview-content">
+      <div className="sp-interview-content flex-1 flex flex-col min-h-0">
         <main className="sp-interview-main">
           <div 
             className="sp-chat-container" 

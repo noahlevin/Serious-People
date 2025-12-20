@@ -55,20 +55,9 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="border-b border-border shrink-0">
-        <div className="sp-container py-6">
-          <Link
-            to="/"
-            className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300"
-          >
-            Serious People
-          </Link>
-        </div>
-      </header>
-
+    <div className="flex flex-col flex-1">
       {/* Main */}
-      <main className="flex-1 flex">
+      <div className="flex-1 flex">
         {/* Left - Brand/Message */}
         <div className="hidden lg:flex lg:w-1/2 bg-foreground text-background p-12 xl:p-16 flex-col justify-between">
           <div />
@@ -191,7 +180,7 @@ const Login = () => {
             )}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };

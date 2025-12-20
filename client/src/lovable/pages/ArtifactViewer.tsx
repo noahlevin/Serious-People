@@ -1,8 +1,7 @@
 import { useEffect } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { UserMenu } from "@/components/UserMenu";
 import { formatContent } from "@/components/ChatComponents";
 import { ArrowLeft, MessageCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -191,60 +190,32 @@ const ArtifactViewer = () => {
 
   if (!authChecked || planLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border">
-          <div className="sp-container py-6 flex items-center justify-between">
-            <Link 
-              to="/progress" 
-              className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300"
-              data-testid="link-home"
-            >
-              Serious People
-            </Link>
-            <UserMenu />
-          </div>
-        </header>
-        <main className="sp-container py-16 flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">Loading artifact...</p>
-          </div>
-        </main>
+      <div className="sp-container py-16 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+          <p className="text-muted-foreground">Loading artifact...</p>
+        </div>
       </div>
     );
   }
 
   if (!artifact) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border">
-          <div className="sp-container py-6 flex items-center justify-between">
-            <Link 
-              to="/progress" 
-              className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300"
-              data-testid="link-home"
-            >
-              Serious People
-            </Link>
-            <UserMenu />
+      <div className="sp-container py-16">
+        <div className="max-w-xl mx-auto text-center">
+          <div className="bg-card border border-border p-8 md:p-12">
+            <h1 className="font-display text-2xl md:text-3xl text-foreground mb-4">
+              Artifact Not Found
+            </h1>
+            <p className="text-muted-foreground mb-8">
+              We couldn't find the artifact you're looking for.
+            </p>
+            <Button onClick={handleBack} data-testid="button-back-to-plan">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Your Plan
+            </Button>
           </div>
-        </header>
-        <main className="sp-container py-16">
-          <div className="max-w-xl mx-auto text-center">
-            <div className="bg-card border border-border p-8 md:p-12">
-              <h1 className="font-display text-2xl md:text-3xl text-foreground mb-4">
-                Artifact Not Found
-              </h1>
-              <p className="text-muted-foreground mb-8">
-                We couldn't find the artifact you're looking for.
-              </p>
-              <Button onClick={handleBack} data-testid="button-back-to-plan">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Your Plan
-              </Button>
-            </div>
-          </div>
-        </main>
+        </div>
       </div>
     );
   }
@@ -255,69 +226,41 @@ const ArtifactViewer = () => {
 
   if (isGenerating) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border">
-          <div className="sp-container py-6 flex items-center justify-between">
-            <Link 
-              to="/progress" 
-              className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300"
-              data-testid="link-home"
-            >
-              Serious People
-            </Link>
-            <UserMenu />
-          </div>
-        </header>
-        <main className="sp-container py-16">
-          <div className="max-w-xl mx-auto text-center">
-            <div className="bg-card border border-border p-8 md:p-12">
-              <h1 className="font-display text-2xl md:text-3xl text-foreground mb-4">
-                {artifact.title}
-              </h1>
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                <p className="text-muted-foreground">
-                  Still generating this artifact...
-                </p>
-              </div>
-              <div className="mt-8">
-                <Button variant="outline" onClick={handleBack} data-testid="button-back-while-generating">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Your Plan
-                </Button>
-              </div>
+      <div className="sp-container py-16">
+        <div className="max-w-xl mx-auto text-center">
+          <div className="bg-card border border-border p-8 md:p-12">
+            <h1 className="font-display text-2xl md:text-3xl text-foreground mb-4">
+              {artifact.title}
+            </h1>
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <p className="text-muted-foreground">
+                Still generating this artifact...
+              </p>
+            </div>
+            <div className="mt-8">
+              <Button variant="outline" onClick={handleBack} data-testid="button-back-while-generating">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Your Plan
+              </Button>
             </div>
           </div>
-        </main>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="sp-container py-6 flex items-center justify-between">
-          <Link 
-            to="/progress" 
-            className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300"
-            data-testid="link-home"
-          >
-            Serious People
-          </Link>
-          <UserMenu />
-        </div>
-      </header>
-
-      <main className="sp-container py-8">
-        <div className="max-w-3xl mx-auto" data-testid={`artifact-${artifact.artifactKey}`}>
-          <button 
-            onClick={handleBack}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors"
-            data-testid="button-back"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Plan
-          </button>
+    <div className="sp-container py-8">
+      <div className="max-w-3xl mx-auto" data-testid={`artifact-${artifact.artifactKey}`}>
+        <button 
+          onClick={handleBack}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors"
+          data-testid="button-back"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Plan
+        </button>
 
           <article className="bg-card border border-border p-8 md:p-12">
             <header className="border-b border-border pb-6 mb-8">
@@ -376,8 +319,7 @@ const ArtifactViewer = () => {
             )}
           </article>
         </div>
-      </main>
-    </div>
+      </div>
   );
 };
 

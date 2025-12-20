@@ -28,6 +28,82 @@
   color: #c41e3a;
 }
 
+/* ============================================
+   AppShell - Shared Layout (Header + Footer)
+   ============================================ */
+.sp-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--sp-bg);
+  font-family: var(--sp-font-body);
+  color: var(--sp-text);
+  line-height: 1.6;
+}
+
+.sp-shell-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--sp-bg);
+  border-bottom: 1px solid var(--sp-border);
+  height: 3.5rem;
+  flex-shrink: 0;
+}
+
+.sp-shell-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.sp-shell-logo {
+  font-family: var(--sp-font-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--sp-text);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+
+.sp-shell-logo:hover {
+  opacity: 0.8;
+}
+
+.sp-shell-main {
+  flex: 1;
+}
+
+.sp-shell-footer {
+  text-align: center;
+  padding: 1.5rem;
+  border-top: 1px solid var(--sp-border);
+  margin-top: auto;
+}
+
+.sp-shell-footer p {
+  font-family: var(--sp-font-body);
+  color: var(--sp-text-secondary);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .sp-shell-header-content {
+    padding: 0 1rem;
+  }
+  
+  .sp-shell-logo {
+    font-size: 1.125rem;
+  }
+}
+
+/* ============================================ */
+
 .sp-page {
   font-family: var(--sp-font-body);
   background: var(--sp-bg);

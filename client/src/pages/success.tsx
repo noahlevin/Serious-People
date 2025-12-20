@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient } from "@/lib/queryClient";
 import "@/styles/serious-people.css";
-import { UserMenu } from "@/components/UserMenu";
 
 const PAID_PHASES = ["PURCHASED", "MODULE_2", "MODULE_3", "COACH_LETTER", "SERIOUS_PLAN"];
 const POLL_INTERVAL_MS = 2000;
@@ -85,18 +84,7 @@ export default function Success() {
   }
 
   return (
-    <div className="sp-page">
-      <header className="sp-success-header">
-        <div className="sp-header-content">
-          <Link to="/progress" className="sp-logo-link">
-            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-            <span className="sp-logo">Serious People</span>
-          </Link>
-          <UserMenu />
-        </div>
-      </header>
-
-      <div className="sp-container">
+    <div className="sp-container">
         <div className="sp-state-container">
           {!timedOut ? (
             <>
@@ -118,10 +106,5 @@ export default function Success() {
           )}
         </div>
       </div>
-
-      <footer className="sp-footer">
-        <p>Questions? Contact <a href="mailto:hello@seriouspeople.com">hello@seriouspeople.com</a></p>
-      </footer>
-    </div>
   );
 }

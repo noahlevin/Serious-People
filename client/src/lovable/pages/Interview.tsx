@@ -3,7 +3,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/lovable/components/ui/button";
 import { ArrowRight, Clock, Lock, FileText, MessageCircle } from "lucide-react";
 import { useScrollReveal } from "@/lovable/hooks/useScrollReveal";
-import { UserMenu } from "@/components/UserMenu";
 
 const Interview = () => {
   const navigate = useNavigate();
@@ -42,21 +41,9 @@ const Interview = () => {
   ];
 
   return (
-    <div className={`min-h-screen bg-background transition-opacity duration-300 ${isStarting ? 'opacity-0' : 'opacity-100'}`}>
-      {/* Header */}
-      <header className="border-b border-border">
-        <div className="sp-container">
-          <div className="flex items-center justify-between h-12">
-            <Link to="/" className="font-display text-xl tracking-tight text-foreground">
-              Serious People
-            </Link>
-            <UserMenu />
-          </div>
-        </div>
-      </header>
-
+    <div className={`transition-opacity duration-300 ${isStarting ? 'opacity-0' : 'opacity-100'}`}>
       {/* Main Content */}
-      <main className="sp-container py-16 md:py-24">
+      <div className="sp-container py-16 md:py-24">
         <div className="max-w-2xl mx-auto">
           {/* Hero */}
           <div 
@@ -128,16 +115,7 @@ const Interview = () => {
             </div>
           </div>
         </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-border mt-auto">
-        <div className="sp-container py-6">
-          <p className="text-sm text-muted-foreground text-center">
-            Your responses are confidential.
-          </p>
-        </div>
-      </footer>
+      </div>
     </div>
   );
 };

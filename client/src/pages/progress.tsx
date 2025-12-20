@@ -1,7 +1,6 @@
 import { useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { UserMenu } from "@/components/UserMenu";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Lock, Circle } from "lucide-react";
@@ -33,25 +32,14 @@ export default function Progress() {
 
   if (isAuthenticated && !routing) {
     return (
-      <div className="sp-page">
-        <header className="sp-success-header">
-          <div className="sp-header-content">
-            <Link to="/progress" className="sp-logo-link">
-              <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-              <span className="sp-logo">Serious People</span>
-            </Link>
-            <UserMenu />
-          </div>
-        </header>
-        <div className="sp-container">
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-center text-muted-foreground">
-                Unable to load your progress. Please refresh the page.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="sp-container">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-center text-muted-foreground">
+              Unable to load your progress. Please refresh the page.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -142,20 +130,9 @@ export default function Progress() {
   const totalCount = steps.length;
 
   return (
-    <div className="sp-page">
-      <header className="sp-success-header">
-        <div className="sp-header-content">
-          <Link to="/" className="sp-logo-link">
-            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-            <span className="sp-logo">Serious People</span>
-          </Link>
-          <UserMenu />
-        </div>
-      </header>
-
-      <div className="sp-container">
-        <div className="sp-state-container">
-          <Card>
+    <div className="sp-container">
+      <div className="sp-state-container">
+        <Card>
             <CardHeader>
               <CardTitle className="text-2xl">Your Progress</CardTitle>
               <p className="text-muted-foreground">
@@ -200,10 +177,5 @@ export default function Progress() {
           </Card>
         </div>
       </div>
-
-      <footer className="sp-footer">
-        <p>Questions? Contact <a href="mailto:hello@seriouspeople.com">hello@seriouspeople.com</a></p>
-      </footer>
-    </div>
   );
 }

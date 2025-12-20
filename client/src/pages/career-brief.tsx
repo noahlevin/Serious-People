@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { UserMenu } from "@/components/UserMenu";
 import "@/styles/serious-people.css";
 
 type PageState = "loading" | "ready" | "generating" | "results" | "error";
@@ -119,18 +118,7 @@ export default function CareerBrief() {
   }
 
   return (
-    <div className="sp-page">
-      <header className="sp-success-header">
-        <div className="sp-header-content">
-          <Link href="/" className="sp-logo-link">
-            <img src="/favicon.png" alt="Serious People" className="sp-logo-icon" />
-            <span className="sp-logo">Serious People</span>
-          </Link>
-          <UserMenu />
-        </div>
-      </header>
-
-      <div className="sp-container">
+    <div className="sp-container">
         {state === "loading" && (
           <div className="sp-state-container">
             <div className="sp-spinner-large"></div>
@@ -195,10 +183,5 @@ export default function CareerBrief() {
           </div>
         )}
       </div>
-
-      <footer className="sp-footer">
-        <p>Questions? Contact <a href="mailto:hello@seriouspeople.com">hello@seriouspeople.com</a></p>
-      </footer>
-    </div>
   );
 }

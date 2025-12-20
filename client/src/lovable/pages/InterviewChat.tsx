@@ -1,13 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
 import ChatMessage from "@/lovable/components/interview/ChatMessage";
-import { UserMenu } from "@/components/UserMenu";
 import ChatInput from "@/lovable/components/interview/ChatInput";
 import SectionDivider from "@/lovable/components/interview/SectionDivider";
 import UpsellCard from "@/lovable/components/interview/UpsellCard";
 import StructuredOutcomes from "@/lovable/components/interview/StructuredOutcomes";
 import FinalNextStepsCard from "@/lovable/components/interview/FinalNextStepsCard";
 import { Clock, Lock } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 // Types for events from server
@@ -414,30 +413,18 @@ const InterviewChat = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Header */}
-      <header className="shrink-0">
-        <div className="sp-container">
-          <div className="flex items-center justify-between h-12 gap-4">
-            <Link to="/interview/start" className="font-display text-xl tracking-tight text-foreground shrink-0" data-testid="link-logo">
-              Serious People
-            </Link>
-            <UserMenu />
-          </div>
-        </div>
-        
-        {/* Progress bar as the separator line */}
-        <div className="h-[2px] bg-border relative">
-          <div 
-            className="absolute top-0 left-0 h-full bg-accent transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-            data-testid="progress-bar"
-          />
-        </div>
-      </header>
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Progress bar */}
+      <div className="h-[2px] bg-border relative shrink-0">
+        <div 
+          className="absolute top-0 left-0 h-full bg-accent transition-all duration-500 ease-out"
+          style={{ width: `${progress}%` }}
+          data-testid="progress-bar"
+        />
+      </div>
 
       {/* Chat Messages */}
-      <main className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
           {renderChatContent()}
           
@@ -470,7 +457,7 @@ const InterviewChat = () => {
           
           <div ref={messagesEndRef} />
         </div>
-      </main>
+      </div>
 
       {/* Input Area */}
       <ChatInput 

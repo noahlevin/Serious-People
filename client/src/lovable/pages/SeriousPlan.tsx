@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { UserMenu } from "@/components/UserMenu";
 import { FileText, MessageCircle, Loader2 } from "lucide-react";
 
 interface Artifact {
@@ -128,59 +127,31 @@ const SeriousPlan = () => {
 
   if (!authChecked || planLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border">
-          <div className="sp-container py-6 flex items-center justify-between">
-            <Link 
-              to="/progress" 
-              className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300"
-              data-testid="link-home"
-            >
-              Serious People
-            </Link>
-            <UserMenu />
-          </div>
-        </header>
-        <main className="sp-container py-16 flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">Loading your Serious Plan...</p>
-          </div>
-        </main>
+      <div className="sp-container py-16 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+          <p className="text-muted-foreground">Loading your Serious Plan...</p>
+        </div>
       </div>
     );
   }
 
   if (!plan) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b border-border">
-          <div className="sp-container py-6 flex items-center justify-between">
-            <Link 
-              to="/progress" 
-              className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300"
-              data-testid="link-home"
-            >
-              Serious People
-            </Link>
-            <UserMenu />
-          </div>
-        </header>
-        <main className="sp-container py-16">
-          <div className="max-w-xl mx-auto text-center">
-            <div className="bg-card border border-border p-8 md:p-12">
-              <h1 className="font-display text-2xl md:text-3xl text-foreground mb-4">
-                Preparing Your Plan
-              </h1>
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                <p className="text-muted-foreground">
-                  Your coach is crafting personalized artifacts for your situation...
-                </p>
-              </div>
+      <div className="sp-container py-16">
+        <div className="max-w-xl mx-auto text-center">
+          <div className="bg-card border border-border p-8 md:p-12">
+            <h1 className="font-display text-2xl md:text-3xl text-foreground mb-4">
+              Preparing Your Plan
+            </h1>
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <p className="text-muted-foreground">
+                Your coach is crafting personalized artifacts for your situation...
+              </p>
             </div>
           </div>
-        </main>
+        </div>
       </div>
     );
   }
@@ -278,21 +249,7 @@ const SeriousPlan = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="sp-container py-6 flex items-center justify-between">
-          <Link 
-            to="/progress" 
-            className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300"
-            data-testid="link-home"
-          >
-            Serious People
-          </Link>
-          <UserMenu />
-        </div>
-      </header>
-
-      <main className="sp-container py-12">
+    <div className="sp-container py-12">
         <div className="mb-10" data-testid="plan-overview">
           <p className="text-sm text-muted-foreground uppercase tracking-wider mb-2">Your Serious Plan</p>
           <h1 className="font-display text-3xl md:text-4xl text-foreground mb-2">
@@ -330,8 +287,7 @@ const SeriousPlan = () => {
             <p className="text-muted-foreground">No artifacts in this category yet.</p>
           </div>
         )}
-      </main>
-    </div>
+      </div>
   );
 };
 

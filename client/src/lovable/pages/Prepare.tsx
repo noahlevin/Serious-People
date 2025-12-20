@@ -1,24 +1,11 @@
 import { Link } from "react-router-dom";
 import { Clock, Lock, ArrowRight } from "lucide-react";
-import { UserMenu } from "@/components/UserMenu";
 
 const Prepare = () => {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b border-border shrink-0">
-        <div className="sp-container">
-          <div className="flex items-center justify-between h-12">
-            <Link to="/" className="font-display text-xl tracking-tight hover:text-primary transition-colors duration-300">
-              Serious People
-            </Link>
-            <UserMenu />
-          </div>
-        </div>
-      </header>
-
+    <div className="flex flex-col flex-1">
       {/* Main */}
-      <main className="flex-1 flex">
+      <div className="flex-1 flex">
         {/* Left - Content */}
         <div className="flex-1 flex items-center justify-center p-6 md:p-12 lg:p-16">
           <div className="max-w-lg">
@@ -114,7 +101,7 @@ const Prepare = () => {
 
           <div />
         </div>
-      </main>
+      </div>
     </div>
   );
 };

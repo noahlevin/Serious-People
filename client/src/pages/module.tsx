@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Link, useLocation, useParams } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useJourney, canAccessModule } from "@/hooks/useJourney";
-import { UserMenu } from "@/components/UserMenu";
 import { queryClient } from "@/lib/queryClient";
 import { 
   Message, 
@@ -458,28 +457,19 @@ export default function ModulePage() {
   }
   
   return (
-    <div className="h-screen flex flex-col bg-background">
-      <header className="shrink-0">
-        <div className="sp-container">
-          <div className="flex items-center justify-between h-16 gap-4">
-            <Link href="/" className="font-display text-xl tracking-tight text-foreground shrink-0">
-              Serious People
-              <span className="text-muted-foreground font-normal text-base ml-2">
-                Module {moduleNumber}: {moduleInfo.name}
-              </span>
-            </Link>
-            <UserMenu />
-          </div>
-        </div>
-        <div className="h-[2px] bg-border relative">
-          <div 
-            className="absolute top-0 left-0 h-full bg-accent transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </header>
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Module progress bar + context */}
+      <div className="shrink-0 px-4 py-2 text-sm text-muted-foreground border-b border-border">
+        Module {moduleNumber}: {moduleInfo.name}
+      </div>
+      <div className="h-[2px] bg-border relative shrink-0">
+        <div 
+          className="absolute top-0 left-0 h-full bg-accent transition-all duration-500 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
 
-      <div className="sp-interview-content">
+      <div className="sp-interview-content flex-1 flex flex-col min-h-0">
         <main className="sp-interview-main">
           <div className="sp-chat-window" ref={chatWindowRef} data-testid="chat-window">
             {transcript.map((msg, index) => {

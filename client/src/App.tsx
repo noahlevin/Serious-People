@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { initPostHog } from "@/lib/posthog";
+import { AppShell } from "@/components/AppShell";
 
 import Login from "@/pages/login";
 import Offer from "@/pages/offer";
@@ -77,7 +78,9 @@ function Router() {
   const base = useMemo(() => getBasePath(), []);
   return (
     <BrowserRouter basename={base || undefined}>
-      <AppRoutes />
+      <AppShell>
+        <AppRoutes />
+      </AppShell>
     </BrowserRouter>
   );
 }
