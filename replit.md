@@ -113,6 +113,7 @@ The interview chat uses an **app_events** table to stream structured UI events t
 
 ## Recent Changes
 
+- **Dec 21, 2025:** Interview chat UX improvements: (1) Auto-initialization generates title card + first message on load for blank sessions (no messages AND no events). (2) Chat layout fixed with `min-h-0` for scrolling + `shrink-0` for pinned composer. (3) Optimistic UI for structured outcomes - pills disappear immediately on click. (4) Markdown rendering for assistant messages with HTML sanitization. (5) Fast smoke test now has 7 checks including auto-init verification.
 - **Dec 21, 2025:** Fixed structured outcomes positioning: changed `afterMessageIndex = transcript.length - 1` to `transcript.length` so events anchor to the assistant message (where they're created), not the preceding user message. Title card retains -1 (before all messages). Both smoke suites pass.
 - **Dec 20, 2025:** Completed AppShell rollout - all routes now share consistent header/footer via AppShell component. Removed duplicated headers/footers from 15+ page components. Chat pages use flex-based layouts (flex-1 min-h-0) for proper scrolling within shell.
 - **Dec 20, 2025:** Completed Batch B token migration - ALL legacy interview tokens eliminated. Added `append_value_bullets` and `append_social_proof` tools. Extended interview smoke test to 17 checks with token-free verification. All tokens now replaced by tool-based event streaming.
