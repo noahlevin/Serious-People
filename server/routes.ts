@@ -3793,6 +3793,91 @@ The user has entered "testskip" which is a testing command. Generate the full pl
       }
     }
 
+    // Empty reply detection and retry (prevent empty assistant messages)
+    const FALLBACK_MESSAGE = "Got it — keep going.";
+    
+    if (!reply || !reply.trim()) {
+      console.log(`[INTERVIEW_LLM] Empty reply detected, attempting single retry without tools`);
+      
+      // Single retry without tools to get a text response
+      try {
+        if (useAnthropic && anthropic) {
+          // Build messages for retry (simplified - just ask for text)
+          const retryMessages: any[] = [];
+          for (const turn of transcript) {
+            if (turn?.role && turn?.content) {
+              retryMessages.push({
+                role: turn.role as "user" | "assistant",
+                content: turn.content,
+              });
+            }
+          }
+          if (retryMessages.length === 0) {
+            retryMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
+          }
+          
+          // Add instruction to just provide text
+          retryMessages.push({
+            role: "user",
+            content: "[System: Please provide your response as text only, do not call any tools.]"
+          });
+          
+          const retryResponse = await anthropic.messages.create({
+            model: "claude-sonnet-4-5",
+            max_tokens: 1024,
+            system: INTERVIEW_SYSTEM_PROMPT,
+            messages: retryMessages,
+            // No tools on retry to force text response
+          });
+          
+          for (const block of retryResponse.content) {
+            if (block.type === "text" && block.text.trim()) {
+              reply = block.text;
+              console.log(`[INTERVIEW_LLM] Retry succeeded, reply length=${reply.length}`);
+              break;
+            }
+          }
+        } else if (openai) {
+          // OpenAI retry without tools
+          const retryMessages: any[] = [
+            { role: "system", content: INTERVIEW_SYSTEM_PROMPT },
+          ];
+          for (const turn of transcript) {
+            if (turn?.role && turn?.content) {
+              retryMessages.push({ role: turn.role, content: turn.content });
+            }
+          }
+          if (transcript.length === 0) {
+            retryMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
+          }
+          retryMessages.push({
+            role: "user",
+            content: "[System: Please provide your response as text only, do not call any tools.]"
+          });
+          
+          const retryResponse = await openai.chat.completions.create({
+            model: "gpt-4.1-mini",
+            messages: retryMessages,
+            max_completion_tokens: 1024,
+            // No tools on retry
+          });
+          
+          if (retryResponse.choices[0].message.content?.trim()) {
+            reply = retryResponse.choices[0].message.content;
+            console.log(`[INTERVIEW_LLM] Retry succeeded, reply length=${reply.length}`);
+          }
+        }
+      } catch (retryError: any) {
+        console.log(`[INTERVIEW_LLM] Retry failed: ${retryError.message}`);
+      }
+      
+      // Final fallback if still empty
+      if (!reply || !reply.trim()) {
+        reply = FALLBACK_MESSAGE;
+        console.log(`[INTERVIEW_LLM] Using fallback message after retry failed`);
+      }
+    }
+
     // Parse plancard JSON block from reply (new format replaces [[PLAN_CARD]] tokens)
     let planCard: any = null;
     const plancardMatch = reply.match(/```plancard\s*([\s\S]*?)\s*```/);
@@ -4945,6 +5030,79 @@ After the user confirms (or on the next message), immediately call complete_modu
 
       // Clean reply text
       reply = reply.trim();
+
+      // Empty reply detection and retry for modules (prevent empty assistant messages)
+      const MODULE_FALLBACK_MESSAGE = "Got it — keep going.";
+      
+      if (!reply) {
+        console.log(`[MODULE_LLM] Empty reply detected for module ${moduleNumber}, attempting single retry without tools`);
+        
+        try {
+          if (useAnthropic && anthropic) {
+            const retryMessages: any[] = [];
+            for (const turn of transcript) {
+              if (turn?.role && turn?.content) {
+                retryMessages.push({ role: turn.role, content: turn.content });
+              }
+            }
+            if (retryMessages.length === 0) {
+              retryMessages.push({ role: "user", content: "Start the module. Introduce it and ask your first question." });
+            }
+            retryMessages.push({
+              role: "user",
+              content: "[System: Please provide your response as text only, do not call any tools.]"
+            });
+            
+            const retryResponse = await anthropic.messages.create({
+              model: "claude-sonnet-4-5",
+              max_tokens: 1024,
+              system: systemPrompt,
+              messages: retryMessages,
+            });
+            
+            for (const block of retryResponse.content) {
+              if (block.type === "text" && block.text.trim()) {
+                reply = block.text.trim();
+                console.log(`[MODULE_LLM] Retry succeeded, reply length=${reply.length}`);
+                break;
+              }
+            }
+          } else if (openai) {
+            const retryMessages: any[] = [{ role: "system", content: systemPrompt }];
+            for (const turn of transcript) {
+              if (turn?.role && turn?.content) {
+                retryMessages.push({ role: turn.role, content: turn.content });
+              }
+            }
+            if (transcript.length === 0) {
+              retryMessages.push({ role: "user", content: "Start the module. Introduce it and ask your first question." });
+            }
+            retryMessages.push({
+              role: "user",
+              content: "[System: Please provide your response as text only, do not call any tools.]"
+            });
+            
+            const retryResponse = await openai.chat.completions.create({
+              model: "gpt-4.1-mini",
+              messages: retryMessages,
+              max_completion_tokens: 1024,
+            });
+            
+            if (retryResponse.choices[0].message.content?.trim()) {
+              reply = retryResponse.choices[0].message.content.trim();
+              console.log(`[MODULE_LLM] Retry succeeded, reply length=${reply.length}`);
+            }
+          }
+        } catch (retryError: any) {
+          console.log(`[MODULE_LLM] Retry failed: ${retryError.message}`);
+        }
+        
+        // Final fallback
+        if (!reply) {
+          reply = MODULE_FALLBACK_MESSAGE;
+          console.log(`[MODULE_LLM] Using fallback message after retry failed`);
+        }
+      }
 
       res.json({ reply, done, summary, options, progress });
     } catch (error: any) {
