@@ -153,18 +153,28 @@ const InterviewChat = () => {
   const [showUpsell, setShowUpsell] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Local optimistic selection state: survives server event replacement
+  // Maps eventSeq -> optionId for selected outcomes
+  const [localSelections, setLocalSelections] = useState<Map<number, string>>(new Map());
 
   // Calculate progress from section header events
   const sectionHeaderCount = events.filter(e => e.type === "chat.section_header_added").length;
   const progress = Math.min((sectionHeaderCount / TOTAL_SECTIONS) * 100, 100);
 
   // Check if a structured outcomes event has been selected (using eventSeq)
+  // Checks BOTH local optimistic state AND server events
   const isOutcomeSelected = useCallback((eventSeq: number): boolean => {
+    // Check local optimistic state first (instant)
+    if (localSelections.has(eventSeq)) {
+      return true;
+    }
+    // Check server events
     return events.some(e => 
       e.type === "chat.structured_outcome_selected" && 
       e.payload.eventSeq === eventSeq
     );
-  }, [events]);
+  }, [events, localSelections]);
 
   // Handle structured outcome selection (eventSeq is passed as string, converted to number)
   // Optimistic update: immediately hide pills AND add user message, then sync with server
@@ -175,20 +185,8 @@ const InterviewChat = () => {
       return;
     }
     
-    // Optimistic update: add selection event immediately to hide pills
-    const optimisticEventId = `optimistic-${Date.now()}`;
-    const optimisticEvent: AppEvent = {
-      id: optimisticEventId,
-      eventSeq: Date.now(),
-      stream: 'interview',
-      type: 'chat.structured_outcome_selected',
-      payload: {
-        render: { afterMessageIndex: messages.length - 1 },
-        eventSeq: eventSeq,
-        optionId: optionId,
-      },
-      createdAt: new Date().toISOString(),
-    };
+    // INSTANT: Set local selection state to hide pills immediately
+    setLocalSelections(prev => new Map(prev).set(eventSeq, optionId));
     
     // Optimistic update: add user message immediately
     const optimisticMessageId = `optimistic-msg-${Date.now()}`;
@@ -199,7 +197,6 @@ const InterviewChat = () => {
       timestamp: new Date(),
     };
     
-    setEvents(prev => [...prev, optimisticEvent]);
     setMessages(prev => [...prev, optimisticMessage]);
     setIsTyping(true);
     
@@ -243,13 +240,17 @@ const InterviewChat = () => {
       }
     } catch (error) {
       console.error("[InterviewChat] Outcome selection failed:", error);
-      // Remove optimistic event and message on failure
-      setEvents(prev => prev.filter(e => e.id !== optimisticEventId));
+      // Remove local selection and optimistic message on failure
+      setLocalSelections(prev => {
+        const next = new Map(prev);
+        next.delete(eventSeq);
+        return next;
+      });
       setMessages(prev => prev.filter(m => m.id !== optimisticMessageId));
     } finally {
       setIsTyping(false);
     }
-  }, [refetch, messages.length]);
+  }, [refetch]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -383,13 +384,17 @@ const InterviewChat = () => {
           />
         );
       } else if (event.type === "chat.structured_outcomes_added" && event.payload.options) {
+        // Don't render at all if already selected (instant hide)
+        if (isOutcomeSelected(event.eventSeq)) {
+          return null;
+        }
         return (
           <StructuredOutcomes
             key={`event-${event.eventSeq}`}
             eventId={String(event.eventSeq)}
             options={event.payload.options}
             onSelect={handleOutcomeSelect}
-            disabled={isOutcomeSelected(event.eventSeq) || isTyping}
+            disabled={isTyping}
           />
         );
       } else if (event.type === "chat.final_next_steps_added" && event.payload.modules) {

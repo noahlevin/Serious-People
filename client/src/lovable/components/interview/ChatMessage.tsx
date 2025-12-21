@@ -43,7 +43,7 @@ function renderMarkdown(text: string): string {
     if (ulMatch) {
       if (!inList || listType !== 'ul') {
         if (inList) result.push(listType === 'ul' ? '</ul>' : '</ol>');
-        result.push('<ul class="list-disc ml-4 my-1">');
+        result.push('<ul>');
         inList = true;
         listType = 'ul';
       }
@@ -51,7 +51,7 @@ function renderMarkdown(text: string): string {
     } else if (olMatch) {
       if (!inList || listType !== 'ol') {
         if (inList) result.push(listType === 'ul' ? '</ul>' : '</ol>');
-        result.push('<ol class="list-decimal ml-4 my-1">');
+        result.push('<ol>');
         inList = true;
         listType = 'ol';
       }
@@ -72,7 +72,7 @@ function renderMarkdown(text: string): string {
   html = result.join('\n');
   
   // Line breaks: double newline becomes paragraph break, single newline preserved
-  html = html.replace(/\n\n/g, '</p><p class="mt-2">');
+  html = html.replace(/\n\n/g, '</p><p>');
   html = html.replace(/\n/g, '<br/>');
   
   // Wrap in paragraph
@@ -80,7 +80,6 @@ function renderMarkdown(text: string): string {
   
   // Clean up empty paragraphs
   html = html.replace(/<p><\/p>/g, '');
-  html = html.replace(/<p class="mt-2"><\/p>/g, '');
   
   return html;
 }
@@ -105,7 +104,7 @@ const ChatMessage = ({ message, isTyping = false }: ChatMessageProps) => {
       >
         {isAssistant && renderedContent ? (
           <div 
-            className="font-chat text-foreground text-[15px] leading-relaxed sp-message-content"
+            className="font-chat text-foreground text-[15px] leading-relaxed sp-md"
             dangerouslySetInnerHTML={{ __html: renderedContent }}
           />
         ) : (
