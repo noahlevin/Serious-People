@@ -23,6 +23,42 @@ function ScrollToTop() {
   return null;
 }
 
+function DocumentTitle() {
+  const { pathname } = useLocation();
+  
+  useEffect(() => {
+    const titleMap: Record<string, string> = {
+      "/interview/start": "Interview",
+      "/interview/prepare": "Interview",
+      "/interview/chat": "Interview",
+      "/progress": "Progress",
+      "/serious-plan": "Serious Plan",
+      "/artifacts": "Artifacts",
+      "/login": "Sign in",
+      "/offer": "Offer",
+      "/offer/success": "Success",
+      "/career-brief": "Career Brief",
+      "/coach-chat": "Coach Chat",
+      "/coach-letter": "Coach Letter",
+    };
+    
+    let pageTitle = titleMap[pathname];
+    
+    if (!pageTitle && pathname.startsWith("/module/")) {
+      const moduleNum = pathname.split("/")[2];
+      pageTitle = moduleNum ? `Module ${moduleNum}` : "Module";
+    }
+    
+    if (!pageTitle && pathname.startsWith("/artifact/")) {
+      pageTitle = "Artifact";
+    }
+    
+    document.title = pageTitle ? `${pageTitle} — Serious People` : "Serious People";
+  }, [pathname]);
+  
+  return null;
+}
+
 // Route guard: hard redirect to marketing landing if not authenticated
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -111,6 +147,7 @@ function Router() {
   return (
     <BrowserRouter basename={base || undefined}>
       <ScrollToTop />
+      <DocumentTitle />
       <AppShell>
         <AppRoutes />
       </AppShell>
