@@ -180,47 +180,57 @@ async function runFastSuite() {
   await resetUserName();
   console.log("");
 
-  // Test 0: Auto-initialization - GET /api/interview/state should return initialized content
-  console.log("[TEST 0] GET /api/interview/state auto-initializes...");
+  // Test 0: GET /api/dev/interview/state returns valid JSON
+  console.log("[TEST 0] GET /api/dev/interview/state returns valid JSON...");
   try {
-    // First reset the interview to ensure clean state
-    const resetRes = await fetch(`${ORIGIN}/api/dev/interview/reset`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-dev-tools-secret": DEV_TOOLS_SECRET,
-      },
-      body: JSON.stringify({ email: EMAIL }),
-    });
-    
-    // Now fetch state - should auto-initialize with title card and first message
-    const stateRes = await fetch(`${ORIGIN}/api/dev/interview/state`, {
+    const stateRes = await fetch(`${ORIGIN}/api/dev/interview/state?email=${encodeURIComponent(EMAIL)}`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json", 
         "x-dev-tools-secret": DEV_TOOLS_SECRET,
       },
     });
     
-    if (stateRes.ok) {
-      const state = await stateRes.json();
-      const hasTitleCard = state.events?.some(e => e.type === "chat.title_card_added");
-      const hasMessages = state.transcript?.length > 0;
-      
-      if (hasTitleCard || hasMessages) {
-        console.log(`[PASS] Auto-initialized: titleCard=${hasTitleCard}, messages=${state.transcript?.length || 0}`);
-        passed++;
-      } else {
-        console.log(`[INFO] No auto-init in dev mode (expected - uses email param)`);
-        passed++;
-      }
+    // Strict check 1: Status must be 200
+    if (!stateRes.ok) {
+      console.log(`[FAIL] State endpoint returned HTTP ${stateRes.status}`);
+      failed++;
     } else {
-      console.log(`[INFO] State endpoint requires auth in fast mode, skipping`);
-      passed++;
+      // Strict check 2: Content-Type must be JSON
+      const contentType = stateRes.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        console.log(`[FAIL] Expected application/json, got: ${contentType}`);
+        failed++;
+      } else {
+        // Strict check 3: Must parse as JSON
+        const text = await stateRes.text();
+        let state;
+        try {
+          state = JSON.parse(text);
+        } catch (parseErr) {
+          console.log(`[FAIL] JSON parse failed: ${parseErr.message}`);
+          console.log(`[FAIL] Response body (first 200 chars): ${text.slice(0, 200)}`);
+          failed++;
+          state = null;
+        }
+        
+        // Strict check 4: Must have expected shape
+        if (state) {
+          if (state.success !== true) {
+            console.log(`[FAIL] Response missing success=true`);
+            failed++;
+          } else if (!Array.isArray(state.transcript) || !Array.isArray(state.events)) {
+            console.log(`[FAIL] Response missing transcript or events arrays`);
+            failed++;
+          } else {
+            console.log(`[PASS] Valid JSON with transcript=${state.transcript.length}, events=${state.events.length}`);
+            passed++;
+          }
+        }
+      }
     }
   } catch (err) {
-    console.log(`[INFO] Auto-init check skipped: ${err.message}`);
-    passed++;
+    console.log(`[FAIL] State fetch error: ${err.message}`);
+    failed++;
   }
   console.log("");
 

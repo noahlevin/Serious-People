@@ -6079,6 +6079,48 @@ FORMAT:
     }
   });
 
+  // GET /api/dev/interview/state - Dev-only endpoint to get interview state for a user
+  // Used by smoke tests to verify state without auth
+  app.get("/api/dev/interview/state", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const email = req.query.email as string;
+      if (!email) {
+        return res.status(400).json({ error: "email query parameter required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ error: "No user found for email" });
+      }
+
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.json({
+          success: true,
+          hasSession: false,
+          transcript: [],
+          events: [],
+        });
+      }
+
+      const sessionToken = transcript.sessionToken;
+      const allEvents = await storage.listInterviewEvents(sessionToken);
+
+      res.json({
+        success: true,
+        hasSession: true,
+        transcript: transcript.transcript || [],
+        events: allEvents,
+        interviewComplete: transcript.interviewComplete || false,
+      });
+    } catch (error: any) {
+      console.error("[DEV] interview/state error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // POST /api/dev/interview/inject-outcomes - Dev-only endpoint to inject test outcomes event
   // Used by smoke tests since LLM tool calls are not deterministic
   app.post("/api/dev/interview/inject-outcomes", async (req, res) => {
