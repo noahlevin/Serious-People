@@ -3432,9 +3432,10 @@ The user has entered "testskip" which is a testing command. Generate the full pl
     let reply: string = "";
     const systemPromptToUse = INTERVIEW_SYSTEM_PROMPT + testSkipPrompt;
     
-    // Calculate afterMessageIndex: -1 for empty transcript (title card before first message), 
-    // otherwise current transcript length - 1 (before we add the assistant reply)
-    const afterMessageIndex = transcript.length > 0 ? transcript.length - 1 : -1;
+    // Calculate afterMessageIndex: transcript.length is the index where the assistant message will be appended.
+    // Events (like structured_outcomes) should render AFTER the assistant message, not after the user message.
+    // Special case: title_card uses -1 to appear before all messages.
+    const afterMessageIndex = transcript.length;
 
     if (useAnthropic && anthropic) {
       const claudeMessages: any[] = [];
@@ -3501,8 +3502,10 @@ The user has entered "testskip" which is a testing command. Generate the full pl
             }
             
             if (!skipped) {
+              // Title card always uses -1 (before all messages), other headers use afterMessageIndex
+              const eventAfterIndex = toolUse.name === "append_title_card" ? -1 : afterMessageIndex;
               const payload: AppEventPayload = {
-                render: { afterMessageIndex },
+                render: { afterMessageIndex: eventAfterIndex },
                 title: toolInput.title,
                 subtitle: toolInput.subtitle,
               };
@@ -3670,8 +3673,10 @@ The user has entered "testskip" which is a testing command. Generate the full pl
             }
             
             if (!skipped) {
+              // Title card always uses -1 (before all messages), other headers use afterMessageIndex
+              const eventAfterIndex = toolName === "append_title_card" ? -1 : afterMessageIndex;
               const payload: AppEventPayload = {
-                render: { afterMessageIndex },
+                render: { afterMessageIndex: eventAfterIndex },
                 title: toolInput.title,
                 subtitle: toolInput.subtitle,
               };
@@ -6054,7 +6059,9 @@ FORMAT:
 
       const sessionToken = transcript.sessionToken;
       const existingMessages = transcript.transcript || [];
-      const afterMessageIndex = existingMessages.length > 0 ? existingMessages.length - 1 : -1;
+      // Outcomes should appear after the last assistant message (not user message)
+      // The last message in transcript is typically the assistant's reply
+      const afterMessageIndex = existingMessages.length > 0 ? existingMessages.length - 1 : 0;
 
       // Create test outcomes with deterministic IDs
       const testOptions = [
@@ -6065,7 +6072,6 @@ FORMAT:
 
       const event = await storage.appendInterviewEvent(sessionToken, "chat.structured_outcomes_added", {
         render: { afterMessageIndex },
-        prompt: "Which option would you like?",
         options: testOptions,
       });
 
