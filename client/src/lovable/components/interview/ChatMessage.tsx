@@ -95,22 +95,39 @@ const ChatMessage = ({ message, isTyping = false, animate = false, onAnimationCo
     setDisplayedContent('');
     setIsAnimating(true);
     
-    const speed = 8;
+    const speed = 35;
     
     const type = () => {
       if (indexRef.current < fullContent.length) {
         let increment = 1;
+        const currentChar = fullContent[indexRef.current];
         
-        if (fullContent[indexRef.current] === '<') {
+        // Skip HTML tags entirely
+        if (currentChar === '<') {
           const closeIndex = fullContent.indexOf('>', indexRef.current);
           if (closeIndex !== -1) {
             increment = closeIndex - indexRef.current + 1;
           }
-        } else if (fullContent[indexRef.current] === '&') {
+        } 
+        // Skip HTML entities entirely
+        else if (currentChar === '&') {
           const semicolonIndex = fullContent.indexOf(';', indexRef.current);
           if (semicolonIndex !== -1 && semicolonIndex - indexRef.current < 8) {
             increment = semicolonIndex - indexRef.current + 1;
           }
+        }
+        // For regular text, advance to end of current word
+        else if (currentChar !== ' ' && currentChar !== '\n') {
+          // Find the end of the current word (stop at space, newline, or HTML tag)
+          let wordEnd = indexRef.current + 1;
+          while (wordEnd < fullContent.length) {
+            const char = fullContent[wordEnd];
+            if (char === ' ' || char === '\n' || char === '<' || char === '&') {
+              break;
+            }
+            wordEnd++;
+          }
+          increment = wordEnd - indexRef.current;
         }
         
         indexRef.current += increment;
