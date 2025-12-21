@@ -154,6 +154,12 @@ const InterviewChat = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  // Track which message indices have finished their typing animation
+  // Messages loaded from server (on init) are considered already animated
+  const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(new Set());
+  // Track message IDs that need to animate (newly added)
+  const [messagesToAnimate, setMessagesToAnimate] = useState<Set<string>>(new Set());
+  
   // Local optimistic selection state: survives server event replacement
   // Maps eventSeq -> optionId for selected outcomes
   const [localSelections, setLocalSelections] = useState<Map<number, string>>(new Map());
@@ -224,7 +230,20 @@ const InterviewChat = () => {
         }));
         setMessages(msgs);
         
-        // Replace events from server (removes optimistic, adds real)
+        // Find the newest assistant message and mark it for animation
+        const lastAssistantMsg = msgs.filter(m => m.role === 'assistant').pop();
+        if (lastAssistantMsg && !animatedMessageIds.has(lastAssistantMsg.id)) {
+          setMessagesToAnimate(prev => new Set(prev).add(lastAssistantMsg.id));
+        }
+        // Mark all user messages as animated
+        setAnimatedMessageIds(prev => {
+          const next = new Set(prev);
+          msgs.forEach(m => {
+            if (m.role === 'user') next.add(m.id);
+          });
+          return next;
+        });
+        
         if (result.events) {
           setEvents(result.events);
           if (result.events.some((e: AppEvent) => e.type === "user.provided_name_set")) {
@@ -266,11 +285,9 @@ const InterviewChat = () => {
     setIsInitialized(true);
     
     (async () => {
-      // First try to load existing state
       const state = await fetchInterviewState();
       
       if (state.success && state.transcript) {
-        // Load existing session from server (may be empty for new users)
         const msgs: Message[] = state.transcript.map((t, i) => ({
           id: String(i),
           role: t.role as 'user' | 'assistant',
@@ -279,6 +296,9 @@ const InterviewChat = () => {
         }));
         setMessages(msgs);
         setEvents(state.events || []);
+        // Mark all loaded messages as already animated (no typewriter for history)
+        const alreadyAnimated = new Set(msgs.map(m => m.id));
+        setAnimatedMessageIds(alreadyAnimated);
       }
     })();
   }, [isInitialized]);
@@ -299,7 +319,6 @@ const InterviewChat = () => {
     setIsTyping(false);
 
     if (result.success && result.reply) {
-      // Update from server transcript (authority)
       if (result.transcript) {
         const msgs: Message[] = result.transcript.map((t, i) => ({
           id: String(i),
@@ -308,8 +327,21 @@ const InterviewChat = () => {
           timestamp: new Date(),
         }));
         setMessages(msgs);
+        
+        // Find the newest assistant message and mark it for animation
+        const lastAssistantMsg = msgs.filter(m => m.role === 'assistant').pop();
+        if (lastAssistantMsg && !animatedMessageIds.has(lastAssistantMsg.id)) {
+          setMessagesToAnimate(prev => new Set(prev).add(lastAssistantMsg.id));
+        }
+        // Mark all user messages and already-seen messages as animated
+        setAnimatedMessageIds(prev => {
+          const next = new Set(prev);
+          msgs.forEach(m => {
+            if (m.role === 'user') next.add(m.id);
+          });
+          return next;
+        });
       } else {
-        // Fallback: add AI response locally
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
@@ -317,24 +349,21 @@ const InterviewChat = () => {
           timestamp: new Date()
         };
         setMessages(prev => [...prev, aiMessage]);
+        setMessagesToAnimate(prev => new Set(prev).add(aiMessage.id));
       }
       
-      // Replace events from server (authority)
       if (result.events) {
         setEvents(result.events);
         
-        // If name was set, refetch auth to update UserMenu
         if (result.events.some(e => e.type === "user.provided_name_set")) {
           refetch();
         }
       }
 
-      // Check if interview is complete
       if (result.done) {
         setIsComplete(true);
         markInterviewComplete();
         
-        // Show upsell card after a delay
         setTimeout(() => {
           setShowUpsell(true);
         }, 2000);
@@ -350,6 +379,16 @@ const InterviewChat = () => {
       setMessages(prev => [...prev, errorMessage]);
     }
   };
+
+  // Handle animation complete callback
+  const handleAnimationComplete = useCallback((messageId: string) => {
+    setAnimatedMessageIds(prev => new Set(prev).add(messageId));
+    setMessagesToAnimate(prev => {
+      const next = new Set(prev);
+      next.delete(messageId);
+      return next;
+    });
+  }, []);
 
   // Build the chat content with events interspersed based on afterMessageIndex
   const renderChatContent = () => {
@@ -384,7 +423,6 @@ const InterviewChat = () => {
           />
         );
       } else if (event.type === "chat.structured_outcomes_added" && event.payload.options) {
-        // Don't render at all if already selected (instant hide)
         if (isOutcomeSelected(event.eventSeq)) {
           return null;
         }
@@ -417,13 +455,25 @@ const InterviewChat = () => {
 
     // Render messages, inserting events after each message as needed
     messages.forEach((message, idx) => {
-      elements.push(<ChatMessage key={message.id} message={message} />);
+      const shouldAnimate = messagesToAnimate.has(message.id);
+      const isFullyAnimated = animatedMessageIds.has(message.id);
       
-      // Render events that should appear after this message
-      const postEvents = eventsByIndex.get(idx) || [];
-      for (const event of postEvents) {
-        const el = renderEvent(event);
-        if (el) elements.push(el);
+      elements.push(
+        <ChatMessage 
+          key={message.id} 
+          message={message}
+          animate={shouldAnimate}
+          onAnimationComplete={() => handleAnimationComplete(message.id)}
+        />
+      );
+      
+      // Only render events after this message if it has finished animating
+      if (isFullyAnimated || !shouldAnimate) {
+        const postEvents = eventsByIndex.get(idx) || [];
+        for (const event of postEvents) {
+          const el = renderEvent(event);
+          if (el) elements.push(el);
+        }
       }
     });
 

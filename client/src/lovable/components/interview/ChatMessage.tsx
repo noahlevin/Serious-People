@@ -1,17 +1,16 @@
+import { useState, useEffect, useRef } from "react";
 import { Message } from "@/lovable/data/mockInterview";
 
 interface ChatMessageProps {
   message: Message;
   isTyping?: boolean;
+  animate?: boolean;
+  onAnimationComplete?: () => void;
 }
 
-// Safe markdown renderer - converts markdown to HTML with sanitization
-// Supports: **bold**, *italics*, unordered/ordered lists, line breaks
-// Disallows: raw HTML, script tags, arbitrary HTML injection
 function renderMarkdown(text: string): string {
   if (!text) return '';
   
-  // Escape HTML first to prevent XSS
   let html = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -19,17 +18,12 @@ function renderMarkdown(text: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
   
-  // Convert markdown to HTML (order matters)
-  // Bold: **text** or __text__
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
   
-  // Italics: *text* or _text_ (must come after bold)
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
   html = html.replace(/_(.+?)_/g, '<em>$1</em>');
   
-  // Unordered lists: lines starting with - or *
-  // First, identify list blocks and wrap them
   const lines = html.split('\n');
   const result: string[] = [];
   let inList = false;
@@ -71,24 +65,74 @@ function renderMarkdown(text: string): string {
   
   html = result.join('\n');
   
-  // Line breaks: double newline becomes paragraph break, single newline preserved
   html = html.replace(/\n\n/g, '</p><p>');
   html = html.replace(/\n/g, '<br/>');
   
-  // Wrap in paragraph
   html = `<p>${html}</p>`;
   
-  // Clean up empty paragraphs
   html = html.replace(/<p><\/p>/g, '');
   
   return html;
 }
 
-const ChatMessage = ({ message, isTyping = false }: ChatMessageProps) => {
+const ChatMessage = ({ message, isTyping = false, animate = false, onAnimationComplete }: ChatMessageProps) => {
   const isAssistant = message.role === 'assistant';
+  const fullContent = isAssistant ? renderMarkdown(message.content) : message.content;
   
-  // Render markdown for assistant messages, plain text for user messages
-  const renderedContent = isAssistant ? renderMarkdown(message.content) : null;
+  const [displayedContent, setDisplayedContent] = useState(animate && isAssistant ? '' : fullContent);
+  const [isAnimating, setIsAnimating] = useState(animate && isAssistant);
+  const indexRef = useRef(0);
+  const animationRef = useRef<number | null>(null);
+  
+  useEffect(() => {
+    if (!animate || !isAssistant || !fullContent) {
+      setDisplayedContent(fullContent);
+      setIsAnimating(false);
+      return;
+    }
+    
+    indexRef.current = 0;
+    setDisplayedContent('');
+    setIsAnimating(true);
+    
+    const speed = 8;
+    
+    const type = () => {
+      if (indexRef.current < fullContent.length) {
+        let increment = 1;
+        
+        if (fullContent[indexRef.current] === '<') {
+          const closeIndex = fullContent.indexOf('>', indexRef.current);
+          if (closeIndex !== -1) {
+            increment = closeIndex - indexRef.current + 1;
+          }
+        } else if (fullContent[indexRef.current] === '&') {
+          const semicolonIndex = fullContent.indexOf(';', indexRef.current);
+          if (semicolonIndex !== -1 && semicolonIndex - indexRef.current < 8) {
+            increment = semicolonIndex - indexRef.current + 1;
+          }
+        }
+        
+        indexRef.current += increment;
+        setDisplayedContent(fullContent.substring(0, indexRef.current));
+        
+        animationRef.current = window.setTimeout(type, speed);
+      } else {
+        setIsAnimating(false);
+        if (onAnimationComplete) {
+          onAnimationComplete();
+        }
+      }
+    };
+    
+    animationRef.current = window.setTimeout(type, speed);
+    
+    return () => {
+      if (animationRef.current) {
+        clearTimeout(animationRef.current);
+      }
+    };
+  }, [animate, isAssistant, fullContent, onAnimationComplete]);
   
   return (
     <div 
@@ -102,17 +146,17 @@ const ChatMessage = ({ message, isTyping = false }: ChatMessageProps) => {
             : 'bg-accent/15'
         }`}
       >
-        {isAssistant && renderedContent ? (
+        {isAssistant ? (
           <div 
             className="font-chat text-foreground text-[15px] leading-relaxed sp-md"
-            dangerouslySetInnerHTML={{ __html: renderedContent }}
+            dangerouslySetInnerHTML={{ __html: displayedContent }}
           />
         ) : (
           <p className="font-chat text-foreground text-[15px] leading-relaxed whitespace-pre-wrap">
             {message.content}
           </p>
         )}
-        {isTyping && (
+        {(isTyping || isAnimating) && (
           <span className="inline-flex ml-1 items-center">
             <span className="w-1 h-1 bg-accent/60 rounded-full animate-pulse" />
             <span className="w-1 h-1 bg-accent/60 rounded-full animate-pulse ml-0.5" style={{ animationDelay: '0.2s' }} />
