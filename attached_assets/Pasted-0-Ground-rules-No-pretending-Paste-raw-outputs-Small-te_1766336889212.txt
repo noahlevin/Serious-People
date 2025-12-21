@@ -1,0 +1,87 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Small, testable changes. No refactors beyond what’s required.
+- Be vigilant about CSS conflicts: avoid mixing tailwind + inline + custom on the same container.
+- After changes, visually verify at mobile/tablet/desktop widths.
+
+1) Goals
+A) Remove redundant intro + eliminate any auto-sent/pre-seeded "start" behavior when landing on /interview/chat.
+B) Ensure chat input is anchored to bottom and always visible; remove "your responses are confidential" copy.
+C) Structured outcomes UX:
+   - render BELOW the AI message they belong to
+   - never render their own question/prompt header (answers only)
+   - right-justified and styled like user messages (not AI messages)
+
+D) Logout always returns to landing page (not just "menu disappears"): enforce via route guard.
+E) Prepare page: header content left/right should align with main content container edges (match padding/max-width).
+
+2) Scope (ONLY)
+- client/src/App.tsx
+- client/src/components/AppShell.tsx
+- client/src/styles/serious-people.css
+- client/src/lovable/pages/InterviewChat.tsx
+- client/src/lovable/components/interview/StructuredOutcomes.tsx (or wherever it lives)
+- client/src/components/UserMenu.tsx (only if needed)
+- server/routes.ts (ONLY if event placement logic must change)
+- scripts/smoke-interview-chat.mjs (only if required)
+
+3) Implementation details (be explicit)
+
+A) Remove auto "start" + redundant intro
+- Find any code that:
+  - pre-fills the input with "start"
+  - auto-submits "start"
+  - inserts an extra intro message on mount beyond the tool-driven title card
+- Delete it.
+- Initial view should be driven by GET /api/interview/state (transcript + events) and/or server title-card event. No fake user message.
+
+B) Anchor chat input
+- Ensure InterviewChat uses a stable flex layout inside AppShell main:
+  - message list area scrolls (overflow-y-auto)
+  - input stays pinned to bottom
+- Remove the “your responses are confidential” line wherever it is rendered.
+
+C) Structured outcomes placement + styling
+Placement:
+- Fix afterMessageIndex assignment so outcomes attach to the assistant message index they relate to.
+- If tool calls happen before assistant message is appended, server should set afterMessageIndex to the future assistant index deterministically (e.g., current transcript length).
+Rendering:
+- Do NOT render any outcomes prompt/question text in UI (answers only).
+- Right-align outcomes container to match user bubble alignment.
+- Ensure outcomes appear below the AI message they belong to (not above).
+
+D) Logout always lands on /
+- Add a route guard in App.tsx:
+  - if user is not authenticated and route is protected -> <Navigate to="/" replace />
+- Keep logout navigate("/") too, but guard is the real fix.
+
+E) Header alignment on Prepare (and all pages)
+- AppShell header should have an inner container that matches the main content container width/padding.
+- Define a single `.sp-container` (max-width + horizontal padding) and use it in:
+  - header inner wrapper
+  - main content wrapper
+  - footer inner wrapper
+- Avoid duplicating padding in multiple nested wrappers.
+
+4) Visual verification (required)
+Check at ~390px, ~768px, ~1200px+:
+- /interview/prepare (header alignment)
+- /interview/chat (input pinned, outcomes aligned, no redundant “start”)
+- /module/1 (sanity)
+Also verify logout from a deep route returns to landing.
+
+5) Verification (paste raw output)
+- npm run build
+- node scripts/smoke-module-chat.mjs
+- DEV_FAST=1 node scripts/smoke-interview-chat.mjs
+- node scripts/smoke-interview-chat.mjs (full, if it’s reasonably fast)
+- grep -R "start\"" client/src/lovable/pages/InterviewChat.tsx client/src || true
+- grep -R "confidential" client/src || true
+
+6) Acceptance criteria
+- No redundant pre-seeded "start" / duplicate intro on /interview/chat.
+- Chat input always visible at bottom; “confidential” copy removed.
+- Outcomes appear below the AI message, right-aligned, answers-only, and never show redundant question text.
+- Logout always returns to landing due to route guard.
+- Header alignment is consistent (Prepare header matches content edges).
+- Build + smokes pass.

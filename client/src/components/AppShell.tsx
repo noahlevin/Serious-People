@@ -9,7 +9,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div className="sp-shell">
       <header className="sp-shell-header">
-        <div className="sp-shell-header-content">
+        <div className="sp-container sp-shell-header-inner">
           <Link to="/interview/start" className="sp-shell-logo">
             Serious People
           </Link>
@@ -20,7 +20,9 @@ export function AppShell({ children }: AppShellProps) {
         {children}
       </main>
       <footer className="sp-shell-footer">
-        <p>Your responses are confidential.</p>
+        <div className="sp-container">
+          <p>&copy; {new Date().getFullYear()} Serious People</p>
+        </div>
       </footer>
     </div>
   );

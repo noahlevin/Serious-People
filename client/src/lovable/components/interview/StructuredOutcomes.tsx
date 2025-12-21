@@ -9,7 +9,6 @@ interface StructuredOption {
 
 interface StructuredOutcomesProps {
   eventId: string;
-  prompt?: string;
   options: StructuredOption[];
   onSelect: (eventId: string, optionId: string) => Promise<void>;
   disabled?: boolean;
@@ -17,7 +16,6 @@ interface StructuredOutcomesProps {
 
 export default function StructuredOutcomes({
   eventId,
-  prompt,
   options,
   onSelect,
   disabled = false,
@@ -41,11 +39,8 @@ export default function StructuredOutcomes({
   };
 
   return (
-    <div className="py-2" data-testid={`structured-outcomes-${eventId}`}>
-      {prompt && (
-        <p className="text-sm text-muted-foreground mb-2">{prompt}</p>
-      )}
-      <div className="flex flex-wrap gap-2">
+    <div className="py-2 flex justify-end" data-testid={`structured-outcomes-${eventId}`}>
+      <div className="flex flex-wrap gap-2 justify-end">
         {options.map((option) => (
           <Button
             key={option.id}

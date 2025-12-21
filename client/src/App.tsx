@@ -4,7 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { initPostHog } from "@/lib/posthog";
 import { AppShell } from "@/components/AppShell";
 
@@ -16,6 +16,21 @@ function ScrollToTop() {
   }, [pathname]);
   
   return null;
+}
+
+// Route guard: redirects to landing page if not authenticated
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return null;
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return <>{children}</>;
 }
 
 import Login from "@/pages/login";
@@ -50,25 +65,26 @@ function getBasePath(): string {
 function AppRoutes() {
   return (
     <Routes>
-      {/* Canonical routes */}
+      {/* Public routes */}
       <Route path="/interview/start" element={<InterviewStart />} />
-      <Route path="/interview/prepare" element={<InterviewPrepare />} />
-      <Route path="/interview/chat" element={<InterviewChat />} />
-      <Route path="/offer" element={<Offer />} />
-      <Route path="/offer/success" element={<Success />} />
-      <Route path="/module/:moduleNumber" element={<ModulePage />} />
-      <Route path="/progress" element={<Progress />} />
-      <Route path="/coach-letter" element={<CoachLetter />} />
-      <Route path="/serious-plan" element={<SeriousPlan />} />
-      <Route path="/artifact/:artifactSlug" element={<Artifacts />} />
-      
-      {/* Supporting routes */}
       <Route path="/login" element={<Login />} />
-      <Route path="/career-brief" element={<CareerBrief />} />
-      <Route path="/coach-chat" element={<CoachChat />} />
-      <Route path="/artifacts" element={<Artifacts />} />
+      
+      {/* Protected routes - require authentication */}
+      <Route path="/interview/prepare" element={<RequireAuth><InterviewPrepare /></RequireAuth>} />
+      <Route path="/interview/chat" element={<RequireAuth><InterviewChat /></RequireAuth>} />
+      <Route path="/offer" element={<RequireAuth><Offer /></RequireAuth>} />
+      <Route path="/offer/success" element={<RequireAuth><Success /></RequireAuth>} />
+      <Route path="/module/:moduleNumber" element={<RequireAuth><ModulePage /></RequireAuth>} />
+      <Route path="/progress" element={<RequireAuth><Progress /></RequireAuth>} />
+      <Route path="/coach-letter" element={<RequireAuth><CoachLetter /></RequireAuth>} />
+      <Route path="/serious-plan" element={<RequireAuth><SeriousPlan /></RequireAuth>} />
+      <Route path="/artifact/:artifactSlug" element={<RequireAuth><Artifacts /></RequireAuth>} />
+      <Route path="/career-brief" element={<RequireAuth><CareerBrief /></RequireAuth>} />
+      <Route path="/coach-chat" element={<RequireAuth><CoachChat /></RequireAuth>} />
+      <Route path="/artifacts" element={<RequireAuth><Artifacts /></RequireAuth>} />
+      
+      {/* Debug/test routes */}
       <Route path="/__lovable" element={<LovableSmoke />} />
-      {/* Debug route: only register in dev mode or when VITE_DEBUG_UI=1 */}
       {(import.meta.env.DEV || import.meta.env.VITE_DEBUG_UI === "1") && (
         <Route path="/debug/chat-components" element={<DebugChatComponents />} />
       )}

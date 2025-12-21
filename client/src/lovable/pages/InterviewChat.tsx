@@ -238,8 +238,8 @@ const InterviewChat = () => {
       // First try to load existing state
       const state = await fetchInterviewState();
       
-      if (state.success && state.transcript && state.transcript.length > 0) {
-        // Existing session - load from server
+      if (state.success && state.transcript) {
+        // Load existing session from server (may be empty for new users)
         const msgs: Message[] = state.transcript.map((t, i) => ({
           id: String(i),
           role: t.role as 'user' | 'assistant',
@@ -248,22 +248,6 @@ const InterviewChat = () => {
         }));
         setMessages(msgs);
         setEvents(state.events || []);
-      } else {
-        // No existing session - start fresh by calling turn
-        setIsTyping(true);
-        const result = await callInterviewTurn("start");
-        setIsTyping(false);
-        
-        if (result.success && result.transcript) {
-          const msgs: Message[] = result.transcript.map((t, i) => ({
-            id: String(i),
-            role: t.role as 'user' | 'assistant',
-            content: t.content,
-            timestamp: new Date(),
-          }));
-          setMessages(msgs);
-          setEvents(result.events || []);
-        }
       }
     })();
   }, [isInitialized]);
@@ -373,7 +357,6 @@ const InterviewChat = () => {
           <StructuredOutcomes
             key={`event-${event.eventSeq}`}
             eventId={String(event.eventSeq)}
-            prompt={event.payload.prompt}
             options={event.payload.options}
             onSelect={handleOutcomeSelect}
             disabled={isOutcomeSelected(event.eventSeq) || isTyping}
