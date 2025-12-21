@@ -1,11 +1,18 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { UserMenu } from "@/components/UserMenu";
 
 interface AppShellProps {
   children: React.ReactNode;
+  hideFooter?: boolean;
+  mainClassName?: string;
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, hideFooter, mainClassName }: AppShellProps) {
+  const location = useLocation();
+  
+  const isInterviewPage = location.pathname.startsWith("/interview");
+  const shouldHideFooter = hideFooter ?? isInterviewPage;
+  
   return (
     <div className="sp-shell">
       <header className="sp-shell-header">
@@ -16,14 +23,16 @@ export function AppShell({ children }: AppShellProps) {
           <UserMenu />
         </div>
       </header>
-      <main className="sp-shell-main">
+      <main className={`sp-shell-main ${mainClassName || ''}`}>
         {children}
       </main>
-      <footer className="sp-shell-footer">
-        <div className="sp-container">
-          <p>&copy; {new Date().getFullYear()} Serious People</p>
-        </div>
-      </footer>
+      {!shouldHideFooter && (
+        <footer className="sp-shell-footer">
+          <div className="sp-container">
+            <p>&copy; {new Date().getFullYear()} Serious People</p>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

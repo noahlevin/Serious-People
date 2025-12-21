@@ -138,6 +138,33 @@
 
 .sp-shell-main {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================
+   Chat Page Layout (pinned composer)
+   ============================================ */
+.sp-chat-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.sp-chat-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sp-chat-composer {
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  background: var(--sp-bg);
 }
 
 .sp-shell-footer {

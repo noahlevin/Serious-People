@@ -481,7 +481,7 @@ const InterviewChat = () => {
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
+    <div className="sp-chat-page">
       {/* Progress bar */}
       <div className="h-[2px] bg-border relative shrink-0">
         <div 
@@ -491,8 +491,8 @@ const InterviewChat = () => {
         />
       </div>
 
-      {/* Chat Messages - flex-1 with min-h-0 ensures proper scrolling */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      {/* Chat Messages - scrollable area */}
+      <div className="sp-chat-scroll">
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
           {renderChatContent()}
           
@@ -527,8 +527,8 @@ const InterviewChat = () => {
         </div>
       </div>
 
-      {/* Input Area - shrink-0 ensures composer stays pinned at bottom */}
-      <div className="shrink-0">
+      {/* Input Area - pinned to bottom */}
+      <div className="sp-chat-composer">
         <ChatInput 
           onSend={handleSendMessage}
           disabled={isTyping || isComplete}

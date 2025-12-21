@@ -1,0 +1,82 @@
+0) NON-NEGOTIABLE OUTPUT RULE
+You MUST paste raw outputs for every command in section (6).
+If you do not, the task is not complete. No exceptions.
+
+1) Goals (P0)
+A) In /app/interview/chat the composer (input + send button) is ALWAYS pinned to the bottom of the viewport.
+   - Works when transcript is empty.
+   - Works when transcript is long (messages scroll, composer stays).
+B) Header height is consistent and not tall. Remove excess vertical padding.
+C) Footer is NOT shown on /app/interview/* pages (start/prepare/chat). (If you can do chat-only cleanly, do chat-only; but prefer all interview pages.)
+
+2) Scope (ONLY)
+- client/src/components/AppShell.tsx
+- client/src/styles/serious-people.css
+- client/src/lovable/pages/InterviewChat.tsx
+- client/src/lovable/pages/Interview.tsx
+- client/src/lovable/pages/Prepare.tsx
+
+3) Implementation (do exactly this)
+
+A) AppShell: add a prop to hide footer and optionally adjust main padding
+- Add props to AppShell:
+  - `hideFooter?: boolean`
+  - optionally `mainClassName?: string` (if needed)
+- Footer render should be conditional: if hideFooter is true, do not render footer at all.
+- Header: ensure .sp-shell-header uses ONLY the CSS class (avoid extra tailwind py-*).
+  - Remove any header wrapper padding classes in TSX that inflate height.
+
+B) Interview pages: pass hideFooter
+- In Interview.tsx, Prepare.tsx, InterviewChat.tsx: render within AppShell with hideFooter={true}.
+
+C) Composer pinned layout (InterviewChat)
+- Make the InterviewChat page content a flex column with min-height constraints so only the message list scrolls.
+Structure inside AppShell main should be:
+
+<div className="sp-chat-page">
+  <div className="sp-chat-scroll"> ...messages... </div>
+  <div className="sp-chat-composer"> ...input... </div>
+</div>
+
+CSS rules (in serious-people.css):
+- .sp-chat-page { height: 100%; display:flex; flex-direction:column; min-height:0; }
+- .sp-chat-scroll { flex:1; min-height:0; overflow-y:auto; }
+- .sp-chat-composer { flex:0 0 auto; position:sticky; bottom:0; background: var(--page-bg or white); }
+
+IMPORTANT:
+- Ensure AppShell main wrapper allows children to fill height:
+  - .sp-shell-main { flex:1; min-height:0; display:flex; }
+  - and its inner container also min-height:0 so overflow works.
+
+D) Header height (CSS)
+- In serious-people.css:
+  - .sp-shell-header { min-height:56px; padding: 0 0; } (or minimal)
+  - ensure header inner container uses align-items:center and has its own padding left/right only (not vertical).
+- Ensure logo/menu triggers line-height: 1 and align-items:center.
+
+4) Manual visual check (required)
+- /app/interview/chat:
+  - empty transcript: composer sits at bottom, not mid-page
+  - long transcript: message area scrolls, composer stays pinned
+- /app/interview/start and /app/interview/prepare:
+  - no footer visible
+  - header not tall
+
+5) Do NOT change
+- No server changes
+- No prompt changes
+- No event architecture changes
+- No component redesign
+
+6) Verification (paste raw output)
+- npm run build
+- DEV_FAST=1 node scripts/smoke-interview-chat.mjs
+- node scripts/smoke-module-chat.mjs
+- grep -R "hideFooter" client/src/components/AppShell.tsx client/src/lovable/pages | head -n 50
+- grep -R "sp-chat-page" client/src/styles/serious-people.css client/src/lovable/pages/InterviewChat.tsx | head -n 50
+
+7) Acceptance criteria
+- Composer pinned to bottom in chat (empty + long).
+- Header height is normal (no extra vertical padding).
+- Footer hidden on /app/interview/*.
+- Raw outputs pasted.
