@@ -1,0 +1,57 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Fix regressions with minimal changes.
+- Avoid CSS conflicts: don’t layer tailwind + inline + custom on the same element.
+
+1) Goals
+A) Fix header vertical alignment at tablet/desktop widths (logo + UserMenu should be vertically centered and aligned).
+B) Make ScrollToTop not visibly scroll after load; page should start at top on navigation.
+C) Logout must always go to the marketing landing page at "/" (not /app/*, not /interview/start).
+D) Auth guard for protected SPA routes should also send unauth users to "/" via hard redirect (not Navigate within SPA).
+
+2) Scope (ONLY)
+- client/src/App.tsx
+- client/src/components/AppShell.tsx
+- client/src/components/UserMenu.tsx
+- client/src/styles/serious-people.css
+
+3) Implementation details
+
+A) Header alignment (AppShell + CSS)
+- Ensure header uses a single class for sizing/alignment (e.g. .sp-shell-header)
+- In CSS:
+  - set a clear min-height (e.g. 48px/56px) and vertical padding if needed
+  - ensure header inner container is display:flex; align-items:center; justify-content:space-between
+- Ensure logo element has sane line-height (avoid baseline drift).
+- Ensure UserMenu trigger/button is also display:flex; align-items:center so it centers vertically with the logo.
+
+B) ScrollToTop jank
+- In App.tsx, change ScrollToTop to useLayoutEffect instead of useEffect, so it runs before paint.
+- Keep dependency on pathname only.
+- Optional (if needed): set `history.scrollRestoration = "manual"` once at app start.
+
+C) Logout to landing page
+- In UserMenu logout handler:
+  - after logout completes, do `window.location.replace("/")` (NOT react-router navigate).
+- In RequireAuth (or whatever wrapper):
+  - if unauthenticated, do a hard redirect:
+    - `window.location.replace("/")`
+    - return null (or a tiny placeholder) to avoid rendering.
+
+4) Visual verification (required)
+Check at ~390px, ~768px, ~1200px+:
+- Header: logo and menu vertically aligned/centered
+- Navigate from a scrolled page to another: landing at top without visible scroll animation
+- Logout from /app/interview/chat: ends at marketing landing "/" (not /app/*)
+
+5) Verification (paste raw outputs)
+- npm run build
+- DEV_FAST=1 node scripts/smoke-interview-chat.mjs
+- node scripts/smoke-module-chat.mjs
+
+6) Acceptance criteria
+- Header alignment fixed on tablet/desktop.
+- No visible scroll-to-top animation on load/navigation.
+- Logout reliably returns to "/" via hard redirect.
+- Unauthed access to protected SPA routes also hard redirects to "/".
+- Build + smokes pass.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import { Routes, Route, BrowserRouter, Navigate, useLocation } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -8,17 +8,22 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { initPostHog } from "@/lib/posthog";
 import { AppShell } from "@/components/AppShell";
 
+// Disable browser scroll restoration to prevent jank
+if (typeof window !== "undefined" && window.history) {
+  window.history.scrollRestoration = "manual";
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
   }, [pathname]);
   
   return null;
 }
 
-// Route guard: redirects to landing page if not authenticated
+// Route guard: hard redirect to marketing landing if not authenticated
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   
@@ -27,7 +32,8 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   }
   
   if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
+    window.location.replace("/");
+    return null;
   }
   
   return <>{children}</>;
