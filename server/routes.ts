@@ -833,7 +833,7 @@ You have access to tools for injecting UI elements into the chat:
 
 2. **append_section_header** - Use when transitioning to a new major topic or phase.
 
-3. **append_structured_outcomes** - Use to present clickable option buttons instead of text-based options. Call with an array of options (objects with id and label). Example: options=[{id: "overview", label: "Give me a quick overview"}, {id: "dive_in", label: "Just dive in"}]
+3. **append_structured_outcomes** - Use to present clickable ANSWER buttons. IMPORTANT: The question/ask must be in your freetext message BEFORE calling this tool. The tool should ONLY contain the answer options (no question text). Call with an array of options (objects with id and label). Example: First write "How would you like to get started?" in your message, THEN call append_structured_outcomes with options=[{id: "overview", label: "Give me a quick overview"}, {id: "dive_in", label: "Just dive in"}]
 
 4. **set_provided_name** - Use when the user tells you their name. Call with the name they provided.
 
@@ -2742,6 +2742,7 @@ COMMUNICATION STYLE:
   });
 
   // GET /api/interview/state - Get current interview state (transcript + events)
+  // If no transcript exists or transcript is completely blank (no messages AND no events), auto-initialize
   app.get("/api/interview/state", requireAuth, async (req, res) => {
     try {
       const user = req.user as any;
@@ -2749,17 +2750,54 @@ COMMUNICATION STYLE:
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      const transcript = await storage.getTranscriptByUserId(user.id);
-      if (!transcript) {
-        return res.json({ success: true, transcript: [], events: [] });
+      let transcript = await storage.getTranscriptByUserId(user.id);
+      
+      // Check if we need to auto-initialize
+      const messages = transcript ? (Array.isArray(transcript.transcript) ? transcript.transcript : []) : [];
+      let events = transcript ? await storage.listInterviewEvents(transcript.sessionToken) : [];
+      
+      // Auto-initialize ONLY if: no transcript OR (no messages AND no events at all)
+      // This preserves dev-injected events and avoids corrupting test state
+      const isCompletelyBlank = !transcript || (messages.length === 0 && events.length === 0);
+      
+      if (isCompletelyBlank) {
+        console.log(`[INTERVIEW_STATE] Auto-initializing interview for user ${user.id}`);
+        
+        // Create transcript if it doesn't exist
+        if (!transcript) {
+          const sessionToken = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+          transcript = await storage.createTranscript({
+            sessionToken,
+            userId: user.id,
+            transcript: [] as any,
+            currentModule: "Interview",
+            progress: 0,
+          });
+        }
+        
+        // Call LLM to generate title card and first message
+        const llmResult = await callInterviewLLM([], transcript.sessionToken, user.id);
+        
+        if (llmResult.reply) {
+          // Persist the first assistant message
+          const firstMessage = { role: "assistant", content: llmResult.reply, timestamp: new Date().toISOString() };
+          await storage.updateTranscript(transcript.sessionToken, {
+            transcript: [firstMessage] as any,
+          });
+          
+          // Refresh transcript and events after initialization
+          transcript = await storage.getTranscript(transcript.sessionToken);
+          events = await storage.listInterviewEvents(transcript!.sessionToken);
+          
+          console.log(`[INTERVIEW_STATE] Auto-initialization complete for user ${user.id}`);
+        }
       }
 
-      const messages = Array.isArray(transcript.transcript) ? transcript.transcript : [];
-      const events = await storage.listInterviewEvents(transcript.sessionToken);
+      const finalMessages = transcript ? (Array.isArray(transcript.transcript) ? transcript.transcript : []) : [];
 
       res.json({
         success: true,
-        transcript: messages,
+        transcript: finalMessages,
         events,
       });
     } catch (error: any) {

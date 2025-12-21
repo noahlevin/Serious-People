@@ -1,0 +1,98 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Small, testable changes. Do not refactor unrelated files.
+- CSS hygiene: avoid mixing tailwind + inline + custom styles on the same container; prefer a single class + minimal overrides.
+- Visual verification required at mobile/tablet/desktop.
+
+1) Goals (P0)
+A) /interview/chat should NOT be blank on first load.
+   - Title card renders near-immediately.
+   - Then the coach’s first message renders.
+   - This must happen WITHOUT any user input.
+   - Must be idempotent/deterministic on refresh (no duplicates).
+B) When there are zero messages, the chat input must still be pinned to bottom (no “smooshed top”).
+C) Structured outcomes:
+   - The preceding assistant message must contain the question/ask in freetext.
+   - The tool event should contain ONLY answer options (no question text displayed anywhere).
+   - Clicking an option must remove the pills immediately and persist the selection (no regression).
+   - No duplicate/repeated prior outcomes rendering.
+D) Markdown rendering in messages:
+   - Support common markdown: **bold**, *italics*, unordered/ordered lists, line breaks.
+   - Disallow raw HTML rendering (no <script>, no arbitrary HTML injection).
+   - Be explicit in code: sanitize / do not allow dangerous HTML.
+
+2) Scope (ONLY)
+- server/routes.ts
+- client/src/lovable/pages/InterviewChat.tsx
+- client/src/lovable/components/interview/ChatMessage.tsx (or whatever renders message bodies)
+- client/src/lovable/components/interview/StructuredOutcomes.tsx
+- client/src/styles/serious-people.css
+- scripts/smoke-interview-chat.mjs (only if needed to validate initialization)
+
+3) Implementation details
+
+A) Chat initialization (server is authority)
+- Add/restore an idempotent “ensure initialized” step that runs when the chat page loads.
+Preferred: in GET /api/interview/state (or a new endpoint /api/interview/ensure-initialized called by the client on mount):
+  1) If transcript is empty AND there is no title-card event AND no initial-assistant message exists:
+     - call callInterviewLLM([], sessionToken) so the model can:
+       - append_title_card (event)
+       - return the first assistant message text
+     - persist both deterministically
+  2) If already initialized, do nothing.
+- The endpoint response should include transcript + events after initialization.
+- IMPORTANT: must not create duplicate title cards or duplicate first assistant messages across refreshes/tabs.
+
+B) Chat empty-state layout
+- Ensure InterviewChat layout uses a stable flex column:
+  - header (already in AppShell)
+  - main chat area: flex: 1; min-height: 0; overflow-y:auto
+  - input composer pinned at bottom (position: sticky/bottom OR flex layout with composer outside scroll area)
+- When there are zero messages, the scroll area can be empty but must not collapse the composer upward.
+
+C) Structured outcomes correctness + dedupe
+- Confirm the tool schema for append_structured_outcomes does NOT encourage a “prompt/question” field.
+  - If it currently has one, make it optional and stop rendering it entirely.
+  - Add a server-side guard: if tool call includes prompt/question text, drop it (or log in dev) and store only options.
+- Update the interview system prompt:
+  - The assistant must ask the question in freetext first.
+  - Only after writing the message, decide whether to call append_structured_outcomes with answer options only.
+- Fix pills-not-disappearing regression:
+  - On click, the client should optimistically mark that outcomes event as selected so pills hide immediately.
+  - Then call the select endpoint and reconcile with returned server transcript/events.
+- Fix repeated outcomes rendering:
+  - Ensure events are keyed by eventSeq and de-duped before render.
+  - Ensure state reconciliation replaces events/transcript with server authority rather than merging duplicates.
+
+D) Markdown rendering
+- Render assistant message content as markdown with a safe renderer.
+  - Allow: strong/em, lists, paragraphs, line breaks.
+  - Do NOT allow raw HTML.
+- Keep user messages as plain text (or markdown too if you prefer, but be consistent).
+- Add a small unit-like smoke check if feasible (or a dev note) to ensure markdown renders as expected.
+
+4) Visual verification (required)
+At ~390px, ~768px, ~1200px:
+- Load /app/interview/chat fresh:
+  - Title card shows quickly
+  - First assistant message shows without user action
+  - Composer pinned bottom even before any messages
+- Trigger structured outcomes:
+  - Options appear after assistant question message
+  - Click option => pills disappear immediately
+  - No duplicate outcomes appear later
+- Confirm markdown inside assistant message renders bold/lists correctly
+
+5) Verification (paste raw outputs)
+- npm run build
+- DEV_FAST=1 node scripts/smoke-interview-chat.mjs
+- node scripts/smoke-module-chat.mjs
+- If you add “ensure initialized” behavior:
+  - extend smoke-interview-chat to assert that after GET /api/interview/state, transcriptLength>0 OR title-card event exists, without sending a user turn.
+
+6) Acceptance criteria
+- /interview/chat initializes itself: title card + first coach message appear without user input, deterministically.
+- Input composer is pinned at bottom even when chat is empty.
+- Outcomes have answers only; no redundant question header; pills disappear on selection; no duplicates.
+- Markdown renders correctly (bold, italics, lists) with HTML disallowed.
+- Build + smokes pass.

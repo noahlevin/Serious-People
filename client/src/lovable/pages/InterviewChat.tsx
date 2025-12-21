@@ -167,15 +167,29 @@ const InterviewChat = () => {
   }, [events]);
 
   // Handle structured outcome selection (eventSeq is passed as string, converted to number)
+  // Optimistic update: immediately hide pills, then sync with server
   const handleOutcomeSelect = useCallback(async (eventSeqStr: string, optionId: string) => {
-    setIsTyping(true);
-    
     const eventSeq = parseInt(eventSeqStr, 10);
     if (isNaN(eventSeq)) {
       console.error("[InterviewChat] Invalid eventSeq:", eventSeqStr);
-      setIsTyping(false);
       return;
     }
+    
+    // Optimistic update: add selection event immediately to hide pills
+    const optimisticEvent: AppEvent = {
+      id: `optimistic-${Date.now()}`,
+      eventSeq: Date.now(),
+      stream: 'interview',
+      type: 'chat.structured_outcome_selected',
+      payload: {
+        render: { afterMessageIndex: messages.length - 1 },
+        eventSeq: eventSeq,
+        optionId: optionId,
+      },
+      createdAt: new Date().toISOString(),
+    };
+    setEvents(prev => [...prev, optimisticEvent]);
+    setIsTyping(true);
     
     try {
       const res = await fetch("/api/interview/outcomes/select", {
@@ -201,6 +215,7 @@ const InterviewChat = () => {
         }));
         setMessages(msgs);
         
+        // Replace events from server (removes optimistic, adds real)
         if (result.events) {
           setEvents(result.events);
           if (result.events.some((e: AppEvent) => e.type === "user.provided_name_set")) {
@@ -216,10 +231,12 @@ const InterviewChat = () => {
       }
     } catch (error) {
       console.error("[InterviewChat] Outcome selection failed:", error);
+      // Remove optimistic event on failure
+      setEvents(prev => prev.filter(e => e.id !== optimisticEvent.id));
     } finally {
       setIsTyping(false);
     }
-  }, [refetch]);
+  }, [refetch, messages.length]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -406,8 +423,8 @@ const InterviewChat = () => {
         />
       </div>
 
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Chat Messages - flex-1 with min-h-0 ensures proper scrolling */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
           {renderChatContent()}
           
@@ -442,12 +459,14 @@ const InterviewChat = () => {
         </div>
       </div>
 
-      {/* Input Area */}
-      <ChatInput 
-        onSend={handleSendMessage}
-        disabled={isTyping || isComplete}
-        placeholder={isComplete ? "Interview complete..." : "Type your response..."}
-      />
+      {/* Input Area - shrink-0 ensures composer stays pinned at bottom */}
+      <div className="shrink-0">
+        <ChatInput 
+          onSend={handleSendMessage}
+          disabled={isTyping || isComplete}
+          placeholder={isComplete ? "Interview complete..." : "Type your response..."}
+        />
+      </div>
     </div>
   );
 };
