@@ -167,8 +167,8 @@ const InterviewChat = () => {
   }, [events]);
 
   // Handle structured outcome selection (eventSeq is passed as string, converted to number)
-  // Optimistic update: immediately hide pills, then sync with server
-  const handleOutcomeSelect = useCallback(async (eventSeqStr: string, optionId: string) => {
+  // Optimistic update: immediately hide pills AND add user message, then sync with server
+  const handleOutcomeSelect = useCallback(async (eventSeqStr: string, optionId: string, value: string) => {
     const eventSeq = parseInt(eventSeqStr, 10);
     if (isNaN(eventSeq)) {
       console.error("[InterviewChat] Invalid eventSeq:", eventSeqStr);
@@ -176,8 +176,9 @@ const InterviewChat = () => {
     }
     
     // Optimistic update: add selection event immediately to hide pills
+    const optimisticEventId = `optimistic-${Date.now()}`;
     const optimisticEvent: AppEvent = {
-      id: `optimistic-${Date.now()}`,
+      id: optimisticEventId,
       eventSeq: Date.now(),
       stream: 'interview',
       type: 'chat.structured_outcome_selected',
@@ -188,7 +189,18 @@ const InterviewChat = () => {
       },
       createdAt: new Date().toISOString(),
     };
+    
+    // Optimistic update: add user message immediately
+    const optimisticMessageId = `optimistic-msg-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: optimisticMessageId,
+      role: 'user',
+      content: value,
+      timestamp: new Date(),
+    };
+    
     setEvents(prev => [...prev, optimisticEvent]);
+    setMessages(prev => [...prev, optimisticMessage]);
     setIsTyping(true);
     
     try {
@@ -231,8 +243,9 @@ const InterviewChat = () => {
       }
     } catch (error) {
       console.error("[InterviewChat] Outcome selection failed:", error);
-      // Remove optimistic event on failure
-      setEvents(prev => prev.filter(e => e.id !== optimisticEvent.id));
+      // Remove optimistic event and message on failure
+      setEvents(prev => prev.filter(e => e.id !== optimisticEventId));
+      setMessages(prev => prev.filter(m => m.id !== optimisticMessageId));
     } finally {
       setIsTyping(false);
     }

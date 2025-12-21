@@ -10,7 +10,7 @@ interface StructuredOption {
 interface StructuredOutcomesProps {
   eventId: string;
   options: StructuredOption[];
-  onSelect: (eventId: string, optionId: string) => Promise<void>;
+  onSelect: (eventId: string, optionId: string, value: string) => Promise<void>;
   disabled?: boolean;
 }
 
@@ -23,14 +23,14 @@ export default function StructuredOutcomes({
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const handleClick = async (optionId: string) => {
+  const handleClick = async (option: StructuredOption) => {
     if (disabled || isSelecting) return;
     
     setIsSelecting(true);
-    setSelectedId(optionId);
+    setSelectedId(option.id);
     
     try {
-      await onSelect(eventId, optionId);
+      await onSelect(eventId, option.id, option.value);
     } catch (error) {
       console.error("[StructuredOutcomes] Selection failed:", error);
       setIsSelecting(false);
@@ -46,7 +46,7 @@ export default function StructuredOutcomes({
             key={option.id}
             variant="outline"
             size="sm"
-            onClick={() => handleClick(option.id)}
+            onClick={() => handleClick(option)}
             disabled={disabled || isSelecting}
             className={`
               rounded-full px-4 py-1.5 text-sm font-normal
