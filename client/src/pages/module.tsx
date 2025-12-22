@@ -148,6 +148,7 @@ export default function ModulePage() {
   const [moduleComplete, setModuleComplete] = useState(false);
   const [moduleSummary, setModuleSummary] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [streamingHasContent, setStreamingHasContent] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [status, setStatus] = useState("");
@@ -267,6 +268,7 @@ export default function ModulePage() {
         // onToken: Update streaming message progressively
         (text) => {
           streamingContent += text;
+          setStreamingHasContent(true);
           setTranscript(prev => prev.map((m, i) => 
             i === streamingIndex 
               ? { ...m, content: streamingContent }
@@ -276,6 +278,7 @@ export default function ModulePage() {
         // onDone: Handle final state
         (data) => {
           setIsTyping(false);
+          setStreamingHasContent(false);
           
           const finalReply = data.reply || streamingContent;
           const finalTranscript = [...currentTranscript, { role: "assistant" as const, content: finalReply }];
@@ -321,6 +324,7 @@ export default function ModulePage() {
         (error) => {
           console.error("Module stream error:", error);
           setIsTyping(false);
+          setStreamingHasContent(false);
           setStatus("Something went wrong. Please try again.");
           // Remove the placeholder message on error
           setTranscript(currentTranscript);
@@ -542,20 +546,16 @@ export default function ModulePage() {
                 content: msg.content,
                 timestamp: new Date()
               };
-              const formattedHtml = msg.role === 'assistant' ? formatContent(msg.content) : undefined;
               return (
                 <div key={index} className="sp-message-wrapper-lovable">
                   {msg.role === "assistant" && titleCard && (
                     <ModuleTitleCard name={titleCard.name} time={titleCard.time} />
                   )}
-                  <ChatMessage
-                    message={lovableMessage}
-                    htmlContent={formattedHtml}
-                  />
+                  <ChatMessage message={lovableMessage} />
                 </div>
               );
             })}
-            {isTyping && <TypingIndicator />}
+            {isTyping && !streamingHasContent && <TypingIndicator />}
             {options.length > 0 && animatingMessageIndex === null && (
               <OptionsContainer options={options} onSelect={handleOptionSelect} />
             )}

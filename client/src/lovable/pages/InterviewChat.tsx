@@ -230,6 +230,7 @@ const InterviewChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [streamingHasContent, setStreamingHasContent] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -415,6 +416,7 @@ const InterviewChat = () => {
       // onToken: Update the streaming message content progressively
       (text) => {
         streamingContent += text;
+        setStreamingHasContent(true);
         setMessages(prev => prev.map(m => 
           m.id === streamingMsgId 
             ? { ...m, content: streamingContent }
@@ -424,6 +426,7 @@ const InterviewChat = () => {
       // onDone: Replace with final state from server
       (data) => {
         setIsTyping(false);
+        setStreamingHasContent(false);
         
         if (data.success && data.transcript) {
           const msgs: Message[] = data.transcript.map((t, i) => ({
@@ -456,6 +459,7 @@ const InterviewChat = () => {
       // onError: Show error message
       (error) => {
         setIsTyping(false);
+        setStreamingHasContent(false);
         console.error("[InterviewChat] Stream error:", error);
         setMessages(prev => prev.map(m => 
           m.id === streamingMsgId 
@@ -592,7 +596,7 @@ const InterviewChat = () => {
             renderChatContent()
           )}
           
-          {isTyping && (
+          {isTyping && !streamingHasContent && (
             <ChatMessage 
               message={{
                 id: 'typing',

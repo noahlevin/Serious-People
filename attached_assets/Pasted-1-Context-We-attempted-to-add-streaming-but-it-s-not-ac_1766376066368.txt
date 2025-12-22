@@ -1,0 +1,186 @@
+1) Context
+
+We attempted to add “streaming,” but it’s not actually streaming in the UI. Text still appears after a long delay, and when it types out there’s a redundant typing indicator showing below the message that’s already being typed. Also saw a user message bubble disappear leaving a tiny blank bubble.
+
+We need to fix this before any other punchlist items.
+
+2) Goals (in priority order)
+2.1 Remove any fake “thinking delay” (server + client)
+
+Find and remove any intentional latency (sleep, setTimeout, delay helper, artificial spinner gating, etc.).
+This must include interview + module flows.
+
+Acceptance
+
+No deliberate delay remains anywhere in chat request/response paths.
+
+Any loading UI is driven only by real network/LLM latency.
+
+2.2 Make streaming real (or correctly wired) for Interview and Modules
+
+Either:
+
+(A) implement SSE streaming end-to-end, or
+
+(B) if SSE endpoints already exist, fix wiring so the UI shows tokens as they arrive.
+
+Acceptance
+
+When sending a message, assistant text appears progressively (not “all at once after a long pause”).
+
+Works in InterviewChat and Module chat.
+
+2.3 Eliminate the “double typing indicator” bug
+
+Right now we see:
+
+assistant message typing out and an extra typing indicator element below it.
+
+Acceptance
+
+Only one typing affordance exists at any time.
+
+If assistant is streaming and has already produced text, do not show a second indicator below.
+
+If you keep an indicator, show it only when assistant has produced 0 characters so far.
+
+2.4 Fix the “disappearing user bubble / tiny blank bubble” bug
+
+This likely comes from optimistic UI updates being overwritten by an “authoritative” server transcript, key collisions, or rendering of empty content.
+
+Acceptance
+
+A user message never disappears after send.
+
+We never render an empty/near-empty user bubble; if content is empty/whitespace, don’t render it.
+
+On reconciliation with server transcript/events, the last user message remains visible and consistent.
+
+3) Non-goals (do NOT work on these in this prompt)
+
+Footer behavior on /prepare or /chat
+
+Progress bar / section headers / plan finalization
+
+Any new design polish unrelated to streaming/typing bugs
+
+4) Files likely involved (not exhaustive — confirm by searching)
+
+server/routes.ts (LLM call + interview/module endpoints)
+
+client/src/lovable/pages/InterviewChat.tsx
+
+client/src/pages/module.tsx
+
+Any shared chat components (message list, composer, typing indicator)
+
+Any util like sleep, delay, setTimeout, fakeThinking, etc.
+
+5) Implementation requirements
+5.1 Server streaming shape
+
+Prefer SSE (Content-Type: text/event-stream) with events like:
+
+event: token / data: {"text":"..."} (or plain text)
+
+event: done / data: {...final transcript/events...} (or client fetches final state after done)
+
+event: error
+
+Ensure endpoints are authenticated like existing ones.
+
+Make sure no tool side-effects are duplicated due to retries (don’t re-run tools on reconnect).
+
+If true token streaming from provider isn’t available right now, stream incremental chunks from the model response as they arrive from your code is not acceptable—only stream if it reflects real incremental generation. If provider call returns as one blob, then streaming is not real.
+
+5.2 Client streaming UI state
+
+Create a single “assistant draft message” placeholder when send starts.
+
+Append tokens into that message as they arrive.
+
+When done arrives:
+
+Replace local state with server-authoritative transcript/events only if it contains the just-sent user message; otherwise merge safely.
+
+Ensure React keys are stable and not based on array index alone if the list is mutated during streaming.
+
+5.3 Typing indicator rule
+
+If assistantDraftText.length > 0: do not show a separate typing indicator row.
+
+If assistantDraftText.length === 0 and assistant is streaming: show one indicator (either inside the bubble or as a row, but not both).
+
+5.4 CSS hygiene guardrails (mandatory)
+
+We’ve had regressions from conflicting styles. Follow these:
+
+Do not add new global CSS selectors unless absolutely necessary.
+
+Prefer existing class patterns already used in chat pages.
+
+If you must add CSS, add it to a single known file and keep it extremely scoped (e.g., .sp-chat-* only).
+
+Avoid stacking multiple classes with overlapping responsibilities (padding/margins/heights) on the same element.
+
+Do not “fix” layout by adding random padding to containers; keep changes minimal and local.
+
+6) Verification (MANDATORY — do not claim success without these)
+
+You must provide raw command outputs and grep evidence.
+
+6.1 Commands to run and paste outputs
+
+npm run build
+
+node scripts/smoke-module-chat.mjs
+
+DEV_FAST=1 node scripts/smoke-interview-chat.mjs
+
+If full interview suite is too slow, that’s fine — but you must still show the fast suite output and clearly label that it does not exercise LLM streaming.
+
+6.2 Greps you must run and paste
+
+Find artificial delays:
+
+grep -R "setTimeout\\|sleep\\|delay\\|fake\\|thinking" -n client/src server scripts shared | head -n 200
+
+Find typing indicator usage:
+
+grep -R "typing\\|isTyping\\|Typing" -n client/src | head -n 200
+
+Find streaming / text-event usage:
+
+grep -R "text/event-stream\\|EventSource\\|ReadableStream\\|SSE" -n server client/src | head -n 200
+
+7) Manual reproduction steps (do these and report results)
+
+Go to Interview chat page.
+
+Send a short message.
+
+Confirm:
+
+assistant starts showing text quickly and progressively
+
+no duplicate typing indicator
+
+your sent bubble remains (no tiny blank bubble)
+
+Repeat in Module chat.
+
+8) Output format rules (IMPORTANT — follow exactly)
+
+At the end, respond with:
+
+Diff summary by file (what changed and why)
+
+Raw command outputs (verbatim)
+
+Raw grep outputs (verbatim)
+
+Manual verification notes (what you saw)
+
+If anything is still broken, list it plainly as “Known issues”
+
+Do not skip these. Do not summarize without raw outputs.
