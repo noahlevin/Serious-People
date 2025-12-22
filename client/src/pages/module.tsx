@@ -17,6 +17,7 @@ import ChatMessage from "@/lovable/components/interview/ChatMessage";
 import ChatInput from "@/lovable/components/interview/ChatInput";
 import { DEFAULT_COACHING_MODULES } from "@/components/ModulesProgressCard";
 import { analytics } from "@/lib/posthog";
+import { Loader2 } from "lucide-react";
 import "@/styles/serious-people.css";
 
 // Detect if user is on a mobile device (for keyboard behavior)
@@ -472,6 +473,12 @@ export default function ModulePage() {
       <div className="sp-interview-content flex-1 flex flex-col min-h-0">
         <main className="sp-interview-main">
           <div className="sp-chat-window" ref={chatWindowRef} data-testid="chat-window">
+            {transcript.length === 0 && !moduleComplete && (
+              <div className="flex flex-col items-center justify-center py-16 animate-fade-in">
+                <Loader2 className="h-6 w-6 text-muted-foreground animate-spin mb-3" />
+                <p className="text-sm text-muted-foreground">Starting this module...</p>
+              </div>
+            )}
             {transcript.map((msg, index) => {
               const titleCard = titleCards.find(tc => tc.index === index);
               const lovableMessage = {

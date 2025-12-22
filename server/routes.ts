@@ -860,11 +860,12 @@ That's it. Wait for their answer before asking anything else.
 
 ### Second turn (after getting their name)
 
-When the user provides their name, call the **set_provided_name** tool with exactly what they told you. This saves their name to their profile.
+When the user provides their name:
+1. Call **set_provided_name** tool with exactly what they told you.
+2. In your message text, greet them warmly AND include the question. Your message MUST contain both the greeting AND the question text. Example: "Great to meet you, Sarah! How would you like to get started?"
+3. THEN call append_structured_outcomes with the answer options ONLY (no question text in the tool payload).
 
-Then greet them warmly by name and use the append_structured_outcomes tool:
-
-"How would you like to get started?"
+**CRITICAL: The question "How would you like to get started?" MUST appear in your message text. The tool only contains clickable answers.**
 
 Call append_structured_outcomes with options like:
 [{id: "overview", label: "Give me a quick overview of how this works"}, {id: "dive_in", label: "Just dive in"}]
