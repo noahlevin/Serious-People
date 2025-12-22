@@ -35,81 +35,6 @@ interface ModuleResponse {
   summary?: string;
 }
 
-// SSE Event types for module streaming
-interface ModuleSSEDoneEvent {
-  reply: string;
-  done: boolean;
-  summary?: string;
-  options?: { id: string; label: string; value: string }[];
-  progress?: number;
-}
-
-// Helper to call the streaming module endpoint
-async function callModuleStream(
-  moduleNumber: number,
-  transcript: Message[],
-  onToken: (text: string) => void,
-  onDone: (data: ModuleSSEDoneEvent) => void,
-  onError: (error: string) => void
-): Promise<void> {
-  try {
-    const res = await fetch("/api/module/stream", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ moduleNumber, transcript }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      onError(`HTTP ${res.status}: ${text}`);
-      return;
-    }
-
-    if (!res.body) {
-      onError("No response body");
-      return;
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      let currentEvent = "";
-      for (const line of lines) {
-        if (line.startsWith("event: ")) {
-          currentEvent = line.slice(7);
-        } else if (line.startsWith("data: ")) {
-          const data = line.slice(6);
-          try {
-            const parsed = JSON.parse(data);
-            if (currentEvent === "token") {
-              onToken(parsed.text);
-            } else if (currentEvent === "done") {
-              onDone(parsed as ModuleSSEDoneEvent);
-            } else if (currentEvent === "error") {
-              onError(parsed.error);
-            }
-          } catch (e) {
-            // Ignore parse errors for partial data
-          }
-        }
-      }
-    }
-  } catch (err: any) {
-    console.error("[Module] Stream error:", err);
-    onError(err.message);
-  }
-}
-
 const PLAN_CARD_KEY = "serious_people_plan_card";
 
 export default function ModulePage() {
@@ -148,7 +73,6 @@ export default function ModulePage() {
   const [moduleComplete, setModuleComplete] = useState(false);
   const [moduleSummary, setModuleSummary] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [streamingHasContent, setStreamingHasContent] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [status, setStatus] = useState("");
@@ -255,91 +179,108 @@ export default function ModulePage() {
     setIsTyping(true);
     setStatus("");
 
-    // Add placeholder assistant message for streaming
-    let streamingContent = "";
-    const streamingIndex = currentTranscript.length;
-    const streamingMessage: Message = { role: "assistant", content: "" };
-    setTranscript([...currentTranscript, streamingMessage]);
-
     try {
-      await callModuleStream(
-        moduleNumber,
-        currentTranscript,
-        // onToken: Update streaming message progressively
-        (text) => {
-          streamingContent += text;
-          setStreamingHasContent(true);
-          setTranscript(prev => prev.map((m, i) => 
-            i === streamingIndex 
-              ? { ...m, content: streamingContent }
-              : m
-          ));
-        },
-        // onDone: Handle final state
-        (data) => {
-          setIsTyping(false);
-          setStreamingHasContent(false);
-          
-          const finalReply = data.reply || streamingContent;
-          const finalTranscript = [...currentTranscript, { role: "assistant" as const, content: finalReply }];
-          setTranscript(finalTranscript);
-          saveTranscript(finalTranscript);
+      // Retry logic for handling temporary data loading issues
+      let response: Response | null = null;
+      let retryCount = 0;
+      const maxRetries = 3;
+      const retryDelay = 2000;
+      
+      while (retryCount < maxRetries) {
+        response = await fetch("/api/module", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            moduleNumber,
+            transcript: currentTranscript 
+          }),
+        });
 
-          if (data.done) {
-            setModuleComplete(true);
-            setModuleSummary(data.summary || "");
-            fetch(`/api/module/${moduleNumber}/data`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ 
-                transcript: finalTranscript,
-                summary: data.summary || "",
-                complete: true 
-              }),
-            }).catch(e => console.error("Failed to save module completion:", e));
-            analytics.moduleCompleted(moduleNumber);
-          } else {
-            if (data.progress !== null && data.progress !== undefined) {
-              setProgress(data.progress);
+        if (response.ok) {
+          break;
+        }
+        
+        // Handle 409 "Context not ready" - retry with delay
+        if (response.status === 409) {
+          const errorData = await response.json().catch(() => ({}));
+          if (errorData.retryable) {
+            retryCount++;
+            if (retryCount < maxRetries) {
+              console.log(`Context not ready, retrying (${retryCount}/${maxRetries})...`);
+              setStatus("Loading your coaching context...");
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+              continue;
             }
-
-            const titleCard = extractTitleCard(finalReply);
-            if (titleCard) {
-              setTitleCards(prev => [...prev, { index: finalTranscript.length - 1, ...titleCard }]);
-            }
-
-            // Handle structured options from streaming endpoint
-            if (data.options && data.options.length > 0) {
-              setOptions(data.options.map(o => o.value));
-            }
-          }
-
-          setIsSending(false);
-          if (!isMobileDevice()) {
-            textareaRef.current?.focus();
-          }
-        },
-        // onError: Handle error
-        (error) => {
-          console.error("Module stream error:", error);
-          setIsTyping(false);
-          setStreamingHasContent(false);
-          setStatus("Something went wrong. Please try again.");
-          // Remove the placeholder message on error
-          setTranscript(currentTranscript);
-          setIsSending(false);
-          if (!isMobileDevice()) {
-            textareaRef.current?.focus();
           }
         }
-      );
+        
+        throw new Error("Failed to get response");
+      }
+
+      if (!response || !response.ok) {
+        throw new Error("Failed to get response after retries");
+      }
+
+      const data: ModuleResponse = await response.json();
+
+      const thinkingDelay = Math.floor(Math.random() * (1500 - 400 + 1)) + 400;
+      await new Promise(resolve => setTimeout(resolve, thinkingDelay));
+
+      setIsTyping(false);
+
+      if (data.done) {
+        setModuleComplete(true);
+        setModuleSummary(data.summary || "");
+        // Save module completion (summary + complete flag atomically) to database
+        // Also include the full transcript to ensure all data is persisted
+        fetch(`/api/module/${moduleNumber}/data`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ 
+            transcript: currentTranscript,
+            summary: data.summary || "",
+            complete: true 
+          }),
+        }).catch(e => console.error("Failed to save module completion:", e));
+        analytics.moduleCompleted(moduleNumber);
+        
+        if (data.reply) {
+          const assistantMessage: Message = { role: "assistant", content: data.reply };
+          const updatedTranscript = [...currentTranscript, assistantMessage];
+          setTranscript(updatedTranscript);
+          saveTranscript(updatedTranscript);
+          setAnimatingMessageIndex(updatedTranscript.length - 1);
+        }
+        return;
+      }
+
+      if (data.progress !== null && data.progress !== undefined) {
+        setProgress(data.progress);
+      }
+
+      const assistantMessage: Message = { role: "assistant", content: data.reply };
+      const updatedTranscript = [...currentTranscript, assistantMessage];
+      setTranscript(updatedTranscript);
+      saveTranscript(updatedTranscript);
+
+      const titleCard = extractTitleCard(data.reply);
+      if (titleCard) {
+        setTitleCards(prev => [...prev, { index: updatedTranscript.length - 1, ...titleCard }]);
+      }
+
+      setAnimatingMessageIndex(updatedTranscript.length - 1);
+
+      if (data.options && data.options.length > 0) {
+        setOptions(data.options || []);
+      }
     } catch (error) {
       console.error("Module error:", error);
       setIsTyping(false);
       setStatus("Something went wrong. Please try again.");
-      setTranscript(currentTranscript);
+    } finally {
       setIsSending(false);
+      // Only auto-focus on desktop - mobile users don't want keyboard popping up
       if (!isMobileDevice()) {
         textareaRef.current?.focus();
       }
@@ -546,16 +487,20 @@ export default function ModulePage() {
                 content: msg.content,
                 timestamp: new Date()
               };
+              const formattedHtml = msg.role === 'assistant' ? formatContent(msg.content) : undefined;
               return (
                 <div key={index} className="sp-message-wrapper-lovable">
                   {msg.role === "assistant" && titleCard && (
                     <ModuleTitleCard name={titleCard.name} time={titleCard.time} />
                   )}
-                  <ChatMessage message={lovableMessage} />
+                  <ChatMessage
+                    message={lovableMessage}
+                    htmlContent={formattedHtml}
+                  />
                 </div>
               );
             })}
-            {isTyping && !streamingHasContent && <TypingIndicator />}
+            {isTyping && <TypingIndicator />}
             {options.length > 0 && animatingMessageIndex === null && (
               <OptionsContainer options={options} onSelect={handleOptionSelect} />
             )}
