@@ -6,6 +6,7 @@ interface ChatMessageProps {
   isTyping?: boolean;
   animate?: boolean;
   onAnimationComplete?: () => void;
+  onContentUpdate?: () => void;
 }
 
 function renderMarkdown(text: string): string {
@@ -75,7 +76,7 @@ function renderMarkdown(text: string): string {
   return html;
 }
 
-const ChatMessage = ({ message, isTyping = false, animate = false, onAnimationComplete }: ChatMessageProps) => {
+const ChatMessage = ({ message, isTyping = false, animate = false, onAnimationComplete, onContentUpdate }: ChatMessageProps) => {
   const isAssistant = message.role === 'assistant';
   const fullContent = isAssistant ? renderMarkdown(message.content) : message.content;
   
@@ -132,7 +133,12 @@ const ChatMessage = ({ message, isTyping = false, animate = false, onAnimationCo
         
         indexRef.current += increment;
         setDisplayedContent(fullContent.substring(0, indexRef.current));
-        
+
+        // Trigger scroll callback during animation
+        if (onContentUpdate) {
+          onContentUpdate();
+        }
+
         animationRef.current = window.setTimeout(type, speed);
       } else {
         setIsAnimating(false);
@@ -149,7 +155,7 @@ const ChatMessage = ({ message, isTyping = false, animate = false, onAnimationCo
         clearTimeout(animationRef.current);
       }
     };
-  }, [animate, isAssistant, fullContent, onAnimationComplete]);
+  }, [animate, isAssistant, fullContent, onAnimationComplete, onContentUpdate]);
   
   return (
     <div 

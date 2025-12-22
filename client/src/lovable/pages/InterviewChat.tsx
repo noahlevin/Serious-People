@@ -459,11 +459,12 @@ const InterviewChat = () => {
       const isFullyAnimated = animatedMessageIds.has(message.id);
       
       elements.push(
-        <ChatMessage 
-          key={message.id} 
+        <ChatMessage
+          key={message.id}
           message={message}
           animate={shouldAnimate}
           onAnimationComplete={() => handleAnimationComplete(message.id)}
+          onContentUpdate={scrollToBottom}
         />
       );
       
@@ -497,7 +498,7 @@ const InterviewChat = () => {
           {renderChatContent()}
           
           {isTyping && messagesToAnimate.size === 0 && (
-            <ChatMessage 
+            <ChatMessage
               message={{
                 id: 'typing',
                 role: 'assistant',
@@ -505,6 +506,7 @@ const InterviewChat = () => {
                 timestamp: new Date()
               }}
               isTyping={true}
+              onContentUpdate={scrollToBottom}
             />
           )}
           
