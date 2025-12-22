@@ -173,7 +173,7 @@ const ChatMessage = ({ message, isTyping = false, animate = false, onAnimationCo
             {message.content}
           </p>
         )}
-        {(isTyping || isAnimating) && (
+        {(isTyping || (isAnimating && displayedContent.length === 0)) && (
           <span className="inline-flex ml-1 items-center">
             <span className="w-1 h-1 bg-accent/60 rounded-full animate-pulse" />
             <span className="w-1 h-1 bg-accent/60 rounded-full animate-pulse ml-0.5" style={{ animationDelay: '0.2s' }} />
