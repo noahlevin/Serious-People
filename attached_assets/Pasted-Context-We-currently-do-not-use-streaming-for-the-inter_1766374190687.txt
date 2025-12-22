@@ -1,0 +1,115 @@
+Context
+
+We currently do not use streaming for the interview/module chat responses. We are using Claude Sonnet 4.5 and we want to keep that model. We also previously had a “fake thinking delay” somewhere; we want it fully removed.
+
+Goal A — Add streaming for chat responses (interview + modules)
+
+A.1 Server: implement streaming
+
+Update the server LLM call(s) for:
+
+/api/interview/turn
+
+module turn endpoint(s) (whatever route handles module chat)
+
+Stream tokens to the client as they are generated using SSE (preferred) or chunked fetch response.
+
+Keep the existing tool loop behavior:
+
+Tools can still fire and append events.
+
+The server should stream assistant text as it arrives.
+
+Tool events should still be persisted normally.
+
+Ensure the final response still returns the authoritative transcript + events state (or provide a “final state” SSE event the client can use to refresh).
+
+A.2 Client: consume the stream
+
+Update the chat UI(s):
+
+InterviewChat
+
+Module page chat
+
+The assistant message should type in live as streaming text arrives.
+
+Structured outcomes must appear only after the assistant message has finished streaming (i.e. after server indicates “done” / final).
+
+The input/composer remains usable and pinned to bottom; don’t regress the layout.
+
+A.3 Non-goals / guardrails
+
+Do not change the model (stay on Sonnet 4.5).
+
+Do not add new global CSS unless absolutely necessary.
+
+Maintain our event-based architecture and smoke tests.
+
+A.4 Verification
+
+Provide raw outputs:
+
+npm run build
+
+node scripts/smoke-module-chat.mjs
+
+DEV_FAST=1 node scripts/smoke-interview-chat.mjs
+
+Add one minimal manual test checklist and confirm results:
+
+Start interview → first assistant message appears progressively (streaming) without user input
+
+Send a message → assistant response streams in (not a single block)
+
+Structured outcomes appear after streaming completes
+
+Goal B — Find and remove “fake thinking delay”
+
+B.1 Find it
+
+Search the repo for any intentional delay in chat request/response path:
+
+setTimeout, sleep, delay, new Promise(r => setTimeout(...))
+
+Pay special attention to:
+
+InterviewChat.tsx
+
+module chat page
+
+server routes around LLM calls / response sending
+
+B.2 Remove it safely
+
+Remove any artificial delay that blocks:
+
+sending the request
+
+rendering the assistant response
+
+appending transcript/events
+
+Keep any tiny animation-related delays that are purely visual only if they do not delay network/response.
+
+B.3 Proof
+
+Paste grep results (commands + output):
+
+grep -R "setTimeout" client/src server shared scripts -n | head -n 200
+
+grep -R "new Promise.*setTimeout" client/src server shared scripts -n | head -n 200
+
+grep -R "sleep\\(|delay\\(" client/src server shared scripts -n | head -n 200
+
+Explicitly show the diff or the exact lines removed/changed.
+
+Output rules (mandatory)
+
+Do not claim completion without proof. Every goal needs:
+
+Diff summary by file
+
+Raw command outputs listed above
+
+If you hit ambiguity, make the best call and document it; do not ask me questions unless absolutely blocking.

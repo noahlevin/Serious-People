@@ -223,9 +223,6 @@ export default function ModulePage() {
 
       const data: ModuleResponse = await response.json();
 
-      const thinkingDelay = Math.floor(Math.random() * (1500 - 400 + 1)) + 400;
-      await new Promise(resolve => setTimeout(resolve, thinkingDelay));
-
       setIsTyping(false);
 
       if (data.done) {
