@@ -2812,6 +2812,12 @@ COMMUNICATION STYLE:
     await handleInterviewTurn(req.user as any, req.body, res);
   });
 
+  // POST /api/interview/turn/stream - Streaming version of interview turn
+  // Returns Server-Sent Events (SSE) for real-time response streaming
+  app.post("/api/interview/turn/stream", requireAuth, async (req, res) => {
+    await handleInterviewTurnStream(req.user as any, req.body, res);
+  });
+
   // POST /api/interview/outcomes/select - Select a structured outcome option
   // Uses eventSeq (number) as the canonical identifier for outcomes events
   // Idempotency: same option = success (no-op), different option = 409 Conflict
@@ -2924,6 +2930,116 @@ COMMUNICATION STYLE:
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Streaming interview turn handler with SSE
+  async function handleInterviewTurnStream(
+    user: { id: string },
+    body: { message: string },
+    res: express.Response
+  ) {
+    try {
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { message } = body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      // Set up SSE headers
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+
+      // Helper to send SSE events
+      const sendEvent = (type: string, data: any) => {
+        res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+      };
+
+      try {
+        // Get or create transcript for this user
+        let transcript = await storage.getTranscriptByUserId(user.id);
+        const existingMessages: { role: string; content: string }[] = transcript
+          ? (Array.isArray(transcript.transcript) ? transcript.transcript : [])
+          : [];
+
+        // If no transcript exists or it's empty, we need to get the first assistant message first
+        let sessionToken: string;
+        if (existingMessages.length === 0) {
+          // Generate sessionToken first so we can pass it to callInterviewLLM for event persistence
+          sessionToken = `interview_${user.id}_${Date.now()}`;
+
+          // Call streaming LLM to get the initial greeting (with sessionToken for tool events)
+          const initialReply = await callInterviewLLMStream([], sessionToken, user.id, sendEvent);
+          const initialMessage = { role: "assistant", content: initialReply.reply };
+
+          transcript = await storage.createTranscript({
+            sessionToken,
+            userId: user.id,
+            transcript: [initialMessage] as any,
+            currentModule: "Interview",
+            progress: 0,
+          });
+
+          existingMessages.push(initialMessage);
+        } else {
+          sessionToken = transcript!.sessionToken;
+        }
+
+        // Append user message
+        const userMessage = { role: "user", content: message };
+        existingMessages.push(userMessage);
+
+        // Call streaming LLM with full transcript and sessionToken for event persistence
+        const llmResult = await callInterviewLLMStream(existingMessages, sessionToken, user.id, sendEvent);
+
+        // Append assistant reply
+        const assistantMessage = { role: "assistant", content: llmResult.reply };
+        existingMessages.push(assistantMessage);
+
+        // Persist updated transcript
+        await storage.updateTranscript(transcript!.sessionToken, {
+          transcript: existingMessages as any,
+          progress: llmResult.progress ?? transcript!.progress,
+        });
+
+        // If planCard was returned, save it
+        if (llmResult.planCard) {
+          await storage.updateTranscript(transcript!.sessionToken, {
+            planCard: llmResult.planCard as any,
+          });
+        }
+
+        // Fetch events for this interview session
+        const events = await storage.listInterviewEvents(sessionToken);
+
+        // Send final "done" event with complete data
+        sendEvent('done', {
+          success: true,
+          transcript: existingMessages,
+          reply: llmResult.reply,
+          done: llmResult.done,
+          progress: llmResult.progress,
+          options: llmResult.options,
+          planCard: llmResult.planCard,
+          valueBullets: llmResult.valueBullets,
+          socialProof: llmResult.socialProof,
+          events,
+        });
+
+        res.end();
+      } catch (error: any) {
+        console.error("[INTERVIEW_TURN_STREAM] Error:", error.message);
+        sendEvent('error', { error: error.message });
+        res.end();
+      }
+    } catch (error: any) {
+      console.error("[INTERVIEW_TURN_STREAM] Setup error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  }
 
   // Shared interview turn handler (used by both auth and dev endpoints)
   async function handleInterviewTurn(
@@ -3930,6 +4046,392 @@ The user has entered "testskip" which is a testing command. Generate the full pl
         console.log(`[INTERVIEW] Parsed plancard JSON with ${planCard.modules?.length || 0} modules`);
       } catch (e: any) {
         console.log(`[INTERVIEW] Failed to parse plancard JSON: ${e.message}`);
+      }
+    }
+
+    // Strip plancard block from visible output
+    reply = reply.replace(/```plancard[\s\S]*?```/g, "").trim();
+
+    return { reply, planCard };
+  }
+
+  // Streaming version of callInterviewLLM with SSE support
+  async function callInterviewLLMStream(
+    transcript: { role: string; content: string }[],
+    sessionToken: string | undefined,
+    userId: string | undefined,
+    sendEvent: (type: string, data: any) => void
+  ) {
+    if (!useAnthropic && !process.env.OPENAI_API_KEY) {
+      throw new Error("No AI API key configured");
+    }
+
+    // Check if user sent "testskip" command
+    const lastUserMessage = [...transcript].reverse().find((t) => t.role === "user");
+    const isTestSkip = lastUserMessage?.content?.toLowerCase().trim() === "testskip";
+
+    const testSkipPrompt = isTestSkip
+      ? `
+
+IMPORTANT OVERRIDE - TESTSKIP MODE:
+The user has entered "testskip" which is a testing command. Generate the full plan card and interview complete markers.
+`
+      : "";
+
+    let reply: string = "";
+    const systemPromptToUse = INTERVIEW_SYSTEM_PROMPT + testSkipPrompt;
+
+    // Calculate afterMessageIndex: transcript.length is the index where the assistant message will be appended.
+    // Events (like structured_outcomes) should render AFTER the assistant message, not after the user message.
+    // Special case: title_card uses -1 to appear before all messages.
+    const afterMessageIndex = transcript.length;
+
+    if (useAnthropic && anthropic) {
+      const claudeMessages: any[] = [];
+      for (const turn of transcript) {
+        if (turn?.role && turn?.content) {
+          claudeMessages.push({
+            role: turn.role as "user" | "assistant",
+            content: turn.content,
+          });
+        }
+      }
+      if (transcript.length === 0) {
+        claudeMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
+      }
+
+      // Loop to handle tool calls until we get a final text response
+      let maxIterations = 5;
+      while (maxIterations-- > 0) {
+        const stream = await anthropic.messages.stream({
+          model: "claude-sonnet-4-5",
+          max_tokens: 2048,
+          system: systemPromptToUse,
+          messages: claudeMessages,
+          tools: interviewTools.anthropic,
+        });
+
+        // Accumulate chunks
+        let fullText = "";
+        const toolUses: { id: string; name: string; input: any; index: number }[] = [];
+        let currentToolUse: { id: string; name: string; input: string; index: number } | null = null;
+
+        for await (const event of stream) {
+          if (event.type === 'content_block_start') {
+            if (event.content_block.type === 'tool_use') {
+              currentToolUse = {
+                id: event.content_block.id,
+                name: event.content_block.name,
+                input: '',
+                index: event.index,
+              };
+            }
+          } else if (event.type === 'content_block_delta') {
+            if (event.delta.type === 'text_delta') {
+              const textDelta = event.delta.text;
+              fullText += textDelta;
+              // Send streaming text chunk to client
+              sendEvent('text_delta', { content: textDelta });
+            } else if (event.delta.type === 'input_json_delta' && currentToolUse) {
+              // Accumulate tool input JSON
+              currentToolUse.input += event.delta.partial_json;
+            }
+          } else if (event.type === 'content_block_stop') {
+            if (currentToolUse) {
+              // Tool use complete - parse input and add to list
+              try {
+                const parsedInput = JSON.parse(currentToolUse.input);
+                toolUses.push({
+                  id: currentToolUse.id,
+                  name: currentToolUse.name,
+                  input: parsedInput,
+                  index: currentToolUse.index,
+                });
+              } catch (e: any) {
+                console.error(`[STREAM] Failed to parse tool input: ${e.message}`);
+              }
+              currentToolUse = null;
+            }
+          }
+        }
+
+        // If no tool calls, we're done
+        if (toolUses.length === 0) {
+          reply = fullText;
+          break;
+        }
+
+        // Process tool calls and build tool results
+        const toolResults: { type: "tool_result"; tool_use_id: string; content: string }[] = [];
+
+        for (const toolUse of toolUses) {
+          const toolInput = toolUse.input as { title: string; subtitle?: string };
+
+          if ((toolUse.name === "append_title_card" || toolUse.name === "append_section_header") && sessionToken) {
+            const eventType = toolUse.name === "append_title_card"
+              ? "chat.title_card_added"
+              : "chat.section_header_added";
+
+            // Idempotency: skip duplicate title cards
+            let skipped = false;
+            if (toolUse.name === "append_title_card") {
+              const existingEvents = await storage.listInterviewEvents(sessionToken);
+              if (existingEvents.some(e => e.type === "chat.title_card_added")) {
+                console.log(`[INTERVIEW_TOOL_STREAM] Skipping duplicate title card for session ${sessionToken}`);
+                skipped = true;
+              }
+            }
+
+            if (!skipped) {
+              // Title card always uses -1 (before all messages), other headers use afterMessageIndex
+              const eventAfterIndex = toolUse.name === "append_title_card" ? -1 : afterMessageIndex;
+              const payload: AppEventPayload = {
+                render: { afterMessageIndex: eventAfterIndex },
+                title: toolInput.title,
+                subtitle: toolInput.subtitle,
+              };
+
+              await storage.appendInterviewEvent(sessionToken, eventType, payload);
+              console.log(`[INTERVIEW_TOOL_STREAM] Appended ${eventType} for session ${sessionToken}`);
+
+              // Notify client about event creation
+              sendEvent('tool_executed', {
+                toolName: toolUse.name,
+                eventType,
+                refetchEvents: true,
+              });
+            }
+          } else if (toolUse.name === "set_provided_name" && userId) {
+            const nameInput = toolUse.input as { name: string };
+            const rawName = nameInput.name;
+            const name = rawName?.trim();
+
+            if (process.env.NODE_ENV !== "production") {
+              console.log(`[INTERVIEW_TOOL_STREAM] set_provided_name called with input="${rawName}", trimmed="${name}"`);
+            }
+
+            // Validate name: 1-50 chars, not all punctuation
+            if (name && name.length >= 1 && name.length <= 50 && /[a-zA-Z0-9]/.test(name)) {
+              // Idempotency: skip if user already has a providedName
+              const existingUser = await storage.getUser(userId);
+              if (existingUser?.providedName) {
+                console.log(`[INTERVIEW_TOOL_STREAM] Skipping set_provided_name - user already has providedName="${existingUser.providedName}"`);
+              } else {
+                await storage.updateUser(userId, { providedName: name });
+                console.log(`[INTERVIEW_TOOL_STREAM] Persisted providedName="${name}" for user ${userId}`);
+
+                // Append event for client tracking
+                if (sessionToken) {
+                  await storage.appendInterviewEvent(sessionToken, "user.provided_name_set", {
+                    render: { afterMessageIndex },
+                    name,
+                  });
+                  console.log(`[INTERVIEW_TOOL_STREAM] Appended user.provided_name_set event with name="${name}"`);
+
+                  // Notify client
+                  sendEvent('tool_executed', {
+                    toolName: toolUse.name,
+                    eventType: 'user.provided_name_set',
+                    refetchEvents: true,
+                  });
+                }
+              }
+            } else {
+              console.log(`[INTERVIEW_TOOL_STREAM] Rejected invalid name: "${name}"`);
+            }
+          } else if (toolUse.name === "append_structured_outcomes" && sessionToken) {
+            const outcomesInput = toolUse.input as { prompt?: string; options: { id?: string; label: string; value: string }[] };
+
+            // Validate options array
+            if (!Array.isArray(outcomesInput.options) || outcomesInput.options.length === 0) {
+              console.log(`[INTERVIEW_TOOL_STREAM] Skipping structured_outcomes - invalid or empty options`);
+            } else {
+              // Validate each option has required fields
+              const validOptions = outcomesInput.options.filter(opt =>
+                opt && typeof opt.label === "string" && opt.label.trim() &&
+                typeof opt.value === "string" && opt.value.trim()
+              );
+
+              if (validOptions.length === 0) {
+                console.log(`[INTERVIEW_TOOL_STREAM] Skipping structured_outcomes - no valid options`);
+              } else {
+                // Generate IDs for options that don't have them
+                const optionsWithIds = validOptions.map((opt, idx) => ({
+                  id: opt.id || `opt_${Date.now()}_${idx}`,
+                  label: opt.label.trim(),
+                  value: opt.value.trim(),
+                }));
+
+                await storage.appendInterviewEvent(sessionToken, "chat.structured_outcomes_added", {
+                  render: { afterMessageIndex },
+                  prompt: outcomesInput.prompt,
+                  options: optionsWithIds,
+                });
+                console.log(`[INTERVIEW_TOOL_STREAM] Appended structured_outcomes with ${optionsWithIds.length} options`);
+
+                // Notify client
+                sendEvent('tool_executed', {
+                  toolName: toolUse.name,
+                  eventType: 'chat.structured_outcomes_added',
+                  refetchEvents: true,
+                });
+              }
+            }
+          } else if (toolUse.name === "append_value_bullets" && sessionToken) {
+            const bulletsInput = toolUse.input as { bullets: string[] };
+            if (Array.isArray(bulletsInput.bullets) && bulletsInput.bullets.length > 0) {
+              await storage.appendInterviewEvent(sessionToken, "chat.value_bullets_added", {
+                render: { afterMessageIndex },
+                bullets: bulletsInput.bullets,
+              });
+              console.log(`[INTERVIEW_TOOL_STREAM] Appended value_bullets with ${bulletsInput.bullets.length} bullets`);
+
+              // Notify client
+              sendEvent('tool_executed', {
+                toolName: toolUse.name,
+                eventType: 'chat.value_bullets_added',
+                refetchEvents: true,
+              });
+            }
+          } else if (toolUse.name === "append_social_proof" && sessionToken) {
+            const proofInput = toolUse.input as { content: string };
+            if (proofInput.content && proofInput.content.trim()) {
+              await storage.appendInterviewEvent(sessionToken, "chat.social_proof_added", {
+                render: { afterMessageIndex },
+                content: proofInput.content.trim(),
+              });
+              console.log(`[INTERVIEW_TOOL_STREAM] Appended social_proof`);
+
+              // Notify client
+              sendEvent('tool_executed', {
+                toolName: toolUse.name,
+                eventType: 'chat.social_proof_added',
+                refetchEvents: true,
+              });
+            }
+          } else if (toolUse.name === "finalize_interview" && sessionToken && userId) {
+            await handleFinalizeInterview(sessionToken, userId, afterMessageIndex);
+
+            // Notify client
+            sendEvent('tool_executed', {
+              toolName: toolUse.name,
+              eventType: 'chat.final_next_steps_added',
+              refetchEvents: true,
+            });
+          }
+
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: JSON.stringify({ ok: true }),
+          });
+        }
+
+        // Build response content for next turn
+        const responseContent: any[] = [];
+
+        // Add text blocks and tool uses in order
+        if (fullText) {
+          responseContent.push({ type: 'text', text: fullText });
+        }
+        for (const toolUse of toolUses) {
+          responseContent.push({
+            type: 'tool_use',
+            id: toolUse.id,
+            name: toolUse.name,
+            input: toolUse.input,
+          });
+        }
+
+        // Add assistant message with tool uses, then user message with tool results
+        claudeMessages.push({ role: "assistant", content: responseContent });
+        claudeMessages.push({ role: "user", content: toolResults });
+
+        // If there was text along with tool calls, capture it
+        if (fullText) {
+          reply = fullText;
+        }
+      }
+    } else {
+      // OpenAI streaming not implemented yet - fall back to non-streaming
+      // For now, we'll call the regular callInterviewLLM and send the result as a single chunk
+      console.log("[STREAM] OpenAI streaming not implemented, using non-streaming fallback");
+      const result = await callInterviewLLM(transcript, sessionToken, userId);
+      sendEvent('text_delta', { content: result.reply });
+      return result;
+    }
+
+    // Empty reply detection and retry (prevent empty assistant messages)
+    const FALLBACK_MESSAGE = "Got it — keep going.";
+
+    if (!reply || !reply.trim()) {
+      console.log(`[INTERVIEW_LLM_STREAM] Empty reply detected, attempting single retry without tools`);
+
+      // Single retry without tools to get a text response
+      try {
+        if (useAnthropic && anthropic) {
+          // Build messages for retry (simplified - just ask for text)
+          const retryMessages: any[] = [];
+          for (const turn of transcript) {
+            if (turn?.role && turn?.content) {
+              retryMessages.push({
+                role: turn.role as "user" | "assistant",
+                content: turn.content,
+              });
+            }
+          }
+          if (retryMessages.length === 0) {
+            retryMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
+          }
+
+          // Add instruction to just provide text
+          retryMessages.push({
+            role: "user",
+            content: "[System: Please provide your response as text only, do not call any tools.]"
+          });
+
+          const stream = await anthropic.messages.stream({
+            model: "claude-sonnet-4-5",
+            max_tokens: 1024,
+            system: INTERVIEW_SYSTEM_PROMPT,
+            messages: retryMessages,
+            // No tools on retry to force text response
+          });
+
+          let retryText = "";
+          for await (const event of stream) {
+            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+              retryText += event.delta.text;
+              sendEvent('text_delta', { content: event.delta.text });
+            }
+          }
+
+          if (retryText.trim()) {
+            reply = retryText;
+            console.log(`[INTERVIEW_LLM_STREAM] Retry succeeded, reply length=${reply.length}`);
+          }
+        }
+      } catch (retryError: any) {
+        console.log(`[INTERVIEW_LLM_STREAM] Retry failed: ${retryError.message}`);
+      }
+
+      // Final fallback if still empty
+      if (!reply || !reply.trim()) {
+        reply = FALLBACK_MESSAGE;
+        sendEvent('text_delta', { content: FALLBACK_MESSAGE });
+        console.log(`[INTERVIEW_LLM_STREAM] Using fallback message after retry failed`);
+      }
+    }
+
+    // Parse plancard JSON block from reply (new format replaces [[PLAN_CARD]] tokens)
+    let planCard: any = null;
+    const plancardMatch = reply.match(/```plancard\s*([\s\S]*?)\s*```/);
+    if (plancardMatch) {
+      try {
+        planCard = JSON.parse(plancardMatch[1]);
+        console.log(`[INTERVIEW_STREAM] Parsed plancard JSON with ${planCard.modules?.length || 0} modules`);
+      } catch (e: any) {
+        console.log(`[INTERVIEW_STREAM] Failed to parse plancard JSON: ${e.message}`);
       }
     }
 
