@@ -68,7 +68,88 @@ async function fetchInterviewState(): Promise<{
   }
 }
 
-// Helper to call the interview turn endpoint (real LLM)
+// SSE Event types for streaming
+interface SSETokenEvent {
+  text: string;
+}
+
+interface SSEDoneEvent {
+  success: boolean;
+  transcript?: { role: string; content: string }[];
+  events?: AppEvent[];
+  reply?: string;
+}
+
+interface SSEErrorEvent {
+  error: string;
+}
+
+// Helper to call the streaming interview turn endpoint
+async function callInterviewTurnStream(
+  message: string,
+  onToken: (text: string) => void,
+  onDone: (data: SSEDoneEvent) => void,
+  onError: (error: string) => void
+): Promise<void> {
+  try {
+    const res = await fetch("/api/interview/turn/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ message }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      onError(`HTTP ${res.status}: ${text}`);
+      return;
+    }
+
+    if (!res.body) {
+      onError("No response body");
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      let currentEvent = "";
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          currentEvent = line.slice(7);
+        } else if (line.startsWith("data: ")) {
+          const data = line.slice(6);
+          try {
+            const parsed = JSON.parse(data);
+            if (currentEvent === "token") {
+              onToken((parsed as SSETokenEvent).text);
+            } else if (currentEvent === "done") {
+              onDone(parsed as SSEDoneEvent);
+            } else if (currentEvent === "error") {
+              onError((parsed as SSEErrorEvent).error);
+            }
+          } catch (e) {
+            // Ignore parse errors for partial data
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error("[InterviewChat] Stream error:", err);
+    onError(err.message);
+  }
+}
+
+// Helper to call the interview turn endpoint (non-streaming fallback)
 async function callInterviewTurn(message: string): Promise<{
   success: boolean;
   reply?: string;
@@ -314,70 +395,75 @@ const InterviewChat = () => {
     setMessages(prev => [...prev, userMessage]);
     setIsTyping(true);
 
-    // Call the real LLM endpoint
-    const result = await callInterviewTurn(content);
-    setIsTyping(false);
+    // Create placeholder assistant message for streaming
+    const streamingMsgId = `streaming-${Date.now()}`;
+    let streamingContent = "";
 
-    if (result.success && result.reply) {
-      if (result.transcript) {
-        const msgs: Message[] = result.transcript.map((t, i) => ({
-          id: String(i),
-          role: t.role as 'user' | 'assistant',
-          content: t.content,
-          timestamp: new Date(),
-        }));
-        setMessages(msgs);
-        
-        // Find the newest assistant message and mark it for animation
-        const lastAssistantMsg = msgs.filter(m => m.role === 'assistant').pop();
-        if (lastAssistantMsg && !animatedMessageIds.has(lastAssistantMsg.id)) {
-          setMessagesToAnimate(prev => new Set(prev).add(lastAssistantMsg.id));
-        }
-        // Mark all user messages and already-seen messages as animated
-        setAnimatedMessageIds(prev => {
-          const next = new Set(prev);
-          msgs.forEach(m => {
-            if (m.role === 'user') next.add(m.id);
-          });
-          return next;
-        });
-      } else {
-        const aiMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: result.reply,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, aiMessage]);
-        setMessagesToAnimate(prev => new Set(prev).add(aiMessage.id));
-      }
-      
-      if (result.events) {
-        setEvents(result.events);
-        
-        if (result.events.some(e => e.type === "user.provided_name_set")) {
-          refetch();
-        }
-      }
+    // Add empty assistant message that will be populated via streaming
+    const streamingMessage: Message = {
+      id: streamingMsgId,
+      role: 'assistant',
+      content: "",
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, streamingMessage]);
+    // Mark as animating (streaming tokens = live animation)
+    setAnimatedMessageIds(prev => new Set(prev).add(streamingMsgId));
 
-      if (result.done) {
-        setIsComplete(true);
-        markInterviewComplete();
+    await callInterviewTurnStream(
+      content,
+      // onToken: Update the streaming message content progressively
+      (text) => {
+        streamingContent += text;
+        setMessages(prev => prev.map(m => 
+          m.id === streamingMsgId 
+            ? { ...m, content: streamingContent }
+            : m
+        ));
+      },
+      // onDone: Replace with final state from server
+      (data) => {
+        setIsTyping(false);
         
-        setTimeout(() => {
-          setShowUpsell(true);
-        }, 2000);
+        if (data.success && data.transcript) {
+          const msgs: Message[] = data.transcript.map((t, i) => ({
+            id: String(i),
+            role: t.role as 'user' | 'assistant',
+            content: t.content,
+            timestamp: new Date(),
+          }));
+          setMessages(msgs);
+          
+          // Mark all messages as already animated (streaming was the animation)
+          setAnimatedMessageIds(new Set(msgs.map(m => m.id)));
+        }
+        
+        if (data.events) {
+          setEvents(data.events);
+          
+          if (data.events.some(e => e.type === "user.provided_name_set")) {
+            refetch();
+          }
+          
+          // Check for interview completion
+          if (data.events.some(e => e.type === "chat.final_next_steps_added")) {
+            setIsComplete(true);
+            markInterviewComplete();
+            setTimeout(() => setShowUpsell(true), 2000);
+          }
+        }
+      },
+      // onError: Show error message
+      (error) => {
+        setIsTyping(false);
+        console.error("[InterviewChat] Stream error:", error);
+        setMessages(prev => prev.map(m => 
+          m.id === streamingMsgId 
+            ? { ...m, content: "I'm sorry, something went wrong. Please try again." }
+            : m
+        ));
       }
-    } else {
-      // Show error in chat
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: "I'm sorry, something went wrong. Please try again.",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    }
+    );
   };
 
   // Handle animation complete callback
