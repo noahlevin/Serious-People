@@ -8,6 +8,7 @@ import FinalNextStepsCard from "@/lovable/components/interview/FinalNextStepsCar
 import { Clock, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useStreamingChat } from "@/hooks/useStreamingChat";
 
 // Types for events from server
 interface StructuredOption {
@@ -153,16 +154,100 @@ const InterviewChat = () => {
   const [showUpsell, setShowUpsell] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   // Track which message indices have finished their typing animation
   // Messages loaded from server (on init) are considered already animated
   const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(new Set());
   // Track message IDs that need to animate (newly added)
   const [messagesToAnimate, setMessagesToAnimate] = useState<Set<string>>(new Set());
-  
+
   // Local optimistic selection state: survives server event replacement
   // Maps eventSeq -> optionId for selected outcomes
   const [localSelections, setLocalSelections] = useState<Map<number, string>>(new Map());
+
+  // Streaming state
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+
+  // Fetch events helper (used when tools are executed)
+  const fetchEvents = useCallback(async () => {
+    const state = await fetchInterviewState();
+    if (state.success && state.events) {
+      setEvents(state.events);
+      // Check for name set event
+      if (state.events.some(e => e.type === "user.provided_name_set")) {
+        refetch();
+      }
+    }
+  }, [refetch]);
+
+  // Streaming chat hook
+  const { isStreaming, streamingContent, sendMessage: sendStreamingMessage } = useStreamingChat({
+    onComplete: (data) => {
+      // Stream complete - update with server data
+      if (data.success && data.transcript) {
+        const msgs: Message[] = data.transcript.map((t: any, i: number) => ({
+          id: String(i),
+          role: t.role as 'user' | 'assistant',
+          content: t.content,
+          timestamp: new Date(),
+        }));
+        setMessages(msgs);
+
+        // Find the newest assistant message and mark it for animation
+        const lastAssistantMsg = msgs.filter(m => m.role === 'assistant').pop();
+        if (lastAssistantMsg && !animatedMessageIds.has(lastAssistantMsg.id)) {
+          setMessagesToAnimate(prev => new Set(prev).add(lastAssistantMsg.id));
+        }
+        // Mark all user messages as animated
+        setAnimatedMessageIds(prev => {
+          const next = new Set(prev);
+          msgs.forEach(m => {
+            if (m.role === 'user') next.add(m.id);
+          });
+          return next;
+        });
+
+        if (data.events) {
+          setEvents(data.events);
+          if (data.events.some((e: AppEvent) => e.type === "user.provided_name_set")) {
+            refetch();
+          }
+        }
+
+        if (data.done) {
+          setIsComplete(true);
+          markInterviewComplete();
+          setTimeout(() => setShowUpsell(true), 2000);
+        }
+      }
+
+      setStreamingMessageId(null);
+      setIsTyping(false);
+    },
+    onError: (error) => {
+      console.error("[InterviewChat] Streaming error:", error);
+      // Show error message
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "I'm sorry, something went wrong. Please try again.",
+        timestamp: new Date()
+      };
+      setMessages(prev => {
+        // Remove streaming message if present
+        const filtered = streamingMessageId
+          ? prev.filter(m => m.id !== streamingMessageId)
+          : prev;
+        return [...filtered, errorMessage];
+      });
+      setStreamingMessageId(null);
+      setIsTyping(false);
+    },
+    onToolExecuted: () => {
+      // Tool was executed - refetch events to show new UI elements
+      fetchEvents();
+    },
+  });
 
   // Calculate progress from section header events
   const sectionHeaderCount = events.filter(e => e.type === "chat.section_header_added").length;
@@ -303,6 +388,17 @@ const InterviewChat = () => {
     })();
   }, [isInitialized]);
 
+  // Update streaming message content as chunks arrive
+  useEffect(() => {
+    if (streamingMessageId && streamingContent) {
+      setMessages(prev => prev.map(m =>
+        m.id === streamingMessageId
+          ? { ...m, content: streamingContent }
+          : m
+      ));
+    }
+  }, [streamingContent, streamingMessageId]);
+
   const handleSendMessage = async (content: string) => {
     // Add user message optimistically
     const userMessage: Message = {
@@ -312,72 +408,25 @@ const InterviewChat = () => {
       timestamp: new Date()
     };
     setMessages(prev => [...prev, userMessage]);
+
+    // Create streaming assistant message
+    const streamingId = `streaming-${Date.now()}`;
+    const streamingMessage: Message = {
+      id: streamingId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, streamingMessage]);
+    setStreamingMessageId(streamingId);
     setIsTyping(true);
 
-    // Call the real LLM endpoint
-    const result = await callInterviewTurn(content);
-    setIsTyping(false);
+    // Mark the streaming message for animation (animation will progress as content arrives)
+    setMessagesToAnimate(prev => new Set(prev).add(streamingId));
 
-    if (result.success && result.reply) {
-      if (result.transcript) {
-        const msgs: Message[] = result.transcript.map((t, i) => ({
-          id: String(i),
-          role: t.role as 'user' | 'assistant',
-          content: t.content,
-          timestamp: new Date(),
-        }));
-        setMessages(msgs);
-        
-        // Find the newest assistant message and mark it for animation
-        const lastAssistantMsg = msgs.filter(m => m.role === 'assistant').pop();
-        if (lastAssistantMsg && !animatedMessageIds.has(lastAssistantMsg.id)) {
-          setMessagesToAnimate(prev => new Set(prev).add(lastAssistantMsg.id));
-        }
-        // Mark all user messages and already-seen messages as animated
-        setAnimatedMessageIds(prev => {
-          const next = new Set(prev);
-          msgs.forEach(m => {
-            if (m.role === 'user') next.add(m.id);
-          });
-          return next;
-        });
-      } else {
-        const aiMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: result.reply,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, aiMessage]);
-        setMessagesToAnimate(prev => new Set(prev).add(aiMessage.id));
-      }
-      
-      if (result.events) {
-        setEvents(result.events);
-        
-        if (result.events.some(e => e.type === "user.provided_name_set")) {
-          refetch();
-        }
-      }
-
-      if (result.done) {
-        setIsComplete(true);
-        markInterviewComplete();
-        
-        setTimeout(() => {
-          setShowUpsell(true);
-        }, 2000);
-      }
-    } else {
-      // Show error in chat
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: "I'm sorry, something went wrong. Please try again.",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    }
+    // Send message via streaming endpoint
+    await sendStreamingMessage(content);
   };
 
   // Handle animation complete callback
@@ -499,7 +548,7 @@ const InterviewChat = () => {
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
           {renderChatContent()}
           
-          {isTyping && messagesToAnimate.size === 0 && (
+          {isTyping && messagesToAnimate.size === 0 && !streamingContent && (
             <ChatMessage
               message={{
                 id: 'typing',
