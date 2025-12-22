@@ -388,6 +388,8 @@ const InterviewChat = () => {
       next.delete(messageId);
       return next;
     });
+    // Scroll to show any newly visible elements (structured outcomes, title cards, etc.)
+    setTimeout(() => scrollToBottom(), 50);
   }, []);
 
   // Build the chat content with events interspersed based on afterMessageIndex
