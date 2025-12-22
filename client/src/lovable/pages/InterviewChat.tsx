@@ -5,7 +5,7 @@ import SectionDivider from "@/lovable/components/interview/SectionDivider";
 import UpsellCard from "@/lovable/components/interview/UpsellCard";
 import StructuredOutcomes from "@/lovable/components/interview/StructuredOutcomes";
 import FinalNextStepsCard from "@/lovable/components/interview/FinalNextStepsCard";
-import { Clock, Lock, Loader2 } from "lucide-react";
+import { Clock, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -480,9 +480,6 @@ const InterviewChat = () => {
     return elements;
   };
 
-  // Show loading state while initializing
-  const isLoading = !isInitialized || (messages.length === 0 && events.length === 0);
-
   return (
     <div className="sp-chat-page">
       {/* Progress bar */}
@@ -497,14 +494,7 @@ const InterviewChat = () => {
       {/* Chat Messages - scrollable area */}
       <div className="sp-chat-scroll">
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-16 animate-fade-in">
-              <Loader2 className="h-6 w-6 text-muted-foreground animate-spin mb-3" />
-              <p className="text-sm text-muted-foreground">Starting your interview...</p>
-            </div>
-          ) : (
-            renderChatContent()
-          )}
+          {renderChatContent()}
           
           {isTyping && (
             <ChatMessage 

@@ -10,8 +10,8 @@ interface AppShellProps {
 export function AppShell({ children, hideFooter, mainClassName }: AppShellProps) {
   const location = useLocation();
   
-  const isLoginPage = location.pathname === "/login";
-  const shouldHideFooter = hideFooter || isLoginPage;
+  const isInterviewPage = location.pathname.startsWith("/interview");
+  const shouldHideFooter = hideFooter ?? isInterviewPage;
   
   return (
     <div className="sp-shell">
