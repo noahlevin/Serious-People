@@ -391,11 +391,32 @@ const InterviewChat = () => {
   // Update streaming message content as chunks arrive
   useEffect(() => {
     if (streamingMessageId && streamingContent) {
-      setMessages(prev => prev.map(m =>
-        m.id === streamingMessageId
-          ? { ...m, content: streamingContent }
-          : m
-      ));
+      setMessages(prev => {
+        // Check if streaming message already exists
+        const existingMessage = prev.find(m => m.id === streamingMessageId);
+
+        if (existingMessage) {
+          // Update existing message content
+          return prev.map(m =>
+            m.id === streamingMessageId
+              ? { ...m, content: streamingContent }
+              : m
+          );
+        } else {
+          // First chunk - create the streaming message
+          const streamingMessage: Message = {
+            id: streamingMessageId,
+            role: 'assistant',
+            content: streamingContent,
+            timestamp: new Date()
+          };
+
+          // Add to messagesToAnimate on first chunk
+          setMessagesToAnimate(prevAnimate => new Set(prevAnimate).add(streamingMessageId));
+
+          return [...prev, streamingMessage];
+        }
+      });
     }
   }, [streamingContent, streamingMessageId]);
 
@@ -409,21 +430,11 @@ const InterviewChat = () => {
     };
     setMessages(prev => [...prev, userMessage]);
 
-    // Create streaming assistant message
+    // Set up streaming ID but don't create message yet
+    // Message will be created when first chunk arrives (in useEffect above)
     const streamingId = `streaming-${Date.now()}`;
-    const streamingMessage: Message = {
-      id: streamingId,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, streamingMessage]);
     setStreamingMessageId(streamingId);
     setIsTyping(true);
-
-    // Mark the streaming message for animation (animation will progress as content arrives)
-    setMessagesToAnimate(prev => new Set(prev).add(streamingId));
 
     // Send message via streaming endpoint
     await sendStreamingMessage(content);
