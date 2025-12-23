@@ -167,6 +167,7 @@ const InterviewChat = () => {
 
   // Streaming state
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const hasCreatedStreamingMessage = useRef(false);
 
   // Fetch events helper (used when tools are executed)
   const fetchEvents = useCallback(async () => {
@@ -180,73 +181,73 @@ const InterviewChat = () => {
     }
   }, [refetch]);
 
-  // Streaming chat hook
-  const { isStreaming, streamingContent, sendMessage: sendStreamingMessage } = useStreamingChat({
-    onComplete: (data) => {
-      // Stream complete - update with server data
-      if (data.success && data.transcript) {
-        const msgs: Message[] = data.transcript.map((t: any, i: number) => ({
-          id: String(i),
-          role: t.role as 'user' | 'assistant',
-          content: t.content,
-          timestamp: new Date(),
-        }));
-        setMessages(msgs);
+  // Stable callbacks for streaming hook
+  const handleStreamComplete = useCallback((data: any) => {
+    // Stream complete - update with server data
+    if (data.success && data.transcript) {
+      const msgs: Message[] = data.transcript.map((t: any, i: number) => ({
+        id: String(i),
+        role: t.role as 'user' | 'assistant',
+        content: t.content,
+        timestamp: new Date(),
+      }));
+      setMessages(msgs);
 
-        // Find the newest assistant message and mark it for animation
-        const lastAssistantMsg = msgs.filter(m => m.role === 'assistant').pop();
-        if (lastAssistantMsg && !animatedMessageIds.has(lastAssistantMsg.id)) {
-          setMessagesToAnimate(prev => new Set(prev).add(lastAssistantMsg.id));
-        }
-        // Mark all user messages as animated
-        setAnimatedMessageIds(prev => {
-          const next = new Set(prev);
-          msgs.forEach(m => {
-            if (m.role === 'user') next.add(m.id);
-          });
-          return next;
+      // Find the newest assistant message and mark it for animation
+      const lastAssistantMsg = msgs.filter(m => m.role === 'assistant').pop();
+      if (lastAssistantMsg && !animatedMessageIds.has(lastAssistantMsg.id)) {
+        setMessagesToAnimate(prev => new Set(prev).add(lastAssistantMsg.id));
+      }
+      // Mark all user messages as animated
+      setAnimatedMessageIds(prev => {
+        const next = new Set(prev);
+        msgs.forEach(m => {
+          if (m.role === 'user') next.add(m.id);
         });
+        return next;
+      });
 
-        if (data.events) {
-          setEvents(data.events);
-          if (data.events.some((e: AppEvent) => e.type === "user.provided_name_set")) {
-            refetch();
-          }
-        }
-
-        if (data.done) {
-          setIsComplete(true);
-          markInterviewComplete();
-          setTimeout(() => setShowUpsell(true), 2000);
+      if (data.events) {
+        setEvents(data.events);
+        if (data.events.some((e: AppEvent) => e.type === "user.provided_name_set")) {
+          refetch();
         }
       }
 
-      setStreamingMessageId(null);
-      setIsTyping(false);
-    },
-    onError: (error) => {
-      console.error("[InterviewChat] Streaming error:", error);
-      // Show error message
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: "I'm sorry, something went wrong. Please try again.",
-        timestamp: new Date()
-      };
-      setMessages(prev => {
-        // Remove streaming message if present
-        const filtered = streamingMessageId
-          ? prev.filter(m => m.id !== streamingMessageId)
-          : prev;
-        return [...filtered, errorMessage];
-      });
-      setStreamingMessageId(null);
-      setIsTyping(false);
-    },
-    onToolExecuted: () => {
-      // Tool was executed - refetch events to show new UI elements
-      fetchEvents();
-    },
+      if (data.done) {
+        setIsComplete(true);
+        markInterviewComplete();
+        setTimeout(() => setShowUpsell(true), 2000);
+      }
+    }
+
+    setStreamingMessageId(null);
+    setIsTyping(false);
+  }, [animatedMessageIds, refetch]);
+
+  const handleStreamError = useCallback((error: string) => {
+    console.error("[InterviewChat] Streaming error:", error);
+    // Show error message
+    const errorMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: "I'm sorry, something went wrong. Please try again.",
+      timestamp: new Date()
+    };
+    setMessages(prev => {
+      // Remove any streaming messages (filter by ID pattern)
+      const filtered = prev.filter(m => !m.id.startsWith('streaming-'));
+      return [...filtered, errorMessage];
+    });
+    setStreamingMessageId(null);
+    setIsTyping(false);
+  }, []);
+
+  // Streaming chat hook with stable callbacks
+  const { isStreaming, streamingContent, sendMessage: sendStreamingMessage } = useStreamingChat({
+    onComplete: handleStreamComplete,
+    onError: handleStreamError,
+    onToolExecuted: fetchEvents,
   });
 
   // Calculate progress from section header events
@@ -391,6 +392,13 @@ const InterviewChat = () => {
   // Update streaming message content as chunks arrive
   useEffect(() => {
     if (streamingMessageId && streamingContent) {
+      // Check if this is the first chunk
+      const isFirstChunk = !hasCreatedStreamingMessage.current;
+
+      if (isFirstChunk) {
+        hasCreatedStreamingMessage.current = true;
+      }
+
       setMessages(prev => {
         // Check if streaming message already exists
         const existingMessage = prev.find(m => m.id === streamingMessageId);
@@ -411,16 +419,24 @@ const InterviewChat = () => {
             timestamp: new Date()
           };
 
-          // Add to messagesToAnimate on first chunk
-          setMessagesToAnimate(prevAnimate => new Set(prevAnimate).add(streamingMessageId));
-
           return [...prev, streamingMessage];
         }
       });
+
+      // Add to messagesToAnimate on first chunk (after setMessages)
+      if (isFirstChunk) {
+        setMessagesToAnimate(prev => new Set(prev).add(streamingMessageId));
+      }
     }
   }, [streamingContent, streamingMessageId]);
 
   const handleSendMessage = async (content: string) => {
+    // Prevent multiple simultaneous sends
+    if (isStreaming || isTyping) {
+      console.warn('[InterviewChat] Already streaming, ignoring send');
+      return;
+    }
+
     // Add user message optimistically
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -429,6 +445,9 @@ const InterviewChat = () => {
       timestamp: new Date()
     };
     setMessages(prev => [...prev, userMessage]);
+
+    // Reset streaming message tracking
+    hasCreatedStreamingMessage.current = false;
 
     // Set up streaming ID but don't create message yet
     // Message will be created when first chunk arrives (in useEffect above)
