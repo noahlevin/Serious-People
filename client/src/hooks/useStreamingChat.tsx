@@ -75,6 +75,7 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}) {
       // Read the stream
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = ''; // Buffer for incomplete lines
 
       while (true) {
         const { done, value } = await reader.read();
@@ -83,27 +84,37 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}) {
           break;
         }
 
-        // Decode the chunk
-        const chunk = decoder.decode(value, { stream: true });
+        // Decode the chunk and add to buffer
+        buffer += decoder.decode(value, { stream: true });
 
-        // Split by newlines to handle multiple events
-        const lines = chunk.split('\n');
+        // Process complete lines (SSE events end with \n\n)
+        const lines = buffer.split('\n');
+
+        // Keep the last incomplete line in buffer
+        buffer = lines.pop() || '';
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const data: StreamEvent = JSON.parse(line.substring(6));
+              const jsonString = line.substring(6).trim();
+              if (!jsonString) continue; // Skip empty data lines
+
+              const data: StreamEvent = JSON.parse(jsonString);
+
+              console.log('[StreamingChat] Received event:', data.type);
 
               if (data.type === 'text_delta' && data.content) {
                 // Accumulate streaming text
                 setStreamingContent(prev => prev + data.content);
               } else if (data.type === 'tool_executed') {
                 // Tool was executed - notify parent to refetch events
+                console.log('[StreamingChat] Tool executed:', data.toolName);
                 if (data.refetchEvents && options.onToolExecuted) {
                   options.onToolExecuted();
                 }
               } else if (data.type === 'done') {
                 // Stream complete
+                console.log('[StreamingChat] Stream complete');
                 setIsStreaming(false);
                 if (options.onComplete) {
                   options.onComplete(data);
@@ -112,6 +123,7 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}) {
                 return;
               } else if (data.type === 'error') {
                 // Error occurred
+                console.error('[StreamingChat] Error event:', data.error);
                 setIsStreaming(false);
                 if (options.onError) {
                   options.onError(data.error || 'Unknown error');
@@ -120,19 +132,20 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}) {
                 return;
               }
             } catch (e) {
-              console.error('Failed to parse SSE data:', e);
+              console.error('[StreamingChat] Failed to parse SSE data:', e, 'Line:', line);
             }
           }
         }
       }
 
       // Stream ended without 'done' event
+      console.warn('[StreamingChat] Stream ended without done event');
       setIsStreaming(false);
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.log('Stream aborted');
+        console.log('[StreamingChat] Stream aborted');
       } else {
-        console.error('Streaming error:', error);
+        console.error('[StreamingChat] Streaming error:', error);
         if (options.onError) {
           options.onError(error.message || 'Failed to stream message');
         }

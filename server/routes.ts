@@ -2955,7 +2955,10 @@ COMMUNICATION STYLE:
 
       // Helper to send SSE events
       const sendEvent = (type: string, data: any) => {
-        res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+        const payload = { type, ...data };
+        const eventString = `data: ${JSON.stringify(payload)}\n\n`;
+        console.log(`[SSE] Sending event: ${type}${type === 'text_delta' ? ` (${data.content?.length} chars)` : ''}`);
+        res.write(eventString);
       };
 
       try {
