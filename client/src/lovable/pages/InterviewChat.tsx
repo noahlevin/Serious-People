@@ -193,17 +193,18 @@ const InterviewChat = () => {
       }));
       setMessages(msgs);
 
-      // Find the newest assistant message and mark it for animation
+      // Find the newest assistant message
       const lastAssistantMsg = msgs.filter(m => m.role === 'assistant').pop();
-      if (lastAssistantMsg && !animatedMessageIds.has(lastAssistantMsg.id)) {
-        setMessagesToAnimate(prev => new Set(prev).add(lastAssistantMsg.id));
-      }
-      // Mark all user messages as animated
+
+      // Mark all user messages AND the last assistant message as already animated
+      // (since we just finished streaming the assistant message)
       setAnimatedMessageIds(prev => {
         const next = new Set(prev);
         msgs.forEach(m => {
           if (m.role === 'user') next.add(m.id);
         });
+        // Mark the streamed message as already animated (prevent re-animation)
+        if (lastAssistantMsg) next.add(lastAssistantMsg.id);
         return next;
       });
 
@@ -223,7 +224,7 @@ const InterviewChat = () => {
 
     setStreamingMessageId(null);
     setIsTyping(false);
-  }, [animatedMessageIds, refetch]);
+  }, [refetch]);
 
   const handleStreamError = useCallback((error: string) => {
     console.error("[InterviewChat] Streaming error:", error);
