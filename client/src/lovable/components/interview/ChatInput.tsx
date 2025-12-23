@@ -18,6 +18,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(({ onSend, disabled =
 
   useImperativeHandle(ref, () => ({
     focus: () => {
+      console.log('[ChatInput] focus() called, textarea exists:', !!textareaRef.current);
       textareaRef.current?.focus();
     }
   }));
