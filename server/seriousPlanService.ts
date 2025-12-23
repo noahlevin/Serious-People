@@ -2,14 +2,21 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { z } from "zod";
 import { storage } from "./storage";
-import type { 
-  ClientDossier, 
-  CoachingPlan, 
-  SeriousPlanMetadata, 
+import type {
+  ClientDossier,
+  CoachingPlan,
+  SeriousPlanMetadata,
   InsertSeriousPlanArtifact,
   ImportanceLevel,
   InterviewTranscript
 } from "@shared/schema";
+import {
+  determinePlanHorizon,
+  buildGenerationPrompt,
+  buildCoachLetterPrompt,
+  buildSingleArtifactPrompt,
+  getArtifactGuidelines,
+} from "./prompts";
 
 // Zod schema for validating AI artifact responses
 // Type is free-form string to allow AI to create any artifact type
@@ -45,174 +52,7 @@ interface GenerationResult {
   metadata: SeriousPlanMetadata;
 }
 
-function determinePlanHorizon(dossier: ClientDossier | null): { type: '30_days' | '60_days' | '90_days' | '6_months'; rationale: string } {
-  if (!dossier?.interviewAnalysis) {
-    return { type: '90_days', rationale: 'Standard timeline for career transitions' };
-  }
-  
-  const analysis = dossier.interviewAnalysis;
-  const keyFacts = analysis.keyFacts?.join(' ').toLowerCase() || '';
-  const constraints = analysis.constraints?.join(' ').toLowerCase() || '';
-  const situation = analysis.situation?.toLowerCase() || '';
-  
-  if (keyFacts.includes('immediate') || constraints.includes('urgent') || situation.includes('fired') || situation.includes('laid off')) {
-    return { type: '30_days', rationale: 'Urgent timeline due to immediate circumstances' };
-  }
-  
-  if (keyFacts.includes('visa') || constraints.includes('visa') || constraints.includes('deadline')) {
-    return { type: '60_days', rationale: 'Accelerated timeline due to external deadlines' };
-  }
-  
-  if (keyFacts.includes('long-term') || situation.includes('exploring') || situation.includes('considering')) {
-    return { type: '6_months', rationale: 'Extended timeline for thorough exploration and positioning' };
-  }
-  
-  return { type: '90_days', rationale: 'Standard timeline for thoughtful career transitions' };
-}
-
-function buildGenerationPrompt(
-  clientName: string,
-  coachingPlan: CoachingPlan,
-  dossier: ClientDossier | null,
-  planHorizon: { type: string; rationale: string }
-): string {
-  const plannedArtifactKeys = coachingPlan.plannedArtifacts?.map(a => a.key) || ['decision_snapshot', 'action_plan', 'module_recap', 'resources'];
-  
-  let dossierContext = '';
-  if (dossier) {
-    const analysis = dossier.interviewAnalysis;
-    dossierContext = `
-## Client Dossier (INTERNAL - DO NOT QUOTE DIRECTLY)
-
-**Name:** ${analysis.clientName}
-**Current Role:** ${analysis.currentRole} at ${analysis.company}
-**Tenure:** ${analysis.tenure}
-
-**Situation:** ${analysis.situation}
-**Big Problem:** ${analysis.bigProblem}
-**Desired Outcome:** ${analysis.desiredOutcome}
-
-**Key Facts:** ${analysis.keyFacts?.join(', ') || 'Not specified'}
-**Relationships:** ${analysis.relationships?.map(r => `${r.person} (${r.role}): ${r.dynamic}`).join('; ') || 'Not specified'}
-**Emotional State:** ${analysis.emotionalState}
-**Priorities:** ${analysis.priorities?.join(', ') || 'Not specified'}
-**Constraints:** ${analysis.constraints?.join(', ') || 'Not specified'}
-**Motivations:** ${analysis.motivations?.join(', ') || 'Not specified'}
-**Fears:** ${analysis.fears?.join(', ') || 'Not specified'}
-
-**Module Summaries:**
-${dossier.moduleRecords?.map(m => `- Module ${m.moduleNumber} (${m.moduleName}): ${m.summary}\n  Decisions: ${m.decisions?.join(', ') || 'None'}\n  Action Items: ${m.actionItems?.join(', ') || 'None'}`).join('\n') || 'No modules completed'}
-`;
-  }
-
-  return `You are generating a comprehensive, personalized "Serious Plan" coaching packet for a client who has just completed a 3-module career coaching program.
-
-${dossierContext}
-
-## Coaching Plan They Completed
-- Module 1: ${coachingPlan.modules[0]?.name} - ${coachingPlan.modules[0]?.objective}
-- Module 2: ${coachingPlan.modules[1]?.name} - ${coachingPlan.modules[1]?.objective}
-- Module 3: ${coachingPlan.modules[2]?.name} - ${coachingPlan.modules[2]?.objective}
-
-## Plan Horizon
-Type: ${planHorizon.type}
-Rationale: ${planHorizon.rationale}
-
-## Artifacts to Generate
-Generate the following artifacts: ${plannedArtifactKeys.join(', ')}
-
-You may add 1-2 BONUS artifacts if they would be uniquely helpful for this client (mark them with importance_level: "bonus").
-
-IMPORTANT: When counting artifacts in the coach note, include the coach note itself in the count. For example, if you generate 6 artifacts plus the coach note, say "7 artifacts" (not 6).
-
-## Output Format
-Return a valid JSON object with this structure:
-{
-  "coach_note": "Write the note starting with '${clientName},' on its own line, then begin the body. A brief, professional note from the coach (2-3 short paragraphs). Be warm but not effusive. Acknowledge what they worked on without dramatizing it. When referencing the number of artifacts in their plan, COUNT THIS NOTE as one of the artifacts (total = artifacts array length + 1). End with a simple, grounded statement of confidence - not flowery or grandiose. Write like a trusted advisor, not a motivational speaker.",
-  "metadata": {
-    "clientName": "${clientName}",
-    "planHorizonType": "${planHorizon.type}",
-    "planHorizonRationale": "${planHorizon.rationale}",
-    "keyConstraints": ["constraint1", "constraint2"],
-    "primaryRecommendation": "Their main recommended path forward",
-    "emotionalTone": "encouraging/cautious/confident/etc"
-  },
-  "artifacts": [
-    {
-      "artifact_key": "decision_snapshot",
-      "title": "Your Decision Snapshot",
-      "type": "snapshot",
-      "importance_level": "must_read",
-      "why_important": "1-2 sentences explaining why this artifact matters for THIS client specifically",
-      "content": "The full content in markdown format...",
-      "metadata": {}
-    }
-  ]
-}
-
-## Artifact Guidelines
-
-For each artifact:
-1. Start with a "why_important" that's specific to THIS client (not generic)
-2. Write in clear, direct language - no corporate jargon
-3. Reference their specific situation, people, and constraints
-4. Be actionable and concrete
-5. Use markdown formatting for structure
-
-### decision_snapshot
-- One-page summary of their situation
-- Their 2-4 real options with pros/cons
-- A clear recommendation given their constraints
-- "If you only do one thing this week" line
-
-### action_plan
-- Time-boxed to ${planHorizon.type.replace('_', ' ')}
-- Divided into intervals (weeks or months)
-- 2-4 tasks per interval with clear outcomes
-- Include decision checkpoints with dates
-- metadata should include: { "horizon": "${planHorizon.type}", "intervals": [...] }
-
-### boss_conversation (if included)
-- Goal of the conversation
-- Opening lines (2-3 tone variants)
-- Core script/flow
-- Likely pushbacks & responses
-- Red lines to hold
-- De-escalation and closing
-
-### partner_conversation (if included)
-- Similar structure to boss_conversation
-- Focus on what they need from partner
-- How to frame the situation
-- Key concerns to address
-
-### self_narrative (if included)
-- Personal memo to themselves
-- How they describe this moment
-- What they're moving away from and toward
-- The kind of person they want to be
-- Anchored to their values
-
-### risk_map (if included)
-- List of explicit and hidden risks
-- For each: name, likelihood, impact, mitigation, fallback
-- metadata should include: { "risks": [...] }
-
-### module_recap
-- Summary of each module
-- Topics covered
-- Key answers they gave (paraphrased)
-- Major takeaways per module
-
-### resources (if included)
-- 5-10 credible, relevant resources formatted as clickable markdown links
-- Format each as: [Resource Title](https://exact-url) - Why it's recommended for THEM
-- Use actual URLs when possible, not "search for" instructions
-- Mark 1-3 as "must read" (can emphasize with **bold**)
-- metadata should include: { "resources": [...] }
-
-IMPORTANT: Return ONLY valid JSON. No markdown code blocks, no explanations outside the JSON.`;
-}
+// Prompt functions imported from ./prompts/generation/
 
 export async function generateSeriousPlan(
   userId: string,
@@ -548,45 +388,6 @@ async function generateCoachLetterAsync(
   }
 }
 
-function buildCoachLetterPrompt(
-  clientName: string,
-  coachingPlan: CoachingPlan,
-  dossier: ClientDossier | null
-): string {
-  let context = '';
-  if (dossier) {
-    const analysis = dossier.interviewAnalysis;
-    context = `
-Client: ${analysis.clientName}
-Current Role: ${analysis.currentRole} at ${analysis.company}
-Situation: ${analysis.situation}
-Big Problem: ${analysis.bigProblem}
-Desired Outcome: ${analysis.desiredOutcome}
-Emotional State: ${analysis.emotionalState}
-
-Modules Completed:
-${dossier.moduleRecords?.map(m => `- ${m.moduleName}: ${m.summary}`).join('\n') || 'No details available'}
-`;
-  }
-
-  return `You are writing a brief, warm graduation note from an online career coach to a client who just completed a one-time 3-module coaching session.
-
-IMPORTANT CONTEXT: This was a single online coaching session (about an hour total across 3 modules), NOT an ongoing coaching relationship. You have never met in person. Do NOT write things like "It's been great working with you these past few months" or imply any long-term relationship. This was their first and only session with you.
-
-${context}
-
-Write a personal note (2-3 short paragraphs) that:
-1. Starts with "${clientName}," on its own line
-2. Acknowledges what they worked on in this session without dramatizing
-3. References specific insights or decisions from their conversation today
-4. Ends with grounded confidence, not flowery motivation
-5. Sounds like a trusted advisor wrapping up a focused coaching session
-
-Write like you're an online coach who genuinely helped them think through their situation in this session. No bullet points, no headers - just a warm, direct note.
-
-Output ONLY the letter text, nothing else.`;
-}
-
 /**
  * Generate a single artifact.
  * Each artifact is generated independently and updates storage immediately on completion.
@@ -857,146 +658,7 @@ async function generatePlanMetadata(
   }
 }
 
-/**
- * Build prompt for a single artifact.
- */
-function buildSingleArtifactPrompt(
-  artifactKey: string,
-  clientName: string,
-  coachingPlan: CoachingPlan,
-  dossier: ClientDossier | null,
-  planHorizon: { type: string; rationale: string }
-): string {
-  let dossierContext = '';
-  if (dossier) {
-    const analysis = dossier.interviewAnalysis;
-    dossierContext = `
-## Client Dossier
-**Name:** ${analysis.clientName}
-**Current Role:** ${analysis.currentRole} at ${analysis.company}
-**Tenure:** ${analysis.tenure}
-**Situation:** ${analysis.situation}
-**Big Problem:** ${analysis.bigProblem}
-**Desired Outcome:** ${analysis.desiredOutcome}
-**Emotional State:** ${analysis.emotionalState}
-**Key Facts:** ${analysis.keyFacts?.join(', ') || 'Not specified'}
-**Constraints:** ${analysis.constraints?.join(', ') || 'Not specified'}
-**Priorities:** ${analysis.priorities?.join(', ') || 'Not specified'}
-
-**Module Summaries:**
-${dossier.moduleRecords?.map(m => `- Module ${m.moduleNumber} (${m.moduleName}): ${m.summary}`).join('\n') || 'No modules completed'}
-`;
-  }
-
-  const artifactGuidelines = getArtifactGuidelines(artifactKey, planHorizon);
-
-  return `You are generating a SINGLE personalized artifact for ${clientName} who just completed a 3-module career coaching program.
-
-${dossierContext}
-
-## Plan Horizon: ${planHorizon.type.replace('_', ' ')}
-
-## Artifact to Generate: ${artifactKey}
-${artifactGuidelines}
-
-## Output Format
-Return valid JSON with this exact structure:
-{
-  "title": "Human-readable title for this artifact",
-  "type": "${artifactKey.includes('conversation') ? 'script' : 'snapshot'}",
-  "importance_level": "${artifactKey === 'decision_snapshot' || artifactKey === 'action_plan' ? 'must_read' : 'recommended'}",
-  "why_important": "One sentence explaining why THIS specific client needs this artifact",
-  "content": "Full markdown content..."
-}
-
-## Guidelines
-- Write clear, direct language - no corporate jargon
-- Reference their specific situation, people, constraints
-- Be actionable and concrete
-- Use markdown formatting (headers, lists, bold)
-
-Return ONLY valid JSON.`;
-}
-
-/**
- * Get artifact-specific guidelines.
- */
-function getArtifactGuidelines(artifactKey: string, planHorizon: { type: string }): string {
-  const guidelines: Record<string, string> = {
-    decision_snapshot: `### decision_snapshot (ESSENTIAL)
-One-page decision summary including:
-- Current situation in 2-3 sentences
-- 2-4 realistic options with pros/cons for each
-- Clear recommendation with rationale
-- "If you only do one thing..." action line`,
-    
-    action_plan: `### action_plan (ESSENTIAL)
-Time-boxed action plan for ${planHorizon.type.replace('_', ' ')}:
-- Divide into logical time intervals (Week 1-2, Week 3-4, etc.)
-- 2-4 specific, actionable tasks per interval
-- Include deadlines and success criteria
-- End with "How to know you're on track" section`,
-    
-    boss_conversation: `### boss_conversation (Script)
-Practical conversation guide:
-- Goal of the conversation
-- Opening lines (2-3 options)
-- Core message and talking points
-- Likely pushbacks and how to respond
-- Red lines / what not to say
-- Closing / next steps`,
-    
-    partner_conversation: `### partner_conversation (Script)
-Practical conversation guide for discussing career decisions with partner:
-- Goal and context
-- Opening approach
-- Key points to cover
-- How to address concerns
-- Collaborative next steps`,
-    
-    self_narrative: `### self_narrative (Personal)
-Internal memo / personal reflection:
-- How to describe this moment to yourself
-- What you're moving toward (not just away from)
-- Core values this decision honors
-- Permission slip / affirmation`,
-    
-    risk_map: `### risk_map (Strategic)
-Risk assessment table:
-- List 4-6 key risks
-- For each: likelihood (High/Med/Low), impact, mitigation strategy, fallback plan
-- Include both external risks and personal/emotional risks`,
-    
-    module_recap: `### module_recap (Reference)
-Summary of coaching journey:
-- For each module: key topics, decisions made, major insights
-- Overall arc of the conversation
-- Key quotes or breakthroughs`,
-    
-    resources: `### resources (Reference)
-5-8 curated resources with VERIFIED, WORKING URLs:
-
-CRITICAL: You have web search enabled. You MUST:
-1. Use web search to find real, current resources relevant to this client's situation
-2. Only include URLs that you found via web search - NEVER make up or guess URLs
-3. Verify each link exists by searching for it
-4. Include a mix of: articles, books (link to Amazon/Goodreads), tools, frameworks
-
-Format for each resource:
-- [Resource Name](verified_URL) - One sentence explaining why THIS client specifically needs this
-
-Categories to consider:
-- Career transition articles/guides
-- Books relevant to their industry or situation
-- Negotiation or communication frameworks
-- Industry-specific resources
-- Tools for job search, networking, or skill building
-
-DO NOT include any URL you did not find via web search. If you cannot find enough quality resources, include fewer rather than making up links.`,
-  };
-  
-  return guidelines[artifactKey] || `### ${artifactKey}\nGenerate helpful content for this artifact based on the client's situation.`;
-}
+// buildSingleArtifactPrompt and getArtifactGuidelines imported from ./prompts/generation/
 
 function buildArtifactsPrompt(
   clientName: string,
