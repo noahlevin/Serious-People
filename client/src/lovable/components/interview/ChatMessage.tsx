@@ -86,18 +86,27 @@ const ChatMessage = ({ message, isTyping = false, animate = false, onAnimationCo
   const animationRef = useRef<number | null>(null);
   
   useEffect(() => {
+    console.log('[ChatMessage] useEffect triggered:', {
+      animate,
+      isAssistant,
+      contentLength: fullContent.length,
+      messageId: message.id,
+    });
+
     if (!animate || !isAssistant || !fullContent) {
       setDisplayedContent(fullContent);
       setIsAnimating(false);
+      console.log('[ChatMessage] Not animating, displaying full content immediately');
       return;
     }
-    
+
+    console.log('[ChatMessage] Starting animation for message:', message.id);
     indexRef.current = 0;
     setDisplayedContent('');
     setIsAnimating(true);
-    
+
     const speed = 35;
-    
+
     const type = () => {
       if (indexRef.current < fullContent.length) {
         let increment = 1;
@@ -141,9 +150,13 @@ const ChatMessage = ({ message, isTyping = false, animate = false, onAnimationCo
 
         animationRef.current = window.setTimeout(type, speed);
       } else {
+        console.log('[ChatMessage] Animation complete for message:', message.id);
         setIsAnimating(false);
         if (onAnimationComplete) {
+          console.log('[ChatMessage] Calling onAnimationComplete for message:', message.id);
           onAnimationComplete();
+        } else {
+          console.log('[ChatMessage] No onAnimationComplete callback provided');
         }
       }
     };

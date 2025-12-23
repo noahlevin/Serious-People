@@ -186,6 +186,7 @@ const InterviewChat = () => {
   // Streaming chat hook
   const { isStreaming, streamingContent, sendMessage: sendStreamingMessage } = useStreamingChat({
     onComplete: (data) => {
+      console.log('[Stream] onComplete called', { success: data.success, hasTranscript: !!data.transcript });
       // Stream complete - update with server data
       if (data.success && data.transcript) {
         const msgs: Message[] = data.transcript.map((t: any, i: number) => ({
@@ -198,7 +199,13 @@ const InterviewChat = () => {
 
         // Find the newest assistant message and mark it for animation
         const lastAssistantMsg = msgs.filter(m => m.role === 'assistant').pop();
+        console.log('[Stream] Last assistant message:', {
+          id: lastAssistantMsg?.id,
+          contentLength: lastAssistantMsg?.content.length,
+          alreadyAnimated: lastAssistantMsg ? animatedMessageIds.has(lastAssistantMsg.id) : 'no message'
+        });
         if (lastAssistantMsg && !animatedMessageIds.has(lastAssistantMsg.id)) {
+          console.log('[Stream] Adding message to animate:', lastAssistantMsg.id);
           setMessagesToAnimate(prev => new Set(prev).add(lastAssistantMsg.id));
         }
         // Mark all user messages as animated
@@ -528,7 +535,15 @@ const InterviewChat = () => {
     messages.forEach((message, idx) => {
       const shouldAnimate = messagesToAnimate.has(message.id);
       const isFullyAnimated = animatedMessageIds.has(message.id);
-      
+
+      if (message.role === 'assistant' && shouldAnimate) {
+        console.log('[Render] Rendering assistant message with animate=true:', {
+          id: message.id,
+          contentLength: message.content.length,
+          shouldAnimate,
+        });
+      }
+
       elements.push(
         <ChatMessage
           key={message.id}
