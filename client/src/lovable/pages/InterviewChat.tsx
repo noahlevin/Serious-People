@@ -183,28 +183,36 @@ const InterviewChat = () => {
 
   // Stable callbacks for streaming hook
   const handleStreamComplete = useCallback((data: any) => {
-    // Stream complete - update with server data
+    // Stream complete - update streaming message ID to match server
     if (data.success && data.transcript) {
-      const msgs: Message[] = data.transcript.map((t: any, i: number) => ({
+      const serverMessages: Message[] = data.transcript.map((t: any, i: number) => ({
         id: String(i),
         role: t.role as 'user' | 'assistant',
         content: t.content,
         timestamp: new Date(),
       }));
-      setMessages(msgs);
 
-      // Find the newest assistant message
-      const lastAssistantMsg = msgs.filter(m => m.role === 'assistant').pop();
+      // Update messages: replace streaming message ID with server ID
+      setMessages(prev => {
+        // If we have a streaming message, update its ID to match server
+        if (streamingMessageId) {
+          return prev.map(m => {
+            if (m.id === streamingMessageId) {
+              // This is the streaming message - update its ID to match server
+              const serverMsg = serverMessages.find(sm => sm.role === 'assistant' && sm.content === m.content);
+              return serverMsg ? { ...m, id: serverMsg.id } : m;
+            }
+            return m;
+          });
+        }
+        // No streaming message - just use server messages as-is
+        return serverMessages;
+      });
 
-      // Mark all user messages AND the last assistant message as already animated
-      // (since we just finished streaming the assistant message)
+      // Mark all messages as already animated
       setAnimatedMessageIds(prev => {
         const next = new Set(prev);
-        msgs.forEach(m => {
-          if (m.role === 'user') next.add(m.id);
-        });
-        // Mark the streamed message as already animated (prevent re-animation)
-        if (lastAssistantMsg) next.add(lastAssistantMsg.id);
+        serverMessages.forEach(m => next.add(m.id));
         return next;
       });
 
@@ -224,7 +232,7 @@ const InterviewChat = () => {
 
     setStreamingMessageId(null);
     setIsTyping(false);
-  }, [refetch]);
+  }, [refetch, streamingMessageId]);
 
   const handleStreamError = useCallback((error: string) => {
     console.error("[InterviewChat] Streaming error:", error);
