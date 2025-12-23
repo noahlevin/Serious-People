@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/lovable/components/ui/button";
 import { ArrowUp } from "lucide-react";
 
@@ -8,9 +8,19 @@ interface ChatInputProps {
   placeholder?: string;
 }
 
-const ChatInput = ({ onSend, disabled = false, placeholder = "Type your response..." }: ChatInputProps) => {
+export interface ChatInputRef {
+  focus: () => void;
+}
+
+const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(({ onSend, disabled = false, placeholder = "Type your response..." }, ref) => {
   const [message, setMessage] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      textareaRef.current?.focus();
+    }
+  }));
 
   const handleSubmit = () => {
     if (message.trim() && !disabled) {
@@ -60,6 +70,8 @@ const ChatInput = ({ onSend, disabled = false, placeholder = "Type your response
       </div>
     </div>
   );
-};
+});
+
+ChatInput.displayName = "ChatInput";
 
 export default ChatInput;

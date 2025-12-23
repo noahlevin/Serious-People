@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import ChatMessage from "@/lovable/components/interview/ChatMessage";
-import ChatInput from "@/lovable/components/interview/ChatInput";
+import ChatInput, { ChatInputRef } from "@/lovable/components/interview/ChatInput";
 import SectionDivider from "@/lovable/components/interview/SectionDivider";
 import UpsellCard from "@/lovable/components/interview/UpsellCard";
 import StructuredOutcomes from "@/lovable/components/interview/StructuredOutcomes";
@@ -9,6 +9,7 @@ import { Clock, Lock, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStreamingChat } from "@/hooks/useStreamingChat";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Types for events from server
 interface StructuredOption {
@@ -147,6 +148,8 @@ const TitleCard = ({ title, subtitle }: { title: string; subtitle?: string }) =>
 
 const InterviewChat = () => {
   const { refetch } = useAuth();
+  const isMobile = useIsMobile();
+  const chatInputRef = useRef<ChatInputRef>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -480,7 +483,16 @@ const InterviewChat = () => {
     });
     // Scroll to show any newly visible elements (structured outcomes, title cards, etc.)
     setTimeout(() => scrollToBottom(), 50);
-  }, []);
+
+    // Auto-focus composer on desktop when coach finishes typing
+    const message = messages.find(m => m.id === messageId);
+    if (message && message.role === 'assistant' && !isMobile) {
+      // Small delay to ensure scroll completes first
+      setTimeout(() => {
+        chatInputRef.current?.focus();
+      }, 100);
+    }
+  }, [messages, isMobile]);
 
   // Build the chat content with events interspersed based on afterMessageIndex
   const renderChatContent = () => {
@@ -634,7 +646,8 @@ const InterviewChat = () => {
 
       {/* Input Area - pinned to bottom */}
       <div className="sp-chat-composer">
-        <ChatInput 
+        <ChatInput
+          ref={chatInputRef}
           onSend={handleSendMessage}
           disabled={isTyping || isComplete}
           placeholder={isComplete ? "Interview complete..." : "Type your response..."}
