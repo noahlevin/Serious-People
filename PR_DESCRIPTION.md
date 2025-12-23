@@ -170,3 +170,5 @@ The chat feels **significantly more responsive and engaging**!
 - 8d5f28e: Fix SSE parsing bug - properly handle chunked event data
 - 5e6fc23: Add server-side SSE logging for debugging
 - a6d0eb2: Fix streaming message flickering and empty bubble issues
+- c07a219: Fix streaming callback stability and prevent re-render loops
+- 41eb3b5: Prevent re-animation of streamed messages on completion
