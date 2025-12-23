@@ -1,0 +1,88 @@
+Step 1 — Find the Lovable shell to mimic
+
+In the repo, locate where the Lovable “chrome” lives (header/nav/footer/layout). Run:
+
+grep -R --line-number "function Header\|const Header\|<header\|TopNav\|Navbar\|AppShell\|Layout" client/src | head -n 50
+grep -R --line-number "Serious People" client/src/lovable client/src/pages | head -n 50
+
+
+Open the likely candidates and identify:
+
+header markup (logo + nav + CTA)
+
+footer markup (simple links + copyright)
+
+container widths / padding / sticky behavior
+
+If there isn’t a single component, just grab the markup from the Lovable landing page (client/src/lovable/pages/Index.tsx or similar) and treat that as the “shell.”
+
+Step 2 — Create EJS partials
+
+Create:
+
+seo/templates/partials/header.ejs
+
+seo/templates/partials/footer.ejs
+
+These should be pure HTML with no Tailwind classes (or if you keep Tailwind-ish classnames, you must also ensure the SEO pages load a stylesheet that defines them — easiest is pure CSS).
+
+Step 3 — Replace header/footer in both templates
+
+Update both:
+
+seo/templates/layout.ejs
+
+seo/templates/landing.ejs
+
+to use the partials:
+
+<%- include("partials/header", { active: typeof active !== "undefined" ? active : "" }) %>
+...
+<%- include("partials/footer") %>
+
+
+This ensures:
+
+all SEO pages share the same chrome
+
+landing page shares the same chrome (so it won’t keep drifting)
+
+Step 4 — Put the Lovable-like shell CSS in one place
+
+Do not keep massive inline CSS in both templates long-term.
+
+Put shell CSS into /seo.css (the file you’re already serving) under a section like:
+
+/* --- Lovable-ish SEO Shell --- */
+.sp-shell { ... }
+.sp-topbar { ... }
+.sp-nav { ... }
+.sp-btn { ... }
+...
+
+
+And then make both templates use those classes.
+
+Step 5 — Kill the “old landing” look
+
+Right now landing.ejs is basically its own bespoke site. You have two choices:
+
+Option A (faster): keep landing content, but:
+
+remove/trim the huge inline <style> block
+
+use the shared shell + shared CSS + token variables
+
+Option B (truer match): port the Lovable landing content/sections from the SPA page into EJS (same headings, same order, same CTA copy), then keep it tokenized.
+
+If your goal is “root looks like Lovable,” you almost certainly want Option B.
+
+Step 6 — Definition of done checks
+
+/ shows the new Lovable-ish header/footer (and not the old “newspaper” header)
+
+/guides, /resources, /roles, calculator all show the same header/footer
+
+all “Start Session” links go to /app/interview/start
+
+all “Log in” links go to /app/login

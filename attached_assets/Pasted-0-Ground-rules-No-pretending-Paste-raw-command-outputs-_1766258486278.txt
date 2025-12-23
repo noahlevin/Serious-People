@@ -1,0 +1,60 @@
+0) Ground rules
+- No pretending. Paste raw command outputs.
+- Only touch files in Scope. If you need more files, stop and explain.
+
+1) Goal
+Replace PROVIDED_NAME token with a tool-based flow that persists user.providedName in DB and updates the upper-right UserMenu name with the existing typing animation.
+
+2) Scope (ONLY)
+- server/routes.ts
+- server/storage.ts
+- server/schema.ts
+- client/src/hooks/useAuth.tsx (or wherever auth user state is sourced/refreshed)
+- client/src/components/UserMenu.tsx
+- client/src/lovable/pages/InterviewChat.tsx
+- scripts/smoke-interview-chat.mjs
+
+3) Requirements
+
+A) Server: Add tool set_provided_name
+- Extend interview LLM tool set with:
+  set_provided_name: { name: string }
+- On tool call:
+  - Validate name (trim, length 1..50, reject obvious junk like all punctuation)
+  - Persist to user record (user.providedName)
+  - Append an app event on stream interview:${sessionToken}:
+    type: "user.provided_name_set"
+    payload: { name, render: { afterMessageIndex: <current index> } }  (optional render field; ok to include)
+
+B) Server response must include updated user (or client must refetch)
+- Ensure the client can actually see the updated providedName without a hard refresh.
+- Either:
+  (1) include updated user object in /api/interview/turn and /api/interview/state responses, OR
+  (2) update /api/auth/me (or equivalent) so the client refetches user after set_provided_name event is observed.
+Pick the smallest change consistent with current auth architecture.
+
+C) Client: Remove PROVIDED_NAME token usage
+- Search for PROVIDED_NAME usage in client and server prompts.
+- Remove/stop relying on it.
+- Update interview system prompt: when the user provides their name and the system doesn’t have it yet, call set_provided_name.
+
+D) UserMenu typing animation
+- Ensure UserMenu animates when providedName changes in auth state.
+- No new animation system; reuse existing behavior.
+
+E) Side quest: strengthen smoke test
+- Update scripts/smoke-interview-chat.mjs to:
+  - Call /api/interview/turn with a message that provides a name ("Call me Noah.")
+  - Assert response JSON includes events and that one event has type "user.provided_name_set" OR that /api/auth/me shows providedName updated after the turn.
+  - Print a clear PASS/FAIL line and exit non-zero on failure.
+
+4) Verification (paste raw output)
+- npm run build
+- node scripts/smoke-interview-chat.mjs
+- grep -R "PROVIDED_NAME" server client || true
+
+5) Acceptance criteria
+- In an email-signup flow where user name is missing, the interview can capture the name and persist it.
+- UserMenu updates to show the provided name (and animates) without page refresh.
+- No remaining references to PROVIDED_NAME in repo.
+- Build + smoke pass.

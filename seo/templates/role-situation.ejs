@@ -1,0 +1,72 @@
+<!-- Role-Situation page wrapper for specific styling overrides -->
+<div class="sp-role-situation-page">
+
+<!-- Breadcrumb - matches RoleSituation.tsx lines 120-129 -->
+<div class="sp-container" style="padding-top: 1rem;">
+  <nav class="sp-breadcrumb" data-testid="breadcrumb-nav">
+    <a href="/roles" data-testid="link-breadcrumb-roles">Roles</a>
+    <svg class="sp-breadcrumb-separator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <a href="/roles/<%= roleSlug %>" data-testid="link-breadcrumb-role"><%= roleTitle %></a>
+    <svg class="sp-breadcrumb-separator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <span class="sp-breadcrumb-current"><%= situationTitle %></span>
+  </nav>
+</div>
+
+<!-- Hero - matches RoleSituation.tsx lines 131-152 -->
+<section class="sp-container sp-hero-section">
+  <div class="sp-content-narrow" style="margin: 0 auto;">
+    <div class="sp-role-badges" data-testid="role-badges">
+      <span class="sp-badge sp-badge-primary"><%= roleTitle %></span>
+      <span class="sp-badge sp-badge-muted"><%= situationTitle %></span>
+    </div>
+    <h1 class="sp-guide-title" data-testid="text-page-title"><%= title %></h1>
+    <p class="sp-guide-lede" data-testid="text-page-lede"><%= subtitle %></p>
+  </div>
+</section>
+
+<!-- Article Content - matches RoleSituation.tsx lines 154-204 -->
+<article class="sp-container" style="padding-bottom: 4rem;">
+  <div class="sp-content-narrow sp-article-body" style="margin: 0 auto;">
+    <%- content %>
+  </div>
+</article>
+
+<!-- Dark CTA Box - matches RoleSituation.tsx lines 206-222 -->
+<section class="sp-container" style="padding-bottom: 4rem;">
+  <div class="sp-content-narrow" style="margin: 0 auto;">
+    <div class="sp-cta-dark" data-testid="cta-dark-box">
+      <h3>Want personalized guidance?</h3>
+      <p>Every <%= roleTitle %> situation is different. Get tailored advice for yours.</p>
+      <a href="/app/interview/start" class="sp-btn sp-btn-default" data-testid="button-start-session">
+        Start Your Free Interview
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<% if (typeof relatedSituations !== 'undefined' && relatedSituations.length > 0) { %>
+<!-- Related Situations - matches RoleSituation.tsx lines 224-244 -->
+<section class="sp-section-sage" style="border-top: 1px solid hsl(var(--border));">
+  <div class="sp-container" style="padding-top: 4rem; padding-bottom: 4rem;">
+    <div class="sp-content-narrow" style="margin: 0 auto;">
+      <h3 class="sp-related-heading">Other Situations for <%= roleTitle %></h3>
+      <div class="sp-situation-grid sp-situation-grid-3" data-testid="list-related-situations">
+        <% relatedSituations.forEach(function(situation) { %>
+        <a href="/roles/<%= roleSlug %>/situations/<%= situation.slug %>" class="sp-situation-card" data-testid="link-related-<%= situation.slug %>">
+          <span><%= situation.label %></span>
+        </a>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+</section>
+<% } %>
+
+</div><!-- End .sp-role-situation-page wrapper -->

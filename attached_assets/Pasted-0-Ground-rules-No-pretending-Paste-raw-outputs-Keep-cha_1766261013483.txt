@@ -1,0 +1,62 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Keep changes minimal and consistent with existing artifact/status patterns.
+
+1) Goal
+When the interview reaches completion:
+- Generate the minimum required downstream artifacts using the existing artifact/status framework (DB-mediated, idempotent, safe on refresh)
+- Append a final inline “next steps” card via an app event, populated from the user’s generated plan (module titles + descriptions)
+
+2) Scope (ONLY)
+- server/routes.ts
+- server/seriousPlanService.ts (or the file that orchestrates artifacts)
+- server/storage.ts (only if new helpers needed)
+- client/src/lovable/pages/InterviewChat.tsx
+- client/src/lovable/components/interview/FinalNextStepsCard.tsx (new) OR reuse existing plan card component
+- scripts/smoke-interview-chat.mjs
+
+3) Requirements
+
+A) Define the “minimum artifacts” generated at interview completion
+- Identify which artifacts downstream pages require today (SeriousPlan page + artifacts page).
+- Ensure the interview completion step produces exactly those (no extras).
+- Use existing statuses: pending/generating/complete/error and atomic claim pattern.
+
+B) Add an interview tool: finalize_interview
+- Tool name: finalize_interview
+- When called:
+  1) Mark interview as complete for that session/user (existing mechanism or add a flag)
+  2) Trigger/ensure artifact generation using the existing service (idempotent)
+  3) Append app event: type "chat.final_next_steps_added"
+     payload includes render.afterMessageIndex and a snapshot list:
+       { modules: [{ slug, title, description }] }
+     The modules MUST come from the generated plan data in DB (not hardcoded).
+
+C) Prompt update
+- In interview system prompt: when the interview is ready to end, call finalize_interview.
+- Do not rely on tokens like INTERVIEW_COMPLETE or PLAN_CARD for completion.
+- If legacy tokens exist, leave them temporarily but ensure finalize_interview is the authoritative mechanism.
+
+D) Client: render final card event
+- In InterviewChat.tsx, render "chat.final_next_steps_added" event using a dedicated component.
+- Card should look good even if descriptions are missing.
+- Ensure it persists in the correct place on refresh (event-based like others).
+
+E) Smoke test
+Update scripts/smoke-interview-chat.mjs to add a deterministic dev path:
+- Add a dev-only endpoint OR dev-only prompt flag to force finalize_interview without relying on model behavior.
+- The smoke should:
+  1) Force finalize for current session
+  2) Assert artifacts exist and are complete (or terminal)
+  3) Assert final next steps event exists and contains modules list length > 0
+  4) GET /api/interview/state returns the final card event (refresh determinism)
+
+4) Verification (paste raw output)
+- npm run build
+- node scripts/smoke-interview-chat.mjs
+
+5) Acceptance criteria
+- Completion generates the right artifacts, exactly once (idempotent on retries).
+- Final card is tool-driven and populated from DB plan module titles/descriptions.
+- Refresh shows the final card in the same position.
+- Build + smoke pass.

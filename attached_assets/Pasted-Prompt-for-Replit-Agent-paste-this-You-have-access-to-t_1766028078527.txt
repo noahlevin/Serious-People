@@ -1,0 +1,71 @@
+Prompt for Replit Agent (paste this)
+
+You have access to the repo. Please debug and fix why the SEO/EJS pages are not picking up the Lovable design system from /seo.css. The SPA under /app/* is already correct. I need the server-rendered SEO pages (/, /guides, /roles, /tools/stay-or-go-calculator, /resources) to use the same tokens as Lovable.
+
+Context
+
+/seo.css exists and is fetchable. We added a sentinel and magenta outline rules and confirmed they show when loading /seo.css?v=123 directly.
+
+Despite that, SEO pages aren’t visibly changing, and I sometimes see /assets/index-*.css which suggests SPA assets are involved.
+
+We attempted to add logging headers but hit a TS error (“Cannot find name ‘req’. Did you mean ‘_req’?”).
+
+What I need you to do
+
+Prove which handler serves each path:
+
+For /, /guides, /guides/:slug, /roles, /tools/stay-or-go-calculator, /resources
+
+Add a response header like X-SP-SEO: 1 in the EJS render path (in the actual handler that runs).
+
+Confirm in browser DevTools Network that those routes return X-SP-SEO: 1. If not, fix routing order so SEO routes win over SPA catch-all.
+
+Verify templates actually include /seo.css:
+
+For each SEO route, confirm the returned HTML contains <link rel="stylesheet" href="/seo.css...">.
+
+Add a temporary HTML comment sentinel in seo/templates/layout.ejs and confirm it appears on a guide page source. If it doesn’t, trace which template is being used and fix the controller/template selection.
+
+Ensure /seo.css is real usable CSS for the browser:
+
+If /seo.css contains Tailwind @layer / @apply, browsers will ignore most of it. Generate a compiled version.
+
+Add a build step or dev-time generation:
+
+tailwindcss -i client/src/index.css -o public/seo.css (or another deterministic source of tokens)
+
+Ensure Express serves it from the same origin (/seo.css) and that it’s actually compiled output (no @layer, no @apply).
+
+Stop inline CSS from overriding tokens:
+
+The EJS templates define a full visual theme inline with :root { --sp-bg: #faf9f6; ... }.
+
+Update layout.ejs (and landing.ejs if needed) so those vars map to the Lovable CSS vars, e.g.:
+
+--sp-bg: hsl(var(--background));
+
+--sp-text: hsl(var(--foreground));
+
+etc.
+
+Remove/adjust any inline body/background declarations that hardcode colors in a way that defeats tokens.
+
+Acceptance tests
+
+Visiting /guides and a guide page:
+
+Response has X-SP-SEO: 1
+
+HTML includes /seo.css
+
+Page background/text colors match Lovable tokens (not legacy palette)
+
+SPA pages under /app/* unaffected.
+
+Deliverables
+
+A short summary: root cause + fix.
+
+A list of files changed.
+
+Exact commands/scripts added (if any) to build/serve /seo.css.

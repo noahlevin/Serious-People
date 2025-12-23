@@ -1,0 +1,58 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Goal is to ensure module titles/descriptions are always sourced from the user’s generated plan when available.
+- Placeholder names ("Job Autopsy", etc.) must be treated as fallback only, never the canonical label once a plan exists.
+- Keep changes small. Avoid CSS churn.
+
+1) Goal
+Replace hardcoded module names used as labels across the app with plan-derived module titles/descriptions created at end of interview, while keeping stable module identity (moduleNumber 1/2/3).
+
+2) Scope (ONLY)
+- client/src/pages/module.tsx (or whatever renders module header/title)
+- any client page that displays module lists (e.g. SeriousPlan page, final next steps card, module nav if present)
+- server/routes.ts (only if an endpoint needs to expose plan module metadata)
+- scripts/smoke-module-chat.mjs (add assertion to ensure plan-derived names are returned once plan exists)
+
+3) Requirements
+
+A) Single source of truth
+- If the plan exists for the user/session, module display name/description must come from:
+  transcript.planCard.modules (or the equivalent persisted plan record)
+- Module identity remains moduleNumber 1/2/3. The mapping is:
+  planCard.modules[0] -> module 1
+  planCard.modules[1] -> module 2
+  planCard.modules[2] -> module 3
+(If a more explicit key exists, prefer it, but keep it deterministic.)
+
+B) API support (if needed)
+- If the client module page cannot currently access planCard/modules cleanly, add a minimal authenticated endpoint:
+  GET /api/plan/modules
+  returns [{ moduleNumber, title, description }]
+- Do not duplicate logic in multiple places; reuse the same helper/server function.
+
+C) UI behavior
+- Wherever the app currently shows “Job Autopsy / Fork in the Road / Great Escape Plan”:
+  - show the plan-derived title/description if present
+  - otherwise show the placeholder
+- This must apply to:
+  - module page header
+  - the final next steps card
+  - any module index/list pages
+
+D) Tests
+- Update smoke-module-chat.mjs:
+  - if plan exists, assert module titles in API response are NOT the placeholder set
+  - at minimum assert titles are non-empty strings and differ from placeholders
+
+4) Verification (paste raw output)
+- npm run build
+- node scripts/smoke-interview-chat.mjs
+- node scripts/smoke-module-chat.mjs
+- grep -R "Job Autopsy" client/src server || true
+- grep -R "Fork in the Road" client/src server || true
+- grep -R "Great Escape Plan" client/src server || true
+
+5) Acceptance criteria
+- Plan-derived titles/descriptions show up everywhere once plan exists.
+- Placeholder names remain only as fallback (e.g. before interview completion).
+- Smokes pass.

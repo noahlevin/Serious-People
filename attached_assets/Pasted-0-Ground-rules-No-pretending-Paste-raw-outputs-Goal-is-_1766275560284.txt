@@ -1,0 +1,56 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Goal is to make smoke tests trustworthy, not merely passing.
+- Separate DEV_FAST behavior from normal behavior. Do not weaken normal assertions.
+
+1) Goal
+Refactor scripts/smoke-interview-chat.mjs so:
+- Normal mode is strict and fails on empty assistant replies
+- DEV_FAST=1 runs a clearly-labeled deterministic suite that does NOT claim to validate LLM replies
+- testskip/skiptest logic cannot accidentally make normal mode permissive
+
+2) Scope (ONLY)
+- scripts/smoke-interview-chat.mjs
+- server/routes.ts (ONLY if needed to add an explicit response flag like skipped_llm=true for testskip mode)
+- replit.md (update docs for smoke modes)
+
+3) Required changes
+
+A) Split into two explicit test suites
+- runFastSuite() (DEV_FAST=1)
+- runFullSuite() (default)
+
+B) Full suite rules (default)
+- Turn 1 and Turn 2 must produce non-empty assistant reply content.
+- Retries are allowed (e.g., 2 retries, longer timeout), but if still empty -> FAIL.
+- Full suite may still validate events (provided_name_set, etc.) but it must not treat events as a substitute for a reply.
+
+C) Fast suite rules (DEV_FAST=1)
+- Must NOT call the real LLM.
+- Must validate deterministically:
+  - GET /api/interview/state works
+  - dev inject endpoints work (outcomes inject + select)
+  - dev finalize endpoint works and produces:
+    - final_next_steps event with modules length > 0
+    - serious plan artifacts exist and are terminal
+- Fast suite must log clearly: "FAST MODE: LLM not exercised"
+
+D) Remove “planCard present => accept empty reply” from full suite
+- If that rule is needed for testskip compatibility, confine it to FAST mode only.
+- Ideally: add `skipped_llm:true` to the server response for testskip and require that flag in fast mode (optional but preferred).
+
+E) Make skip/testskip behavior impossible to confuse
+- If there is a skiptest helper, rename it to something explicit (e.g. callTurnFast vs callTurnLLM).
+- Ensure the code path for DEV_FAST cannot be activated implicitly (only via env var).
+
+4) Verification (paste raw outputs)
+- npm run build
+- node scripts/smoke-interview-chat.mjs   (default/full)
+- DEV_FAST=1 node scripts/smoke-interview-chat.mjs
+- node scripts/smoke-module-chat.mjs
+
+5) Acceptance criteria
+- Full mode fails if assistant replies are empty after retries.
+- Fast mode passes quickly and clearly states it did not test the LLM.
+- No permissive rule remains in full mode that could hide regressions.
+- Docs updated explaining the two modes and when to use each.

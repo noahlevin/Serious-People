@@ -1,0 +1,49 @@
+0) NON-NEGOTIABLE OUTPUT RULE
+You MUST paste raw outputs for every command in section (6).
+If you do not, the work is not complete.
+
+1) Goal (P1)
+In scripts/smoke-interview-chat.mjs DEV_FAST=1 mode:
+- The “GET /api/interview/state auto-initializes…” check must be a real JSON check (no HTML).
+- It must fail if it receives non-JSON or unexpected status.
+- It must not require calling the LLM.
+
+2) Scope (ONLY)
+- scripts/smoke-interview-chat.mjs
+(Optional only if absolutely needed)
+- server/routes.ts (ONLY if we need a dev-gated JSON endpoint for fast suite)
+
+3) Preferred implementation (no server changes if possible)
+A) Ensure requests in DEV_FAST include auth correctly:
+- Whatever the script already uses to authenticate (cookie header / token / etc), apply that SAME mechanism to the GET /api/interview/state call in fast suite.
+- If fast suite currently uses dev endpoints that bypass auth (via DEV_TOOLS_SECRET), do NOT use /api/interview/state at all in fast mode unless it’s authenticated.
+
+B) Replace the auto-init check with a deterministic dev-gated JSON endpoint (if needed)
+If /api/interview/state requires real auth and we don’t have it reliably in fast mode:
+- Add a dev-only endpoint, gated with requireDevTools, e.g.:
+  GET /api/dev/interview/state
+  - returns { transcript, events } for the test user session
+  - always JSON
+  - returns 404 in production (same pattern as other dev endpoints)
+Then in DEV_FAST, call /api/dev/interview/state for the auto-init check.
+
+C) Make the check strict
+- If response status not 200 -> FAIL
+- If content-type not application/json -> FAIL
+- If JSON parse fails -> FAIL
+- Validate response shape contains transcript + events arrays
+
+4) Do NOT change
+- No LLM logic
+- No other smoke tests
+- No client code
+
+5) Verification (paste raw outputs)
+- node scripts/smoke-interview-chat.mjs (DEV_FAST=1)
+- node scripts/smoke-interview-chat.mjs (default full suite) — only if it’s reasonably fast; otherwise skip but SAY you skipped
+- npm run build (only if server/routes.ts changed)
+
+6) Acceptance criteria
+- DEV_FAST no longer logs “Unexpected token '<'”
+- DEV_FAST fails loudly if it gets HTML/redirects
+- Raw outputs pasted

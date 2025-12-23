@@ -1,0 +1,43 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT refactor widely.
+- Make the smallest change that ensures the Serious Plan UI renders artifacts from DB with generationStatus and polls until complete.
+
+## 1) Goal (one sentence)
+GOAL: Update the Serious Plan UI page to fetch artifacts from the server (DB), render by generationStatus (pending/generating/complete/error), and poll until terminal—no token parsing.
+
+## 2) Scope boundaries
+You may edit ONLY these files unless you ask first:
+client/src/pages/<SERIOUS_PLAN_PAGE>.tsx
+client/src/lovable/components/<ARTIFACT_RENDER_COMPONENT>.tsx
+client/src/queryClient.ts (only if polling helper exists)
+server/routes.ts (only if endpoint is missing)
+
+If you don’t know the Serious Plan UI file path, STOP and report the likely candidates + grep results.
+
+## 3) Current behavior to preserve
+- Route gating / basePath behavior unchanged.
+- No new journeys/state transitions from page load.
+- Existing API response shapes unchanged unless strictly necessary.
+
+## 4) Implementation plan
+1) Locate the Serious Plan UI route + component.
+2) Ensure it fetches `/api/serious-plan/latest` (or existing endpoint) and uses `artifacts[].generationStatus`.
+3) If any artifact is pending/generating, poll refetch every ~2s until all terminal (complete/error) or timeout.
+4) Render:
+   - pending/generating: show a simple inline “Generating…” state
+   - complete: render artifact content
+   - error: render error state and a “regenerate” CTA only if a dev flag exists (don’t add prod controls yet)
+
+## 5) Mandatory verification (must run and paste output)
+1) `npm run build`
+2) `npm run dev`
+3) In another shell:
+   - `FORCE_REGENERATE=1 ORIGIN=http://localhost:5000 EMAIL=noah@noahlevin.com node scripts/smoke-serious-plan-artifacts.mjs`
+4) Optional (if UI-only change): curl plan endpoint to confirm statuses/content:
+   - `curl -s http://localhost:5000/api/dev/serious-plan/latest?email=noah@noahlevin.com | node -e "process.stdin.on('data',d=>{const j=JSON.parse(d); console.log(j.plan?.artifacts?.map(a=>[a.artifactKey,a.generationStatus,(a.content||'').length]));})"`
+
+Success looks like:
+- UI shows “Generating” while smoke test runs
+- UI shows artifact content afterward without refresh

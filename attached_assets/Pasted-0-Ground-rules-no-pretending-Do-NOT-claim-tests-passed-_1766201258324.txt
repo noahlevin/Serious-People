@@ -1,0 +1,55 @@
+0) Ground rules (no pretending)
+- Do NOT claim tests passed unless you ran the commands and pasted raw output.
+- Make the smallest possible changes. No refactors. Do NOT introduce a new shared Header/AppShell component in this batch.
+- ONLY edit the files listed in Scope. If you think you need another file, stop and explain why.
+
+1) Goal
+Fix interview header UX + add the existing UserMenu (name/logout) to the upper-right on /interview/start, /interview/prepare, /interview/chat; remove “Save and Exit”; remove “Step 1 of 4”; remove “encrypted” wording; ensure logout redirects to “/” from anywhere.
+
+2) Scope boundaries (ONLY these files)
+- client/src/lovable/pages/Interview.tsx
+- client/src/lovable/pages/Prepare.tsx
+- client/src/lovable/pages/InterviewChat.tsx
+- client/src/components/UserMenu.tsx
+- (Do NOT touch routing wrappers or App.tsx in this batch unless absolutely necessary.)
+
+3) Exact changes required (surgical)
+A) Header height
+- Make the header on Interview/Prepare/InterviewChat visually shorter.
+- Keep the existing brand/wordmark on the left.
+- Use a consistent layout approach across these 3 pages: left brand, right user menu.
+
+B) Remove “Step 1 of 4”
+- On Interview.tsx remove that copy entirely.
+
+C) Add UserMenu to the 3 interview pages
+- Import and render <UserMenu /> in the upper-right of each header.
+- This must be the existing component at client/src/components/UserMenu.tsx.
+
+D) Remove “Save and Exit”
+- On InterviewChat.tsx remove the “Save and Exit” button and any unused handler/imports.
+
+E) Remove “encrypted” references
+- Replace any “encrypted” wording in these edited files with accurate language (“confidential” is OK).
+
+F) Logout redirect fix
+- In UserMenu.tsx, ensure logout navigates to "/" using react-router-dom (not wouter). The goal is: logging out from /module/1 does a hard redirect to landing behaviorally (SPA nav is fine, but must land at "/").
+- Do not otherwise change auth logic.
+
+4) Verification (paste raw output)
+- npm run build
+- grep -R "Save and Exit" client/src || true
+- grep -R "Step 1 of 4" client/src || true
+- grep -R "encrypted" client/src || true
+- grep -R "from \"wouter\"" client/src/components/UserMenu.tsx || true
+
+5) Acceptance criteria
+- /interview/start header is shorter and does NOT show “Step 1 of 4”
+- /interview/prepare header is shorter and shows UserMenu on the right when logged in
+- /interview/chat header is shorter, shows UserMenu on the right, and does NOT show “Save and Exit”
+- After logout (including from /module/1), user ends up at "/"
+- Build succeeds
+
+6) Deliverables
+- Diff summary per file (what changed)
+- Raw outputs for verification commands

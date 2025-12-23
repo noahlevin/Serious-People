@@ -35,22 +35,25 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/seo.css?v=<%= Date.now() %>">
   
   <style>
     :root {
-      --sp-bg: #faf9f6;
-      --sp-bg-elevated: #ffffff;
-      --sp-text: #1a1a1a;
-      --sp-text-secondary: #666666;
-      --sp-text-muted: #888888;
-      --sp-border: #d4d4d4;
-      --sp-border-light: #e5e5e5;
-      --sp-accent: #c41e3a;
-      --sp-accent-hover: #a01830;
-      --sp-success: #2d6a4f;
-      --sp-warning: #b86e00;
-      --sp-font-display: 'Playfair Display', Georgia, serif;
-      --sp-font-body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+      /* Map to Lovable tokens from /seo.css */
+      --sp-bg: hsl(var(--background));
+      --sp-bg-elevated: hsl(var(--card));
+      --sp-text: hsl(var(--foreground));
+      --sp-text-secondary: hsl(var(--muted-foreground));
+      --sp-text-muted: hsl(var(--foreground) / 0.78);
+      --sp-border: hsl(var(--border));
+      --sp-border-light: hsl(var(--border) / 0.6);
+      --sp-accent: hsl(var(--primary));
+      --sp-accent-hover: hsl(var(--primary) / 0.85);
+      --sp-accent-foreground: hsl(var(--primary-foreground));
+      --sp-success: hsl(142, 76%, 36%);
+      --sp-warning: hsl(25, 95%, 53%);
+      --sp-font-display: var(--sp-display);
+      --sp-font-body: var(--sp-body);
     }
     
     *, *::before, *::after {
@@ -74,37 +77,46 @@
     }
     
     .sp-header {
-      text-align: center;
-      padding: 1.5rem 1rem;
-      border-bottom: 3px double var(--sp-text);
-      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.5rem;
+      max-width: 1280px;
+      margin: 0 auto;
     }
     
     .sp-header-logo {
       font-family: var(--sp-font-display);
-      font-size: 1.75rem;
-      font-weight: 700;
+      font-size: 1.25rem;
+      font-weight: 400;
       letter-spacing: -0.02em;
-      text-transform: uppercase;
       color: var(--sp-text);
       text-decoration: none;
     }
     
+    .sp-header-logo:hover {
+      color: var(--sp-accent);
+    }
+    
     .sp-header-nav {
-      margin-top: 0.75rem;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      font-size: 0.875rem;
     }
     
     .sp-header-nav a {
       color: var(--sp-text-secondary);
       text-decoration: none;
-      margin: 0 1rem;
     }
     
     .sp-header-nav a:hover {
       color: var(--sp-text);
+    }
+    
+    .sp-header-nav a.active {
+      color: var(--sp-text);
+      font-weight: 500;
     }
     
     .sp-main {
@@ -155,9 +167,7 @@
     }
     
     .question-number {
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+      font-size: 0.875rem;
       color: var(--sp-text-muted);
       margin-bottom: 0.5rem;
     }
@@ -208,33 +218,47 @@
     
     .nav-btn {
       font-family: var(--sp-font-body);
-      font-size: 0.95rem;
-      padding: 0.875rem 1.5rem;
-      border: 1px solid var(--sp-border);
-      background: var(--sp-bg-elevated);
-      color: var(--sp-text);
+      font-size: 0.875rem;
+      font-weight: 500;
+      min-height: 3rem;
+      padding: 0 1.5rem;
+      border: none;
+      border-radius: 0.375rem;
+      background: transparent;
+      color: var(--sp-text-muted);
       cursor: pointer;
       transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    
+    .nav-btn svg {
+      width: 1rem;
+      height: 1rem;
+      flex-shrink: 0;
     }
     
     .nav-btn:hover:not(:disabled) {
-      border-color: var(--sp-text);
+      background: hsl(var(--muted) / 0.5);
+      color: var(--sp-text);
     }
     
     .nav-btn:disabled {
-      opacity: 0.4;
+      opacity: 0.5;
       cursor: not-allowed;
     }
     
     .nav-btn.primary {
+      min-height: 3rem;
+      padding: 0 2rem;
       background: var(--sp-text);
       color: var(--sp-bg);
-      border-color: var(--sp-text);
     }
     
     .nav-btn.primary:hover:not(:disabled) {
-      background: var(--sp-accent);
-      border-color: var(--sp-accent);
+      background: hsl(var(--foreground) / 0.9);
     }
     
     /* Results */
@@ -387,7 +411,7 @@
     
     .cta-box a:hover {
       background: var(--sp-accent);
-      color: #fff;
+      color: var(--sp-accent-foreground);
     }
     
     .restart-btn {
@@ -407,11 +431,33 @@
     }
     
     .sp-footer {
-      border-top: 3px double var(--sp-text);
-      padding: 2rem 1rem;
-      text-align: center;
-      font-size: 0.8rem;
+      border-top: 1px solid var(--sp-border);
+      margin-top: auto;
+    }
+    
+    .sp-footer-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      font-size: 0.875rem;
       color: var(--sp-text-secondary);
+    }
+    
+    @media (min-width: 768px) {
+      .sp-footer-inner {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+    }
+    
+    .sp-footer-links {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
     }
     
     .sp-footer a {
@@ -443,8 +489,8 @@
     <a href="/" class="sp-header-logo">Serious People</a>
     <nav class="sp-header-nav">
       <a href="/guides">Guides</a>
-      <a href="/tools/stay-or-go-calculator">Calculator</a>
-      <a href="/interview">Start Session</a>
+      <a href="/tools/stay-or-go-calculator" class="active">Calculator</a>
+      <a href="/app/interview/start">Start Session</a>
     </nav>
   </header>
   
@@ -480,7 +526,12 @@
       <div class="cta-box">
         <h3>Want Personalized Guidance?</h3>
         <p>Get tailored advice for your specific situation with our AI-powered coaching interview.</p>
-        <a href="/interview" data-testid="link-cta-interview">Start Your Free Interview</a>
+        <a href="/app/interview/start" class="sp-btn sp-btn-inverse" data-testid="link-cta-interview" style="display: inline-flex;">
+          Start Your Free Interview
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </a>
       </div>
       
       <button class="restart-btn" id="restart-btn" data-testid="button-restart-quiz">Take the Quiz Again</button>
@@ -488,12 +539,14 @@
   </main>
   
   <footer class="sp-footer">
-    <p>&copy; <%= new Date().getFullYear() %> Serious People. Career coaching for serious decisions.</p>
-    <p style="margin-top: 0.5rem;">
-      <a href="/">Home</a> &middot; 
-      <a href="/guides">Guides</a> &middot; 
-      <a href="/interview">Start Session</a>
-    </p>
+    <div class="sp-footer-inner">
+      <p>&copy; <%= new Date().getFullYear() %> Serious People. Career coaching for serious decisions.</p>
+      <div class="sp-footer-links">
+        <a href="/">Home</a>
+        <a href="/guides">Guides</a>
+        <a href="/app/interview/start">Start Session</a>
+      </div>
+    </div>
   </footer>
   
   <% if (posthogKey) { %>
@@ -646,12 +699,12 @@
         
         html += '</div>';
         html += '<div class="nav-buttons">';
-        html += '<button class="nav-btn" id="prev-btn" ' + (index === 0 ? 'disabled' : '') + ' data-testid="button-prev">Back</button>';
+        html += '<button class="nav-btn" id="prev-btn" ' + (index === 0 ? 'disabled' : '') + ' data-testid="button-prev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Back</button>';
         
         if (index === questions.length - 1) {
-          html += '<button class="nav-btn primary" id="next-btn" ' + (answers[q.id] === undefined ? 'disabled' : '') + ' data-testid="button-results">See Results</button>';
+          html += '<button class="nav-btn primary" id="next-btn" ' + (answers[q.id] === undefined ? 'disabled' : '') + ' data-testid="button-results">See Results <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>';
         } else {
-          html += '<button class="nav-btn primary" id="next-btn" ' + (answers[q.id] === undefined ? 'disabled' : '') + ' data-testid="button-next">Next</button>';
+          html += '<button class="nav-btn primary" id="next-btn" ' + (answers[q.id] === undefined ? 'disabled' : '') + ' data-testid="button-next">Next <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>';
         }
         
         html += '</div></div>';
@@ -803,7 +856,7 @@
       });
       
       // Track CTA clicks
-      document.querySelectorAll('.cta-box a, a[href="/interview"]').forEach(function(link) {
+        document.querySelectorAll('.cta-box a, a[href="/app/interview/start"]').forEach(function(link) {
         link.addEventListener('click', function() {
           if (typeof posthog !== 'undefined') {
             posthog.capture('seo_cta_click', {

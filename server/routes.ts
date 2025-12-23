@@ -27,6 +27,8 @@ import {
   getCurrentJourneyStep,
   getStepPath,
   type JourneyState,
+  type AppEvent,
+  type AppEventPayload,
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import {
@@ -35,6 +37,7 @@ import {
   getLatestSeriousPlan,
   initializeSeriousPlan,
   regeneratePendingArtifacts,
+  generateArtifactsAsync,
 } from "./seriousPlanService";
 import {
   generateArtifactPdf,
@@ -54,6 +57,105 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Maps userId to generation start timestamp for stale detection
 const dossierGenerationLocks = new Map<string, number>();
 const DOSSIER_LOCK_TIMEOUT_MS = 60000; // 60 seconds stale timeout
+
+// ============================================================================
+// ROUTING HELPER - Shared by /api/bootstrap and /app/* gating middleware
+// ============================================================================
+
+interface RoutingResult {
+  phase: string;
+  canonicalPath: string;
+  resumePath: string;
+  allowedPaths: string[];
+}
+
+async function computeRoutingForUser(userId: string): Promise<RoutingResult> {
+  // Fetch journey state
+  const journeyState = await storage.getJourneyState(userId);
+  const state: JourneyState = journeyState || {
+    interviewComplete: false,
+    paymentVerified: false,
+    module1Complete: false,
+    module2Complete: false,
+    module3Complete: false,
+    hasSeriousPlan: false,
+  };
+
+  // Determine phase
+  let phase: string;
+  if (!state.interviewComplete) {
+    phase = "INTERVIEW";
+  } else if (!state.paymentVerified) {
+    // Check if user has a pending checkout
+    const transcript = await storage.getTranscriptByUserId(userId);
+    if (transcript?.stripeSessionId) {
+      phase = "CHECKOUT_PENDING";
+    } else {
+      phase = "OFFER";
+    }
+  } else if (!state.module1Complete) {
+    phase = "PURCHASED";
+  } else if (!state.module2Complete) {
+    phase = "MODULE_2";
+  } else if (!state.module3Complete) {
+    phase = "MODULE_3";
+  } else if (!state.hasSeriousPlan) {
+    phase = "COACH_LETTER";
+  } else {
+    phase = "SERIOUS_PLAN";
+  }
+
+  // Compute routing (app-internal paths without /app prefix)
+  let canonicalPath: string;
+  let resumePath: string;
+  let allowedPaths: string[];
+
+  switch (phase) {
+    case "INTERVIEW":
+      canonicalPath = "/interview/start";
+      resumePath = "/interview/start";
+      allowedPaths = ["/interview/start", "/interview/prepare", "/interview/chat"];
+      break;
+    case "OFFER":
+      canonicalPath = "/offer";
+      resumePath = "/offer";
+      allowedPaths = ["/offer", "/offer/success"];
+      break;
+    case "CHECKOUT_PENDING":
+      canonicalPath = "/offer/success";
+      resumePath = "/offer/success";
+      allowedPaths = ["/offer", "/offer/success"];
+      break;
+    case "PURCHASED":
+      canonicalPath = "/progress";
+      resumePath = "/module/1";
+      allowedPaths = ["/progress", "/module/1"];
+      break;
+    case "MODULE_2":
+      canonicalPath = "/progress";
+      resumePath = "/module/2";
+      allowedPaths = ["/progress", "/module/1", "/module/2"];
+      break;
+    case "MODULE_3":
+      canonicalPath = "/progress";
+      resumePath = "/module/3";
+      allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3"];
+      break;
+    case "COACH_LETTER":
+      canonicalPath = "/coach-letter";
+      resumePath = "/coach-letter";
+      allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3", "/coach-letter"];
+      break;
+    case "SERIOUS_PLAN":
+    default:
+      canonicalPath = "/serious-plan";
+      resumePath = "/serious-plan";
+      allowedPaths = ["/progress", "/module/1", "/module/2", "/module/3", "/coach-letter", "/serious-plan", "/artifact"];
+      break;
+  }
+
+  return { phase, canonicalPath, resumePath, allowedPaths };
+}
 
 function getBaseUrl(): string {
   if (process.env.BASE_URL) {
@@ -723,25 +825,32 @@ This is a structured coaching session with distinct phases:
 - Build action plan
 - End with action outline + rough talking points
 
-### Module title cards
+### UI Tools (USE THESE FOR STRUCTURED UI ELEMENTS)
 
-At the START of each phase, output an inline title card on its own line like:
+You have access to tools for injecting UI elements into the chat:
 
-— Interview (est. 5–10 minutes) —
+1. **append_title_card** - Use ONCE at the very start to introduce the session. Call with title "Interview" and subtitle "Getting to know your situation".
 
-— Module 1: Job Autopsy (est. 10–20 minutes) —
+2. **append_section_header** - Use when transitioning to a new major topic or phase.
 
-— Module 2: Fork in the Road (est. 10–20 minutes) —
+3. **append_structured_outcomes** - Use to present clickable ANSWER buttons. IMPORTANT: The question/ask must be in your freetext message BEFORE calling this tool. The tool should ONLY contain the answer options (no question text). Call with an array of options (objects with id and label). Example: First write "How would you like to get started?" in your message, THEN call append_structured_outcomes with options=[{id: "overview", label: "Give me a quick overview"}, {id: "dive_in", label: "Just dive in"}]
 
-— Module 3: The Great Escape Plan (est. 10–20 minutes) —
+4. **set_provided_name** - Use when the user tells you their name. Call with the name they provided.
 
-The frontend will detect these, style them elegantly, and update the header.
+5. **finalize_interview** - Call ONCE when the interview is complete and you have generated the coaching plan. This marks the interview as finished, triggers artifact generation, and displays a final next steps card.
+
+**IMPORTANT:**
+- Call append_title_card exactly ONCE near the very beginning.
+- Call append_section_header when shifting to a distinctly new topic area.
+- Use append_structured_outcomes liberally (every 2-3 turns) for presenting options to the user.
+- Do NOT print fake dividers, dashes, or title text in your message content. Use the tools.
+- Keep your text responses clean and conversational.
 
 ### How to start (first reply)
 
 On your **very first reply** (when there is no prior conversation history):
 
-1. Output the intro title card on its own line: — Interview (est. 5–10 minutes) —
+1. Call the append_title_card tool with title "Interview" and subtitle "Getting to know your situation".
 
 2. Be warm and welcoming. Establish rapport. Set context: this is a structured coaching session, not just venting.
 
@@ -751,37 +860,31 @@ That's it. Wait for their answer before asking anything else.
 
 ### Second turn (after getting their name)
 
-IMPORTANT: When the user provides their name, you MUST output this token on its own line FIRST, before any other content:
-[[PROVIDED_NAME:TheirName]]
+When the user provides their name, call the **set_provided_name** tool with exactly what they told you. This saves their name to their profile.
 
-Replace "TheirName" with exactly what they told you (just the name, nothing else). This saves their name to their profile.
-
-Then greet them warmly by name and offer structured options with natural phrasing:
+Then greet them warmly by name and use the append_structured_outcomes tool:
 
 "How would you like to get started?"
 
-[[OPTIONS]]
-Give me a quick overview of how this works
-Just dive in
-[[END_OPTIONS]]
+Call append_structured_outcomes with options like:
+[{id: "overview", label: "Give me a quick overview of how this works"}, {id: "dive_in", label: "Just dive in"}]
 
 If they pick "overview": Give 2–3 practical tips (answer in detail, you'll synthesize) and then proceed to the big problem question.
 If they pick "dive in": Go straight to the big problem question.
 
-### Gathering the big problem (CRITICAL - USE STRUCTURED OPTIONS)
+### Gathering the big problem (CRITICAL - USE append_structured_outcomes)
 
-After intro, move to the big problem. **Always present structured options** to make it easy to get started:
+After intro, move to the big problem. **Always use append_structured_outcomes** to make it easy to get started:
 
 "What brings you here today?"
 
-[[OPTIONS]]
-I'm unhappy in my current role and thinking about leaving
-I want to make a career change but don't know where to start
-I'm navigating a difficult situation with my boss or team
-I'm trying to figure out my next career move
-I have a big decision to make and need clarity
-Something else
-[[END_OPTIONS]]
+Call append_structured_outcomes with options like:
+[{id: "unhappy", label: "I'm unhappy in my current role and thinking about leaving"},
+ {id: "career_change", label: "I want to make a career change but don't know where to start"},
+ {id: "difficult_situation", label: "I'm navigating a difficult situation with my boss or team"},
+ {id: "next_move", label: "I'm trying to figure out my next career move"},
+ {id: "decision", label: "I have a big decision to make and need clarity"},
+ {id: "other", label: "Something else"}]
 
 This gives users clear entry points while "Something else" allows for anything we haven't anticipated.
 
@@ -842,11 +945,10 @@ Example recap with required options:
 
 Does that capture the core of it?"
 
-[[OPTIONS]]
-Yes, that's exactly it
-Mostly right, but I'd add something
-Actually, the bigger issue is something else
-[[END_OPTIONS]]
+Then call append_structured_outcomes with:
+[{id: "yes", label: "Yes, that's exactly it"},
+ {id: "add", label: "Mostly right, but I'd add something"},
+ {id: "different", label: "Actually, the bigger issue is something else"}]
 
 ### Breaking up the "recap + question" pattern
 
@@ -881,11 +983,11 @@ Speak with genuine expertise about the user's industry and function — both the
 
 This builds credibility and makes the coaching feel substantive rather than generic.
 
-### Structured options (USE VERY FREQUENTLY)
+### Structured options (USE append_structured_outcomes VERY FREQUENTLY)
 
-Use [[OPTIONS]]...[[END_OPTIONS]] very liberally throughout the interview. They make responding easier and faster, and help users articulate things they might struggle to put into words.
+Use the append_structured_outcomes tool liberally throughout the interview. Clickable options make responding easier and faster, and help users articulate things they might struggle to put into words.
 
-**When to use structured options:**
+**When to use append_structured_outcomes:**
 - **Opening any new topic**: When exploring a new area, provide 4-5 thought starters plus "Something else"
 - **After reflections**: "Does this sound right?" → Yes / Let me clarify
 - **Navigation choices**: "Go deeper on X" / "Move on to next topic"
@@ -897,50 +999,26 @@ Use [[OPTIONS]]...[[END_OPTIONS]] very liberally throughout the interview. They 
 
 **Pattern for exploring new topics:**
 
-When you introduce a new topic or question area, start with structured options as thought starters, then follow up with less structured exploration:
+When you introduce a new topic or question area, use append_structured_outcomes as thought starters, then follow up with less structured exploration:
 
 Turn 1: "What's driving your frustration the most?"
-[[OPTIONS]]
-My manager doesn't support my growth
-I'm not learning anything new
-The work feels meaningless
-I'm underpaid for what I do
-The culture has gotten toxic
-Something else
-[[END_OPTIONS]]
+Call append_structured_outcomes with:
+[{id: "manager", label: "My manager doesn't support my growth"},
+ {id: "learning", label: "I'm not learning anything new"},
+ {id: "meaning", label: "The work feels meaningless"},
+ {id: "pay", label: "I'm underpaid for what I do"},
+ {id: "culture", label: "The culture has gotten toxic"},
+ {id: "other", label: "Something else"}]
 
 Turn 2 (after they pick): Ask a more open-ended follow-up question about what they chose.
-
-Format:
-[[OPTIONS]]
-Option 1 text
-Option 2 text
-Option 3 text
-Option 4 text
-Something else
-[[END_OPTIONS]]
 
 Rules:
 - **4–6 options** for opening questions on new topics (plus "Something else")
 - **2–4 options** for confirmations and binary choices
 - Short labels (2–8 words each)
 - **Always include "Something else"** or "It's more complicated" as an escape hatch
-- Aim to use structured options **at least every 2 turns**
+- Aim to use append_structured_outcomes **at least every 2 turns**
 - After reflections/synthesis, ALWAYS offer options to confirm or clarify
-
-### Progress tracking
-
-Include in **every** reply:
-
-[[PROGRESS]]
-NN
-[[END_PROGRESS]]
-
-Where NN is 5–100. Progress is **per-module**:
-- When you start a new module (output a title card), mentally reset progress to ~5
-- Increase towards ~95 by the end of that module
-- Progress should increase by at least 2 on every reply
-- Progress should track roughly with your progress through the module agenda -- e.g. if you've finished 2 of 3 major topics, progress should be around 65
 
 ### Custom 3-module plan (pre-paywall)
 
@@ -958,47 +1036,34 @@ Once you understand the user's situation reasonably well (after understanding bi
 2. **Module 2: Exploring Options** — Map motivations, constraints, and possibilities
 3. **Module 3: Action Planning** — Build a concrete plan with next steps
 
-**Present the plan in this specific order:**
+**Complete the interview using these tool calls in this exact order:**
 
-1. Say: "Here's the coaching plan I've designed for your situation:"
+1. Say a brief, warm statement like: "I've put together a personalized coaching plan for you."
 
-2. Output the plan card using this EXACT format (all fields required):
+2. Call **append_value_bullets** with 3-4 bullets tailored to their specific situation:
+   - A bullet about their boss/work dynamics
+   - A bullet about their money/family/constraint context
+   - A bullet about their internal dilemma/tension
 
-[[PLAN_CARD]]
-NAME: [User's first name]
-MODULE1_NAME: [Creative, situation-specific name for the discovery module]
-MODULE1_OBJECTIVE: [What we're trying to understand or uncover — 1 sentence]
-MODULE1_APPROACH: [How we'll work through this — 1 sentence]
-MODULE1_OUTCOME: [What they'll have at the end — 1 sentence]
-MODULE2_NAME: [Creative, situation-specific name for the options module]
-MODULE2_OBJECTIVE: [What decisions or trade-offs we're clarifying — 1 sentence]
-MODULE2_APPROACH: [How we'll explore the options — 1 sentence]
-MODULE2_OUTCOME: [What clarity they'll gain — 1 sentence]
-MODULE3_NAME: [Creative, situation-specific name for the action module]
-MODULE3_OBJECTIVE: [What concrete plan we're building — 1 sentence]
-MODULE3_APPROACH: [How we'll build the plan — 1 sentence]
-MODULE3_OUTCOME: [What they'll walk away with — 1 sentence]
-CAREER_BRIEF: [2-3 sentences describing the final deliverable - a structured document with their situation mirror, diagnosis, options map, action plan, and conversation scripts tailored to their specific people and dynamics]
-SERIOUS_PLAN_SUMMARY: [One sentence describing their personalized Serious Plan - the comprehensive coaching packet they'll receive after completing all modules]
-PLANNED_ARTIFACTS: [Comma-separated list of artifact types planned for this client. Always include: decision_snapshot, action_plan, module_recap, resources. Include boss_conversation if they have manager issues. Include partner_conversation if they mentioned a spouse/partner. Include self_narrative if identity/values are central. Add at least three custom artifacts that are uniquely helpful for their situation and will delight the user with how specifically and thoughtfully they address their situational needs.]
-[[END_PLAN_CARD]]
+3. Call **append_social_proof** with a single sentence that either cites a relevant stat about career transitions/coaching effectiveness OR provides context about why structured coaching helps in their specific situation. Make it feel natural and relevant. Do NOT make up fake testimonials. Do NOT reference pricing.
 
-3. IMMEDIATELY after the plan card, include value bullets tailored to them:
-[[VALUE_BULLETS]]
-- bullet about their boss/work dynamics
-- bullet about their money/family/constraint context  
-- bullet about their internal dilemma/tension
-[[END_VALUE_BULLETS]]
+4. Call **finalize_interview** to mark the interview as complete and trigger artifact generation. This tool will save the coaching plan and generate the final next steps card.
 
-4. After the value bullets, append ONE context-relevant piece of social proof:
-[[SOCIAL_PROOF]]
-A single sentence that either: cites a relevant stat about career transitions/coaching effectiveness, OR provides context about why structured coaching helps in their specific situation. Make it feel natural and relevant to what they shared. Do NOT make up fake testimonials or specific client references. Do NOT reference pricing.
-[[END_SOCIAL_PROOF]]
+**IMPORTANT:** When calling finalize_interview, the plan card data must be included in your visible message text using this EXACT JSON format embedded in your response (the system will parse it):
 
-5. After the above tokens, include the interview completion marker:
-[[INTERVIEW_COMPLETE]]
-
-6. Then your visible message text should be a brief, warm statement like: "I've put together a personalized coaching plan for you."
+\`\`\`plancard
+{
+  "name": "[User's first name]",
+  "modules": [
+    {"name": "[Module 1 creative name]", "objective": "[1 sentence]", "approach": "[1 sentence]", "outcome": "[1 sentence]"},
+    {"name": "[Module 2 creative name]", "objective": "[1 sentence]", "approach": "[1 sentence]", "outcome": "[1 sentence]"},
+    {"name": "[Module 3 creative name]", "objective": "[1 sentence]", "approach": "[1 sentence]", "outcome": "[1 sentence]"}
+  ],
+  "careerBrief": "[2-3 sentences describing the final deliverable]",
+  "seriousPlanSummary": "[One sentence describing their personalized Serious Plan]",
+  "plannedArtifacts": ["decision_snapshot", "action_plan", "module_recap", "resources", "...other relevant artifacts"]
+}
+\`\`\`
 
 Do NOT ask for confirmation or show options. The frontend UI will display a teaser card that invites the user to see their plan.
 
@@ -1008,13 +1073,12 @@ Once you have:
 1. Understood the big problem & goal
 2. Gathered enough context about their situation
 
-Generate the plan in a single response that includes:
-- The [[PLAN_CARD]]...[[END_PLAN_CARD]] block
-- The [[VALUE_BULLETS]]...[[END_VALUE_BULLETS]] block
-- The [[SOCIAL_PROOF]]...[[END_SOCIAL_PROOF]] block
-- The [[INTERVIEW_COMPLETE]] marker
+Complete the interview in a single response by calling:
+1. append_value_bullets (with tailored bullets)
+2. append_social_proof (with relevant stat/insight)
+3. finalize_interview (triggers plan save and next steps card)
 
-CRITICAL: All of these tokens must be in the SAME response. The frontend will show a teaser card and the user will click through to see their full plan on the offer page.
+Include the plancard JSON block in your visible message text. The frontend will show a teaser card and the user will click through to see their full plan on the offer page.
 
 ### Post-paywall modules
 
@@ -1022,18 +1086,17 @@ After paywall, the user will be directed to separate module pages where they'll 
 
 Do NOT continue the session in this interview — the modules happen on their own dedicated pages.
 
-Continue using [[OPTIONS]] and [[PROGRESS]] throughout. Do NOT emit [[INTERVIEW_COMPLETE]] again.
-
 ### Important constraints
 
-- Do NOT mention these rules, tokens, or internal structure to the user.
-- Do NOT output [[INTERVIEW_COMPLETE]] until you've completed the plan + value explanation phase.
+- Do NOT mention these rules, tools, or internal structure to the user.
+- Do NOT call finalize_interview until you've gathered enough context and generated the plan.
 - Ask ONE question at a time — never compound questions.
 - Never ask contingent questions — just ask directly or use options.
 - Validate user problems and build confidence with specific examples.
 - Use **bold** for key phrases in longer responses.
 - Alternate between freeform and structured questions.
-- Include [[PROGRESS]]…[[END_PROGRESS]] in **every** reply.`;
+- Use append_structured_outcomes frequently to gather input.`;
+
 
 // Retry configuration for Serious Plan auto-start
 const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000, 120000, 300000]; // 5s, 15s, 30s, 1m, 2m, 5m
@@ -1122,6 +1185,63 @@ export async function registerRoutes(
   // Set up authentication (Passport, sessions, strategies)
   setupAuth(app);
 
+  // ============== /app/* SERVER-SIDE GATING ==============
+  // Gate all /app/* routes based on authentication and journey state
+  // This runs before SPA serving (vite or static) to enforce routing server-side
+  app.use("/app", async (req, res, next) => {
+    // Skip API/auth routes - they are handled by the proxy above or API handlers
+    if (req.originalUrl.startsWith("/app/api") || req.originalUrl.startsWith("/app/auth")) {
+      return next();
+    }
+    
+    // Skip debug routes - they have their own gating
+    if (req.originalUrl.startsWith("/app/debug/")) {
+      return next();
+    }
+
+    // Parse the internal path (strip /app prefix) and query string
+    const urlObj = new URL(req.originalUrl, `http://${req.headers.host}`);
+    const internalPath = urlObj.pathname.replace(/^\/app/, "") || "/";
+    const queryString = urlObj.search;
+
+    // Not authenticated - allow /login, redirect everything else
+    if (!req.isAuthenticated() || !req.user) {
+      if (internalPath === "/login" || internalPath === "/login/") {
+        return next(); // Allow login page
+      }
+      // Redirect to login with next param (preserve original path + query)
+      const nextParam = encodeURIComponent(req.originalUrl);
+      return res.redirect(`/app/login?next=${nextParam}`);
+    }
+
+    // Authenticated - check journey-based routing
+    try {
+      const userId = req.user.id;
+      const routing = await computeRoutingForUser(userId);
+
+      // Normalize internal path for comparison (remove trailing slash)
+      const normalizedPath = internalPath.replace(/\/$/, "") || "/";
+      
+      // Check if path is allowed
+      const isAllowed = routing.allowedPaths.some(allowed => {
+        const normalizedAllowed = allowed.replace(/\/$/, "") || "/";
+        return normalizedPath === normalizedAllowed || normalizedPath.startsWith(normalizedAllowed + "/");
+      });
+
+      if (!isAllowed) {
+        // Redirect to canonical path
+        return res.redirect(`/app${routing.canonicalPath}`);
+      }
+
+      // Path is allowed - let SPA handle it
+      return next();
+    } catch (error) {
+      console.error("[app-gate] Error computing routing:", error);
+      // On error, let SPA handle it
+      return next();
+    }
+  });
+
   // ============== PRICING API ==============
 
   // GET /api/pricing - Get current price and active coupon from Stripe
@@ -1173,6 +1293,47 @@ export async function registerRoutes(
     }
   });
 
+  // ============== DEBUG ENDPOINTS ==============
+
+  // GET /api/debug/auth-config - Returns computed auth config (dev only)
+  app.get("/api/debug/auth-config", async (req, res) => {
+    const isProduction = process.env.REPLIT_DEPLOYMENT === "1" || process.env.NODE_ENV === "production";
+    const debugEnabled = process.env.DEBUG_AUTH === "1";
+    
+    if (isProduction && !debugEnabled) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    const { getBaseUrl, getAppBasePath, getGoogleCallbackUrl, getMagicVerifyUrlTemplate } = await import("./auth");
+    
+    res.json({
+      baseUrl: getBaseUrl(),
+      appBasePath: getAppBasePath(),
+      googleCallbackUrl: getGoogleCallbackUrl(),
+      magicVerifyUrlTemplate: getMagicVerifyUrlTemplate(),
+      googleConfigured: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    });
+  });
+
+  // GET /api/debug/magic-last-send - Returns last magic link send attempt (dev only)
+  app.get("/api/debug/magic-last-send", async (req, res) => {
+    const isProduction = process.env.REPLIT_DEPLOYMENT === "1" || process.env.NODE_ENV === "production";
+    const debugEnabled = process.env.DEBUG_AUTH === "1";
+    
+    if (isProduction && !debugEnabled) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    const { getLastMagicLinkSendAttempt } = await import("./resendClient");
+    const lastAttempt = getLastMagicLinkSendAttempt();
+    
+    if (!lastAttempt) {
+      return res.json({ message: "No magic link send attempts yet" });
+    }
+    
+    res.json(lastAttempt);
+  });
+
   // ============== AUTH ROUTES ==============
 
   // GET /auth/me - Get current authenticated user
@@ -1210,6 +1371,115 @@ export async function registerRoutes(
     }
   });
 
+  // Duplicate at /app/auth/me for SPA compatibility
+  app.get("/app/auth/me", async (req, res) => {
+    if (req.isAuthenticated() && req.user) {
+      try {
+        const freshUser = await storage.getUser(req.user.id);
+        const userData = freshUser || req.user;
+        res.json({
+          authenticated: true,
+          user: {
+            id: userData.id,
+            email: userData.email,
+            name: userData.name,
+            providedName: userData.providedName || null,
+          },
+        });
+      } catch (error) {
+        console.error("[auth/me] Error fetching user:", error);
+        res.json({
+          authenticated: true,
+          user: {
+            id: req.user.id,
+            email: req.user.email,
+            name: req.user.name,
+            providedName: req.user.providedName || null,
+          },
+        });
+      }
+    } else {
+      res.json({ authenticated: false, user: null });
+    }
+  });
+
+  // GET /api/bootstrap - Combined session + journey bootstrap for SPA initialization
+  // Returns auth status, user data, journey state, phase, and routing in one call
+  app.get("/api/bootstrap", async (req, res) => {
+    try {
+      // Not authenticated
+      if (!req.isAuthenticated() || !req.user) {
+        return res.json({
+          authenticated: false,
+          user: null,
+          journey: null,
+          routing: null,
+        });
+      }
+
+      const userId = req.user.id;
+
+      // Fetch user data (fresh from storage)
+      let userData = req.user;
+      try {
+        const freshUser = await storage.getUser(userId);
+        if (freshUser) userData = freshUser;
+      } catch (e) {
+        console.error("[bootstrap] Error fetching fresh user:", e);
+      }
+
+      // Fetch journey state for response
+      const journeyState = await storage.getJourneyState(userId);
+      const state: JourneyState = journeyState || {
+        interviewComplete: false,
+        paymentVerified: false,
+        module1Complete: false,
+        module2Complete: false,
+        module3Complete: false,
+        hasSeriousPlan: false,
+      };
+
+      // Use shared helper for routing computation
+      const routing = await computeRoutingForUser(userId);
+
+      // Get plan-derived modules if interview is complete
+      let modules = null;
+      if (state.interviewComplete) {
+        const transcript = await storage.getTranscriptByUserId(userId);
+        if (transcript?.planCard?.modules) {
+          modules = transcript.planCard.modules.map((mod: any, i: number) => ({
+            moduleNumber: i + 1,
+            title: mod.name,
+            description: mod.objective,
+          }));
+        }
+      }
+
+      res.json({
+        authenticated: true,
+        user: {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name,
+          providedName: userData.providedName || null,
+        },
+        journey: {
+          state,
+          phase: routing.phase,
+          modules,
+        },
+        routing: {
+          canonicalPath: routing.canonicalPath,
+          resumePath: routing.resumePath,
+          allowedPaths: routing.allowedPaths,
+        },
+      });
+    } catch (error: any) {
+      console.error("[bootstrap] Error:", error);
+      res.status(500).json({ error: "Failed to load bootstrap data" });
+    }
+  });
+
   // GET /api/journey - Get user's journey state and current step
   app.get("/api/journey", requireAuth, async (req, res) => {
     try {
@@ -1230,16 +1500,31 @@ export async function registerRoutes(
           state: defaultState,
           currentStep: "interview",
           currentPath: "/interview",
+          modules: null, // No plan yet
         });
       }
 
       const currentStep = getCurrentJourneyStep(journeyState);
       const currentPath = getStepPath(currentStep);
 
+      // Get plan-derived modules if interview is complete and planCard exists
+      let modules = null;
+      if (journeyState.interviewComplete) {
+        const transcript = await storage.getTranscriptByUserId(userId);
+        if (transcript?.planCard?.modules) {
+          modules = transcript.planCard.modules.map((mod: any, i: number) => ({
+            moduleNumber: i + 1,
+            title: mod.name,
+            description: mod.objective,
+          }));
+        }
+      }
+
       res.json({
         state: journeyState,
         currentStep,
         currentPath,
+        modules,
       });
     } catch (error: any) {
       console.error("Journey state error:", error);
@@ -1838,8 +2123,12 @@ COMMUNICATION STYLE:
     return sanitized;
   }
 
-  // GET /auth/google - Start Google OAuth flow
-  app.get("/auth/google", (req, res, next) => {
+  // ============== AUTH ROUTER ==============
+  // Create auth router and mount at both /auth and /app/auth
+  const authRouter = express.Router();
+
+  // GET /google - Start Google OAuth flow
+  authRouter.get("/google", (req, res, next) => {
     // Store promo code and base path in session before OAuth redirect
     const promoCode = req.query.promo as string | undefined;
     const basePath = sanitizeBasePath(req.query.basePath as string | undefined);
@@ -1860,9 +2149,9 @@ COMMUNICATION STYLE:
     });
   });
 
-  // GET /auth/google/callback - Google OAuth callback
-  app.get(
-    "/auth/google/callback",
+  // GET /google/callback - Google OAuth callback
+  authRouter.get(
+    "/google/callback",
     (req, res, next) => {
       // Get the stored base path and promo code BEFORE passport auth (which regenerates session)
       // Store them on req object to survive session regeneration
@@ -1904,8 +2193,8 @@ COMMUNICATION STYLE:
     },
   );
 
-  // POST /auth/magic/start - Request magic link email
-  app.post("/auth/magic/start", async (req, res) => {
+  // POST /magic/start - Request magic link email
+  authRouter.post("/magic/start", async (req, res) => {
     try {
       const { email, promoCode, basePath } = req.body;
 
@@ -1932,10 +2221,11 @@ COMMUNICATION STYLE:
         expiresAt,
       });
 
-      // Send email with magic link (include basePath as query param for redirect after verification)
+      // Send email with magic link (include basePath in URL and as query param for redirect after verification)
       const baseUrl = getBaseUrl();
-      const basePathParam = basePath ? `&basePath=${encodeURIComponent(basePath)}` : "";
-      const magicLinkUrl = `${baseUrl}/auth/magic/verify?token=${token}${basePathParam}`;
+      const sanitizedBasePath = sanitizeBasePath(basePath || "/app");
+      const basePathParam = `&basePath=${encodeURIComponent(sanitizedBasePath)}`;
+      const magicLinkUrl = `${baseUrl}${sanitizedBasePath}/auth/magic/verify?token=${token}${basePathParam}`;
 
       const result = await sendMagicLinkEmail(email, magicLinkUrl);
 
@@ -1958,8 +2248,8 @@ COMMUNICATION STYLE:
     }
   });
 
-  // GET /auth/magic/verify - Verify magic link and log in
-  app.get("/auth/magic/verify", async (req, res) => {
+  // GET /magic/verify - Verify magic link and log in
+  authRouter.get("/magic/verify", async (req, res) => {
     try {
       const { token, basePath: basePathParam } = req.query;
       const basePath = sanitizeBasePath(typeof basePathParam === "string" ? basePathParam : "");
@@ -2024,8 +2314,8 @@ COMMUNICATION STYLE:
     }
   });
 
-  // POST /auth/logout - Log out
-  app.post("/auth/logout", (req, res) => {
+  // POST /logout - Log out
+  authRouter.post("/logout", (req, res) => {
     req.logout((err) => {
       if (err) {
         console.error("Logout error:", err);
@@ -2035,8 +2325,8 @@ COMMUNICATION STYLE:
     });
   });
 
-  // POST /auth/demo - Demo login for testing (development only)
-  app.post("/auth/demo", async (req, res) => {
+  // POST /demo - Demo login for testing (development only)
+  authRouter.post("/demo", async (req, res) => {
     try {
       const demoEmail = "demo@test.local";
 
@@ -2087,6 +2377,10 @@ COMMUNICATION STYLE:
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Mount auth router at both /auth and /app/auth
+  app.use("/auth", authRouter);
+  app.use("/app/auth", authRouter);
 
   // ============== TRANSCRIPT API (Protected) ==============
 
@@ -2239,6 +2533,17 @@ COMMUNICATION STYLE:
 
       const session = await stripe.checkout.sessions.create(sessionOptions);
 
+      // Save stripeSessionId to transcript so bootstrap can detect CHECKOUT_PENDING phase
+      if (user?.id) {
+        const transcript = await storage.getTranscriptByUserId(user.id);
+        if (transcript) {
+          await storage.updateTranscript(transcript.sessionToken, {
+            stripeSessionId: session.id,
+          });
+          console.log(`[CHECKOUT] Saved stripeSessionId=${session.id.slice(0, 20)}... for user=${user.id}`);
+        }
+      }
+
       res.json({ url: session.url });
     } catch (error: any) {
       console.error("Checkout error:", error);
@@ -2389,6 +2694,1755 @@ COMMUNICATION STYLE:
       res.status(500).json({ error: error.message });
     }
   });
+
+  // POST /api/interview/messages - Append a single message to the transcript
+  // Lightweight persistence during the interview chat
+  app.post("/api/interview/messages", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { role, content, timestamp } = req.body;
+      if (!role || !content) {
+        return res.status(400).json({ error: "Missing role or content" });
+      }
+
+      // Get or create transcript for this user
+      let transcript = await storage.getTranscriptByUserId(user.id);
+      
+      if (!transcript) {
+        // Create a new transcript with this first message
+        const sessionToken = `interview_${user.id}_${Date.now()}`;
+        const newMessage = { role, content, timestamp: timestamp || new Date().toISOString() };
+        transcript = await storage.createTranscript({
+          sessionToken,
+          userId: user.id,
+          transcript: [newMessage] as any,
+          currentModule: "Interview",
+          progress: 0,
+        });
+      } else {
+        // Append to existing transcript
+        const existingMessages = Array.isArray(transcript.transcript) ? transcript.transcript : [];
+        const newMessage = { role, content, timestamp: timestamp || new Date().toISOString() };
+        const updatedMessages = [...existingMessages, newMessage] as any;
+        
+        await storage.updateTranscript(transcript.sessionToken, {
+          transcript: updatedMessages,
+        });
+      }
+
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("[INTERVIEW_MESSAGES] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/interview/state - Get current interview state (transcript + events)
+  // If no transcript exists or transcript is completely blank (no messages AND no events), auto-initialize
+  app.get("/api/interview/state", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      let transcript = await storage.getTranscriptByUserId(user.id);
+      
+      // Check if we need to auto-initialize
+      const messages = transcript ? (Array.isArray(transcript.transcript) ? transcript.transcript : []) : [];
+      let events = transcript ? await storage.listInterviewEvents(transcript.sessionToken) : [];
+      
+      // Auto-initialize ONLY if: no transcript OR (no messages AND no events at all)
+      // This preserves dev-injected events and avoids corrupting test state
+      const isCompletelyBlank = !transcript || (messages.length === 0 && events.length === 0);
+      
+      if (isCompletelyBlank) {
+        console.log(`[INTERVIEW_STATE] Auto-initializing interview for user ${user.id}`);
+        
+        // Create transcript if it doesn't exist
+        if (!transcript) {
+          const sessionToken = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+          transcript = await storage.createTranscript({
+            sessionToken,
+            userId: user.id,
+            transcript: [] as any,
+            currentModule: "Interview",
+            progress: 0,
+          });
+        }
+        
+        // Call LLM to generate title card and first message
+        const llmResult = await callInterviewLLM([], transcript.sessionToken, user.id);
+        
+        if (llmResult.reply) {
+          // Persist the first assistant message
+          const firstMessage = { role: "assistant", content: llmResult.reply, timestamp: new Date().toISOString() };
+          await storage.updateTranscript(transcript.sessionToken, {
+            transcript: [firstMessage] as any,
+          });
+          
+          // Refresh transcript and events after initialization
+          transcript = await storage.getTranscript(transcript.sessionToken);
+          events = await storage.listInterviewEvents(transcript!.sessionToken);
+          
+          console.log(`[INTERVIEW_STATE] Auto-initialization complete for user ${user.id}`);
+        }
+      }
+
+      const finalMessages = transcript ? (Array.isArray(transcript.transcript) ? transcript.transcript : []) : [];
+
+      res.json({
+        success: true,
+        transcript: finalMessages,
+        events,
+      });
+    } catch (error: any) {
+      console.error("[INTERVIEW_STATE] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/interview/turn - Send a message and get AI response
+  // This replaces the dummy dialogue with real LLM-powered interview
+  app.post("/api/interview/turn", requireAuth, async (req, res) => {
+    await handleInterviewTurn(req.user as any, req.body, res);
+  });
+
+  // POST /api/interview/turn/stream - Streaming version of interview turn
+  // Returns Server-Sent Events (SSE) for real-time response streaming
+  app.post("/api/interview/turn/stream", requireAuth, async (req, res) => {
+    await handleInterviewTurnStream(req.user as any, req.body, res);
+  });
+
+  // POST /api/interview/outcomes/select - Select a structured outcome option
+  // Uses eventSeq (number) as the canonical identifier for outcomes events
+  // Idempotency: same option = success (no-op), different option = 409 Conflict
+  app.post("/api/interview/outcomes/select", requireAuth, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { eventSeq: rawEventSeq, optionId } = req.body;
+      if (rawEventSeq === undefined || rawEventSeq === null || !optionId) {
+        return res.status(400).json({ error: "eventSeq and optionId are required" });
+      }
+
+      // Ensure eventSeq is a number
+      const eventSeq = typeof rawEventSeq === "string" ? parseInt(rawEventSeq, 10) : rawEventSeq;
+      if (typeof eventSeq !== "number" || isNaN(eventSeq)) {
+        return res.status(400).json({ error: "eventSeq must be a valid number" });
+      }
+
+      // Get transcript
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.status(400).json({ error: "No interview session found" });
+      }
+
+      const sessionToken = transcript.sessionToken;
+      const events = await storage.listInterviewEvents(sessionToken);
+
+      // Find the structured outcomes event by eventSeq
+      const outcomesEvent = events.find(e => e.eventSeq === eventSeq && e.type === "chat.structured_outcomes_added");
+      if (!outcomesEvent) {
+        return res.status(404).json({ error: "Outcomes event not found" });
+      }
+
+      // Check if already selected for this outcomes event
+      const existingSelection = events.find(e => 
+        e.type === "chat.structured_outcome_selected" && 
+        (e.payload as any)?.eventSeq === eventSeq
+      );
+      
+      if (existingSelection) {
+        const existingOptionId = (existingSelection.payload as any)?.optionId;
+        if (existingOptionId === optionId) {
+          // Same option selected again - idempotent success, return current state
+          const existingMessages = transcript.transcript || [];
+          res.json({
+            success: true,
+            transcript: existingMessages,
+            events,
+            note: "Option already selected (idempotent)",
+          });
+          return;
+        } else {
+          // Different option selected - conflict
+          return res.status(409).json({ error: "A different option was already selected for this event" });
+        }
+      }
+
+      // Find the option
+      const options = (outcomesEvent.payload as any)?.options || [];
+      const selectedOption = options.find((opt: any) => opt.id === optionId);
+      if (!selectedOption) {
+        return res.status(404).json({ error: "Option not found" });
+      }
+
+      // Calculate afterMessageIndex for the selection event
+      const existingMessages = transcript.transcript || [];
+      const afterMessageIndex = existingMessages.length > 0 ? existingMessages.length - 1 : -1;
+
+      // Append the selection event (using eventSeq as reference)
+      await storage.appendInterviewEvent(sessionToken, "chat.structured_outcome_selected", {
+        render: { afterMessageIndex },
+        eventSeq,
+        optionId,
+        value: selectedOption.value,
+      });
+
+      // Append user message to transcript
+      const userMessage = { role: "user", content: selectedOption.value };
+      const updatedMessages = [...existingMessages, userMessage];
+      await storage.updateTranscript(sessionToken, { transcript: updatedMessages as any });
+
+      // Call LLM for response
+      const llmResult = await callInterviewLLM(updatedMessages as any, sessionToken, user.id);
+
+      // Append AI response to transcript
+      const aiMessage = { role: "assistant", content: llmResult.reply };
+      const finalMessages = [...updatedMessages, aiMessage];
+      await storage.updateTranscript(sessionToken, { transcript: finalMessages as any });
+
+      // Fetch updated events
+      const updatedEvents = await storage.listInterviewEvents(sessionToken);
+
+      res.json({
+        success: true,
+        transcript: finalMessages,
+        reply: llmResult.reply,
+        done: llmResult.done,
+        progress: llmResult.progress,
+        options: llmResult.options,
+        planCard: llmResult.planCard,
+        valueBullets: llmResult.valueBullets,
+        socialProof: llmResult.socialProof,
+        events: updatedEvents,
+      });
+    } catch (error: any) {
+      console.error("[OUTCOMES_SELECT] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Streaming interview turn handler with SSE
+  async function handleInterviewTurnStream(
+    user: { id: string },
+    body: { message: string },
+    res: express.Response
+  ) {
+    try {
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { message } = body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      // Set up SSE headers
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+
+      // Helper to send SSE events
+      const sendEvent = (type: string, data: any) => {
+        const payload = { type, ...data };
+        const eventString = `data: ${JSON.stringify(payload)}\n\n`;
+        console.log(`[SSE] Sending event: ${type}${type === 'text_delta' ? ` (${data.content?.length} chars)` : ''}`);
+        res.write(eventString);
+      };
+
+      try {
+        // Get or create transcript for this user
+        let transcript = await storage.getTranscriptByUserId(user.id);
+        const existingMessages: { role: string; content: string }[] = transcript
+          ? (Array.isArray(transcript.transcript) ? transcript.transcript : [])
+          : [];
+
+        // If no transcript exists or it's empty, we need to get the first assistant message first
+        let sessionToken: string;
+        if (existingMessages.length === 0) {
+          // Generate sessionToken first so we can pass it to callInterviewLLM for event persistence
+          sessionToken = `interview_${user.id}_${Date.now()}`;
+
+          // Call streaming LLM to get the initial greeting (with sessionToken for tool events)
+          const initialReply = await callInterviewLLMStream([], sessionToken, user.id, sendEvent);
+          const initialMessage = { role: "assistant", content: initialReply.reply };
+
+          transcript = await storage.createTranscript({
+            sessionToken,
+            userId: user.id,
+            transcript: [initialMessage] as any,
+            currentModule: "Interview",
+            progress: 0,
+          });
+
+          existingMessages.push(initialMessage);
+        } else {
+          sessionToken = transcript!.sessionToken;
+        }
+
+        // Append user message
+        const userMessage = { role: "user", content: message };
+        existingMessages.push(userMessage);
+
+        // Call streaming LLM with full transcript and sessionToken for event persistence
+        const llmResult = await callInterviewLLMStream(existingMessages, sessionToken, user.id, sendEvent);
+
+        // Append assistant reply
+        const assistantMessage = { role: "assistant", content: llmResult.reply };
+        existingMessages.push(assistantMessage);
+
+        // Persist updated transcript
+        await storage.updateTranscript(transcript!.sessionToken, {
+          transcript: existingMessages as any,
+          progress: llmResult.progress ?? transcript!.progress,
+        });
+
+        // If planCard was returned, save it
+        if (llmResult.planCard) {
+          await storage.updateTranscript(transcript!.sessionToken, {
+            planCard: llmResult.planCard as any,
+          });
+        }
+
+        // Fetch events for this interview session
+        const events = await storage.listInterviewEvents(sessionToken);
+
+        // Send final "done" event with complete data
+        sendEvent('done', {
+          success: true,
+          transcript: existingMessages,
+          reply: llmResult.reply,
+          done: llmResult.done,
+          progress: llmResult.progress,
+          options: llmResult.options,
+          planCard: llmResult.planCard,
+          valueBullets: llmResult.valueBullets,
+          socialProof: llmResult.socialProof,
+          events,
+        });
+
+        res.end();
+      } catch (error: any) {
+        console.error("[INTERVIEW_TURN_STREAM] Error:", error.message);
+        sendEvent('error', { error: error.message });
+        res.end();
+      }
+    } catch (error: any) {
+      console.error("[INTERVIEW_TURN_STREAM] Setup error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // Shared interview turn handler (used by both auth and dev endpoints)
+  async function handleInterviewTurn(
+    user: { id: string },
+    body: { message: string },
+    res: express.Response
+  ) {
+    try {
+      if (!user?.id) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
+      const { message } = body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      // Get or create transcript for this user
+      let transcript = await storage.getTranscriptByUserId(user.id);
+      const existingMessages: { role: string; content: string }[] = transcript
+        ? (Array.isArray(transcript.transcript) ? transcript.transcript : [])
+        : [];
+
+      // If no transcript exists or it's empty, we need to get the first assistant message first
+      let sessionToken: string;
+      if (existingMessages.length === 0) {
+        // Generate sessionToken first so we can pass it to callInterviewLLM for event persistence
+        sessionToken = `interview_${user.id}_${Date.now()}`;
+        
+        // Call LLM to get the initial greeting (with sessionToken for tool events)
+        const initialReply = await callInterviewLLM([], sessionToken, user.id);
+        const initialMessage = { role: "assistant", content: initialReply.reply };
+        
+        transcript = await storage.createTranscript({
+          sessionToken,
+          userId: user.id,
+          transcript: [initialMessage] as any,
+          currentModule: "Interview",
+          progress: 0,
+        });
+        
+        existingMessages.push(initialMessage);
+      } else {
+        sessionToken = transcript!.sessionToken;
+      }
+
+      // Append user message
+      const userMessage = { role: "user", content: message };
+      existingMessages.push(userMessage);
+
+      // Call LLM with full transcript and sessionToken for event persistence
+      const llmResult = await callInterviewLLM(existingMessages, sessionToken, user.id);
+
+      // Append assistant reply
+      const assistantMessage = { role: "assistant", content: llmResult.reply };
+      existingMessages.push(assistantMessage);
+
+      // Persist updated transcript
+      await storage.updateTranscript(transcript!.sessionToken, {
+        transcript: existingMessages as any,
+        progress: llmResult.progress ?? transcript!.progress,
+      });
+
+      // If planCard was returned, save it
+      if (llmResult.planCard) {
+        await storage.updateTranscript(transcript!.sessionToken, {
+          planCard: llmResult.planCard as any,
+        });
+      }
+
+      // Fetch events for this interview session
+      const events = await storage.listInterviewEvents(sessionToken);
+
+      res.json({
+        success: true,
+        transcript: existingMessages,
+        reply: llmResult.reply,
+        done: llmResult.done,
+        progress: llmResult.progress,
+        options: llmResult.options,
+        planCard: llmResult.planCard,
+        valueBullets: llmResult.valueBullets,
+        socialProof: llmResult.socialProof,
+        events,
+      });
+    } catch (error: any) {
+      console.error("[INTERVIEW_TURN] Error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // Handler for finalize_interview tool
+  // Marks interview complete, triggers artifact generation, appends final next steps event
+  async function handleFinalizeInterview(
+    sessionToken: string, 
+    userId: string,
+    afterMessageIndex: number
+  ): Promise<void> {
+    const startTime = Date.now();
+    console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} session=${sessionToken} status=started`);
+    
+    try {
+      // Check for existing finalization (idempotency)
+      const existingEvents = await storage.listInterviewEvents(sessionToken);
+      if (existingEvents.some(e => e.type === "chat.final_next_steps_added")) {
+        console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=skipped_already_finalized`);
+        return;
+      }
+      
+      // Get transcript for plan data
+      const transcript = await storage.getTranscriptByUserId(userId);
+      if (!transcript) {
+        console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=error_no_transcript`);
+        return;
+      }
+      
+      // Mark interview as complete
+      if (!transcript.interviewComplete) {
+        await storage.updateTranscript(transcript.sessionToken, {
+          interviewComplete: true,
+          progress: 100,
+        });
+        console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=marked_complete`);
+      }
+      
+      // Get coaching plan from transcript - required for finalization
+      const coachingPlan = transcript.planCard as CoachingPlan | null;
+      if (!coachingPlan?.modules || coachingPlan.modules.length === 0) {
+        console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=error_no_plan_modules`);
+        // Don't finalize without modules - the UI would show an empty card
+        return;
+      }
+      
+      // Trigger artifact generation (idempotent - initializeSeriousPlan checks for existing plan)
+      const dossier = transcript.clientDossier as any || null;
+      const result = await initializeSeriousPlan(
+        userId,
+        transcript.id,
+        coachingPlan,
+        dossier,
+        transcript
+      );
+      console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=artifacts_init planId=${result.planId} success=${result.success}`);
+      
+      if (!result.success) {
+        console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=error_artifacts_failed error="${result.error}"`);
+        // Don't create final event if artifact initialization failed
+        return;
+      }
+      
+      // Build modules list for final card from coaching plan (coachingPlan guaranteed to have modules at this point)
+      const modules = coachingPlan.modules.map((m, idx) => ({
+        slug: `module-${idx + 1}`,
+        title: m.name || `Module ${idx + 1}`,
+        description: m.objective || m.outcome || '',
+      }));
+      
+      // Append final next steps event
+      await storage.appendInterviewEvent(sessionToken, "chat.final_next_steps_added", {
+        render: { afterMessageIndex },
+        modules,
+      });
+      
+      const durationMs = Date.now() - startTime;
+      console.log(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=complete moduleCount=${modules.length} durationMs=${durationMs}`);
+    } catch (error: any) {
+      const durationMs = Date.now() - startTime;
+      console.error(`[FINALIZE_INTERVIEW] ts=${new Date().toISOString()} user=${userId} status=error error="${error.message}" durationMs=${durationMs}`);
+    }
+  }
+
+  // Tool definitions for interview LLM
+  const interviewTools = {
+    anthropic: [
+      {
+        name: "append_title_card",
+        description: "Add a title card to the chat interface. Use this ONCE at the very start of the interview.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            title: { type: "string", description: "The main title (e.g., 'Interview')" },
+            subtitle: { type: "string", description: "Optional subtitle (e.g., 'Getting to know your situation')" },
+          },
+          required: ["title"],
+        },
+      },
+      {
+        name: "append_section_header",
+        description: "Add a section header when transitioning to a new major topic.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            title: { type: "string", description: "The section title" },
+            subtitle: { type: "string", description: "Optional section subtitle" },
+          },
+          required: ["title"],
+        },
+      },
+      {
+        name: "set_provided_name",
+        description: "Save the user's name to their profile. Call this when the user tells you their name.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            name: { type: "string", description: "The user's name exactly as they provided it" },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "append_structured_outcomes",
+        description: "Display clickable pill options for the user to choose from. Use this instead of writing options as plain text. When you use this tool, do NOT include the options in your message text.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            prompt: { type: "string", description: "Optional prompt text above the options" },
+            options: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string", description: "Optional unique ID for the option" },
+                  label: { type: "string", description: "Short display text for the pill" },
+                  value: { type: "string", description: "Full text sent as user message when clicked" },
+                },
+                required: ["label", "value"],
+              },
+              description: "Array of options to display as clickable pills",
+            },
+          },
+          required: ["options"],
+        },
+      },
+      {
+        name: "finalize_interview",
+        description: "Call this ONCE when the interview is complete and you have generated the coaching plan. This marks the interview as finished, triggers artifact generation, and displays a final next steps card to the user.",
+        input_schema: {
+          type: "object" as const,
+          properties: {},
+          required: [],
+        },
+      },
+      {
+        name: "append_value_bullets",
+        description: "Display personalized value bullets that explain why this coaching plan is valuable for the user's specific situation. Call this IMMEDIATELY after generating the plan card.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            bullets: {
+              type: "array",
+              items: { type: "string" },
+              description: "Array of 3-4 value bullet strings, each highlighting a specific benefit tailored to their situation",
+            },
+          },
+          required: ["bullets"],
+        },
+      },
+      {
+        name: "append_social_proof",
+        description: "Display a single piece of relevant social proof or statistic. Call this after the value bullets.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            content: { type: "string", description: "A single sentence with a relevant stat or insight about career coaching effectiveness" },
+          },
+          required: ["content"],
+        },
+      },
+    ],
+    openai: [
+      {
+        type: "function" as const,
+        function: {
+          name: "append_title_card",
+          description: "Add a title card to the chat interface. Use this ONCE at the very start of the interview.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "The main title (e.g., 'Interview')" },
+              subtitle: { type: "string", description: "Optional subtitle (e.g., 'Getting to know your situation')" },
+            },
+            required: ["title"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "append_section_header",
+          description: "Add a section header when transitioning to a new major topic.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "The section title" },
+              subtitle: { type: "string", description: "Optional section subtitle" },
+            },
+            required: ["title"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "set_provided_name",
+          description: "Save the user's name to their profile. Call this when the user tells you their name.",
+          parameters: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "The user's name exactly as they provided it" },
+            },
+            required: ["name"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "append_structured_outcomes",
+          description: "Display clickable pill options for the user to choose from. Use this instead of writing options as plain text. When you use this tool, do NOT include the options in your message text.",
+          parameters: {
+            type: "object",
+            properties: {
+              prompt: { type: "string", description: "Optional prompt text above the options" },
+              options: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string", description: "Optional unique ID for the option" },
+                    label: { type: "string", description: "Short display text for the pill" },
+                    value: { type: "string", description: "Full text sent as user message when clicked" },
+                  },
+                  required: ["label", "value"],
+                },
+                description: "Array of options to display as clickable pills",
+              },
+            },
+            required: ["options"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "finalize_interview",
+          description: "Call this ONCE when the interview is complete and you have generated the coaching plan. This marks the interview as finished, triggers artifact generation, and displays a final next steps card to the user.",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: [],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "append_value_bullets",
+          description: "Display personalized value bullets that explain why this coaching plan is valuable for the user's specific situation. Call this IMMEDIATELY after generating the plan card.",
+          parameters: {
+            type: "object",
+            properties: {
+              bullets: {
+                type: "array",
+                items: { type: "string" },
+                description: "Array of 3-4 value bullet strings, each highlighting a specific benefit tailored to their situation",
+              },
+            },
+            required: ["bullets"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "append_social_proof",
+          description: "Display a single piece of relevant social proof or statistic. Call this after the value bullets.",
+          parameters: {
+            type: "object",
+            properties: {
+              content: { type: "string", description: "A single sentence with a relevant stat or insight about career coaching effectiveness" },
+            },
+            required: ["content"],
+          },
+        },
+      },
+    ],
+  };
+
+  // Module tool definitions for both providers
+  const MODULE_TOOLS = {
+    anthropic: [
+      {
+        name: "append_structured_outcomes",
+        description: "Display clickable pill options for the user to choose from. Use this instead of writing options as plain text.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            prompt: { type: "string", description: "Optional prompt text above the options" },
+            options: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string", description: "Optional unique ID for the option" },
+                  label: { type: "string", description: "Short display text for the pill" },
+                  value: { type: "string", description: "Full text sent as user message when clicked" },
+                },
+                required: ["label", "value"],
+              },
+              description: "Array of options to display as clickable pills",
+            },
+          },
+          required: ["options"],
+        },
+      },
+      {
+        name: "set_progress",
+        description: "Update the module progress indicator. Call this on every turn.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            progress: { type: "number", description: "Progress percentage from 5 to 100" },
+          },
+          required: ["progress"],
+        },
+      },
+      {
+        name: "complete_module",
+        description: "Call this ONCE when the module is complete. Provide a structured summary of what was covered.",
+        input_schema: {
+          type: "object" as const,
+          properties: {
+            summary: {
+              type: "object",
+              properties: {
+                insights: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Key insights from the module (3-5 items)",
+                },
+                assessment: { type: "string", description: "2-3 sentence summary of what was covered" },
+                takeaway: { type: "string", description: "One concrete insight they can carry forward" },
+              },
+              required: ["insights", "assessment", "takeaway"],
+            },
+          },
+          required: ["summary"],
+        },
+      },
+    ],
+    openai: [
+      {
+        type: "function" as const,
+        function: {
+          name: "append_structured_outcomes",
+          description: "Display clickable pill options for the user to choose from. Use this instead of writing options as plain text.",
+          parameters: {
+            type: "object",
+            properties: {
+              prompt: { type: "string", description: "Optional prompt text above the options" },
+              options: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string", description: "Optional unique ID for the option" },
+                    label: { type: "string", description: "Short display text for the pill" },
+                    value: { type: "string", description: "Full text sent as user message when clicked" },
+                  },
+                  required: ["label", "value"],
+                },
+                description: "Array of options to display as clickable pills",
+              },
+            },
+            required: ["options"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "set_progress",
+          description: "Update the module progress indicator. Call this on every turn.",
+          parameters: {
+            type: "object",
+            properties: {
+              progress: { type: "number", description: "Progress percentage from 5 to 100" },
+            },
+            required: ["progress"],
+          },
+        },
+      },
+      {
+        type: "function" as const,
+        function: {
+          name: "complete_module",
+          description: "Call this ONCE when the module is complete. Provide a structured summary of what was covered.",
+          parameters: {
+            type: "object",
+            properties: {
+              summary: {
+                type: "object",
+                properties: {
+                  insights: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Key insights from the module (3-5 items)",
+                  },
+                  assessment: { type: "string", description: "2-3 sentence summary of what was covered" },
+                  takeaway: { type: "string", description: "One concrete insight they can carry forward" },
+                },
+                required: ["insights", "assessment", "takeaway"],
+              },
+            },
+            required: ["summary"],
+          },
+        },
+      },
+    ],
+  };
+
+  // Helper to call the interview LLM with tool support
+  async function callInterviewLLM(
+    transcript: { role: string; content: string }[],
+    sessionToken?: string,
+    userId?: string
+  ) {
+    if (!useAnthropic && !process.env.OPENAI_API_KEY) {
+      throw new Error("No AI API key configured");
+    }
+
+    // Check if user sent "testskip" command
+    const lastUserMessage = [...transcript].reverse().find((t) => t.role === "user");
+    const isTestSkip = lastUserMessage?.content?.toLowerCase().trim() === "testskip";
+
+    const testSkipPrompt = isTestSkip
+      ? `
+
+IMPORTANT OVERRIDE - TESTSKIP MODE:
+The user has entered "testskip" which is a testing command. Generate the full plan card and interview complete markers.
+`
+      : "";
+
+    let reply: string = "";
+    const systemPromptToUse = INTERVIEW_SYSTEM_PROMPT + testSkipPrompt;
+    
+    // Calculate afterMessageIndex: transcript.length is the index where the assistant message will be appended.
+    // Events (like structured_outcomes) should render AFTER the assistant message, not after the user message.
+    // Special case: title_card uses -1 to appear before all messages.
+    const afterMessageIndex = transcript.length;
+
+    if (useAnthropic && anthropic) {
+      const claudeMessages: any[] = [];
+      for (const turn of transcript) {
+        if (turn?.role && turn?.content) {
+          claudeMessages.push({
+            role: turn.role as "user" | "assistant",
+            content: turn.content,
+          });
+        }
+      }
+      if (transcript.length === 0) {
+        claudeMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
+      }
+      
+      // Loop to handle tool calls until we get a final text response
+      let maxIterations = 5;
+      while (maxIterations-- > 0) {
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-4-5",
+          max_tokens: 2048,
+          system: systemPromptToUse,
+          messages: claudeMessages,
+          tools: interviewTools.anthropic,
+        });
+        
+        // Collect tool uses and text from response
+        const toolUses: { id: string; name: string; input: any }[] = [];
+        let textContent = "";
+        
+        for (const block of response.content) {
+          if (block.type === "text") {
+            textContent += block.text;
+          } else if (block.type === "tool_use") {
+            toolUses.push({ id: block.id, name: block.name, input: block.input });
+          }
+        }
+        
+        // If no tool calls, we're done
+        if (toolUses.length === 0) {
+          reply = textContent;
+          break;
+        }
+        
+        // Process tool calls and build tool results
+        const toolResults: { type: "tool_result"; tool_use_id: string; content: string }[] = [];
+        
+        for (const toolUse of toolUses) {
+          const toolInput = toolUse.input as { title: string; subtitle?: string };
+          
+          if ((toolUse.name === "append_title_card" || toolUse.name === "append_section_header") && sessionToken) {
+            const eventType = toolUse.name === "append_title_card" 
+              ? "chat.title_card_added" 
+              : "chat.section_header_added";
+            
+            // Idempotency: skip duplicate title cards
+            let skipped = false;
+            if (toolUse.name === "append_title_card") {
+              const existingEvents = await storage.listInterviewEvents(sessionToken);
+              if (existingEvents.some(e => e.type === "chat.title_card_added")) {
+                console.log(`[INTERVIEW_TOOL] Skipping duplicate title card for session ${sessionToken}`);
+                skipped = true;
+              }
+            }
+            
+            if (!skipped) {
+              // Title card always uses -1 (before all messages), other headers use afterMessageIndex
+              const eventAfterIndex = toolUse.name === "append_title_card" ? -1 : afterMessageIndex;
+              const payload: AppEventPayload = {
+                render: { afterMessageIndex: eventAfterIndex },
+                title: toolInput.title,
+                subtitle: toolInput.subtitle,
+              };
+              
+              await storage.appendInterviewEvent(sessionToken, eventType, payload);
+              console.log(`[INTERVIEW_TOOL] Appended ${eventType} for session ${sessionToken}`);
+            }
+          } else if (toolUse.name === "set_provided_name" && userId) {
+            const nameInput = toolUse.input as { name: string };
+            const rawName = nameInput.name;
+            const name = rawName?.trim();
+            
+            if (process.env.NODE_ENV !== "production") {
+              console.log(`[INTERVIEW_TOOL] set_provided_name called with input="${rawName}", trimmed="${name}"`);
+            }
+            
+            // Validate name: 1-50 chars, not all punctuation
+            if (name && name.length >= 1 && name.length <= 50 && /[a-zA-Z0-9]/.test(name)) {
+              // Idempotency: skip if user already has a providedName
+              const existingUser = await storage.getUser(userId);
+              if (existingUser?.providedName) {
+                console.log(`[INTERVIEW_TOOL] Skipping set_provided_name - user already has providedName="${existingUser.providedName}"`);
+              } else {
+                await storage.updateUser(userId, { providedName: name });
+                console.log(`[INTERVIEW_TOOL] Persisted providedName="${name}" for user ${userId}`);
+                
+                // Append event for client tracking
+                if (sessionToken) {
+                  await storage.appendInterviewEvent(sessionToken, "user.provided_name_set", {
+                    render: { afterMessageIndex },
+                    name,
+                  });
+                  console.log(`[INTERVIEW_TOOL] Appended user.provided_name_set event with name="${name}"`);
+                }
+              }
+            } else {
+              console.log(`[INTERVIEW_TOOL] Rejected invalid name: "${name}"`);
+            }
+          } else if (toolUse.name === "append_structured_outcomes" && sessionToken) {
+            const outcomesInput = toolUse.input as { prompt?: string; options: { id?: string; label: string; value: string }[] };
+            
+            // Validate options array
+            if (!Array.isArray(outcomesInput.options) || outcomesInput.options.length === 0) {
+              console.log(`[INTERVIEW_TOOL] Skipping structured_outcomes - invalid or empty options`);
+            } else {
+              // Validate each option has required fields
+              const validOptions = outcomesInput.options.filter(opt => 
+                opt && typeof opt.label === "string" && opt.label.trim() && 
+                typeof opt.value === "string" && opt.value.trim()
+              );
+              
+              if (validOptions.length === 0) {
+                console.log(`[INTERVIEW_TOOL] Skipping structured_outcomes - no valid options`);
+              } else {
+                // Generate IDs for options that don't have them
+                const optionsWithIds = validOptions.map((opt, idx) => ({
+                  id: opt.id || `opt_${Date.now()}_${idx}`,
+                  label: opt.label.trim(),
+                  value: opt.value.trim(),
+                }));
+                
+                await storage.appendInterviewEvent(sessionToken, "chat.structured_outcomes_added", {
+                  render: { afterMessageIndex },
+                  prompt: outcomesInput.prompt,
+                  options: optionsWithIds,
+                });
+                console.log(`[INTERVIEW_TOOL] Appended structured_outcomes with ${optionsWithIds.length} options`);
+              }
+            }
+          } else if (toolUse.name === "append_value_bullets" && sessionToken) {
+            const bulletsInput = toolUse.input as { bullets: string[] };
+            if (Array.isArray(bulletsInput.bullets) && bulletsInput.bullets.length > 0) {
+              await storage.appendInterviewEvent(sessionToken, "chat.value_bullets_added", {
+                render: { afterMessageIndex },
+                bullets: bulletsInput.bullets,
+              });
+              console.log(`[INTERVIEW_TOOL] Appended value_bullets with ${bulletsInput.bullets.length} bullets`);
+            }
+          } else if (toolUse.name === "append_social_proof" && sessionToken) {
+            const proofInput = toolUse.input as { content: string };
+            if (proofInput.content && proofInput.content.trim()) {
+              await storage.appendInterviewEvent(sessionToken, "chat.social_proof_added", {
+                render: { afterMessageIndex },
+                content: proofInput.content.trim(),
+              });
+              console.log(`[INTERVIEW_TOOL] Appended social_proof`);
+            }
+          } else if (toolUse.name === "finalize_interview" && sessionToken && userId) {
+            await handleFinalizeInterview(sessionToken, userId, afterMessageIndex);
+          }
+          
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: JSON.stringify({ ok: true }),
+          });
+        }
+        
+        // Add assistant message with tool uses, then user message with tool results
+        claudeMessages.push({ role: "assistant", content: response.content });
+        claudeMessages.push({ role: "user", content: toolResults });
+        
+        // If there was text along with tool calls, capture it
+        if (textContent) {
+          reply = textContent;
+        }
+      }
+    } else {
+      const messages: any[] = [
+        { role: "system", content: systemPromptToUse },
+      ];
+      for (const turn of transcript) {
+        if (turn?.role && turn?.content) {
+          messages.push({ role: turn.role as "user" | "assistant", content: turn.content });
+        }
+      }
+      if (transcript.length === 0) {
+        messages.push({ role: "user", content: "Start the interview. Ask your first question." });
+      }
+      
+      // Loop to handle tool calls until we get a final text response
+      let maxIterations = 5;
+      while (maxIterations-- > 0) {
+        const response = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          messages,
+          max_completion_tokens: 1024,
+          tools: interviewTools.openai,
+        });
+        
+        const message = response.choices[0].message;
+        
+        // If no tool calls and we have content, we're done
+        if (!message.tool_calls || message.tool_calls.length === 0) {
+          if (message.content) {
+            reply = message.content;
+          }
+          // Break if we have content OR if there are no tool calls to process
+          break;
+        }
+        
+        // Process tool calls
+        const toolResults: { role: "tool"; tool_call_id: string; content: string }[] = [];
+        
+        for (const toolCall of message.tool_calls) {
+          if (toolCall.type !== "function") continue;
+          const toolName = (toolCall as any).function?.name;
+          const toolArgs = (toolCall as any).function?.arguments;
+          if (!toolName || !toolArgs) continue;
+          const toolInput = JSON.parse(toolArgs) as { title: string; subtitle?: string };
+          
+          if ((toolName === "append_title_card" || toolName === "append_section_header") && sessionToken) {
+            const eventType = toolName === "append_title_card" 
+              ? "chat.title_card_added" 
+              : "chat.section_header_added";
+            
+            // Idempotency: skip duplicate title cards
+            let skipped = false;
+            if (toolName === "append_title_card") {
+              const existingEvents = await storage.listInterviewEvents(sessionToken);
+              if (existingEvents.some(e => e.type === "chat.title_card_added")) {
+                console.log(`[INTERVIEW_TOOL] Skipping duplicate title card for session ${sessionToken}`);
+                skipped = true;
+              }
+            }
+            
+            if (!skipped) {
+              // Title card always uses -1 (before all messages), other headers use afterMessageIndex
+              const eventAfterIndex = toolName === "append_title_card" ? -1 : afterMessageIndex;
+              const payload: AppEventPayload = {
+                render: { afterMessageIndex: eventAfterIndex },
+                title: toolInput.title,
+                subtitle: toolInput.subtitle,
+              };
+              
+              await storage.appendInterviewEvent(sessionToken, eventType, payload);
+              console.log(`[INTERVIEW_TOOL] Appended ${eventType} for session ${sessionToken}`);
+            }
+          } else if (toolName === "set_provided_name" && userId) {
+            const nameInput = JSON.parse(toolArgs) as { name: string };
+            const rawName = nameInput.name;
+            const name = rawName?.trim();
+            
+            if (process.env.NODE_ENV !== "production") {
+              console.log(`[INTERVIEW_TOOL] set_provided_name called with input="${rawName}", trimmed="${name}"`);
+            }
+            
+            // Validate name: 1-50 chars, not all punctuation
+            if (name && name.length >= 1 && name.length <= 50 && /[a-zA-Z0-9]/.test(name)) {
+              // Idempotency: skip if user already has a providedName
+              const existingUser = await storage.getUser(userId);
+              if (existingUser?.providedName) {
+                console.log(`[INTERVIEW_TOOL] Skipping set_provided_name - user already has providedName="${existingUser.providedName}"`);
+              } else {
+                await storage.updateUser(userId, { providedName: name });
+                console.log(`[INTERVIEW_TOOL] Persisted providedName="${name}" for user ${userId}`);
+                
+                // Append event for client tracking
+                if (sessionToken) {
+                  await storage.appendInterviewEvent(sessionToken, "user.provided_name_set", {
+                    render: { afterMessageIndex },
+                    name,
+                  });
+                  console.log(`[INTERVIEW_TOOL] Appended user.provided_name_set event with name="${name}"`);
+                }
+              }
+            } else {
+              console.log(`[INTERVIEW_TOOL] Rejected invalid name: "${name}"`);
+            }
+          } else if (toolName === "append_structured_outcomes" && sessionToken) {
+            try {
+              const outcomesInput = JSON.parse(toolArgs) as { prompt?: string; options: { id?: string; label: string; value: string }[] };
+              
+              // Validate options array
+              if (!Array.isArray(outcomesInput.options) || outcomesInput.options.length === 0) {
+                console.log(`[INTERVIEW_TOOL] Skipping structured_outcomes - invalid or empty options`);
+              } else {
+                // Validate each option has required fields
+                const validOptions = outcomesInput.options.filter(opt => 
+                  opt && typeof opt.label === "string" && opt.label.trim() && 
+                  typeof opt.value === "string" && opt.value.trim()
+                );
+                
+                if (validOptions.length === 0) {
+                  console.log(`[INTERVIEW_TOOL] Skipping structured_outcomes - no valid options`);
+                } else {
+                  // Generate IDs for options that don't have them
+                  const optionsWithIds = validOptions.map((opt, idx) => ({
+                    id: opt.id || `opt_${Date.now()}_${idx}`,
+                    label: opt.label.trim(),
+                    value: opt.value.trim(),
+                  }));
+                  
+                  await storage.appendInterviewEvent(sessionToken, "chat.structured_outcomes_added", {
+                    render: { afterMessageIndex },
+                    prompt: outcomesInput.prompt,
+                    options: optionsWithIds,
+                  });
+                  console.log(`[INTERVIEW_TOOL] Appended structured_outcomes with ${optionsWithIds.length} options`);
+                }
+              }
+            } catch (parseError: any) {
+              console.log(`[INTERVIEW_TOOL] Failed to parse structured_outcomes args: ${parseError.message}`);
+            }
+          } else if (toolName === "append_value_bullets" && sessionToken) {
+            try {
+              const bulletsInput = JSON.parse(toolArgs) as { bullets: string[] };
+              if (Array.isArray(bulletsInput.bullets) && bulletsInput.bullets.length > 0) {
+                await storage.appendInterviewEvent(sessionToken, "chat.value_bullets_added", {
+                  render: { afterMessageIndex },
+                  bullets: bulletsInput.bullets,
+                });
+                console.log(`[INTERVIEW_TOOL] Appended value_bullets with ${bulletsInput.bullets.length} bullets`);
+              }
+            } catch (parseError: any) {
+              console.log(`[INTERVIEW_TOOL] Failed to parse value_bullets args: ${parseError.message}`);
+            }
+          } else if (toolName === "append_social_proof" && sessionToken) {
+            try {
+              const proofInput = JSON.parse(toolArgs) as { content: string };
+              if (proofInput.content && proofInput.content.trim()) {
+                await storage.appendInterviewEvent(sessionToken, "chat.social_proof_added", {
+                  render: { afterMessageIndex },
+                  content: proofInput.content.trim(),
+                });
+                console.log(`[INTERVIEW_TOOL] Appended social_proof`);
+              }
+            } catch (parseError: any) {
+              console.log(`[INTERVIEW_TOOL] Failed to parse social_proof args: ${parseError.message}`);
+            }
+          } else if (toolName === "finalize_interview" && sessionToken && userId) {
+            await handleFinalizeInterview(sessionToken, userId, afterMessageIndex);
+          }
+          
+          toolResults.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ ok: true }),
+          });
+        }
+        
+        // Add assistant message with tool calls, then tool results
+        messages.push(message);
+        messages.push(...toolResults);
+        
+        // If there was text along with tool calls, capture it
+        if (message.content) {
+          reply = message.content;
+        }
+      }
+    }
+
+    // Empty reply detection and retry (prevent empty assistant messages)
+    const FALLBACK_MESSAGE = "Got it — keep going.";
+    
+    if (!reply || !reply.trim()) {
+      console.log(`[INTERVIEW_LLM] Empty reply detected, attempting single retry without tools`);
+      
+      // Single retry without tools to get a text response
+      try {
+        if (useAnthropic && anthropic) {
+          // Build messages for retry (simplified - just ask for text)
+          const retryMessages: any[] = [];
+          for (const turn of transcript) {
+            if (turn?.role && turn?.content) {
+              retryMessages.push({
+                role: turn.role as "user" | "assistant",
+                content: turn.content,
+              });
+            }
+          }
+          if (retryMessages.length === 0) {
+            retryMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
+          }
+          
+          // Add instruction to just provide text
+          retryMessages.push({
+            role: "user",
+            content: "[System: Please provide your response as text only, do not call any tools.]"
+          });
+          
+          const retryResponse = await anthropic.messages.create({
+            model: "claude-sonnet-4-5",
+            max_tokens: 1024,
+            system: INTERVIEW_SYSTEM_PROMPT,
+            messages: retryMessages,
+            // No tools on retry to force text response
+          });
+          
+          for (const block of retryResponse.content) {
+            if (block.type === "text" && block.text.trim()) {
+              reply = block.text;
+              console.log(`[INTERVIEW_LLM] Retry succeeded, reply length=${reply.length}`);
+              break;
+            }
+          }
+        } else if (openai) {
+          // OpenAI retry without tools
+          const retryMessages: any[] = [
+            { role: "system", content: INTERVIEW_SYSTEM_PROMPT },
+          ];
+          for (const turn of transcript) {
+            if (turn?.role && turn?.content) {
+              retryMessages.push({ role: turn.role, content: turn.content });
+            }
+          }
+          if (transcript.length === 0) {
+            retryMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
+          }
+          retryMessages.push({
+            role: "user",
+            content: "[System: Please provide your response as text only, do not call any tools.]"
+          });
+          
+          const retryResponse = await openai.chat.completions.create({
+            model: "gpt-4.1-mini",
+            messages: retryMessages,
+            max_completion_tokens: 1024,
+            // No tools on retry
+          });
+          
+          if (retryResponse.choices[0].message.content?.trim()) {
+            reply = retryResponse.choices[0].message.content;
+            console.log(`[INTERVIEW_LLM] Retry succeeded, reply length=${reply.length}`);
+          }
+        }
+      } catch (retryError: any) {
+        console.log(`[INTERVIEW_LLM] Retry failed: ${retryError.message}`);
+      }
+      
+      // Final fallback if still empty
+      if (!reply || !reply.trim()) {
+        reply = FALLBACK_MESSAGE;
+        console.log(`[INTERVIEW_LLM] Using fallback message after retry failed`);
+      }
+    }
+
+    // Parse plancard JSON block from reply (new format replaces [[PLAN_CARD]] tokens)
+    let planCard: any = null;
+    const plancardMatch = reply.match(/```plancard\s*([\s\S]*?)\s*```/);
+    if (plancardMatch) {
+      try {
+        planCard = JSON.parse(plancardMatch[1]);
+        console.log(`[INTERVIEW] Parsed plancard JSON with ${planCard.modules?.length || 0} modules`);
+      } catch (e: any) {
+        console.log(`[INTERVIEW] Failed to parse plancard JSON: ${e.message}`);
+      }
+    }
+
+    // Strip plancard block from visible output
+    reply = reply.replace(/```plancard[\s\S]*?```/g, "").trim();
+
+    return { reply, planCard };
+  }
+
+  // Streaming version of callInterviewLLM with SSE support
+  async function callInterviewLLMStream(
+    transcript: { role: string; content: string }[],
+    sessionToken: string | undefined,
+    userId: string | undefined,
+    sendEvent: (type: string, data: any) => void
+  ) {
+    if (!useAnthropic && !process.env.OPENAI_API_KEY) {
+      throw new Error("No AI API key configured");
+    }
+
+    // Check if user sent "testskip" command
+    const lastUserMessage = [...transcript].reverse().find((t) => t.role === "user");
+    const isTestSkip = lastUserMessage?.content?.toLowerCase().trim() === "testskip";
+
+    const testSkipPrompt = isTestSkip
+      ? `
+
+IMPORTANT OVERRIDE - TESTSKIP MODE:
+The user has entered "testskip" which is a testing command. Generate the full plan card and interview complete markers.
+`
+      : "";
+
+    let reply: string = "";
+    const systemPromptToUse = INTERVIEW_SYSTEM_PROMPT + testSkipPrompt;
+
+    // Calculate afterMessageIndex: transcript.length is the index where the assistant message will be appended.
+    // Events (like structured_outcomes) should render AFTER the assistant message, not after the user message.
+    // Special case: title_card uses -1 to appear before all messages.
+    const afterMessageIndex = transcript.length;
+
+    if (useAnthropic && anthropic) {
+      const claudeMessages: any[] = [];
+      for (const turn of transcript) {
+        if (turn?.role && turn?.content) {
+          claudeMessages.push({
+            role: turn.role as "user" | "assistant",
+            content: turn.content,
+          });
+        }
+      }
+      if (transcript.length === 0) {
+        claudeMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
+      }
+
+      // Loop to handle tool calls until we get a final text response
+      let maxIterations = 5;
+      while (maxIterations-- > 0) {
+        const stream = await anthropic.messages.stream({
+          model: "claude-sonnet-4-5",
+          max_tokens: 2048,
+          system: systemPromptToUse,
+          messages: claudeMessages,
+          tools: interviewTools.anthropic,
+        });
+
+        // Accumulate chunks
+        let fullText = "";
+        const toolUses: { id: string; name: string; input: any; index: number }[] = [];
+        let currentToolUse: { id: string; name: string; input: string; index: number } | null = null;
+
+        for await (const event of stream) {
+          if (event.type === 'content_block_start') {
+            if (event.content_block.type === 'tool_use') {
+              currentToolUse = {
+                id: event.content_block.id,
+                name: event.content_block.name,
+                input: '',
+                index: event.index,
+              };
+            }
+          } else if (event.type === 'content_block_delta') {
+            if (event.delta.type === 'text_delta') {
+              const textDelta = event.delta.text;
+              fullText += textDelta;
+              // Send streaming text chunk to client
+              sendEvent('text_delta', { content: textDelta });
+            } else if (event.delta.type === 'input_json_delta' && currentToolUse) {
+              // Accumulate tool input JSON
+              currentToolUse.input += event.delta.partial_json;
+            }
+          } else if (event.type === 'content_block_stop') {
+            if (currentToolUse) {
+              // Tool use complete - parse input and add to list
+              try {
+                const parsedInput = JSON.parse(currentToolUse.input);
+                toolUses.push({
+                  id: currentToolUse.id,
+                  name: currentToolUse.name,
+                  input: parsedInput,
+                  index: currentToolUse.index,
+                });
+              } catch (e: any) {
+                console.error(`[STREAM] Failed to parse tool input: ${e.message}`);
+              }
+              currentToolUse = null;
+            }
+          }
+        }
+
+        // If no tool calls, we're done
+        if (toolUses.length === 0) {
+          reply = fullText;
+          break;
+        }
+
+        // Process tool calls and build tool results
+        const toolResults: { type: "tool_result"; tool_use_id: string; content: string }[] = [];
+
+        for (const toolUse of toolUses) {
+          const toolInput = toolUse.input as { title: string; subtitle?: string };
+
+          if ((toolUse.name === "append_title_card" || toolUse.name === "append_section_header") && sessionToken) {
+            const eventType = toolUse.name === "append_title_card"
+              ? "chat.title_card_added"
+              : "chat.section_header_added";
+
+            // Idempotency: skip duplicate title cards
+            let skipped = false;
+            if (toolUse.name === "append_title_card") {
+              const existingEvents = await storage.listInterviewEvents(sessionToken);
+              if (existingEvents.some(e => e.type === "chat.title_card_added")) {
+                console.log(`[INTERVIEW_TOOL_STREAM] Skipping duplicate title card for session ${sessionToken}`);
+                skipped = true;
+              }
+            }
+
+            if (!skipped) {
+              // Title card always uses -1 (before all messages), other headers use afterMessageIndex
+              const eventAfterIndex = toolUse.name === "append_title_card" ? -1 : afterMessageIndex;
+              const payload: AppEventPayload = {
+                render: { afterMessageIndex: eventAfterIndex },
+                title: toolInput.title,
+                subtitle: toolInput.subtitle,
+              };
+
+              await storage.appendInterviewEvent(sessionToken, eventType, payload);
+              console.log(`[INTERVIEW_TOOL_STREAM] Appended ${eventType} for session ${sessionToken}`);
+
+              // Notify client about event creation
+              sendEvent('tool_executed', {
+                toolName: toolUse.name,
+                eventType,
+                refetchEvents: true,
+              });
+            }
+          } else if (toolUse.name === "set_provided_name" && userId) {
+            const nameInput = toolUse.input as { name: string };
+            const rawName = nameInput.name;
+            const name = rawName?.trim();
+
+            if (process.env.NODE_ENV !== "production") {
+              console.log(`[INTERVIEW_TOOL_STREAM] set_provided_name called with input="${rawName}", trimmed="${name}"`);
+            }
+
+            // Validate name: 1-50 chars, not all punctuation
+            if (name && name.length >= 1 && name.length <= 50 && /[a-zA-Z0-9]/.test(name)) {
+              // Idempotency: skip if user already has a providedName
+              const existingUser = await storage.getUser(userId);
+              if (existingUser?.providedName) {
+                console.log(`[INTERVIEW_TOOL_STREAM] Skipping set_provided_name - user already has providedName="${existingUser.providedName}"`);
+              } else {
+                await storage.updateUser(userId, { providedName: name });
+                console.log(`[INTERVIEW_TOOL_STREAM] Persisted providedName="${name}" for user ${userId}`);
+
+                // Append event for client tracking
+                if (sessionToken) {
+                  await storage.appendInterviewEvent(sessionToken, "user.provided_name_set", {
+                    render: { afterMessageIndex },
+                    name,
+                  });
+                  console.log(`[INTERVIEW_TOOL_STREAM] Appended user.provided_name_set event with name="${name}"`);
+
+                  // Notify client
+                  sendEvent('tool_executed', {
+                    toolName: toolUse.name,
+                    eventType: 'user.provided_name_set',
+                    refetchEvents: true,
+                  });
+                }
+              }
+            } else {
+              console.log(`[INTERVIEW_TOOL_STREAM] Rejected invalid name: "${name}"`);
+            }
+          } else if (toolUse.name === "append_structured_outcomes" && sessionToken) {
+            const outcomesInput = toolUse.input as { prompt?: string; options: { id?: string; label: string; value: string }[] };
+
+            // Validate options array
+            if (!Array.isArray(outcomesInput.options) || outcomesInput.options.length === 0) {
+              console.log(`[INTERVIEW_TOOL_STREAM] Skipping structured_outcomes - invalid or empty options`);
+            } else {
+              // Validate each option has required fields
+              const validOptions = outcomesInput.options.filter(opt =>
+                opt && typeof opt.label === "string" && opt.label.trim() &&
+                typeof opt.value === "string" && opt.value.trim()
+              );
+
+              if (validOptions.length === 0) {
+                console.log(`[INTERVIEW_TOOL_STREAM] Skipping structured_outcomes - no valid options`);
+              } else {
+                // Generate IDs for options that don't have them
+                const optionsWithIds = validOptions.map((opt, idx) => ({
+                  id: opt.id || `opt_${Date.now()}_${idx}`,
+                  label: opt.label.trim(),
+                  value: opt.value.trim(),
+                }));
+
+                await storage.appendInterviewEvent(sessionToken, "chat.structured_outcomes_added", {
+                  render: { afterMessageIndex },
+                  prompt: outcomesInput.prompt,
+                  options: optionsWithIds,
+                });
+                console.log(`[INTERVIEW_TOOL_STREAM] Appended structured_outcomes with ${optionsWithIds.length} options`);
+
+                // Notify client
+                sendEvent('tool_executed', {
+                  toolName: toolUse.name,
+                  eventType: 'chat.structured_outcomes_added',
+                  refetchEvents: true,
+                });
+              }
+            }
+          } else if (toolUse.name === "append_value_bullets" && sessionToken) {
+            const bulletsInput = toolUse.input as { bullets: string[] };
+            if (Array.isArray(bulletsInput.bullets) && bulletsInput.bullets.length > 0) {
+              await storage.appendInterviewEvent(sessionToken, "chat.value_bullets_added", {
+                render: { afterMessageIndex },
+                bullets: bulletsInput.bullets,
+              });
+              console.log(`[INTERVIEW_TOOL_STREAM] Appended value_bullets with ${bulletsInput.bullets.length} bullets`);
+
+              // Notify client
+              sendEvent('tool_executed', {
+                toolName: toolUse.name,
+                eventType: 'chat.value_bullets_added',
+                refetchEvents: true,
+              });
+            }
+          } else if (toolUse.name === "append_social_proof" && sessionToken) {
+            const proofInput = toolUse.input as { content: string };
+            if (proofInput.content && proofInput.content.trim()) {
+              await storage.appendInterviewEvent(sessionToken, "chat.social_proof_added", {
+                render: { afterMessageIndex },
+                content: proofInput.content.trim(),
+              });
+              console.log(`[INTERVIEW_TOOL_STREAM] Appended social_proof`);
+
+              // Notify client
+              sendEvent('tool_executed', {
+                toolName: toolUse.name,
+                eventType: 'chat.social_proof_added',
+                refetchEvents: true,
+              });
+            }
+          } else if (toolUse.name === "finalize_interview" && sessionToken && userId) {
+            await handleFinalizeInterview(sessionToken, userId, afterMessageIndex);
+
+            // Notify client
+            sendEvent('tool_executed', {
+              toolName: toolUse.name,
+              eventType: 'chat.final_next_steps_added',
+              refetchEvents: true,
+            });
+          }
+
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolUse.id,
+            content: JSON.stringify({ ok: true }),
+          });
+        }
+
+        // Build response content for next turn
+        const responseContent: any[] = [];
+
+        // Add text blocks and tool uses in order
+        if (fullText) {
+          responseContent.push({ type: 'text', text: fullText });
+        }
+        for (const toolUse of toolUses) {
+          responseContent.push({
+            type: 'tool_use',
+            id: toolUse.id,
+            name: toolUse.name,
+            input: toolUse.input,
+          });
+        }
+
+        // Add assistant message with tool uses, then user message with tool results
+        claudeMessages.push({ role: "assistant", content: responseContent });
+        claudeMessages.push({ role: "user", content: toolResults });
+
+        // If there was text along with tool calls, capture it
+        if (fullText) {
+          reply = fullText;
+        }
+      }
+    } else {
+      // OpenAI streaming not implemented yet - fall back to non-streaming
+      // For now, we'll call the regular callInterviewLLM and send the result as a single chunk
+      console.log("[STREAM] OpenAI streaming not implemented, using non-streaming fallback");
+      const result = await callInterviewLLM(transcript, sessionToken, userId);
+      sendEvent('text_delta', { content: result.reply });
+      return result;
+    }
+
+    // Empty reply detection and retry (prevent empty assistant messages)
+    const FALLBACK_MESSAGE = "Got it — keep going.";
+
+    if (!reply || !reply.trim()) {
+      console.log(`[INTERVIEW_LLM_STREAM] Empty reply detected, attempting single retry without tools`);
+
+      // Single retry without tools to get a text response
+      try {
+        if (useAnthropic && anthropic) {
+          // Build messages for retry (simplified - just ask for text)
+          const retryMessages: any[] = [];
+          for (const turn of transcript) {
+            if (turn?.role && turn?.content) {
+              retryMessages.push({
+                role: turn.role as "user" | "assistant",
+                content: turn.content,
+              });
+            }
+          }
+          if (retryMessages.length === 0) {
+            retryMessages.push({ role: "user", content: "Start the interview. Ask your first question." });
+          }
+
+          // Add instruction to just provide text
+          retryMessages.push({
+            role: "user",
+            content: "[System: Please provide your response as text only, do not call any tools.]"
+          });
+
+          const stream = await anthropic.messages.stream({
+            model: "claude-sonnet-4-5",
+            max_tokens: 1024,
+            system: INTERVIEW_SYSTEM_PROMPT,
+            messages: retryMessages,
+            // No tools on retry to force text response
+          });
+
+          let retryText = "";
+          for await (const event of stream) {
+            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+              retryText += event.delta.text;
+              sendEvent('text_delta', { content: event.delta.text });
+            }
+          }
+
+          if (retryText.trim()) {
+            reply = retryText;
+            console.log(`[INTERVIEW_LLM_STREAM] Retry succeeded, reply length=${reply.length}`);
+          }
+        }
+      } catch (retryError: any) {
+        console.log(`[INTERVIEW_LLM_STREAM] Retry failed: ${retryError.message}`);
+      }
+
+      // Final fallback if still empty
+      if (!reply || !reply.trim()) {
+        reply = FALLBACK_MESSAGE;
+        sendEvent('text_delta', { content: FALLBACK_MESSAGE });
+        console.log(`[INTERVIEW_LLM_STREAM] Using fallback message after retry failed`);
+      }
+    }
+
+    // Parse plancard JSON block from reply (new format replaces [[PLAN_CARD]] tokens)
+    let planCard: any = null;
+    const plancardMatch = reply.match(/```plancard\s*([\s\S]*?)\s*```/);
+    if (plancardMatch) {
+      try {
+        planCard = JSON.parse(plancardMatch[1]);
+        console.log(`[INTERVIEW_STREAM] Parsed plancard JSON with ${planCard.modules?.length || 0} modules`);
+      } catch (e: any) {
+        console.log(`[INTERVIEW_STREAM] Failed to parse plancard JSON: ${e.message}`);
+      }
+    }
+
+    // Strip plancard block from visible output
+    reply = reply.replace(/```plancard[\s\S]*?```/g, "").trim();
+
+    return { reply, planCard };
+  }
 
   // POST /api/transcript/revision - Increment revision count when user clicks "Change Something"
   app.post("/api/transcript/revision", async (req, res) => {
@@ -2642,8 +4696,7 @@ IMPORTANT OVERRIDE - TESTSKIP MODE:
 The user has entered "testskip" which is a testing command. You must now:
 1. Review the conversation so far
 2. Fabricate plausible, realistic answers for ALL remaining interview questions
-3. Start your response with a brief summary of what you're fabricating
-4. IMMEDIATELY output the full plan card, value bullets, social proof, and interview complete markers
+3. Call the required tools to complete the interview
 
 Generate everything in THIS SINGLE RESPONSE. Use fabricated but realistic details:
 - Name: Sarah Chen
@@ -2653,50 +4706,34 @@ Generate everything in THIS SINGLE RESPONSE. Use fabricated but realistic detail
 - Constraints: Partner expecting first child in 6 months, needs stable health insurance
 - Goals: Either get promoted here or find a role with more growth opportunity
 
-Your response format:
+In testskip mode, you MUST:
+1. Call set_provided_name with name "Sarah"
+2. Call append_value_bullets with these bullets:
+   - "Get clarity on whether your manager is actually in your corner — we'll decode the 'supportive in 1-on-1s but doesn't advocate in calibrations' dynamic"
+   - "Make a decision that accounts for your family timeline — this isn't just career moves, it's about planning around parental leave"
+   - "Stop spinning on 'am I good enough?' — the vague feedback is designed to keep you guessing; we'll break that cycle"
+3. Call append_social_proof with: "Research shows that 73% of people who feel 'stuck' at their level say the biggest barrier isn't skill — it's lack of clarity about what the organization actually wants."
+4. Call finalize_interview to complete
 
----
+Your visible message should include the plancard JSON block:
 
-Skipping ahead for testing purposes. I've fabricated a realistic client story:
+Skipping ahead for testing purposes. I've fabricated a realistic client story.
 
-Sarah is a Senior PM who's been at her company for 3 years. She feels stuck - her manager says the right things but hasn't advocated for her promotion. With her first child coming in 6 months, she needs to figure out whether to push for promotion here or start looking elsewhere.
+\`\`\`plancard
+{
+  "name": "Sarah",
+  "modules": [
+    {"name": "The Performance Paradox", "objective": "Understand why doing good work hasn't translated to advancement", "approach": "We'll examine the gap between your contributions and how they're perceived", "outcome": "Clarity on what's actually blocking your promotion"},
+    {"name": "The Family Factor", "objective": "Map your options with realistic timelines and constraints", "approach": "We'll stress-test each path against your family timeline", "outcome": "A clear view of 2-3 paths that work with your life"},
+    {"name": "The Decisive Move", "objective": "Build a concrete action plan for the next 90 days", "approach": "We'll sequence the conversations and decisions you need to make", "outcome": "A step-by-step plan with decision points and fallback options"}
+  ],
+  "careerBrief": "Senior PM at 3 years, stuck at current level despite strong performance, needs clarity before parental leave",
+  "seriousPlanSummary": "Your personalized Serious Plan will include a decision framework, conversation scripts for your manager, and a 90-day action timeline.",
+  "plannedArtifacts": ["decision_snapshot", "boss_conversation", "action_plan", "module_recap", "resources"]
+}
+\`\`\`
 
-[[PROVIDED_NAME:Sarah]]
-
-[[PROGRESS]]90[[END_PROGRESS]]
-
-[[PLAN_CARD]]
-NAME: Sarah
-MODULE1_NAME: The Performance Paradox
-MODULE1_OBJECTIVE: Understand why "doing good work" hasn't translated to advancement
-MODULE1_APPROACH: We'll examine the gap between your contributions and how they're perceived
-MODULE1_OUTCOME: Clarity on what's actually blocking your promotion
-MODULE2_NAME: The Family Factor
-MODULE2_OBJECTIVE: Map your options with realistic timelines and constraints
-MODULE2_APPROACH: We'll stress-test each path against your family timeline
-MODULE2_OUTCOME: A clear view of 2-3 paths that work with your life
-MODULE3_NAME: The Decisive Move
-MODULE3_OBJECTIVE: Build a concrete action plan for the next 90 days
-MODULE3_APPROACH: We'll sequence the conversations and decisions you need to make
-MODULE3_OUTCOME: A step-by-step plan with decision points and fallback options
-CAREER_BRIEF: Senior PM at 3 years, stuck at current level despite strong performance, needs clarity before parental leave
-SERIOUS_PLAN_SUMMARY: Your personalized Serious Plan will include a decision framework, conversation scripts for your manager, and a 90-day action timeline.
-PLANNED_ARTIFACTS: decision_snapshot, boss_conversation, action_plan, module_recap, resources
-[[END_PLAN_CARD]]
-
-[[VALUE_BULLETS]]
-- **Get clarity on whether your manager is actually in your corner** — we'll decode the "supportive in 1-on-1s but doesn't advocate in calibrations" dynamic
-- **Make a decision that accounts for your family timeline** — this isn't just career moves, it's about planning around parental leave
-- **Stop spinning on "am I good enough?"** — the vague feedback is designed to keep you guessing; we'll break that cycle
-[[END_VALUE_BULLETS]]
-
-[[SOCIAL_PROOF]]
-Research shows that 73% of people who feel "stuck" at their level say the biggest barrier isn't skill — it's lack of clarity about what the organization actually wants.
-[[END_SOCIAL_PROOF]]
-
-[[INTERVIEW_COMPLETE]]
-
----
+I've put together a personalized coaching plan for you.
 `
         : "";
 
@@ -2766,301 +4803,53 @@ Research shows that 73% of people who feel "stuck" at their level say the bigges
 
         reply = response.choices[0].message.content || "";
       }
-      let done = false;
-      let valueBullets: string | null = null;
-      let socialProof: string | null = null;
-      let options: string[] | null = null;
-      let progress: number | null = null;
-      let planCard: {
-        name: string;
-        modules: {
-          name: string;
-          objective: string;
-          approach: string;
-          outcome: string;
-        }[];
-        careerBrief: string;
-        seriousPlanSummary: string;
-        plannedArtifacts: {
-          key: string;
-          title: string;
-          type: string;
-          description: string;
-          importance: string;
-        }[];
-      } | null = null;
 
-      // Parse progress token
-      const progressMatch = reply.match(
-        /\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/,
-      );
-      if (progressMatch) {
-        progress = parseInt(progressMatch[1], 10);
-        if (isNaN(progress) || progress < 0 || progress > 100) {
-          progress = null;
-        }
-      }
-
-      // Parse structured options (handles both newline and pipe-separated)
-      const optionsMatch = reply.match(
-        /\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/,
-      );
-      if (optionsMatch) {
-        const rawOptions = optionsMatch[1].trim();
-        // Split on newlines first, then on pipes if we only got one option
-        let parsedOptions = rawOptions
-          .split("\n")
-          .map((opt) => opt.trim())
-          .filter((opt) => opt.length > 0);
-        if (parsedOptions.length === 1 && parsedOptions[0].includes("|")) {
-          parsedOptions = parsedOptions[0]
-            .split("|")
-            .map((opt) => opt.trim())
-            .filter((opt) => opt.length > 0);
-        }
-        options = parsedOptions;
-      }
-
-      // Parse plan card with expanded format (objectives, approach, outcome)
-      const planCardMatch = reply.match(
-        /\[\[PLAN_CARD\]\]([\s\S]*?)\[\[END_PLAN_CARD\]\]/,
-      );
-      console.log(
-        `[INTERVIEW] isTestSkip=${isTestSkip} hasPlanCardMatch=${!!planCardMatch} replyLength=${reply.length}`,
-      );
-      if (isTestSkip) {
-        console.log(
-          `[INTERVIEW_TESTSKIP] Raw reply (first 2000 chars): ${reply.substring(0, 2000)}`,
-        );
-      }
-      if (planCardMatch) {
-        const cardContent = planCardMatch[1].trim();
-        const nameMatch = cardContent.match(/NAME:\s*(.+)/);
-
-        // Module 1
-        const module1NameMatch = cardContent.match(/MODULE1_NAME:\s*(.+)/);
-        const module1ObjectiveMatch = cardContent.match(
-          /MODULE1_OBJECTIVE:\s*(.+)/,
-        );
-        const module1ApproachMatch = cardContent.match(
-          /MODULE1_APPROACH:\s*(.+)/,
-        );
-        const module1OutcomeMatch = cardContent.match(
-          /MODULE1_OUTCOME:\s*(.+)/,
-        );
-
-        // Module 2
-        const module2NameMatch = cardContent.match(/MODULE2_NAME:\s*(.+)/);
-        const module2ObjectiveMatch = cardContent.match(
-          /MODULE2_OBJECTIVE:\s*(.+)/,
-        );
-        const module2ApproachMatch = cardContent.match(
-          /MODULE2_APPROACH:\s*(.+)/,
-        );
-        const module2OutcomeMatch = cardContent.match(
-          /MODULE2_OUTCOME:\s*(.+)/,
-        );
-
-        // Module 3
-        const module3NameMatch = cardContent.match(/MODULE3_NAME:\s*(.+)/);
-        const module3ObjectiveMatch = cardContent.match(
-          /MODULE3_OBJECTIVE:\s*(.+)/,
-        );
-        const module3ApproachMatch = cardContent.match(
-          /MODULE3_APPROACH:\s*(.+)/,
-        );
-        const module3OutcomeMatch = cardContent.match(
-          /MODULE3_OUTCOME:\s*(.+)/,
-        );
-
-        const careerBriefMatch = cardContent.match(/CAREER_BRIEF:\s*(.+)/);
-        const seriousPlanSummaryMatch = cardContent.match(
-          /SERIOUS_PLAN_SUMMARY:\s*(.+)/,
-        );
-        const plannedArtifactsMatch = cardContent.match(
-          /PLANNED_ARTIFACTS:\s*(.+)/,
-        );
-
-        // Parse planned artifacts into structured format
-        const parseArtifacts = (
-          artifactList: string,
-        ): {
-          key: string;
-          title: string;
-          type: string;
-          description: string;
-          importance: string;
-        }[] => {
-          const artifactKeys = artifactList
-            .split(",")
-            .map((a) => a.trim().toLowerCase().replace(/\s+/g, "_"));
-          const artifactDefinitions: Record<
-            string,
-            {
-              title: string;
-              type: string;
-              description: string;
-              importance: string;
-            }
-          > = {
-            decision_snapshot: {
-              title: "Decision Snapshot",
-              type: "snapshot",
-              description:
-                "A concise summary of your situation, options, and recommended path forward",
-              importance: "must_read",
-            },
-            action_plan: {
-              title: "Action Plan",
-              type: "plan",
-              description:
-                "A time-boxed plan with concrete steps and decision checkpoints",
-              importance: "must_read",
-            },
-            boss_conversation: {
-              title: "Boss Conversation Plan",
-              type: "conversation",
-              description:
-                "Scripts and strategies for navigating your manager conversation",
-              importance: "must_read",
-            },
-            partner_conversation: {
-              title: "Partner Conversation Plan",
-              type: "conversation",
-              description:
-                "Talking points for discussing this transition with your partner",
-              importance: "recommended",
-            },
-            self_narrative: {
-              title: "Clarity Memo",
-              type: "narrative",
-              description:
-                "The story you tell yourself about this transition and what you want",
-              importance: "recommended",
-            },
-            module_recap: {
-              title: "Module Recap",
-              type: "recap",
-              description:
-                "Key insights and decisions from each coaching session",
-              importance: "recommended",
-            },
-            resources: {
-              title: "Curated Resources",
-              type: "resources",
-              description:
-                "Articles, books, and tools specifically chosen for your situation",
-              importance: "optional",
-            },
-            risk_map: {
-              title: "Risk & Fallback Map",
-              type: "plan",
-              description:
-                "Identified risks with mitigation strategies and backup plans",
-              importance: "recommended",
-            },
-            negotiation_toolkit: {
-              title: "Negotiation Toolkit",
-              type: "conversation",
-              description:
-                "Strategies and scripts for salary or terms negotiation",
-              importance: "recommended",
-            },
-            networking_plan: {
-              title: "Networking Plan",
-              type: "plan",
-              description:
-                "A targeted approach to building connections for your next move",
-              importance: "optional",
-            },
-          };
-
-          return artifactKeys.map((key) => {
-            const def = artifactDefinitions[key] || {
-              title: key
-                .replace(/_/g, " ")
-                .replace(/\b\w/g, (c) => c.toUpperCase()),
-              type: "custom",
-              description: "Custom artifact for your situation",
-              importance: "recommended",
+      // Parse plancard JSON block from reply (new format replaces [[PLAN_CARD]] tokens)
+      let planCard: any = null;
+      const plancardMatch = reply.match(/```plancard\s*([\s\S]*?)\s*```/);
+      if (plancardMatch) {
+        try {
+          const rawPlanCard = JSON.parse(plancardMatch[1]);
+          
+          // Convert plannedArtifacts array of strings to structured format
+          const parseArtifacts = (artifactKeys: string[]): { key: string; title: string; type: string; description: string; importance: string }[] => {
+            const artifactDefinitions: Record<string, { title: string; type: string; description: string; importance: string }> = {
+              decision_snapshot: { title: "Decision Snapshot", type: "snapshot", description: "A concise summary of your situation, options, and recommended path forward", importance: "must_read" },
+              action_plan: { title: "Action Plan", type: "plan", description: "A time-boxed plan with concrete steps and decision checkpoints", importance: "must_read" },
+              boss_conversation: { title: "Boss Conversation Plan", type: "conversation", description: "Scripts and strategies for navigating your manager conversation", importance: "must_read" },
+              partner_conversation: { title: "Partner Conversation Plan", type: "conversation", description: "Talking points for discussing this transition with your partner", importance: "recommended" },
+              self_narrative: { title: "Clarity Memo", type: "narrative", description: "The story you tell yourself about this transition and what you want", importance: "recommended" },
+              module_recap: { title: "Module Recap", type: "recap", description: "Key insights and decisions from each coaching session", importance: "recommended" },
+              resources: { title: "Curated Resources", type: "resources", description: "Articles, books, and tools specifically chosen for your situation", importance: "optional" },
+              risk_map: { title: "Risk & Fallback Map", type: "plan", description: "Identified risks with mitigation strategies and backup plans", importance: "recommended" },
+              negotiation_toolkit: { title: "Negotiation Toolkit", type: "conversation", description: "Strategies and scripts for salary or terms negotiation", importance: "recommended" },
+              networking_plan: { title: "Networking Plan", type: "plan", description: "A targeted approach to building connections for your next move", importance: "optional" },
             };
-            return { key, ...def };
-          });
-        };
-
-        if (nameMatch) {
-          const artifactList =
-            plannedArtifactsMatch?.[1]?.trim() ||
-            "decision_snapshot, action_plan, module_recap, resources";
-          planCard = {
-            name: nameMatch[1].trim(),
-            modules: [
-              {
-                name: module1NameMatch?.[1]?.trim() || "Discovery",
-                objective: module1ObjectiveMatch?.[1]?.trim() || "",
-                approach: module1ApproachMatch?.[1]?.trim() || "",
-                outcome: module1OutcomeMatch?.[1]?.trim() || "",
-              },
-              {
-                name: module2NameMatch?.[1]?.trim() || "Options",
-                objective: module2ObjectiveMatch?.[1]?.trim() || "",
-                approach: module2ApproachMatch?.[1]?.trim() || "",
-                outcome: module2OutcomeMatch?.[1]?.trim() || "",
-              },
-              {
-                name: module3NameMatch?.[1]?.trim() || "Action Plan",
-                objective: module3ObjectiveMatch?.[1]?.trim() || "",
-                approach: module3ApproachMatch?.[1]?.trim() || "",
-                outcome: module3OutcomeMatch?.[1]?.trim() || "",
-              },
-            ],
-            careerBrief: careerBriefMatch?.[1]?.trim() || "",
-            seriousPlanSummary:
-              seriousPlanSummaryMatch?.[1]?.trim() ||
-              "Your personalized Serious Plan with tailored coaching artifacts",
-            plannedArtifacts: parseArtifacts(artifactList),
+            return artifactKeys.map((key) => {
+              const normalizedKey = key.trim().toLowerCase().replace(/\s+/g, "_");
+              const def = artifactDefinitions[normalizedKey] || { title: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), type: "custom", description: "Custom artifact for your situation", importance: "recommended" };
+              return { key: normalizedKey, ...def };
+            });
           };
+          
+          planCard = {
+            name: rawPlanCard.name || "",
+            modules: rawPlanCard.modules || [],
+            careerBrief: rawPlanCard.careerBrief || "",
+            seriousPlanSummary: rawPlanCard.seriousPlanSummary || "Your personalized Serious Plan with tailored coaching artifacts",
+            plannedArtifacts: parseArtifacts(rawPlanCard.plannedArtifacts || ["decision_snapshot", "action_plan", "module_recap", "resources"]),
+          };
+          console.log(`[INTERVIEW] Parsed plancard JSON with ${planCard.modules?.length || 0} modules`);
+        } catch (e: any) {
+          console.log(`[INTERVIEW] Failed to parse plancard JSON: ${e.message}`);
         }
       }
 
-      // Parse value bullets (can appear with plan card or interview complete)
-      const bulletMatch = reply.match(
-        /\[\[VALUE_BULLETS\]\]([\s\S]*?)\[\[END_VALUE_BULLETS\]\]/,
-      );
-      if (bulletMatch) {
-        valueBullets = bulletMatch[1].trim();
-      }
-
-      // Parse social proof (can appear with plan card or interview complete)
-      const socialProofMatch = reply.match(
-        /\[\[SOCIAL_PROOF\]\]([\s\S]*?)\[\[END_SOCIAL_PROOF\]\]/,
-      );
-      if (socialProofMatch) {
-        socialProof = socialProofMatch[1].trim();
-      }
-
-      // Check for interview completion
-      if (reply.includes("[[INTERVIEW_COMPLETE]]")) {
-        done = true;
-      }
-
-      // Sanitize reply - remove all control tokens
-      reply = reply
-        .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, "")
-        .replace(/\[\[INTERVIEW_COMPLETE\]\]/g, "")
-        .replace(/\[\[VALUE_BULLETS\]\][\s\S]*?\[\[END_VALUE_BULLETS\]\]/g, "")
-        .replace(/\[\[SOCIAL_PROOF\]\][\s\S]*?\[\[END_SOCIAL_PROOF\]\]/g, "")
-        .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, "")
-        .replace(/\[\[PLAN_CARD\]\][\s\S]*?\[\[END_PLAN_CARD\]\]/g, "")
-        .trim();
+      // Strip plancard block from visible output
+      reply = reply.replace(/```plancard[\s\S]*?```/g, "").trim();
 
       res.json({
         reply,
-        done,
-        valueBullets,
-        socialProof,
-        options,
-        progress,
         planCard,
       });
     } catch (error: any) {
@@ -3105,45 +4894,30 @@ Speak with genuine expertise about their industry and function:
 - Share relevant insights about career paths, compensation, and industry norms
 - Use appropriate terminology and demonstrate understanding of their field
 
-### Structured Options (USE FREQUENTLY)
+### UI Tools (USE THESE FOR STRUCTURED UI ELEMENTS)
 
-Use [[OPTIONS]]...[[END_OPTIONS]] liberally — at least every 2-3 turns. When exploring a new topic, provide 4-5 thought starters with "Something else" as an option, then follow up with less structured questions.
+You have access to tools for injecting UI elements:
+
+1. **append_structured_outcomes** - Use to present clickable option buttons. Call with an array of options (objects with label and value). Use this instead of writing options as plain text. Use liberally - at least every 2-3 turns.
+
+2. **set_progress** - Call on every turn with progress percentage (5-100).
+
+3. **complete_module** - Call ONCE when the module is complete. Provide a structured summary object with insights (array), assessment (string), and takeaway (string).
 
 ### Session Structure
-1. **Opening (1 message)**: Start with a title card, then briefly introduce the module's purpose. Reference something specific from their interview to show you remember their situation.
+1. **Opening (1 message)**: Start with a warm introduction. Call set_progress(5). Reference something specific from their interview.
 2. **Deep Dive (4-6 exchanges)**: Ask questions that explore:
    - What specifically frustrates them day-to-day?
    - What aspects of the job did they used to enjoy (if any)?
    - Is the problem the role, the company, the manager, or something else?
    - What would need to change for them to want to stay?
-3. **Wrap-up**: When you feel you have a clear picture, output [[MODULE_COMPLETE]] along with a summary.
+3. **Wrap-up**: When you have a clear picture, call complete_module with a structured summary.
 
-### First Message Format
-On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
-— Job Autopsy (est. 10–20 minutes) —
-
-CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, ASCII box art, or markdown heading prefixes like #.
-
-Then introduce the module and ask your first probing question based on what you know about their situation.
+### First Message
+On your first message, warmly introduce the module topic. Call set_progress(5).
 
 ### Progress Tracking
-Include [[PROGRESS]]<number>[[END_PROGRESS]] in each response (5-100).
-
-### Completion
-When the module is complete, include:
-[[MODULE_COMPLETE]]
-[[SUMMARY]]
-**The Mirror** (what they said, reflected clearly)
-- Key point 1
-- Key point 2
-- Key point 3
-
-**Diagnosis**
-Your assessment of the core issue in 2-3 sentences.
-
-**Key Takeaway**
-One concrete insight they can carry forward.
-[[END_SUMMARY]]`,
+Call set_progress on every turn with a number from 5 to 100.`,
 
     2: `You are an experienced, plain-spoken career coach conducting Module 2: Fork in the Road.
 
@@ -3179,45 +4953,30 @@ Speak with genuine expertise about their industry and function:
 - Offer domain-specific advice about how to evaluate options
 - Suggest industry-relevant resources or frameworks
 
-### Structured Options (USE FREQUENTLY)
+### UI Tools (USE THESE FOR STRUCTURED UI ELEMENTS)
 
-Use [[OPTIONS]]...[[END_OPTIONS]] liberally — at least every 2-3 turns. When exploring a new topic, provide 4-5 thought starters with "Something else" as an option, then follow up with less structured questions.
+You have access to tools for injecting UI elements:
+
+1. **append_structured_outcomes** - Use to present clickable option buttons. Call with an array of options (objects with label and value). Use this instead of writing options as plain text. Use liberally - at least every 2-3 turns.
+
+2. **set_progress** - Call on every turn with progress percentage (5-100).
+
+3. **complete_module** - Call ONCE when the module is complete. Provide a structured summary object with insights (array), assessment (string), and takeaway (string).
 
 ### Session Structure
-1. **Opening (1 message)**: Start with a title card, then briefly recap what you learned in Module 1 and introduce this module's focus.
+1. **Opening (1 message)**: Start with a warm intro. Call set_progress(5). Briefly recap Module 1 and introduce this module's focus.
 2. **Options Exploration (4-6 exchanges)**: Ask questions that explore:
    - What are their actual options? (stay and negotiate, internal move, leave entirely)
    - What constraints are real vs. assumed?
    - What's the cost of staying another year?
    - What would make leaving worth the risk?
-3. **Wrap-up**: When you've mapped their options, output [[MODULE_COMPLETE]] with a summary.
+3. **Wrap-up**: When you've mapped their options, call complete_module with a structured summary.
 
-### First Message Format
-On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
-— Fork in the Road (est. 10–20 minutes) —
-
-CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, ASCII box art, or markdown heading prefixes like #.
-
-Then recap their situation briefly and ask your first question about options.
+### First Message
+On your first message, warmly recap their situation and introduce the module topic. Call set_progress(5).
 
 ### Progress Tracking
-Include [[PROGRESS]]<number>[[END_PROGRESS]] in each response (5-100).
-
-### Completion
-When the module is complete, include:
-[[MODULE_COMPLETE]]
-[[SUMMARY]]
-**Options Map**
-- Option A: [description] — Trade-offs: [brief]
-- Option B: [description] — Trade-offs: [brief]
-- Option C: [description] — Trade-offs: [brief]
-
-**Risk Snapshot**
-What they risk by staying vs. leaving.
-
-**Key Insight**
-One reframe or insight that might change how they see their choice.
-[[END_SUMMARY]]`,
+Call set_progress on every turn with a number from 5 to 100.`,
 
     3: `You are an experienced, plain-spoken career coach conducting Module 3: The Great Escape Plan.
 
@@ -3253,45 +5012,30 @@ Speak with genuine expertise about their industry and function:
 - Offer relevant resources, communities, or approaches for their industry
 - Provide practical scripts and talking points tailored to their situation
 
-### Structured Options (USE FREQUENTLY)
+### UI Tools (USE THESE FOR STRUCTURED UI ELEMENTS)
 
-Use [[OPTIONS]]...[[END_OPTIONS]] liberally — at least every 2-3 turns. When exploring a new topic, provide 4-5 thought starters with "Something else" as an option, then follow up with less structured questions.
+You have access to tools for injecting UI elements:
+
+1. **append_structured_outcomes** - Use to present clickable option buttons. Call with an array of options (objects with label and value). Use this instead of writing options as plain text. Use liberally - at least every 2-3 turns.
+
+2. **set_progress** - Call on every turn with progress percentage (5-100).
+
+3. **complete_module** - Call ONCE when the module is complete. Provide a structured summary object with insights (array), assessment (string), and takeaway (string). **Do NOT write a personalized farewell letter or closing message** - just transition naturally to calling complete_module.
 
 ### Session Structure
-1. **Opening (1 message)**: Start with a title card, briefly recap their options and which direction they're leaning, then dive into planning.
+1. **Opening (1 message)**: Start with a warm intro. Call set_progress(5). Briefly recap their options and which direction they're leaning.
 2. **Action Planning (4-6 exchanges)**: Cover:
    - What's their timeline? What needs to happen first?
    - Who do they need to talk to and what will they say?
    - What's their backup plan if things don't go as expected?
    - What support do they need?
-3. **Wrap-up**: When you have a clear action plan, output [[MODULE_COMPLETE]] with a summary. **Do NOT write a personalized farewell letter or closing message before [[MODULE_COMPLETE]].** Just transition naturally to the completion — no "let's bring this home" or inspirational send-off paragraphs. The summary inside [[SUMMARY]]...[[END_SUMMARY]] is the only closing content needed.
+3. **Wrap-up**: When you have a clear action plan, call complete_module with a structured summary.
 
-### First Message Format
-On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
-— The Great Escape Plan (est. 10–20 minutes) —
-
-CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, ASCII box art, or markdown heading prefixes like #.
-
-Then recap where they landed and start building the plan.
+### First Message
+On your first message, warmly recap where they landed and start building the plan. Call set_progress(5).
 
 ### Progress Tracking
-Include [[PROGRESS]]<number>[[END_PROGRESS]] in each response (5-100).
-
-### Completion
-When the module is complete, include:
-[[MODULE_COMPLETE]]
-[[SUMMARY]]
-**Action Timeline**
-- Week 1-2: [specific actions]
-- Week 3-4: [specific actions]
-- Month 2+: [specific actions]
-
-**Key Conversations**
-Brief talking points for the 1-2 most important conversations they need to have.
-
-**Your Anchor**
-A reminder of why they're doing this and what success looks like.
-[[END_SUMMARY]]`,
+Call set_progress on every turn with a number from 5 to 100.`,
   };
 
   // Helper function to format the dossier context for the AI
@@ -3443,25 +5187,25 @@ CRITICAL RULES:
         role: "discovery/unpacking",
         context:
           "The user has completed an initial interview where they shared their career situation. They've paid for coaching and are now starting the first module. You have complete access to the interview transcript and your analysis of their situation.",
-        structure: `1. **Opening (1 message)**: Start with a title card, then briefly introduce the module's purpose. Reference something specific from their interview to show you remember their situation.
+        structure: `1. **Opening (1 message)**: Introduce the module. Call set_progress(5). Reference something specific from their interview.
 2. **Deep Dive (4-6 exchanges)**: ${approach}
-3. **Wrap-up**: When you feel you have a clear picture, output [[MODULE_COMPLETE]] along with a summary.`,
+3. **Wrap-up**: When you have a clear picture, call complete_module with a structured summary.`,
       },
       2: {
         role: "exploring motivations/options/constraints",
         context:
           "The user has completed Module 1. You have the full transcript and analysis from that module. Now they need to explore their motivations, constraints, and options.",
-        structure: `1. **Opening (1 message)**: Start with a title card, then briefly recap what you learned in Module 1 and introduce this module's focus.
+        structure: `1. **Opening (1 message)**: Recap Module 1 and introduce this module's focus. Call set_progress(5).
 2. **Exploration (4-6 exchanges)**: ${approach}
-3. **Wrap-up**: When you've mapped their options and constraints, output [[MODULE_COMPLETE]] with a summary.`,
+3. **Wrap-up**: When you've mapped their options and constraints, call complete_module with a structured summary.`,
       },
       3: {
         role: "action planning",
         context:
           "The user has completed Modules 1 and 2. You have the full transcripts and analyses from both modules. Now it's time to build an action plan.",
-        structure: `1. **Opening (1 message)**: Start with a title card, briefly recap their situation and direction, then dive into planning.
+        structure: `1. **Opening (1 message)**: Recap their situation and direction. Call set_progress(5).
 2. **Action Planning (4-6 exchanges)**: ${approach}
-3. **Wrap-up**: When you have a clear action plan, output [[MODULE_COMPLETE]] with a summary.`,
+3. **Wrap-up**: When you have a clear action plan, call complete_module with a structured summary.`,
       },
     };
 
@@ -3484,35 +5228,24 @@ ${outcome}
 - No corporate jargon, no empty validation
 - Sound like a coach who has helped hundreds of people through this
 
+### UI Tools (USE THESE FOR STRUCTURED UI ELEMENTS)
+
+You have access to tools for injecting UI elements:
+
+1. **append_structured_outcomes** - Use to present clickable option buttons. Use this instead of writing options as plain text. Use liberally - at least every 2-3 turns.
+
+2. **set_progress** - Call on every turn with progress percentage (5-100).
+
+3. **complete_module** - Call ONCE when the module is complete. Provide a structured summary object with insights (array), assessment (string), and takeaway (string).
+
 ### Session Structure
 ${info.structure}
 
-### First Message Format
-On your first message, output a title card EXACTLY like this (using em-dashes, not code blocks or ASCII art):
-— ${name} (est. 10–20 minutes) —
-
-CRITICAL: The title card must be plain text on its own line. Do NOT use backticks, code blocks, ASCII box art, or markdown heading prefixes like #.
-
-Then introduce the module and ask your first probing question based on what you know about their situation.
+### First Message
+On your first message, warmly introduce the module topic. Call set_progress(5).
 
 ### Progress Tracking
-Include [[PROGRESS]]<number>[[END_PROGRESS]] in each response (5-100).
-
-### Completion
-When the module is complete, include:
-[[MODULE_COMPLETE]]
-[[SUMMARY]]
-**Key Insights**
-- Insight 1 (written in second person - "you", not their name)
-- Insight 2
-- Insight 3
-
-**Summary**
-Your assessment of what was covered in 2-3 sentences. IMPORTANT: Write in second person ("you discovered", "your situation") - NOT third person with their name.
-
-**Key Takeaway**
-One concrete insight they can carry forward (in second person).
-[[END_SUMMARY]]
+Call set_progress on every turn with a number from 5 to 100.
 
 ${dossierContext}`;
   }
@@ -3653,27 +5386,26 @@ The user has entered "testskip" which is a testing command. You must now:
 2. Fabricate plausible, realistic answers for ALL remaining module questions
 3. Start your response with: "Skipping ahead for testing purposes..."
 4. List bullet points of fabricated insights and decisions for this module
-5. Then ask for confirmation: "Does this summary capture your situation correctly? If so, I'll wrap up this module."
+5. Call set_progress(95) immediately.
+6. Ask for confirmation: "Does this summary capture your situation correctly? If so, I'll wrap up this module."
 
-After the user confirms (or on the next message), immediately complete the module by outputting [[MODULE_COMPLETE]] and the [[SUMMARY]] with fabricated but realistic key insights.
-
-Example fabricated module insights:
-- Key realization about their work situation
-- Decision or clarity gained during this module
-- Specific action they're considering
-
-Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] with [[SUMMARY]] on confirmation.
+After the user confirms (or on the next message), immediately call complete_module with a fabricated but realistic summary.
 `;
       }
 
-      let reply: string;
+      // Module stream key for event persistence
+      const moduleStreamKey = `module:${userId}:${moduleNumber}`;
+      const afterMessageIndex = transcript.length > 0 ? transcript.length - 1 : -1;
+
+      let reply: string = "";
+      let done = false;
+      let summary: string | null = null;
+      let options: { id: string; label: string; value: string }[] | null = null;
+      let progress: number | null = null;
 
       if (useAnthropic && anthropic) {
-        // Use Anthropic Claude
-        const claudeMessages: {
-          role: "user" | "assistant";
-          content: string;
-        }[] = [];
+        // Use Anthropic Claude with tools
+        const claudeMessages: any[] = [];
 
         for (const turn of transcript) {
           if (turn && turn.role && turn.content) {
@@ -3687,8 +5419,7 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
         if (transcript.length === 0) {
           claudeMessages.push({
             role: "user",
-            content:
-              "Start the module. Introduce it and ask your first question.",
+            content: "Start the module. Introduce it and ask your first question.",
           });
         }
 
@@ -3697,16 +5428,70 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
           max_tokens: isTestSkip ? 2048 : 1024,
           system: systemPrompt,
           messages: claudeMessages,
+          tools: MODULE_TOOLS.anthropic,
         });
 
-        reply =
-          response.content[0].type === "text" ? response.content[0].text : "";
+        // Process response content - handle text and tool_use blocks
+        for (const block of response.content) {
+          if (block.type === "text") {
+            reply += block.text;
+          } else if (block.type === "tool_use") {
+            const toolUse = block as { id: string; name: string; input: any };
+            
+            if (toolUse.name === "append_structured_outcomes") {
+              const input = toolUse.input as { prompt?: string; options: { id?: string; label: string; value: string }[] };
+              const optionsWithIds = input.options.map((opt, idx) => ({
+                id: opt.id || `opt_${idx}`,
+                label: opt.label,
+                value: opt.value,
+              }));
+              options = optionsWithIds;
+              
+              // Persist event
+              const event = await storage.appendEvent(moduleStreamKey, {
+                type: "module.structured_outcomes_added",
+                payload: { prompt: input.prompt, options: optionsWithIds, afterMessageIndex },
+              });
+              console.log(`[MODULE_TOOL] append_structured_outcomes: ${optionsWithIds.length} options, eventSeq=${event.eventSeq}`);
+              
+            } else if (toolUse.name === "set_progress") {
+              const input = toolUse.input as { progress: number };
+              progress = Math.min(100, Math.max(0, input.progress));
+              
+              // Persist event
+              await storage.appendEvent(moduleStreamKey, {
+                type: "module.progress_updated",
+                payload: { progress, afterMessageIndex },
+              });
+              console.log(`[MODULE_TOOL] set_progress: ${progress}%`);
+              
+            } else if (toolUse.name === "complete_module") {
+              const input = toolUse.input as { summary: { insights: string[]; assessment: string; takeaway: string } };
+              done = true;
+              
+              // Format summary for storage
+              const summaryText = `**Key Insights**\n${input.summary.insights.map(i => `- ${i}`).join('\n')}\n\n**Assessment**\n${input.summary.assessment}\n\n**Key Takeaway**\n${input.summary.takeaway}`;
+              summary = summaryText;
+              
+              // Persist event
+              await storage.appendEvent(moduleStreamKey, {
+                type: "module.complete",
+                payload: { summary: input.summary, afterMessageIndex },
+              });
+              
+              // Mark module as complete in database
+              try {
+                await storage.updateModuleComplete(userId, moduleNumber as 1 | 2 | 3, true);
+                console.log(`[MODULE_TOOL] complete_module: Module ${moduleNumber} marked complete for user ${userId}`);
+              } catch (err) {
+                console.error("[MODULE_TOOL] Failed to mark module complete:", err);
+              }
+            }
+          }
+        }
       } else {
-        // Fall back to OpenAI
-        const messages: {
-          role: "system" | "user" | "assistant";
-          content: string;
-        }[] = [{ role: "system", content: systemPrompt }];
+        // Fall back to OpenAI with tools
+        const messages: any[] = [{ role: "system", content: systemPrompt }];
 
         for (const turn of transcript) {
           if (turn && turn.role && turn.content) {
@@ -3720,8 +5505,7 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
         if (transcript.length === 0) {
           messages.push({
             role: "user",
-            content:
-              "Start the module. Introduce it and ask your first question.",
+            content: "Start the module. Introduce it and ask your first question.",
           });
         }
 
@@ -3729,80 +5513,144 @@ Remember to output [[PROGRESS]]95[[END_PROGRESS]] now, and [[MODULE_COMPLETE]] w
           model: "gpt-4.1-mini",
           messages,
           max_completion_tokens: isTestSkip ? 2048 : 1024,
+          tools: MODULE_TOOLS.openai,
         });
 
-        reply = response.choices[0].message.content || "";
-      }
-      let done = false;
-      let summary: string | null = null;
-      let options: string[] | null = null;
-      let progress: number | null = null;
-
-      // Parse progress token
-      const progressMatch = reply.match(
-        /\[\[PROGRESS\]\]\s*(\d+)\s*\[\[END_PROGRESS\]\]/,
-      );
-      if (progressMatch) {
-        progress = parseInt(progressMatch[1], 10);
-        if (isNaN(progress) || progress < 0 || progress > 100) {
-          progress = null;
+        const choice = response.choices[0];
+        reply = choice.message.content || "";
+        
+        // Handle tool calls
+        if (choice.message.tool_calls) {
+          for (const toolCall of choice.message.tool_calls) {
+            const toolName = toolCall.function.name;
+            const toolArgs = JSON.parse(toolCall.function.arguments || "{}");
+            
+            if (toolName === "append_structured_outcomes") {
+              const optionsWithIds = (toolArgs.options || []).map((opt: any, idx: number) => ({
+                id: opt.id || `opt_${idx}`,
+                label: opt.label,
+                value: opt.value,
+              }));
+              options = optionsWithIds;
+              
+              // Persist event
+              const event = await storage.appendEvent(moduleStreamKey, {
+                type: "module.structured_outcomes_added",
+                payload: { prompt: toolArgs.prompt, options: optionsWithIds, afterMessageIndex },
+              });
+              console.log(`[MODULE_TOOL] append_structured_outcomes: ${optionsWithIds.length} options, eventSeq=${event.eventSeq}`);
+              
+            } else if (toolName === "set_progress") {
+              progress = Math.min(100, Math.max(0, toolArgs.progress || 0));
+              
+              // Persist event
+              await storage.appendEvent(moduleStreamKey, {
+                type: "module.progress_updated",
+                payload: { progress, afterMessageIndex },
+              });
+              console.log(`[MODULE_TOOL] set_progress: ${progress}%`);
+              
+            } else if (toolName === "complete_module") {
+              done = true;
+              
+              // Format summary for storage
+              const summaryInput = toolArgs.summary || { insights: [], assessment: "", takeaway: "" };
+              const summaryText = `**Key Insights**\n${summaryInput.insights.map((i: string) => `- ${i}`).join('\n')}\n\n**Assessment**\n${summaryInput.assessment}\n\n**Key Takeaway**\n${summaryInput.takeaway}`;
+              summary = summaryText;
+              
+              // Persist event
+              await storage.appendEvent(moduleStreamKey, {
+                type: "module.complete",
+                payload: { summary: summaryInput, afterMessageIndex },
+              });
+              
+              // Mark module as complete in database
+              try {
+                await storage.updateModuleComplete(userId, moduleNumber as 1 | 2 | 3, true);
+                console.log(`[MODULE_TOOL] complete_module: Module ${moduleNumber} marked complete for user ${userId}`);
+              } catch (err) {
+                console.error("[MODULE_TOOL] Failed to mark module complete:", err);
+              }
+            }
+          }
         }
       }
 
-      // Parse structured options (handles both newline and pipe-separated)
-      const optionsMatch = reply.match(
-        /\[\[OPTIONS\]\]([\s\S]*?)\[\[END_OPTIONS\]\]/,
-      );
-      if (optionsMatch) {
-        const rawOptions = optionsMatch[1].trim();
-        // Split on newlines first, then on pipes if we only got one option
-        let parsedOptions = rawOptions
-          .split("\n")
-          .map((opt) => opt.trim())
-          .filter((opt) => opt.length > 0);
-        if (parsedOptions.length === 1 && parsedOptions[0].includes("|")) {
-          parsedOptions = parsedOptions[0]
-            .split("|")
-            .map((opt) => opt.trim())
-            .filter((opt) => opt.length > 0);
-        }
-        options = parsedOptions;
-      }
+      // Clean reply text
+      reply = reply.trim();
 
-      // Check for module completion
-      if (reply.includes("[[MODULE_COMPLETE]]")) {
-        done = true;
-
-        const summaryMatch = reply.match(
-          /\[\[SUMMARY\]\]([\s\S]*?)\[\[END_SUMMARY\]\]/,
-        );
-        if (summaryMatch) {
-          summary = summaryMatch[1].trim();
-        }
-
-        // Mark module as complete in database (user is already authenticated at this point)
+      // Empty reply detection and retry for modules (prevent empty assistant messages)
+      const MODULE_FALLBACK_MESSAGE = "Got it — keep going.";
+      
+      if (!reply) {
+        console.log(`[MODULE_LLM] Empty reply detected for module ${moduleNumber}, attempting single retry without tools`);
+        
         try {
-          await storage.updateModuleComplete(
-            userId,
-            moduleNumber as 1 | 2 | 3,
-            true,
-          );
-          console.log(
-            `Module ${moduleNumber} marked complete for user ${userId}`,
-          );
-        } catch (err) {
-          console.error("Failed to mark module complete:", err);
+          if (useAnthropic && anthropic) {
+            const retryMessages: any[] = [];
+            for (const turn of transcript) {
+              if (turn?.role && turn?.content) {
+                retryMessages.push({ role: turn.role, content: turn.content });
+              }
+            }
+            if (retryMessages.length === 0) {
+              retryMessages.push({ role: "user", content: "Start the module. Introduce it and ask your first question." });
+            }
+            retryMessages.push({
+              role: "user",
+              content: "[System: Please provide your response as text only, do not call any tools.]"
+            });
+            
+            const retryResponse = await anthropic.messages.create({
+              model: "claude-sonnet-4-5",
+              max_tokens: 1024,
+              system: systemPrompt,
+              messages: retryMessages,
+            });
+            
+            for (const block of retryResponse.content) {
+              if (block.type === "text" && block.text.trim()) {
+                reply = block.text.trim();
+                console.log(`[MODULE_LLM] Retry succeeded, reply length=${reply.length}`);
+                break;
+              }
+            }
+          } else if (openai) {
+            const retryMessages: any[] = [{ role: "system", content: systemPrompt }];
+            for (const turn of transcript) {
+              if (turn?.role && turn?.content) {
+                retryMessages.push({ role: turn.role, content: turn.content });
+              }
+            }
+            if (transcript.length === 0) {
+              retryMessages.push({ role: "user", content: "Start the module. Introduce it and ask your first question." });
+            }
+            retryMessages.push({
+              role: "user",
+              content: "[System: Please provide your response as text only, do not call any tools.]"
+            });
+            
+            const retryResponse = await openai.chat.completions.create({
+              model: "gpt-4.1-mini",
+              messages: retryMessages,
+              max_completion_tokens: 1024,
+            });
+            
+            if (retryResponse.choices[0].message.content?.trim()) {
+              reply = retryResponse.choices[0].message.content.trim();
+              console.log(`[MODULE_LLM] Retry succeeded, reply length=${reply.length}`);
+            }
+          }
+        } catch (retryError: any) {
+          console.log(`[MODULE_LLM] Retry failed: ${retryError.message}`);
+        }
+        
+        // Final fallback
+        if (!reply) {
+          reply = MODULE_FALLBACK_MESSAGE;
+          console.log(`[MODULE_LLM] Using fallback message after retry failed`);
         }
       }
-
-      // Sanitize reply - remove all control tokens
-      reply = reply
-        .replace(/\[\[PROGRESS\]\]\s*\d+\s*\[\[END_PROGRESS\]\]/g, "")
-        .replace(/\[\[MODULE_COMPLETE\]\]\s*/g, "")
-        .replace(/\[\[SUMMARY\]\][\s\S]*?\[\[END_SUMMARY\]\]\s*/g, "")
-        .replace(/\[\[OPTIONS\]\][\s\S]*?\[\[END_OPTIONS\]\]/g, "")
-        .replace(/\n\s*\n\s*\n/g, "\n\n") // Clean up excessive blank lines
-        .trim();
 
       res.json({ reply, done, summary, options, progress });
     } catch (error: any) {
@@ -3977,32 +5825,6 @@ FORMAT:
         return res.status(400).json({ error: "Invalid transcript format" });
       }
 
-      // Parse PROVIDED_NAME token from AI responses and update user profile
-      // Token format: [[PROVIDED_NAME:TheirName]]
-      let providedNameUpdated = false;
-      for (const message of transcript) {
-        if (message.role === "assistant" && message.content) {
-          const nameMatch = message.content.match(
-            /\[\[PROVIDED_NAME:([^\]]+)\]\]/,
-          );
-          if (nameMatch && nameMatch[1]) {
-            const providedName = nameMatch[1].trim();
-            if (providedName) {
-              // Check if user already has a providedName
-              const existingUser = await storage.getUser(userId);
-              if (existingUser && !existingUser.providedName) {
-                await storage.updateUser(userId, { providedName });
-                providedNameUpdated = true;
-                console.log(
-                  `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} providedName="${providedName}" status=updated`,
-                );
-              }
-            }
-            break; // Only process the first name token
-          }
-        }
-      }
-
       // Check if we need to generate dossier BEFORE upsert (to get existing state)
       let dossierTriggered = false;
       let existingHasDossier = false;
@@ -4072,14 +5894,13 @@ FORMAT:
 
       const durationMs = Date.now() - requestStart;
       console.log(
-        `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=success upsertDurationMs=${upsertDurationMs} dossierTriggered=${dossierTriggered} providedNameUpdated=${providedNameUpdated} durationMs=${durationMs}`,
+        `[TRANSCRIPT_POST] ts=${new Date().toISOString()} user=${userId} status=success upsertDurationMs=${upsertDurationMs} dossierTriggered=${dossierTriggered} durationMs=${durationMs}`,
       );
 
       res.json({
         success: true,
         id: result.id,
         dossierTriggered,
-        providedNameUpdated,
       });
     } catch (error: any) {
       const durationMs = Date.now() - requestStart;
@@ -4201,6 +6022,132 @@ FORMAT:
       });
     } catch (error: any) {
       console.error("Get modules status error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/module/:moduleNumber/state - Get module state (transcript + events) for deterministic rendering
+  app.get("/api/module/:moduleNumber/state", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const moduleNumber = parseInt(req.params.moduleNumber) as 1 | 2 | 3;
+
+      if (![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "Invalid module number" });
+      }
+
+      // Get module transcript data
+      const moduleData = await storage.getModuleData(userId, moduleNumber);
+      const transcript = moduleData?.transcript || [];
+
+      // Get events from app_events using module stream key
+      const moduleStreamKey = `module:${userId}:${moduleNumber}`;
+      const events = await storage.listEvents(moduleStreamKey);
+
+      res.json({
+        success: true,
+        transcript,
+        events,
+        complete: moduleData?.complete || false,
+        summary: moduleData?.summary || null,
+      });
+    } catch (error: any) {
+      console.error("[MODULE_STATE] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/module/:moduleNumber/outcomes/select - Select a module outcome option
+  app.post("/api/module/:moduleNumber/outcomes/select", requireAuth, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const moduleNumber = parseInt(req.params.moduleNumber) as 1 | 2 | 3;
+
+      if (![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "Invalid module number" });
+      }
+
+      const { eventSeq: rawEventSeq, optionId } = req.body;
+      if (rawEventSeq === undefined || rawEventSeq === null || !optionId) {
+        return res.status(400).json({ error: "eventSeq and optionId are required" });
+      }
+
+      const eventSeq = typeof rawEventSeq === "string" ? parseInt(rawEventSeq, 10) : rawEventSeq;
+      if (typeof eventSeq !== "number" || isNaN(eventSeq)) {
+        return res.status(400).json({ error: "eventSeq must be a valid number" });
+      }
+
+      const moduleStreamKey = `module:${userId}:${moduleNumber}`;
+      const events = await storage.listEvents(moduleStreamKey);
+
+      // Find the structured outcomes event by eventSeq
+      const outcomesEvent = events.find(e => e.eventSeq === eventSeq && e.type === "module.structured_outcomes_added");
+      if (!outcomesEvent) {
+        return res.status(404).json({ error: "Outcomes event not found" });
+      }
+
+      // Check if already selected
+      const existingSelection = events.find(e => 
+        e.type === "module.outcome_selected" && 
+        (e.payload as any)?.eventSeq === eventSeq
+      );
+      
+      if (existingSelection) {
+        const existingOptionId = (existingSelection.payload as any)?.optionId;
+        if (existingOptionId === optionId) {
+          // Idempotent success
+          const moduleData = await storage.getModuleData(userId, moduleNumber);
+          return res.json({
+            success: true,
+            transcript: moduleData?.transcript || [],
+            events,
+            note: "Option already selected (idempotent)",
+          });
+        } else {
+          return res.status(409).json({ error: "A different option was already selected for this event" });
+        }
+      }
+
+      // Find the option
+      const options = (outcomesEvent.payload as any)?.options || [];
+      const selectedOption = options.find((opt: any) => opt.id === optionId);
+      if (!selectedOption) {
+        return res.status(404).json({ error: "Option not found" });
+      }
+
+      // Get module transcript for afterMessageIndex calculation
+      const moduleData = await storage.getModuleData(userId, moduleNumber);
+      const transcript = moduleData?.transcript || [];
+      const afterMessageIndex = transcript.length > 0 ? transcript.length - 1 : -1;
+
+      // Append selection event
+      await storage.appendEvent(moduleStreamKey, {
+        type: "module.outcome_selected",
+        payload: {
+          eventSeq,
+          optionId,
+          value: selectedOption.value,
+          afterMessageIndex,
+        },
+      });
+
+      console.log(`[MODULE_TOOL] outcome_selected: eventSeq=${eventSeq}, optionId=${optionId}`);
+
+      // Append user message to transcript
+      const userMessage = { role: "user", content: selectedOption.value };
+      const updatedTranscript = [...transcript, userMessage];
+      await storage.updateModuleData(userId, moduleNumber, { transcript: updatedTranscript as any });
+
+      const updatedEvents = await storage.listEvents(moduleStreamKey);
+
+      res.json({
+        success: true,
+        transcript: updatedTranscript,
+        events: updatedEvents,
+        selectedValue: selectedOption.value,
+      });
+    } catch (error: any) {
+      console.error("[MODULE_OUTCOME_SELECT] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -4484,6 +6431,964 @@ FORMAT:
   });
 
   // ==========================================================================
+  // DEV-ONLY TEST ENDPOINTS (gated by NODE_ENV and secret)
+  // ==========================================================================
+  
+  function requireDevTools(req: express.Request, res: express.Response): boolean {
+    if (process.env.NODE_ENV === "production") {
+      // Return 404 in production to hide existence of dev endpoints
+      res.status(404).json({ error: "Not found" });
+      return false;
+    }
+    const secret = req.headers["x-dev-tools-secret"];
+    if (!process.env.DEV_TOOLS_SECRET || secret !== process.env.DEV_TOOLS_SECRET) {
+      res.status(403).json({ error: "Invalid or missing x-dev-tools-secret header" });
+      return false;
+    }
+    return true;
+  }
+
+  async function resolveTargetUser(body: { userId?: string; email?: string }) {
+    if (body.userId) {
+      return storage.getUser(body.userId);
+    }
+    if (body.email) {
+      return storage.getUserByEmail(body.email);
+    }
+    return storage.getMostRecentUser();
+  }
+
+  // POST /api/dev/interview/turn - Dev-only interview turn (no auth cookie required)
+  // Allows testing interview chat from shell without browser session
+  app.post("/api/dev/interview/turn", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      await handleInterviewTurn(user, req.body, res);
+    } catch (error: any) {
+      console.error("[DEV] interview/turn error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/interview/outcomes/select - Dev-only outcome selection (no auth)
+  // Uses eventSeq (number) as the canonical identifier for outcomes events
+  // Idempotency: same option = success (no-op), different option = 409 Conflict
+  app.post("/api/dev/interview/outcomes/select", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const { eventSeq: rawEventSeq, optionId } = req.body;
+      if (rawEventSeq === undefined || rawEventSeq === null || !optionId) {
+        return res.status(400).json({ error: "eventSeq and optionId are required" });
+      }
+
+      // Ensure eventSeq is a number
+      const eventSeq = typeof rawEventSeq === "string" ? parseInt(rawEventSeq, 10) : rawEventSeq;
+      if (typeof eventSeq !== "number" || isNaN(eventSeq)) {
+        return res.status(400).json({ error: "eventSeq must be a valid number" });
+      }
+
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.status(400).json({ error: "No interview session found" });
+      }
+
+      const sessionToken = transcript.sessionToken;
+      const eventsData = await storage.listInterviewEvents(sessionToken);
+
+      // Find the structured outcomes event by eventSeq
+      const outcomesEvent = eventsData.find(e => e.eventSeq === eventSeq && e.type === "chat.structured_outcomes_added");
+      if (!outcomesEvent) {
+        return res.status(404).json({ error: "Outcomes event not found" });
+      }
+
+      // Check if already selected for this outcomes event
+      const existingSelection = eventsData.find(e => 
+        e.type === "chat.structured_outcome_selected" && 
+        (e.payload as any)?.eventSeq === eventSeq
+      );
+      
+      if (existingSelection) {
+        const existingOptionId = (existingSelection.payload as any)?.optionId;
+        if (existingOptionId === optionId) {
+          // Same option selected again - idempotent success, return current state
+          const existingMessages = transcript.transcript || [];
+          res.json({
+            success: true,
+            transcript: existingMessages,
+            events: eventsData,
+            note: "Option already selected (idempotent)",
+          });
+          return;
+        } else {
+          // Different option selected - conflict
+          return res.status(409).json({ error: "A different option was already selected for this event" });
+        }
+      }
+
+      const options = (outcomesEvent.payload as any)?.options || [];
+      const selectedOption = options.find((opt: any) => opt.id === optionId);
+      if (!selectedOption) {
+        return res.status(404).json({ error: "Option not found" });
+      }
+
+      const existingMessages = transcript.transcript || [];
+      const afterMessageIndex = existingMessages.length > 0 ? existingMessages.length - 1 : -1;
+
+      // Append the selection event (using eventSeq as reference)
+      await storage.appendInterviewEvent(sessionToken, "chat.structured_outcome_selected", {
+        render: { afterMessageIndex },
+        eventSeq,
+        optionId,
+        value: selectedOption.value,
+      });
+
+      const userMessage = { role: "user", content: selectedOption.value };
+      const updatedMessages = [...existingMessages, userMessage];
+      await storage.updateTranscript(sessionToken, { transcript: updatedMessages as any });
+
+      const llmResult = await callInterviewLLM(updatedMessages as any, sessionToken, user.id);
+
+      const aiMessage = { role: "assistant", content: llmResult.reply };
+      const finalMessages = [...updatedMessages, aiMessage];
+      await storage.updateTranscript(sessionToken, { transcript: finalMessages as any });
+
+      const updatedEvents = await storage.listInterviewEvents(sessionToken);
+
+      res.json({
+        success: true,
+        transcript: finalMessages,
+        reply: llmResult.reply,
+        done: llmResult.done,
+        progress: llmResult.progress,
+        options: llmResult.options,
+        planCard: llmResult.planCard,
+        valueBullets: llmResult.valueBullets,
+        socialProof: llmResult.socialProof,
+        events: updatedEvents,
+      });
+    } catch (error: any) {
+      console.error("[DEV] outcomes/select error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/dev/interview/state - Dev-only endpoint to get interview state for a user
+  // Used by smoke tests to verify state without auth
+  app.get("/api/dev/interview/state", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const email = req.query.email as string;
+      if (!email) {
+        return res.status(400).json({ error: "email query parameter required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ error: "No user found for email" });
+      }
+
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.json({
+          success: true,
+          hasSession: false,
+          transcript: [],
+          events: [],
+        });
+      }
+
+      const sessionToken = transcript.sessionToken;
+      const allEvents = await storage.listInterviewEvents(sessionToken);
+
+      res.json({
+        success: true,
+        hasSession: true,
+        transcript: transcript.transcript || [],
+        events: allEvents,
+        interviewComplete: transcript.interviewComplete || false,
+      });
+    } catch (error: any) {
+      console.error("[DEV] interview/state error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/interview/inject-outcomes - Dev-only endpoint to inject test outcomes event
+  // Used by smoke tests since LLM tool calls are not deterministic
+  app.post("/api/dev/interview/inject-outcomes", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.status(400).json({ error: "No interview session found" });
+      }
+
+      const sessionToken = transcript.sessionToken;
+      const existingMessages = transcript.transcript || [];
+      // Outcomes should appear after the last assistant message (not user message)
+      // The last message in transcript is typically the assistant's reply
+      const afterMessageIndex = existingMessages.length > 0 ? existingMessages.length - 1 : 0;
+
+      // Create test outcomes with deterministic IDs
+      const testOptions = [
+        { id: "test_opt_1", label: "Option A", value: "I choose option A" },
+        { id: "test_opt_2", label: "Option B", value: "I choose option B" },
+        { id: "test_opt_3", label: "Option C", value: "I choose option C" },
+      ];
+
+      const event = await storage.appendInterviewEvent(sessionToken, "chat.structured_outcomes_added", {
+        render: { afterMessageIndex },
+        options: testOptions,
+      });
+
+      const allEvents = await storage.listInterviewEvents(sessionToken);
+
+      res.json({
+        success: true,
+        event,
+        eventSeq: event.eventSeq,
+        options: testOptions,
+        events: allEvents,
+      });
+    } catch (error: any) {
+      console.error("[DEV] inject-outcomes error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/interview/finalize - Dev-only endpoint to force finalize interview
+  // Used by smoke tests since LLM tool calls are not deterministic
+  app.post("/api/dev/interview/finalize", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        return res.status(400).json({ error: "No interview session found" });
+      }
+
+      const sessionToken = transcript.sessionToken;
+      const existingMessages = transcript.transcript || [];
+      const afterMessageIndex = existingMessages.length > 0 ? existingMessages.length - 1 : -1;
+
+      // Call the finalize handler
+      await handleFinalizeInterview(sessionToken, user.id, afterMessageIndex);
+
+      // Fetch updated state
+      const updatedTranscript = await storage.getTranscriptByUserId(user.id);
+      const allEvents = await storage.listInterviewEvents(sessionToken);
+      
+      // Check if serious plan was created
+      const seriousPlan = await storage.getSeriousPlanByUserId(user.id);
+      const artifacts = seriousPlan ? await storage.getArtifactsByPlanId(seriousPlan.id) : [];
+      
+      // Find final next steps event
+      const finalEvent = allEvents.find(e => e.type === "chat.final_next_steps_added");
+
+      res.json({
+        success: true,
+        interviewComplete: updatedTranscript?.interviewComplete || false,
+        hasSeriousPlan: !!seriousPlan,
+        planId: seriousPlan?.id || null,
+        planStatus: seriousPlan?.status || null,
+        artifactsCount: artifacts.length,
+        artifacts: artifacts.map(a => ({
+          key: a.artifactKey,
+          status: a.generationStatus,
+        })),
+        finalEvent: finalEvent ? {
+          eventSeq: finalEvent.eventSeq,
+          modulesCount: (finalEvent.payload as any)?.modules?.length || 0,
+          modules: (finalEvent.payload as any)?.modules || [],
+        } : null,
+        events: allEvents,
+      });
+    } catch (error: any) {
+      console.error("[DEV] interview/finalize error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // MODULE DEV ENDPOINTS (404 in production)
+  // ============================================
+
+  // POST /api/dev/module/inject-outcomes - Dev-only endpoint to inject test outcomes event for a module
+  app.post("/api/dev/module/inject-outcomes", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const { moduleNumber } = req.body;
+      if (!moduleNumber || ![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "moduleNumber must be 1, 2, or 3" });
+      }
+
+      const moduleStreamKey = `module:${user.id}:${moduleNumber}`;
+      const moduleData = await storage.getModuleData(user.id, moduleNumber as 1 | 2 | 3);
+      const transcript = moduleData?.transcript || [];
+      const afterMessageIndex = transcript.length > 0 ? transcript.length - 1 : -1;
+
+      // Create test outcomes with deterministic IDs
+      const testOptions = [
+        { id: "mod_opt_1", label: "Explore more", value: "I'd like to explore this more deeply" },
+        { id: "mod_opt_2", label: "Move on", value: "I'm ready to move on to the next topic" },
+        { id: "mod_opt_3", label: "Something else", value: "I have something else in mind" },
+      ];
+
+      // Create the event
+      const event = await storage.appendEvent(moduleStreamKey, {
+        type: "module.structured_outcomes_added",
+        payload: {
+          prompt: "What would you like to do next?",
+          options: testOptions,
+          afterMessageIndex,
+        },
+      });
+
+      const allEvents = await storage.listEvents(moduleStreamKey);
+
+      res.json({
+        success: true,
+        eventSeq: event.eventSeq,
+        options: testOptions,
+        events: allEvents,
+      });
+    } catch (error: any) {
+      console.error("[DEV] module/inject-outcomes error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/module/outcomes/select - Dev-only endpoint to select an option (no auth required)
+  app.post("/api/dev/module/outcomes/select", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const { moduleNumber, eventSeq: rawEventSeq, optionId } = req.body;
+      if (!moduleNumber || ![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "moduleNumber must be 1, 2, or 3" });
+      }
+
+      if (rawEventSeq === undefined || rawEventSeq === null || !optionId) {
+        return res.status(400).json({ error: "eventSeq and optionId are required" });
+      }
+
+      const eventSeq = typeof rawEventSeq === "string" ? parseInt(rawEventSeq, 10) : rawEventSeq;
+      const moduleStreamKey = `module:${user.id}:${moduleNumber}`;
+      const events = await storage.listEvents(moduleStreamKey);
+
+      // Find the outcomes event
+      const outcomesEvent = events.find(e => e.eventSeq === eventSeq && e.type === "module.structured_outcomes_added");
+      if (!outcomesEvent) {
+        return res.status(404).json({ error: "Outcomes event not found" });
+      }
+
+      // Check if already selected
+      const existingSelection = events.find(e => 
+        e.type === "module.outcome_selected" && 
+        (e.payload as any)?.eventSeq === eventSeq
+      );
+      
+      if (existingSelection) {
+        const existingOptionId = (existingSelection.payload as any)?.optionId;
+        if (existingOptionId === optionId) {
+          const moduleData = await storage.getModuleData(user.id, moduleNumber as 1 | 2 | 3);
+          return res.json({
+            success: true,
+            transcript: moduleData?.transcript || [],
+            events,
+            note: "Option already selected (idempotent)",
+          });
+        } else {
+          return res.status(409).json({ error: "A different option was already selected" });
+        }
+      }
+
+      // Find the option
+      const options = (outcomesEvent.payload as any)?.options || [];
+      const selectedOption = options.find((opt: any) => opt.id === optionId);
+      if (!selectedOption) {
+        return res.status(404).json({ error: "Option not found" });
+      }
+
+      // Get module data
+      const moduleData = await storage.getModuleData(user.id, moduleNumber as 1 | 2 | 3);
+      const transcript = moduleData?.transcript || [];
+      const afterMessageIndex = transcript.length > 0 ? transcript.length - 1 : -1;
+
+      // Append selection event
+      await storage.appendEvent(moduleStreamKey, {
+        type: "module.outcome_selected",
+        payload: {
+          eventSeq,
+          optionId,
+          value: selectedOption.value,
+          afterMessageIndex,
+        },
+      });
+
+      // Append user message to transcript
+      const userMessage = { role: "user", content: selectedOption.value };
+      const updatedTranscript = [...transcript, userMessage];
+      await storage.updateModuleData(user.id, moduleNumber as 1 | 2 | 3, { transcript: updatedTranscript as any });
+
+      const updatedEvents = await storage.listEvents(moduleStreamKey);
+
+      res.json({
+        success: true,
+        transcript: updatedTranscript,
+        events: updatedEvents,
+        selectedValue: selectedOption.value,
+      });
+    } catch (error: any) {
+      console.error("[DEV] module/outcomes/select error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/module/complete - Dev-only endpoint to force complete a module
+  app.post("/api/dev/module/complete", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const { moduleNumber } = req.body;
+      if (!moduleNumber || ![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "moduleNumber must be 1, 2, or 3" });
+      }
+
+      const moduleStreamKey = `module:${user.id}:${moduleNumber}`;
+      const moduleData = await storage.getModuleData(user.id, moduleNumber as 1 | 2 | 3);
+      const transcript = moduleData?.transcript || [];
+      const afterMessageIndex = transcript.length > 0 ? transcript.length - 1 : -1;
+
+      // Create test summary
+      const testSummary = {
+        insights: [
+          "You identified a key pattern in your work situation",
+          "Your values and priorities became clearer",
+          "You recognized what needs to change",
+        ],
+        assessment: "Through this conversation, you've gained clarity on your situation and the path forward.",
+        takeaway: "Trust your instincts about what you need next.",
+      };
+
+      // Create completion event
+      await storage.appendEvent(moduleStreamKey, {
+        type: "module.complete",
+        payload: { summary: testSummary, afterMessageIndex },
+      });
+
+      // Mark module complete in database
+      await storage.updateModuleComplete(user.id, moduleNumber as 1 | 2 | 3, true);
+
+      // Format summary text
+      const summaryText = `**Key Insights**\n${testSummary.insights.map(i => `- ${i}`).join('\n')}\n\n**Assessment**\n${testSummary.assessment}\n\n**Key Takeaway**\n${testSummary.takeaway}`;
+      await storage.updateModuleData(user.id, moduleNumber as 1 | 2 | 3, { summary: summaryText, complete: true });
+
+      const allEvents = await storage.listEvents(moduleStreamKey);
+
+      res.json({
+        success: true,
+        moduleNumber,
+        complete: true,
+        summary: testSummary,
+        events: allEvents,
+      });
+    } catch (error: any) {
+      console.error("[DEV] module/complete error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/journey - Get journey state for a user (for smoke testing plan-derived modules)
+  app.post("/api/dev/journey", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      const journeyState = await storage.getJourneyState(user.id);
+      const state: JourneyState = journeyState || {
+        interviewComplete: false,
+        paymentVerified: false,
+        module1Complete: false,
+        module2Complete: false,
+        module3Complete: false,
+        hasSeriousPlan: false,
+      };
+
+      // Get plan-derived modules if interview is complete
+      let modules = null;
+      if (state.interviewComplete) {
+        const transcript = await storage.getTranscriptByUserId(user.id);
+        if (transcript?.planCard?.modules) {
+          modules = transcript.planCard.modules.map((mod: any, i: number) => ({
+            moduleNumber: i + 1,
+            title: mod.name,
+            description: mod.objective,
+          }));
+        }
+      }
+
+      res.json({
+        state,
+        modules,
+      });
+    } catch (error: any) {
+      console.error("[DEV] journey error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/reset-user-name - Reset user's providedName to null and clear events for testing
+  app.post("/api/dev/reset-user-name", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      // Reset providedName
+      await storage.updateUser(user.id, { providedName: null });
+      console.log(`[DEV] Reset providedName to null for user ${user.id}`);
+
+      // Also clear interview events if there's a transcript with a session token
+      const transcript = await storage.getTranscriptByUserId(user.id);
+      if (transcript?.sessionToken) {
+        await storage.clearInterviewEvents(transcript.sessionToken);
+        console.log(`[DEV] Cleared interview events for session ${transcript.sessionToken}`);
+      }
+
+      res.json({ success: true, userId: user.id });
+    } catch (error: any) {
+      console.error("[DEV] reset-user-name error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/simulate-checkout-pending
+  // Sets user to CHECKOUT_PENDING phase (interviewComplete=true, paymentVerified=false, stripeSessionId set)
+  app.post("/api/dev/simulate-checkout-pending", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      // Ensure transcript exists with interviewComplete=true, paymentVerified=false, stripeSessionId set
+      let transcript = await storage.getTranscriptByUserId(user.id);
+      if (!transcript) {
+        // Create minimal transcript
+        transcript = await storage.upsertTranscriptByUserId(user.id, {
+          transcript: [{ role: "assistant", content: "Dev test transcript" }],
+          currentModule: "complete",
+          progress: 100,
+          interviewComplete: true,
+          paymentVerified: false,
+        });
+      }
+      
+      // Update flags
+      await storage.updateTranscriptFlagsByUserId(user.id, {
+        interviewComplete: true,
+        paymentVerified: false,
+        stripeSessionId: "dev_dummy_session_" + Date.now(),
+      });
+
+      const routing = await computeRoutingForUser(user.id);
+
+      res.json({
+        success: true,
+        userId: user.id,
+        email: user.email,
+        routing,
+      });
+    } catch (error: any) {
+      console.error("[DEV] simulate-checkout-pending error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/simulate-payment-verified
+  // Sets user to PURCHASED phase (paymentVerified=true)
+  app.post("/api/dev/simulate-payment-verified", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      // Update flags
+      await storage.updateTranscriptFlagsByUserId(user.id, {
+        paymentVerified: true,
+      });
+
+      const routing = await computeRoutingForUser(user.id);
+
+      res.json({
+        success: true,
+        userId: user.id,
+        email: user.email,
+        routing,
+      });
+    } catch (error: any) {
+      console.error("[DEV] simulate-payment-verified error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/modules/complete
+  // Sets moduleNComplete flag for testing without UI
+  app.post("/api/dev/modules/complete", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const { moduleNumber } = req.body;
+      if (![1, 2, 3].includes(moduleNumber)) {
+        return res.status(400).json({ error: "moduleNumber must be 1, 2, or 3" });
+      }
+
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      // Set the module complete flag
+      await storage.updateModuleComplete(user.id, moduleNumber as 1 | 2 | 3, true);
+
+      const routing = await computeRoutingForUser(user.id);
+
+      res.json({
+        success: true,
+        userId: user.id,
+        email: user.email,
+        moduleNumber,
+        routing,
+      });
+    } catch (error: any) {
+      console.error("[DEV] modules/complete error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/serious-plan/complete
+  // Sets hasSeriousPlan=true by marking coach letter as seen (for testing)
+  app.post("/api/dev/serious-plan/complete", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      // Get the user's plan
+      const plan = await storage.getSeriousPlanByUserId(user.id);
+      if (!plan) {
+        // Create a minimal plan if none exists
+        const transcript = await storage.getTranscriptByUserId(user.id);
+        if (!transcript) {
+          return res.status(400).json({ error: "User has no transcript - cannot create plan" });
+        }
+        
+        const newPlan = await storage.createSeriousPlan({
+          userId: user.id,
+          transcriptId: transcript.id,
+          status: 'ready',
+          coachLetterStatus: 'complete',
+          coachNoteContent: 'Dev-generated coach letter for testing.',
+          coachLetterSeenAt: new Date(),
+        });
+        
+        const routing = await computeRoutingForUser(user.id);
+        return res.json({
+          ok: true,
+          userId: user.id,
+          planId: newPlan.id,
+          routing,
+        });
+      }
+
+      // Mark letter as seen (this triggers hasSeriousPlan=true)
+      await storage.markCoachLetterSeen(plan.id);
+      
+      // Also ensure plan status is ready
+      if (plan.status !== 'ready') {
+        await storage.updateSeriousPlanStatus(plan.id, 'ready');
+      }
+
+      const routing = await computeRoutingForUser(user.id);
+
+      res.json({
+        ok: true,
+        userId: user.id,
+        planId: plan.id,
+        routing,
+      });
+    } catch (error: any) {
+      console.error("[DEV] serious-plan/complete error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/dev/most-recent-user
+  // Returns the most recent user (for smoke testing)
+  app.get("/api/dev/most-recent-user", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await storage.getMostRecentUser();
+      if (!user) {
+        return res.status(404).json({ error: "No users found" });
+      }
+      res.json({ id: user.id, email: user.email });
+    } catch (error: any) {
+      console.error("[DEV] most-recent-user error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dev/serious-plan/ensure-artifacts
+  // Ensures a user has a serious plan with at least one artifact (creates if needed)
+  // Uses REAL artifact generation pipeline (LLM calls) if artifacts need to be created
+  // Returns: { userId, planId, artifactCount, created, artifactKeys }
+  app.post("/api/dev/serious-plan/ensure-artifacts", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const user = await resolveTargetUser(req.body);
+      if (!user) {
+        return res.status(404).json({ error: "No user found" });
+      }
+
+      // Check for existing plan
+      let plan = await storage.getSeriousPlanByUserId(user.id);
+      let created = false;
+
+      if (!plan) {
+        // Create a minimal plan for testing
+        plan = await storage.createSeriousPlan({
+          userId: user.id,
+          transcriptId: null,
+          status: 'generating',
+          coachLetterStatus: 'pending',
+        });
+        created = true;
+      }
+
+      // Check existing artifacts
+      let artifacts = await storage.getArtifactsByPlanId(plan.id);
+      
+      // Force regenerate if requested - delete existing non-transcript artifacts
+      const forceRegenerate = req.body.forceRegenerate === true;
+      if (forceRegenerate && artifacts.length > 0) {
+        console.log(`[DEV] Force regenerate requested - deleting ${artifacts.length} existing artifacts`);
+        // Delete existing non-transcript artifacts
+        for (const artifact of artifacts) {
+          if (!artifact.artifactKey.startsWith('transcript_')) {
+            await db.delete(seriousPlanArtifacts).where(eq(seriousPlanArtifacts.id, artifact.id));
+          }
+        }
+        // Re-fetch to get only transcript artifacts (if any)
+        artifacts = await storage.getArtifactsByPlanId(plan.id);
+        created = true;
+      }
+
+      if (artifacts.length === 0) {
+        // Create placeholder artifacts for testing the real generation lifecycle
+        const testArtifactKeys = ['decision_snapshot', 'action_plan', 'module_recap'];
+        const placeholders = testArtifactKeys.map((key, idx) => ({
+          planId: plan!.id,
+          artifactKey: key,
+          title: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          type: 'generated' as const,
+          importanceLevel: 'must_read' as const,
+          whyImportant: `Test artifact for ${key}`,
+          contentRaw: null,
+          generationStatus: 'pending' as const,
+          displayOrder: idx + 1,
+          pdfStatus: 'not_started' as const,
+        }));
+
+        artifacts = await storage.createArtifacts(placeholders);
+        created = true;
+
+        // Build minimal coaching plan and dossier for real generation
+        const clientName = user.name || user.email?.split('@')[0] || 'Test User';
+        const testCoachingPlan: CoachingPlan = {
+          name: clientName,
+          careerBrief: 'Career transition coaching',
+          seriousPlanSummary: 'Your personalized career plan with actionable steps',
+          plannedArtifacts: testArtifactKeys.map((key) => ({
+            key,
+            title: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            type: 'generated',
+            description: `Generated artifact for ${key}`,
+            importance: 'must_read' as const,
+          })),
+          modules: [
+            { name: 'Job Autopsy', objective: 'Analyze current career', approach: 'Interview-based', outcome: 'Clear picture of situation' },
+            { name: 'Fork in the Road', objective: 'Explore options', approach: 'Decision framework', outcome: 'Path forward identified' },
+            { name: 'Great Escape Plan', objective: 'Create action plan', approach: 'Step-by-step planning', outcome: 'Actionable roadmap' },
+          ],
+        };
+
+        const testDossier: ClientDossier = {
+          interviewTranscript: [{ role: 'assistant', content: 'Welcome to coaching.' }, { role: 'user', content: 'Thanks!' }],
+          lastUpdated: new Date().toISOString(),
+          interviewAnalysis: {
+            clientName,
+            currentRole: 'Software Engineer',
+            company: 'Tech Corp',
+            tenure: '5 years',
+            situation: 'Looking to transition careers',
+            bigProblem: 'Feeling stuck in current role',
+            desiredOutcome: 'Career transition to product management',
+            clientFacingSummary: 'A skilled engineer ready for the next chapter.',
+            keyFacts: ['5 years experience', 'Strong technical background'],
+            relationships: [{ person: 'Manager', role: 'Supervisor', dynamic: 'Supportive' }],
+            emotionalState: 'Motivated but uncertain',
+            communicationStyle: 'Direct and clear',
+            priorities: ['Career growth', 'Work-life balance'],
+            constraints: ['Time availability', 'Financial considerations'],
+            motivations: ['Learning new skills', 'Making an impact'],
+            fears: ['Starting over', 'Uncertainty'],
+            questionsAsked: ['What do you want?'],
+            optionsOffered: [{ option: 'PM role', chosen: true }],
+            observations: 'Client is well-prepared and engaged.',
+          },
+          moduleRecords: testCoachingPlan.modules.map((m, idx) => ({
+            moduleNumber: idx + 1,
+            moduleName: m.name,
+            transcript: [{ role: 'assistant', content: `Module ${idx + 1}` }],
+            summary: `Completed ${m.name}`,
+            decisions: ['Move forward with plan'],
+            insights: [`Key insight from ${m.name}`],
+            actionItems: [`Action item from ${m.name}`],
+            questionsAsked: ['How do you feel?'],
+            optionsPresented: [{ option: 'Continue', chosen: true }],
+            observations: 'Good progress',
+            completedAt: new Date().toISOString(),
+          })),
+        };
+
+        // Fire off REAL artifact generation (uses LLM to generate content)
+        console.log(`[DEV] Starting real artifact generation for plan=${plan!.id} artifacts=${testArtifactKeys.join(',')}`);
+        generateArtifactsAsync(plan!.id, testCoachingPlan.name, testCoachingPlan, testDossier, testArtifactKeys);
+      }
+
+      res.json({
+        ok: true,
+        userId: user.id,
+        planId: plan.id,
+        artifactCount: artifacts.length,
+        created,
+        artifactKeys: artifacts.map(a => a.artifactKey),
+        initialStatuses: artifacts.map(a => ({ key: a.artifactKey, status: a.generationStatus })),
+      });
+    } catch (error: any) {
+      console.error("[DEV] ensure-artifacts error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/dev/serious-plan/latest
+  // Returns the serious plan for a user (same shape as /api/serious-plan/latest)
+  app.get("/api/dev/serious-plan/latest", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const userId = req.query.userId as string;
+      if (!userId) {
+        return res.status(400).json({ error: "userId query param required" });
+      }
+
+      const plan = await getLatestSeriousPlan(userId);
+      if (!plan) {
+        return res.status(404).json({ error: "No Serious Plan found" });
+      }
+
+      res.json(plan);
+    } catch (error: any) {
+      console.error("[DEV] serious-plan/latest error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/dev/routing/:userId
+  // Returns routing for a specific user (for testing without auth)
+  app.get("/api/dev/routing/:userId", async (req, res) => {
+    if (!requireDevTools(req, res)) return;
+
+    try {
+      const userId = req.params.userId;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const routing = await computeRoutingForUser(userId);
+
+      res.json({
+        userId,
+        email: user.email,
+        routing,
+      });
+    } catch (error: any) {
+      console.error("[DEV] routing error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ==========================================================================
   // SEO Routes (served before SPA catch-all)
   // ==========================================================================
   
@@ -4536,6 +7441,7 @@ FORMAT:
       });
       
       res.set("Content-Type", "text/html");
+      res.set("X-SP-SEO", "1");
       res.send(html);
     } catch (error) {
       console.error("[Landing] Error rendering landing page:", error);
@@ -4550,6 +7456,7 @@ FORMAT:
   app.get("/guides", seoController.renderGuidesIndex);
   app.get("/guides/:slug", seoController.renderGuide);
   app.get("/roles", seoController.renderRolesIndex);
+  app.get("/roles/:role", seoController.renderRolePage);
   app.get("/roles/:role/situations/:situation", seoController.renderProgrammaticPage);
   app.get("/tools/stay-or-go-calculator", seoController.renderStayOrGoCalculator);
 

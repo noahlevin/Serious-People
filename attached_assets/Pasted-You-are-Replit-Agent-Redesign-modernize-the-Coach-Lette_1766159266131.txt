@@ -1,0 +1,88 @@
+You are Replit Agent. Redesign + modernize the Coach Letter page so it matches the current Lovable design system and the new app architecture (react-router-dom + cached bootstrap auth). Keep behavior the same and avoid refactors.
+
+Hard rules:
+- Do NOT redesign the whole app—only this page.
+- No page-level auth redirects and no calling refetch() on mount. Server gating + AuthProvider own auth.
+- Replace wouter usage with react-router-dom.
+- Keep the same backend endpoints:
+  - GET /api/serious-plan/letter (poll until complete)
+  - POST /api/serious-plan/letter/seen (then navigate to /serious-plan)
+- Keep changes minimal and testable.
+- Output:
+  (1) diff-style summary
+  (2) full contents of any changed files
+  (3) pasted output from the Critical Verification commands at the end. If you cannot run commands, say so explicitly.
+
+Files to edit:
+1) client/src/pages/coach-letter.tsx
+2) Create client/src/lovable/pages/CoachLetter.tsx (new) and convert the existing pages file into a wrapper, matching the pattern used by interview-chat and offer.
+
+Implementation details:
+
+A) Create a new Lovable page component:
+- New file: client/src/lovable/pages/CoachLetter.tsx
+- Use react-router-dom:
+  - import { Link, useNavigate } from "react-router-dom"
+- Use useAuth() values:
+  - authChecked, isAuthenticated
+- React Query:
+  - useQuery with queryKey: ["/api/serious-plan/letter"]
+  - enabled: authChecked && isAuthenticated
+  - refetchInterval: 2000 only while status is "pending" or "generating"; otherwise false
+- useMutation for POST /api/serious-plan/letter/seen; onSuccess navigate("/serious-plan")
+
+UI / Design (Lovable-ish, minimal):
+- Header matches other Lovable pages:
+  - border-b header
+  - container class sp-container
+  - logo Link should go to "/progress" (not "/")
+  - UserMenu on right
+- Body:
+  - centered card-like container (use existing tokens/classes; you can reuse Card/Button components from your current UI libs if already used elsewhere)
+  - Loading state: spinner + “Preparing your plan…”
+  - Error state: simple message + button “Continue to Your Plan” (navigate("/serious-plan"))
+  - Success state:
+    - icon (GraduationCap or similar)
+    - title “Your Serious Plan (with coach letter)”
+    - render paragraphs split on blank lines
+    - primary CTA button “Continue to Your Plan” posts seen then navigates
+- Keep styling consistent with current app tokens; no pixel-perfect obsession, just clean.
+
+B) Convert client/src/pages/coach-letter.tsx to a wrapper:
+- Content should become:
+  - import CoachLetter from "@/lovable/pages/CoachLetter";
+  - export default function CoachLetterPage(){ return <CoachLetter/>; }
+
+C) Remove old behaviors:
+- Remove wouter useLocation entirely.
+- Remove any useEffect that calls refetch() on mount.
+- Remove redirect-to-/login logic. The server /app/* gate handles access control.
+
+D) Keep behavior intact:
+- The page should still poll until the letter is ready.
+- Clicking continue should still POST seen and go to /serious-plan.
+
+Critical Verification (must execute in Replit Shell and paste output)
+1) Basic checks (skip gracefully if not present):
+```bash
+npm run lint --if-present
+npm run typecheck --if-present
+npm run test --if-present
+npm run build --if-present
+Confirm server responds:
+
+bash
+Copy code
+PORT=${PORT:-5000}
+curl -sS -i "http://localhost:${PORT}/api/bootstrap" | head -n 25
+Confirm the route renders (no UI clicking required):
+
+Just verify the SPA can load the route path (HTTP 200 from server for logged-in users is enough).
+
+If you cannot simulate login, state that clearly.
+
+bash
+Copy code
+PORT=${PORT:-5000}
+curl -sS -I "http://localhost:${PORT}/app/coach-letter" | head -n 20
+Also: do NOT claim “tests passed” unless you paste the command output.

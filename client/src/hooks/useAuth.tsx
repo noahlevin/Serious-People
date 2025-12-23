@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { identifyUser, resetUser } from "@/lib/posthog";
@@ -10,10 +10,47 @@ interface User {
   providedName: string | null;
 }
 
+interface JourneyState {
+  interviewComplete: boolean;
+  paymentVerified: boolean;
+  module1Complete: boolean;
+  module2Complete: boolean;
+  module3Complete: boolean;
+  hasSeriousPlan: boolean;
+}
+
+interface PlanModule {
+  moduleNumber: number;
+  title: string;
+  description: string;
+}
+
+interface JourneyData {
+  state: JourneyState;
+  phase: string;
+  modules?: PlanModule[] | null;
+}
+
+interface RoutingData {
+  canonicalPath: string;
+  resumePath: string;
+  allowedPaths: string[];
+}
+
+interface BootstrapResponse {
+  authenticated: boolean;
+  user: User | null;
+  journey: JourneyData | null;
+  routing: RoutingData | null;
+}
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  authChecked: boolean;
+  journey: JourneyData | null;
+  routing: RoutingData | null;
   logout: () => Promise<void>;
   refetch: () => void;
 }
@@ -23,17 +60,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   
-  const { data, isLoading, refetch } = useQuery<{ authenticated: boolean; user: User | null }>({
-    queryKey: ["/auth/me"],
-    staleTime: 0, // Always refetch to ensure fresh data
+  const { data, isLoading, refetch, isFetched } = useQuery<BootstrapResponse>({
+    queryKey: ["/api/bootstrap"],
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
     retry: false,
   });
   
-  useEffect(() => {
-    if (data?.authenticated && data?.user?.email) {
-      identifyUser(data.user.email, { name: data.user.name });
-    }
-  }, [data?.authenticated, data?.user?.email, data?.user?.name]);
+  // Identify user in PostHog when authenticated
+  if (data?.authenticated && data?.user?.email) {
+    identifyUser(data.user.email, { name: data.user.name });
+  }
   
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -41,8 +78,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     onSuccess: () => {
       resetUser();
-      queryClient.setQueryData(["/auth/me"], { authenticated: false, user: null });
-      queryClient.invalidateQueries({ queryKey: ["/auth/me"] });
+      queryClient.setQueryData(["/api/bootstrap"], { 
+        authenticated: false, 
+        user: null, 
+        journey: null, 
+        routing: null 
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/bootstrap"] });
     },
   });
   
@@ -54,6 +96,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user: data?.user || null,
     isAuthenticated: data?.authenticated || false,
     isLoading,
+    authChecked: isFetched,
+    journey: data?.journey || null,
+    routing: data?.routing || null,
     logout,
     refetch,
   };

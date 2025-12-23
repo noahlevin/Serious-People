@@ -1,38 +1,113 @@
-<article class="sp-article">
-  <h1><%= title %></h1>
-  
-  <% if (typeof lede !== 'undefined' && lede) { %>
-  <p class="sp-lede"><%= lede %></p>
-  <% } %>
-  
-  <%- content %>
-  
-  <!-- Primary CTA -->
-  <div class="sp-cta-box">
-    <h3>Ready to make your decision?</h3>
-    <p>In one structured session, you'll walk away with a clear recommendation, conversation scripts, and a 14-day action plan.</p>
-    <a href="/interview" class="sp-cta-button" data-testid="cta-start-session">Start Your Session</a>
+<!-- Breadcrumb - matches GuideDetail.tsx line 129-136 -->
+<div class="sp-container" style="padding-top: 1rem;">
+  <nav class="sp-breadcrumb" data-testid="breadcrumb-nav">
+    <a href="/guides" data-testid="link-breadcrumb-guides">Guides</a>
+    <svg class="sp-breadcrumb-separator" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 18l6-6-6-6"/>
+    </svg>
+    <span class="sp-breadcrumb-current"><%= typeof category !== 'undefined' ? category : title.split(':')[0].trim() %></span>
+  </nav>
+</div>
+
+<!-- Hero - matches GuideDetail.tsx py-12 md:py-16 max-w-2xl -->
+<section class="sp-container sp-hero-section">
+  <div class="sp-content-narrow" style="margin: 0 auto;">
+    <h1 class="sp-guide-title" data-testid="text-guide-title"><%= title %></h1>
+    
+    <% if (typeof lede !== 'undefined' && lede) { %>
+    <p class="sp-guide-lede" data-testid="text-guide-lede"><%= lede %></p>
+    <% } %>
+    
+    <% if (typeof readTime !== 'undefined' && readTime) { %>
+    <div class="sp-guide-meta" data-testid="text-read-time">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 6v6l4 2"/>
+      </svg>
+      <span><%= readTime %></span>
+    </div>
+    <% } %>
   </div>
-  
-  <% if (typeof relatedLinks !== 'undefined' && relatedLinks.length > 0) { %>
-  <section class="sp-related">
-    <h3>Related Guides</h3>
-    <ul>
-      <% relatedLinks.forEach(function(link) { %>
-      <li><a href="<%= link.href %>"><%= link.title %></a></li>
-      <% }); %>
-    </ul>
-  </section>
-  <% } %>
-  
-  <% if (typeof relatedRolePages !== 'undefined' && relatedRolePages.length > 0) { %>
-  <section class="sp-related">
-    <h3>Role-Specific Guidance</h3>
-    <ul>
-      <% relatedRolePages.forEach(function(link) { %>
-      <li><a href="<%= link.href %>"><%= link.title %></a></li>
-      <% }); %>
-    </ul>
-  </section>
-  <% } %>
+</section>
+
+<% if (typeof toolCta !== 'undefined' && toolCta) { %>
+<!-- Calculator/Tool CTA - matches GuideDetail.tsx pb-12 max-w-2xl -->
+<section class="sp-container" style="padding-bottom: 3rem;">
+  <div class="sp-content-narrow" style="margin: 0 auto;">
+    <a href="<%= toolCta.href %>" class="sp-tool-cta" data-testid="link-tool-cta">
+      <p class="sp-tool-cta-label"><%= toolCta.label %></p>
+      <p class="sp-tool-cta-title">
+        <%= toolCta.title %>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </p>
+      <p class="sp-tool-cta-desc"><%= toolCta.description %></p>
+    </a>
+  </div>
+</section>
+<% } %>
+
+<!-- Article Content - matches GuideDetail.tsx line 175-232 -->
+<article class="sp-container" style="padding-bottom: 4rem;">
+  <div class="sp-content-narrow sp-article-body" style="margin: 0 auto;">
+    <%- content %>
+  </div>
 </article>
+
+<!-- Dark CTA Box - matches GuideDetail.tsx line 234-250 -->
+<section class="sp-container" style="padding-bottom: 4rem;">
+  <div class="sp-content-narrow" style="margin: 0 auto;">
+    <div class="sp-cta-dark" data-testid="cta-dark-box">
+      <h3>Ready to make your decision?</h3>
+      <p>In one structured session, you'll walk away with a clear recommendation, conversation scripts, and a 14-day action plan.</p>
+      <a href="/app/interview/start" class="sp-btn sp-btn-default" data-testid="button-start-session">
+        Start Your Session
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<% if ((typeof relatedLinks !== 'undefined' && relatedLinks.length > 0) || (typeof relatedRolePages !== 'undefined' && relatedRolePages.length > 0)) { %>
+<!-- Related Content - matches GuideDetail.tsx line 252-285 -->
+<section class="sp-section-sage" style="border-top: 1px solid hsl(var(--border));">
+  <div class="sp-container" style="padding-top: 4rem; padding-bottom: 4rem;">
+    <div class="sp-content-narrow" style="margin: 0 auto;">
+      <% if (typeof relatedLinks !== 'undefined' && relatedLinks.length > 0) { %>
+      <h3 class="sp-related-heading">Related Guides</h3>
+      <ul class="sp-related-list" data-testid="list-related-guides">
+        <% relatedLinks.forEach(function(link) { %>
+        <li class="sp-related-item">
+          <a href="<%= link.href %>" data-testid="link-related-<%= link.href.split('/').pop() %>">
+            <span><%= link.title %></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </a>
+        </li>
+        <% }); %>
+      </ul>
+      <% } %>
+      
+      <% if (typeof relatedRolePages !== 'undefined' && relatedRolePages.length > 0) { %>
+      <h3 class="sp-related-heading" style="margin-top: 2.5rem;">Role-Specific Guidance</h3>
+      <ul class="sp-related-list" data-testid="list-related-roles">
+        <% relatedRolePages.forEach(function(link) { %>
+        <li class="sp-related-item">
+          <a href="<%= link.href %>" data-testid="link-role-<%= link.href.split('/').pop() %>">
+            <span><%= link.title %></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </a>
+        </li>
+        <% }); %>
+      </ul>
+      <% } %>
+    </div>
+  </div>
+</section>
+<% } %>

@@ -1,15 +1,81 @@
-import { useEffect, useMemo } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { useEffect, useLayoutEffect, useMemo } from "react";
+import { Routes, Route, BrowserRouter, Navigate, useLocation } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { initPostHog } from "@/lib/posthog";
-import Landing from "@/pages/landing";
+import { AppShell } from "@/components/AppShell";
+
+// Disable browser scroll restoration to prevent jank
+if (typeof window !== "undefined" && window.history) {
+  window.history.scrollRestoration = "manual";
+}
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  
+  return null;
+}
+
+function DocumentTitle() {
+  const { pathname } = useLocation();
+  
+  useEffect(() => {
+    const titleMap: Record<string, string> = {
+      "/interview/start": "Interview",
+      "/interview/prepare": "Interview",
+      "/interview/chat": "Interview",
+      "/progress": "Progress",
+      "/serious-plan": "Serious Plan",
+      "/artifacts": "Artifacts",
+      "/login": "Sign in",
+      "/offer": "Offer",
+      "/offer/success": "Success",
+      "/career-brief": "Career Brief",
+      "/coach-chat": "Coach Chat",
+      "/coach-letter": "Coach Letter",
+    };
+    
+    let pageTitle = titleMap[pathname];
+    
+    if (!pageTitle && pathname.startsWith("/module/")) {
+      const moduleNum = pathname.split("/")[2];
+      pageTitle = moduleNum ? `Module ${moduleNum}` : "Module";
+    }
+    
+    if (!pageTitle && pathname.startsWith("/artifact/")) {
+      pageTitle = "Artifact";
+    }
+    
+    document.title = pageTitle ? `${pageTitle} — Serious People` : "Serious People";
+  }, [pathname]);
+  
+  return null;
+}
+
+// Route guard: hard redirect to marketing landing if not authenticated
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return null;
+  }
+  
+  if (!isAuthenticated) {
+    window.location.replace("/");
+    return null;
+  }
+  
+  return <>{children}</>;
+}
+
 import Login from "@/pages/login";
-import Prepare from "@/pages/prepare";
-import Interview from "@/pages/interview";
 import Offer from "@/pages/offer";
 import Success from "@/pages/success";
 import ModulePage from "@/pages/module";
@@ -18,11 +84,21 @@ import CareerBrief from "@/pages/career-brief";
 import SeriousPlan from "@/pages/serious-plan";
 import CoachChat from "@/pages/coach-chat";
 import CoachLetter from "@/pages/coach-letter";
+import InterviewStart from "@/pages/interview-start";
+import InterviewPrepare from "@/pages/interview-prepare";
+import InterviewChat from "@/pages/interview-chat";
+import Artifacts from "@/pages/artifacts";
+
+import LovableSmoke from "@/pages/lovable-smoke";
+import DebugChatComponents from "@/pages/debug-chat-components";
 import NotFound from "@/pages/not-found";
 
-// Detect if running at /app base path (Phase 5: optional /app mount)
+// Detect if running at /app base path
 function getBasePath(): string {
-  if (typeof window !== "undefined" && window.location.pathname.startsWith("/app")) {
+  if (
+    typeof window !== "undefined" &&
+    window.location.pathname.startsWith("/app")
+  ) {
     return "/app";
   }
   return "";
@@ -30,39 +106,56 @@ function getBasePath(): string {
 
 function AppRoutes() {
   return (
-    <Switch>
-      <Route path="/" component={Landing} />
-      <Route path="/login" component={Login} />
-      <Route path="/prepare" component={Prepare} />
-      <Route path="/interview" component={Interview} />
-      <Route path="/offer" component={Offer} />
-      <Route path="/success" component={Success} />
-      <Route path="/module/:moduleNumber" component={ModulePage} />
-      <Route path="/progress" component={Progress} />
-      <Route path="/career-brief" component={CareerBrief} />
-      <Route path="/serious-plan" component={SeriousPlan} />
-      <Route path="/coach-chat" component={CoachChat} />
-      <Route path="/coach-letter" component={CoachLetter} />
-      <Route component={NotFound} />
-    </Switch>
+    <Routes>
+      {/* Public routes */}
+      <Route path="/interview/start" element={<InterviewStart />} />
+      <Route path="/login" element={<Login />} />
+      
+      {/* Protected routes - require authentication */}
+      <Route path="/interview/prepare" element={<RequireAuth><InterviewPrepare /></RequireAuth>} />
+      <Route path="/interview/chat" element={<RequireAuth><InterviewChat /></RequireAuth>} />
+      <Route path="/offer" element={<RequireAuth><Offer /></RequireAuth>} />
+      <Route path="/offer/success" element={<RequireAuth><Success /></RequireAuth>} />
+      <Route path="/module/:moduleNumber" element={<RequireAuth><ModulePage /></RequireAuth>} />
+      <Route path="/progress" element={<RequireAuth><Progress /></RequireAuth>} />
+      <Route path="/coach-letter" element={<RequireAuth><CoachLetter /></RequireAuth>} />
+      <Route path="/serious-plan" element={<RequireAuth><SeriousPlan /></RequireAuth>} />
+      <Route path="/artifact/:artifactSlug" element={<RequireAuth><Artifacts /></RequireAuth>} />
+      <Route path="/career-brief" element={<RequireAuth><CareerBrief /></RequireAuth>} />
+      <Route path="/coach-chat" element={<RequireAuth><CoachChat /></RequireAuth>} />
+      <Route path="/artifacts" element={<RequireAuth><Artifacts /></RequireAuth>} />
+      
+      {/* Debug/test routes */}
+      <Route path="/__lovable" element={<LovableSmoke />} />
+      {(import.meta.env.DEV || import.meta.env.VITE_DEBUG_UI === "1") && (
+        <Route path="/debug/chat-components" element={<DebugChatComponents />} />
+      )}
+      
+      {/* Legacy aliases → redirect to canonical */}
+      <Route path="/" element={<Navigate to="/interview/start" replace />} />
+      <Route path="/prepare" element={<Navigate to="/interview/prepare" replace />} />
+      <Route path="/interview" element={<Navigate to="/interview/chat" replace />} />
+      <Route path="/success" element={<Navigate to="/offer/success" replace />} />
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
 
 function Router() {
   const base = useMemo(() => getBasePath(), []);
-  
-  if (base) {
-    return (
-      <WouterRouter base={base}>
+  return (
+    <BrowserRouter basename={base || undefined}>
+      <ScrollToTop />
+      <DocumentTitle />
+      <AppShell>
         <AppRoutes />
-      </WouterRouter>
-    );
-  }
-  
-  return <AppRoutes />;
+      </AppShell>
+    </BrowserRouter>
+  );
 }
 
-function App() {
+export default function App() {
   useEffect(() => {
     initPostHog();
   }, []);
@@ -78,5 +171,3 @@ function App() {
     </QueryClientProvider>
   );
 }
-
-export default App;

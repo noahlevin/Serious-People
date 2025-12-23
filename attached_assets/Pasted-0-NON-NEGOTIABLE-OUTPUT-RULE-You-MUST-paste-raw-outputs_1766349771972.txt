@@ -1,0 +1,67 @@
+0) NON-NEGOTIABLE OUTPUT RULE
+You MUST paste raw outputs for every command in section (6).
+If you do not, the work is not complete.
+
+1) Goal (P0)
+Header should be compact and consistent at all widths:
+- Total header height: 56px (or 60px max if needed), no extra top/bottom padding.
+- Logo + UserMenu vertically centered.
+- No layout shifts between mobile/tablet/desktop.
+
+2) Scope (ONLY)
+- client/src/components/AppShell.tsx
+- client/src/styles/serious-people.css
+
+3) Constraints
+- Do NOT change routing/auth.
+- Do NOT change chat layout/footer logic.
+- CSS hygiene: do NOT stack conflicting tailwind padding on the header if CSS already defines it.
+
+4) Implementation plan (exact)
+A) In AppShell.tsx
+- Ensure the header element uses ONLY className="sp-shell-header" (no py-*, no extra padding utilities).
+- Ensure the inner wrapper uses a single container class (whatever you currently use, likely sp-container) and NO vertical padding utilities.
+- Ensure the logo element is not an h1 with default margins unless margin is explicitly reset.
+
+B) In serious-people.css (make header height deterministic)
+Add/adjust:
+- .sp-shell-header {
+    height: 56px;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0;            // no vertical padding
+    border-bottom: 1px solid rgba(...); // keep existing if present
+  }
+- .sp-shell-header .sp-container (or header inner wrapper) {
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+- Reset default logo margins (VERY common culprit):
+  - .sp-shell-logo { margin: 0; line-height: 1; display:flex; align-items:center; }
+  - If the logo is an h1/a, target it specifically: .sp-shell-logo h1, .sp-shell-logo a { margin:0; line-height:1; }
+- Ensure the menu trigger doesn’t inflate height:
+  - .sp-user-menu-trigger { line-height: 1; display:flex; align-items:center; }
+  - If icons are large, set icon size via CSS (not tailwind) so it can’t balloon.
+
+C) Visual check (required)
+- 390px / 768px / 1200px:
+  - header height looks the same
+  - logo and menu centered vertically
+  - no extra whitespace above/below
+
+5) Do NOT change
+- No other CSS classes.
+- No page-level component changes.
+- No app shell footer behavior changes.
+
+6) Verification (paste raw outputs)
+- npm run build
+- grep -n "sp-shell-header" -n client/src/styles/serious-people.css | head -n 50
+- grep -n "sp-shell-header" -n client/src/components/AppShell.tsx | head -n 80
+
+7) Acceptance criteria
+- Header is visually compact (56px-ish) at all widths.
+- Build passes.
+- Raw outputs pasted.

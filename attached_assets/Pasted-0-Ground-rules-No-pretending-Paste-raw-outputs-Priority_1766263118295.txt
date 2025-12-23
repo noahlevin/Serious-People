@@ -1,0 +1,65 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Priority is removing ALL token parsing and token emission (e.g., [[OPTIONS]], [[PROGRESS]], PLAN_CARD, etc.) from every LLM flow.
+- Keep response shapes stable for clients. If you must add fields, do it backward-compatibly.
+- Smallest possible change set; no refactors unless required for token removal.
+
+1) Goal
+Remove remaining token-based behaviors from module coaching flows (post-paywall) and replace them with the existing tool/event system:
+- structured outcomes -> append_structured_outcomes + events
+- any section/title cards -> append_section_header / append_title_card (if used)
+No tokens should be required from the model in any prompt.
+
+2) Discovery (required BEFORE edits)
+- Search for token parsing and/or token mentions across repo:
+  grep -R "\[\[" server shared client || true
+  grep -R "OPTIONS\]\]" server shared client || true
+  grep -R "PROGRESS\]\]" server shared client || true
+  grep -R "PLAN_CARD" server shared client || true
+- List the exact files and code paths that:
+  (a) instruct the model to emit tokens
+  (b) parse tokens
+  (c) render UI based on tokens
+
+3) Scope (ONLY)
+- Touch ONLY the files that the discovery step identifies as token emitters/parsers for module flows.
+- If more than ~6 files are implicated, stop and propose a staged plan (Batch A / Batch B).
+
+4) Implementation requirements
+A) Module LLM calls must support the same tools as interview
+- append_structured_outcomes
+- set_provided_name (if relevant)
+- (optional) section headers/title cards if modules use them
+
+B) Events must be persisted in app_events using a stable stream key for modules
+- Use a stream convention that won’t collide with interview:
+  e.g. `module:${userId}:${moduleSlug}` or `module_run:${runId}`
+- Pick one and implement consistently.
+
+C) Client module chat UI must render events (not tokens)
+- If module chat already uses the same InterviewChat renderer, reuse the same event rendering logic.
+- If it has a separate renderer, add the same event rendering pattern:
+  - -1 before first message
+  - n after message index n
+  - selection resolves pills deterministically
+
+D) Remove token parsing blocks once superseded
+- Delete legacy parsing if no longer used.
+- If any token parsing must temporarily remain (should be rare), isolate into a single “legacy” block with TODO.
+
+5) Tests
+- Update or add a smoke script for module chat (similar to interview) that proves:
+  - outcomes can be injected deterministically (dev endpoint is fine, 404 in prod)
+  - selecting an option appends a user message and resolves pills on refresh
+
+6) Verification (paste raw outputs)
+- npm run build
+- run interview smoke: node scripts/smoke-interview-chat.mjs
+- run new module smoke (or show how to run it)
+- grep -R "\[\[" server shared client || true  (should be empty or explain remaining non-LLM uses)
+
+7) Acceptance criteria
+- No LLM prompt instructs emitting tokens.
+- No server parses tokens from LLM replies.
+- Outcomes/sections/etc. work via tools/events in modules just like interview.
+- Build + smokes pass.

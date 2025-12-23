@@ -1,0 +1,55 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- Prefer surgical edits.
+
+## 1) Goal (one sentence)
+GOAL: From /app/interview/start, clicking the primary CTA must navigate to /app/interview/prepare (not /app/interview/chat).
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+client/src/pages/interview-start.tsx
+client/src/routes.ts (only if route constants are defined there)
+
+## 3) Current behavior to preserve
+- Preserve server-owned gating/state machine behavior.
+- Preserve existing route paths (do not rename routes).
+
+## 4) Implementation plan (small + explicit)
+1) Find the InterviewStart CTA click handler in client/src/pages/interview-start.tsx.
+2) Change navigation target to /interview/prepare (respecting router basename if present; typically navigate("/interview/prepare") is correct if BrowserRouter basename="/app").
+3) Ensure no other navigation logic changed.
+
+## 5) Exact edits
+For each file you touch, produce:
+- Path:
+- Change type: surgical edit
+- Diff-style summary
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+### Build / type sanity
+1) `npm test` if it exists, else say “no test script found”
+2) `npm run build`
+
+### Static verification
+3) `grep -R "interview/chat" -n client/src/pages/interview-start.tsx || true`
+4) `grep -R "interview/prepare" -n client/src/pages/interview-start.tsx`
+
+### Minimal manual smoke (only 1 click)
+5) Run `npm run dev` (or existing workflow) and:
+- Visit /app/interview/start
+- Click the CTA
+Success = browser ends at /app/interview/prepare
+
+## 7) Acceptance criteria (must be met)
+- CTA from /app/interview/start routes to /app/interview/prepare every time.
+- No other routes/pages changed.
+
+## 8) Rollback note
+- `git checkout -- client/src/pages/interview-start.tsx` (and routes.ts if touched)
+
+Now execute the plan.

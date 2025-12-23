@@ -1,0 +1,68 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- This is a verification/cleanup pass. Do not add new features.
+- If any required behavior is missing, fix it minimally.
+
+1) Goal
+Verify and harden the interview finalization implementation:
+- finalize_interview tool
+- final next steps card event
+- artifact generation integration
+- dev endpoint gating
+- smoke test reliability
+
+2) Scope (ONLY)
+- server/routes.ts
+- server/seriousPlanService.ts (or wherever finalize triggers artifact generation)
+- server/storage.ts (only if used in finalize)
+- client/src/lovable/pages/InterviewChat.tsx
+- client/src/lovable/components/interview/FinalNextStepsCard.tsx
+- scripts/smoke-interview-chat.mjs
+
+3) Required output BEFORE any edits
+A) Paste the exact code blocks (verbatim) for:
+- the finalize_interview tool definition for Anthropic
+- the finalize_interview tool definition for OpenAI
+- handleFinalizeInterview (or equivalent)
+- /api/dev/interview/finalize endpoint implementation
+- the event append call for chat.final_next_steps_added
+- the artifact generation call invoked by finalize
+
+B) Provide a one-paragraph explanation of:
+- Where module titles/descriptions are sourced from (DB record name/path)
+- Which artifact(s) are generated and where they’re stored
+
+4) Required fixes (only if needed)
+A) Gating
+- Ensure /api/dev/interview/finalize returns 404 in production (requireDevTools).
+
+B) Stream correctness
+- Ensure event stream key is interview:${sessionToken}, not userId.
+
+C) Artifact integration
+- Ensure finalize calls the same “ensure artifacts exist” / idempotent orchestration used by SeriousPlan.
+- Do not introduce new artifact tables or statuses.
+
+D) Determinism + guardrails
+- If plan modules are missing/empty, finalize must fail with a clear error and NOT append final_next_steps event.
+- Finalize must be idempotent (2nd call returns success and does not add duplicate final card events).
+
+E) Smoke test reliability
+- Smoke tests must NOT “pass” if reply is empty unless the test is explicitly not about reply content.
+- Ensure finalize lifecycle checks are strict:
+  - final event exists and modules length > 0
+  - artifacts exist and are terminal statuses
+  - idempotency verified by event count not increasing on 2nd finalize
+
+5) Verification (paste raw output)
+- npm run build
+- node scripts/smoke-interview-chat.mjs
+- grep -R "finalize_interview" server/routes.ts
+- grep -R "final_next_steps" server client
+
+6) Acceptance criteria
+- We have pasted code blocks proving implementation is real.
+- finalize_interview is correct in both provider paths.
+- dev endpoint is hidden in prod.
+- final card is populated from DB modules and persists on refresh.
+- build + smoke pass with raw output.

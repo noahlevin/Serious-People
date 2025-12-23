@@ -1,0 +1,85 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- Prefer surgical edits.
+- If you touch routing/auth gating, include at least one curl check.
+
+## 1) Goal (one sentence)
+GOAL: Make /app/debug/chat-components dev-only and remove the current bypass of server auth gating (no prod exposure).
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+1) client/src/App.tsx
+2) client/src/pages/debug-chat-components.tsx  (OR the file that actually implements the debug page)
+3) client/src/pages/debug/chat-components.tsx  (only if this is the real path used by the route)
+
+If the route is defined in some other file (e.g. client routing table), STOP and list the additional file path(s) and why.
+
+## 3) Current behavior to preserve
+- Preserve all existing auth/session behavior.
+- Preserve all existing interview/module/serious-plan flows.
+- Do not change API shapes.
+
+## 4) Implementation plan (small + explicit)
+1) Find where the debug route is registered (it currently resolves at /app/debug/chat-components).
+2) Register that debug route ONLY when running in dev (import.meta.env.DEV) OR when an explicit env flag is enabled (e.g. VITE_DEBUG_UI === "1").
+3) In the debug page component, REMOVE the “?debug=1 bypass auth” gating:
+   - Either require normal auth (preferred), OR allow unauthenticated access ONLY in dev builds (not prod builds).
+4) Ensure that in production builds the route is not reachable (no route registration).
+
+## 5) Exact edits
+For each file you touch, produce:
+- Path:
+- Change type: surgical edit
+- Diff-style summary (what changed and why)
+
+### Suggested concrete changes
+A) client/src/App.tsx
+- Add the debug route conditionally:
+  - Only include the route object for "/debug/chat-components" when (import.meta.env.DEV || import.meta.env.VITE_DEBUG_UI === "1") is true.
+  - Otherwise, do not register it at all.
+
+B) Debug page file (wherever it lives)
+- Replace query-param gating with dev/auth gating:
+  - If NOT (import.meta.env.DEV || import.meta.env.VITE_DEBUG_UI === "1"): render a 404-ish message (or return null).
+  - If allowed, optionally require auth via useAuth(): if unauthenticated, redirect to /login?next=...
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+### Build / type sanity
+1) `npm test` if it exists, else say “no test script found”
+2) `npm run build`
+
+### Runtime checks (no UI click-through)
+3) Start dev: `npm run dev`
+
+4) In a second shell, confirm the debug route is gated properly when unauthenticated:
+- `curl -i http://localhost:5000/app/debug/chat-components`
+Success looks like:
+- Either 302 redirect to /app/login?next=... (preferred), OR
+- 200 with app HTML but the client redirects to /app/login quickly (less ideal but acceptable)
+
+5) Optional (only if feasible): simulate prod build behavior
+- If the project supports it, run the production server mode and hit the debug route:
+  - Success looks like “not found” (route not registered), not a working debug page.
+
+## 7) Acceptance criteria (must be met)
+- In dev: debug page still works for you to visually inspect inline components.
+- In dev: unauthenticated access does NOT bypass auth (either 302 to login or immediate client redirect).
+- In prod build: route is not registered / not accessible.
+- No other pages/routes changed.
+
+## 8) If verification fails
+Do NOT keep making random edits.
+Instead:
+- Paste the raw error output
+- Give the 2–3 most likely root causes
+- Propose the smallest next diagnostic step
+
+## 9) Deliverables
+A) Diff Summary
+B) Raw command outputs from verification
+C) A short manual check: open /app/debug/chat-components in dev and confirm the 4 components render.

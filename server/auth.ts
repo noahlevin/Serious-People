@@ -20,17 +20,34 @@ declare global {
 
 const PgSession = connectPgSimple(session);
 
-
-function getBaseUrl(): string {
+// Exported helpers for debug/smoke testing
+export function getBaseUrl(): string {
   if (process.env.BASE_URL) {
     return process.env.BASE_URL;
   }
   if (process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
   }
-  // For production, fallback to current request origin if available
-  // Otherwise use localhost for local development
   return "http://localhost:5000";
+}
+
+export function getAppBasePath(): string {
+  let basePath = process.env.APP_BASE_PATH || "/app";
+  if (!basePath.startsWith("/")) {
+    basePath = "/" + basePath;
+  }
+  if (basePath.length > 1 && basePath.endsWith("/")) {
+    basePath = basePath.slice(0, -1);
+  }
+  return basePath;
+}
+
+export function getGoogleCallbackUrl(): string {
+  return `${getBaseUrl()}/auth/google/callback`;
+}
+
+export function getMagicVerifyUrlTemplate(): string {
+  return `${getBaseUrl()}${getAppBasePath()}/auth/magic/verify?token=<TOKEN>`;
 }
 
 export function setupAuth(app: Express): void {

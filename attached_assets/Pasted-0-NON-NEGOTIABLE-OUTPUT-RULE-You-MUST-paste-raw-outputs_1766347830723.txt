@@ -1,0 +1,70 @@
+0) NON-NEGOTIABLE OUTPUT RULE
+You MUST paste raw outputs for every command in section (6). If you do not, the work will be considered incomplete even if you “did it”.
+
+No pretending. No summaries without proof.
+
+1) Goals (P0)
+A) Structured outcomes pills must disappear immediately after selecting an option, every time.
+B) Assistant message typography should match the established chat styling (line-height, margins, bubble padding), and markdown should not introduce weird spacing/indentation compared to user messages.
+
+2) Scope (ONLY)
+- client/src/lovable/pages/InterviewChat.tsx
+- client/src/lovable/components/interview/StructuredOutcomes.tsx
+- client/src/lovable/components/interview/ChatMessage.tsx (or whichever component renders message bodies)
+- client/src/styles/serious-people.css
+(No server changes unless selection endpoint response is missing required data.)
+
+3) Fix A: pills not disappearing
+Diagnose:
+- Find where selection state is stored:
+  - local optimistic state? (e.g. selectedOptionByEventSeq)
+  - or derived from events returned by server? (e.g. chat.structured_outcome_selected)
+- Determine what happens on click:
+  - does the UI set local selected state?
+  - does it call API and then replace transcript/events from server?
+
+Implement robust approach (preferred):
+- On click:
+  1) Immediately set local UI state: mark eventSeq as selected + store optionId.
+  2) Hide pills if local selected exists (even before server returns).
+  3) Fire select API.
+  4) When response returns, RECONCILE:
+     - keep local selection until server state confirms it
+     - replace transcript/events with server authority
+- Ensure no “render key” issues:
+  - StructuredOutcomes must use eventSeq as key
+  - When server events array replaces local state, do not re-mount component in a way that loses local selection before server confirms.
+- Add a defensive rule: if user message with selected option already exists in transcript, treat outcomes as selected even if selection event missing (prevents flicker).
+
+4) Fix B: markdown typography regression
+Goal: Markdown should render content but not change the chat bubble typography.
+Common cause: default markdown renderer outputs <p> with margins, <ul>/<ol> with padding, etc.
+
+Implement:
+- In ChatMessage, wrap markdown content in a container with a class (e.g. .sp-md)
+- In serious-people.css add “markdown reset” for that class:
+  - .sp-md p { margin: 0; }
+  - .sp-md p + p { margin-top: 0.75rem; } (optional)
+  - .sp-md ul, .sp-md ol { margin: 0.5rem 0 0.5rem 1.25rem; padding: 0; }
+  - .sp-md li { margin: 0.25rem 0; }
+  - .sp-md strong, .sp-md em inherit font styles (don’t override family/size)
+- Ensure the assistant bubble uses the same base typography class as user bubble (font-size, line-height).
+- Safety: markdown must NOT allow raw HTML. Keep that constraint.
+
+5) Manual visual check (required)
+- Trigger a structured outcomes question:
+  - select an option; confirm pills disappear and do NOT come back on next render
+- Confirm assistant message looks like before:
+  - same font size/line-height as user bubbles
+  - markdown lists render nicely without huge spacing
+
+6) Verification (MUST paste raw outputs)
+- npm run build
+- DEV_FAST=1 node scripts/smoke-interview-chat.mjs
+- node scripts/smoke-module-chat.mjs
+- grep -R "sp-md" client/src || true
+
+7) Acceptance criteria
+- Pills disappear immediately on selection and never reappear for that event.
+- Assistant message styling matches expected chat typography; markdown renders bold/italics/lists without weird margins.
+- Raw outputs pasted.

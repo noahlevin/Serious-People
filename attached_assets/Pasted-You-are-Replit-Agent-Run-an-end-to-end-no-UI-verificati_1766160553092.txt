@@ -1,0 +1,132 @@
+You are Replit Agent. Run an end-to-end no-UI verification of the v1 flow using existing dev endpoints and produce a concise Release Readiness report with pasted command outputs.
+
+Hard rules:
+- Do not change code unless a verification step is impossible without UI.
+- If you add code, it must be a minimal secret-gated /api/dev/* endpoint.
+- You must paste the output of each command you run. No “tests passed” without output.
+- Keep it factual.
+
+What to verify:
+
+1) Logged-out server gating for key routes:
+- /app/interview/start
+- /app/progress
+- /app/offer
+- /app/offer/success
+- /app/module/1
+- /app/coach-letter
+- /app/serious-plan
+- /app/artifact/decision-snapshot
+
+2) State machine progression via dev endpoints:
+- CHECKOUT_PENDING -> PURCHASED
+- Module 1 -> MODULE_2
+- Module 2 -> MODULE_3
+- Module 3 -> COACH_LETTER
+- Serious plan complete -> SERIOUS_PLAN
+At each step, print routing (phase, canonicalPath, resumePath, allowedPaths).
+
+3) Prove /api/serious-plan/latest response shape without UI:
+- If you can fetch it for the dev-created user without auth, do not.
+- If you cannot fetch it because auth cookie is required (likely), add ONE dev endpoint:
+  GET /api/dev/serious-plan/latest?userId=<id>
+  - secret-gated (x-dev-tools-secret)
+  - returns exactly what the real /api/serious-plan/latest returns for that user (same shape)
+  - do NOT change business logic; just call the same storage query and return it.
+
+Then:
+- print artifactKeys returned
+- pick the first artifactKey and print it
+
+4) Cache coherence check (static):
+- Confirm the client invalidates /api/bootstrap after letter seen by pointing to file+lines in:
+  client/src/lovable/pages/CoachLetter.tsx
+
+Commands to run and paste outputs:
+
+A) Gate checks (logged out):
+```bash
+PORT=${PORT:-5000}
+for p in /app/interview/start /app/progress /app/offer /app/offer/success /app/module/1 /app/coach-letter /app/serious-plan /app/artifact/decision-snapshot; do
+  echo "=== $p ==="
+  curl -sS -I "http://localhost:${PORT}${p}" | head -n 12
+done
+B) State machine progression:
+
+bash
+Copy code
+PORT=${PORT:-5000}
+DEV_TOOLS_SECRET="${DEV_TOOLS_SECRET:-}"
+echo "DEV_TOOLS_SECRET length: ${#DEV_TOOLS_SECRET}"
+
+curl -sS -X POST "http://localhost:${PORT}/api/dev/simulate-checkout-pending" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d '{}' | tee /tmp/dev_pending.json
+
+USER_ID=$(node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/dev_pending.json','utf8')); console.log(j.userId||'');")
+echo "USER_ID=$USER_ID"
+
+curl -sS -X POST "http://localhost:${PORT}/api/dev/simulate-payment-verified" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d "{\"userId\":\"${USER_ID}\"}" >/dev/null
+
+echo "=== After PURCHASED ==="
+curl -sS "http://localhost:${PORT}/api/dev/routing/${USER_ID}" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+
+for n in 1 2 3; do
+  curl -sS -X POST "http://localhost:${PORT}/api/dev/modules/complete" \
+    -H "content-type: application/json" \
+    -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+    -d "{\"userId\":\"${USER_ID}\",\"moduleNumber\":${n}}" >/dev/null
+  echo "=== After module ${n} complete ==="
+  curl -sS "http://localhost:${PORT}/api/dev/routing/${USER_ID}" \
+    -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+done
+
+echo "=== Flip serious plan ==="
+curl -sS -X POST "http://localhost:${PORT}/api/dev/serious-plan/complete" \
+  -H "content-type: application/json" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" \
+  -d "{\"userId\":\"${USER_ID}\"}" >/dev/null
+
+echo "=== After SERIOUS_PLAN ==="
+curl -sS "http://localhost:${PORT}/api/dev/routing/${USER_ID}" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}"
+C) Plan shape proof (dev endpoint if needed):
+
+First attempt (may 401):
+
+bash
+Copy code
+PORT=${PORT:-5000}
+curl -sS -i "http://localhost:${PORT}/api/serious-plan/latest" | head -n 30
+If 401, add dev endpoint described above and run:
+
+bash
+Copy code
+PORT=${PORT:-5000}
+DEV_TOOLS_SECRET="${DEV_TOOLS_SECRET:-}"
+curl -sS "http://localhost:${PORT}/api/dev/serious-plan/latest?userId=${USER_ID}" \
+  -H "x-dev-tools-secret: ${DEV_TOOLS_SECRET}" | tee /tmp/dev_plan.json
+node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/dev_plan.json','utf8')); const keys=(j.artifacts||[]).map(a=>a.artifactKey); console.log('artifactKeys:', keys); console.log('firstArtifactKey:', keys[0]||'');"
+D) Cache coherence note:
+
+Print the exact file + line references where bootstrap invalidation happens in CoachLetter (no need for commands, but do it precisely).
+
+Finally: produce “Release Readiness” report containing:
+
+✅ Confirmed (with bullet list tied to pasted outputs)
+
+⚠️ Not confirmed without UI (be explicit)
+
+Next steps (3 items):
+
+Replit deploy/env items
+
+Stripe/webhook items
+
+Basic monitoring/logging items
+Keep it short and factual.

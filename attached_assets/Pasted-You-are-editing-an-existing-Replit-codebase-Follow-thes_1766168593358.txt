@@ -1,0 +1,97 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+0) Ground rules (no pretending)
+
+Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+
+Do NOT do wide refactors. Make the smallest change that achieves the goal.
+
+This is a DISCOVERY-ONLY pass: do NOT modify files.
+
+1) Goal (one sentence)
+
+GOAL: Identify the exact client file paths for the Modules pages and the Interview/Chat page (and the shared layout/components they use), so we can redesign Modules to match the interview/chat regime with minimal edits.
+
+2) Scope boundaries
+
+Do NOT edit any files.
+
+You may run read-only shell commands (rg/ls/cat).
+
+3) What to discover and output
+
+A) Find the Modules routes (list + detail):
+
+Identify the React route definitions for modules (e.g. paths containing “/modules”).
+
+Output:
+
+route path(s)
+
+component name(s)
+
+file path(s)
+
+B) Find the Interview/Chat route/page that represents the “interview/chat regime”:
+
+Identify the route path(s) and page component file.
+
+Output:
+
+route path(s)
+
+component name(s)
+
+file path(s)
+
+C) Find the shared UI components/layout used by the Interview/Chat page:
+
+List the top 3–8 imported components that define the chat look/structure (page shell, message list, cards, typography wrappers).
+
+Output:
+
+component names
+
+file paths
+
+4) Commands to run (must paste raw output)
+
+Run these in the Replit shell and paste outputs:
+
+ls
+
+ls client || true
+
+ls server || true
+
+rg -n "modules" client src server || true
+
+rg -n "/modules|path:.*modules|route.*modules" client/src || true
+
+rg -n "interview|chat|conversation" client/src/lovable client/src || true
+
+Once you find the route file(s), sed -n '1,220p' <PATH_TO_ROUTE_FILE> (adjust range as needed)
+
+For the identified chat page file, sed -n '1,260p' <PATH_TO_CHAT_PAGE_FILE>
+
+5) Deliverable format
+
+Return a short report:
+
+Modules routes:
+
+<route> -> <Component> (<file path>)
+
+Interview/Chat routes:
+
+<route> -> <Component> (<file path>)
+
+Shared components to reuse:
+
+<Component> (<file path>) — why it matters
+
+Proposed “smallest edit set”:
+
+list the 2–5 files we’ll likely edit to make Modules match Chat
+
+Stop there. Do NOT implement.

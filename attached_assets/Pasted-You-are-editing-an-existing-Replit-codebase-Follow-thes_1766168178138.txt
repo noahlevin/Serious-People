@@ -1,0 +1,97 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- Prefer surgical edits. This change should be additive only.
+
+## 1) Goal (one sentence)
+GOAL: Add a repeatable, jq-free auth smoke test that validates Google OAuth and magic-link flows on localhost:5000 and optionally checks gated debug endpoints.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+1) scripts/smoke-auth.sh (new file)
+
+If you think other files are required, STOP and list the additional file paths and why.
+
+## 3) Current behavior to preserve
+- Preserve existing route gating/state machine behavior.
+- Do not change auth handlers or routes.
+- No UI changes.
+
+## 4) Implementation plan (small + explicit)
+1) Create scripts/smoke-auth.sh that uses curl + python (not jq) to validate:
+   - GET /auth/google returns 302 to accounts.google.com with redirect_uri that ends in /auth/google/callback
+   - GET /app/auth/google ALSO returns 302 (regression guard)
+   - POST /app/auth/magic/start returns JSON with success=true
+2) Optionally (non-fatal): if GET /api/debug/auth-config returns 200, validate it includes baseUrl/appBasePath/googleCallbackUrl/magicVerifyUrlTemplate.
+3) Optionally (non-fatal): if GET /api/debug/magic-last-send returns 200 after the magic start call, validate providerAccepted=true.
+
+## 5) Exact edits
+For the file you touch, produce:
+- Path: scripts/smoke-auth.sh
+- Change type: replace full contents
+- Diff-style summary (what changed and why)
+
+### scripts/smoke-auth.sh (new)
+Create the file with the following contents EXACTLY:
+
+#!/usr/bin/env bash
+set -euo pipefail
+
+PORT="${PORT:-5000}"
+ORIGIN="${ORIGIN:-http://localhost:${PORT}}"
+EMAIL="${EMAIL:-noah@noahlevin.com}"
+
+pass() { echo "[PASS] $*"; }
+fail() { echo "[FAIL] $*"; exit 1; }
+skip() { echo "[SKIP] $*"; }
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
+}
+
+require_cmd curl
+require_cmd python
+
+echo "ORIGIN: ${ORIGIN}"
+echo "EMAIL:  ${EMAIL}"
+echo
+
+http_status() {
+  # usage: http_status URL
+  curl -sS -o /dev/null -w "%{http_code}" "$1" || true
+}
+
+get_location_header() {
+  # usage: get_location_header URL
+  curl -sS -I "$1" | awk 'BEGIN{IGNORECASE=1} /^Location:/{sub(/\r/,""); print substr($0,10)}'
+}
+
+decode_redirect_uri() {
+  # prints decoded redirect_uri from an OAuth Location header
+  python - <<'PY' "$1"
+import sys
+from urllib.parse import urlparse, parse_qs, unquote
+loc = sys.argv[1].strip()
+qs = parse_qs(urlparse(loc).query)
+ru = qs.get("redirect_uri", [""])[0]
+print(unquote(ru))
+PY
+}
+
+check_oauth_302() {
+  local path="$1"
+  local url="${ORIGIN}${path}"
+  local loc
+  loc="$(get_location_header "$url" || true)"
+  [[ -n "${loc}" ]] || fail "${path}: expected Location header, got none"
+  echo "${path}: Location -> ${loc}"
+
+  [[ "${loc}" == https://accounts.google.com/* ]] || fail "${path}: expected redirect to accounts.google.com"
+
+  local decoded
+  decoded="$(decode_redirect_uri "${loc}")"
+  echo "${path}: decoded redirect_uri -> ${decoded}"
+
+  [[ "${decoded}" == *"/auth/google/callback" ]] || fail "${path}: redirect_uri should end with /auth/google/callback"

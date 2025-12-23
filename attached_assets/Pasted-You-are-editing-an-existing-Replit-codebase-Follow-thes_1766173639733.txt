@@ -1,0 +1,83 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- Prefer surgical edits unless asked otherwise.
+- If you touch auth/session/routing, include at least one curl check.
+
+## 1) Goal (one sentence)
+GOAL: Make Serious Plan artifact generation tool/DB-mediated and refresh-deterministic by writing artifacts to the DB with generationStatus (pending/generating/complete/error) and exposing an API + smoke test that proves it end-to-end.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+server/routes.ts
+server/storage.ts
+server/schema.ts
+scripts/smoke-serious-plan-artifacts.mjs
+(client file that renders Serious Plan artifacts)  <-- STOP and ask for the exact path once discovered
+
+If you think other files are required, STOP and list the additional file paths and why.
+
+## 3) Current behavior to preserve
+- Preserve existing route gating/state machine behavior.
+- Preserve existing API response shapes unless explicitly asked to change them.
+- Do not introduce new UI flows beyond what’s needed.
+- Do not make page-visit-triggered server transitions.
+
+## 4) Implementation plan (small + explicit)
+Do this in order:
+1) Discovery: Find the existing Serious Plan generation endpoint(s) and where artifacts are currently produced (search for "serious plan", "artifact", "seriousPlanArtifacts", "generationStatus", "planId", "seriousPlans").
+2) Ensure artifact rows are created first (status=pending), then set to generating, then written (content/title) and set to complete; on error set status=error with error message stored (if schema supports it; otherwise log and set status=error).
+3) Make generation idempotent: if artifacts exist and are complete, return them; if pending/generating, return them without re-triggering.
+4) Add GET endpoint to fetch artifacts for a plan (or journey) used by the UI (if it already exists, keep it; just make sure it returns generationStatus + content).
+5) Add scripts/smoke-serious-plan-artifacts.mjs that:
+   - hits a generate endpoint
+   - polls the artifacts endpoint until all are complete (or times out)
+   - validates JSON shape using Node (no jq)
+
+## 5) Exact edits
+For each file you touch, produce:
+- Path:
+- Change type: (surgical edit | replace full contents)
+- Diff-style summary (what changed and why)
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+### Build / type sanity
+1) `npm test` if it exists, else skip and say “no test script found”
+2) `npm run build` (or `npm run client:build` / `npm run server:build` if applicable)
+3) `npm run lint` if it exists (otherwise state it doesn’t)
+
+### Runtime checks
+4) Start server: `npm run dev` (or workspace default)
+5) In a second shell, run:
+- `ORIGIN=http://localhost:5000 node scripts/smoke-serious-plan-artifacts.mjs`
+
+### Output expectations
+- Smoke script must print [PASS] lines for:
+  - generate endpoint returns 200 and a planId (or equivalent)
+  - artifacts endpoint returns an array with generationStatus
+  - polling reaches all complete OR clearly prints error statuses
+- If it times out, print the latest artifact statuses.
+
+## 7) Acceptance criteria (must be met)
+- Serious Plan artifacts exist in DB and expose generationStatus at all times (pending/generating/complete/error).
+- Refresh-deterministic: calling artifacts endpoint repeatedly returns the same artifacts without re-triggering generation once complete.
+- Smoke script passes with no jq dependency.
+
+## 8) If verification fails
+Do NOT keep making random edits.
+Instead:
+- Show the error output
+- Give the 2–3 most likely root causes
+- Propose the smallest next diagnostic step (grep/curl/log)
+
+## 9) Deliverables
+At the end, produce:
+A) A concise “Diff Summary”
+B) The raw command outputs from verification
+C) A 3-step manual smoke checklist (only if needed)
+
+Now execute the plan.

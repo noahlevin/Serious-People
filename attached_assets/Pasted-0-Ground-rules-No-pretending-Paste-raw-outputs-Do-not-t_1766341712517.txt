@@ -1,0 +1,46 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Do not touch unrelated UI/CSS. Fix event placement at the source.
+
+1) Goal
+Structured outcomes must ALWAYS render below the assistant message they belong to.
+Outcomes must NEVER include their own question/prompt header — answers only.
+
+2) Scope (ONLY)
+- server/routes.ts
+- client/src/lovable/pages/InterviewChat.tsx (only if rendering logic must change)
+- scripts/smoke-interview-chat.mjs (only if we can add a deterministic check)
+
+3) Diagnosis steps (required)
+- Identify where chat.structured_outcomes_added events are created and how afterMessageIndex is computed.
+- Confirm whether tool calls happen before the assistant message is appended to transcript.
+
+4) Implementation approach (preferred)
+A) Change semantics: store outcomes events with an anchor that cannot be wrong
+Option 1 (preferred, minimal): event payload uses `afterAssistantSeq` or `anchorMessageSeq` instead of afterMessageIndex.
+- Use transcript message sequence/eventSeq as the anchor.
+- Client finds the assistant message with that seq and renders outcomes immediately after it.
+
+Option 2 (if you refuse schema change): compute afterMessageIndex only AFTER assistant message is appended
+- Buffer tool calls during the LLM loop.
+- Append assistant message to transcript.
+- Then persist buffered events with afterMessageIndex = index of that assistant message.
+
+Pick the smallest change that is deterministic and cannot regress later.
+
+5) Rendering rules
+- StructuredOutcomes component should render ONLY options (no prompt/question).
+- Ensure it is visually aligned like user responses (already done).
+
+6) Verification (paste raw outputs)
+- npm run build
+- DEV_FAST=1 node scripts/smoke-interview-chat.mjs
+- node scripts/smoke-module-chat.mjs
+- If you can add a deterministic smoke check:
+  - inject outcomes anchored to a known assistant message
+  - verify the client would place it after that message (server-side assertion is fine if client test is hard)
+
+7) Acceptance criteria
+- Outcomes always appear below the correct assistant message in the UI.
+- No outcomes prompt/question text appears anywhere.
+- Build + smokes pass.

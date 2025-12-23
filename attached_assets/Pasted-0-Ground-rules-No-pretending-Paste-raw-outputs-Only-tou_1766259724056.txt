@@ -1,0 +1,76 @@
+0) Ground rules
+- No pretending. Paste raw outputs.
+- Only touch files in Scope.
+
+1) Goal
+Restore “structured outcomes” (clickable pill options) as a tool/DB-event-driven feature:
+- LLM can propose options via a tool call
+- Options render under the relevant assistant message
+- Clicking an option appends the chosen text as the user’s message, and pills disappear deterministically on refresh
+
+2) Scope (ONLY)
+- server/routes.ts
+- server/storage.ts
+- client/src/lovable/pages/InterviewChat.tsx
+- lovable component(s) for outcomes UI (create or restore one):
+  - client/src/lovable/components/interview/StructuredOutcomes.tsx (new) OR reuse an existing component if present
+- scripts/smoke-interview-chat.mjs
+
+3) Requirements
+
+A) Server: add tool append_structured_outcomes
+- Tool name: append_structured_outcomes
+- Input schema:
+  { prompt?: string, options: Array<{ id?: string, label: string, value: string }> }
+- Persist as app event on stream interview:${sessionToken}:
+  type: "chat.structured_outcomes_added"
+  payload includes:
+    - render.afterMessageIndex (same rule you used elsewhere)
+    - prompt (optional)
+    - options (server ensures each option has a stable id; generate if missing)
+- Tool must be idempotent within a single assistant turn:
+  - If the model calls it twice in one turn, ignore duplicates (use a simple in-memory guard in the tool loop for the current request)
+
+B) Server: endpoint to select an outcome
+- POST /api/interview/outcomes/select
+- Body: { eventId: string, optionId: string }
+- Behavior:
+  1) Validate event exists and is type chat.structured_outcomes_added for this interview stream
+  2) Validate optionId exists
+  3) Append event:
+     type: "chat.structured_outcome_selected"
+     payload: { eventId, optionId, value, render.afterMessageIndex }
+  4) Append a user message to transcript with content = selected option value
+  5) Call interview LLM turn handler as if the user typed that message (so the assistant responds normally)
+- Response shape: same as /api/interview/turn (reply, transcript, events)
+
+C) Client: render pills + click handling
+- InterviewChat should render StructuredOutcomes component when it sees an "added" event that has not been selected.
+- When user clicks a pill:
+  - Disable further clicks for that event
+  - Call POST /api/interview/outcomes/select
+  - Replace local transcript+events with server response (server authority)
+- On refresh, pills must not appear if selected event exists.
+
+D) Prompt update
+- Update interview system prompt to optionally use append_structured_outcomes when a multiple-choice quick answer would help.
+- Important: the assistant should NOT include the options inline in plain text when it uses the tool.
+
+E) Smoke test upgrade
+- Update scripts/smoke-interview-chat.mjs to:
+  - Run a turn that causes the model to emit structured outcomes (if that’s unreliable, add a dev-only mode flag in prompt for smoke, or call a dev endpoint that appends a test outcomes event)
+  - Programmatically select an option via /api/interview/outcomes/select
+  - Assert:
+    - transcript length grows (user message appended)
+    - a chat.structured_outcome_selected event exists for the right eventId/optionId
+    - rerunning GET /api/interview/state shows pills resolved (i.e., added event exists but is paired with selected event)
+
+4) Verification (paste raw output)
+- npm run build
+- node scripts/smoke-interview-chat.mjs
+- grep -R "structured_outcomes" server client || true
+
+5) Acceptance criteria
+- Pills appear when tool-called, in the correct location.
+- Clicking a pill turns into a user message and removes pills deterministically (including after refresh).
+- Build + smoke pass.

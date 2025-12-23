@@ -1,0 +1,45 @@
+<!-- Hero Section - matches Guides.tsx lines 65-79 -->
+<section class="sp-container sp-section">
+  <div class="sp-content-narrow">
+    <p class="sp-eyebrow" data-testid="text-eyebrow">Guides</p>
+    <h1 class="sp-page-title" data-testid="text-page-title">Career Guides</h1>
+    <p class="sp-page-lede" data-testid="text-page-lede">
+      Practical frameworks for serious career decisions. No fluff, no platitudes—just clarity.
+    </p>
+  </div>
+</section>
+
+<!-- Guide List - matches Guides.tsx lines 81-112 -->
+<section class="sp-container" style="padding-bottom: 6rem;">
+  <div class="sp-content-narrow" style="margin: 0 auto;">
+    <div class="sp-guide-list" data-testid="list-guides">
+      <% guides.forEach(function(guide, index) { %>
+      <a href="/guides/<%= guide.slug %>" class="sp-guide-list-item" data-testid="link-guide-<%= guide.slug %>">
+        <div class="sp-guide-list-content">
+          <h2 class="sp-guide-list-title"><%= guide.title %></h2>
+          <p class="sp-guide-list-desc"><%= guide.description %></p>
+        </div>
+        <svg class="sp-guide-list-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+      <% }); %>
+    </div>
+  </div>
+</section>
+
+<!-- CTA - matches Guides.tsx lines 114-130 -->
+<section class="sp-cta-full" data-testid="cta-section">
+  <div class="sp-container" style="padding-top: 4rem; padding-bottom: 5rem; text-align: center;">
+    <h2 class="sp-cta-full-title">Want personalized guidance?</h2>
+    <p class="sp-cta-full-desc">
+      Every situation is different. Get tailored advice for yours.
+    </p>
+    <a href="/app/interview/start" class="sp-btn sp-btn-inverse" data-testid="button-start-interview" style="display: inline-flex;">
+      Start Your Free Interview
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </a>
+  </div>
+</section>

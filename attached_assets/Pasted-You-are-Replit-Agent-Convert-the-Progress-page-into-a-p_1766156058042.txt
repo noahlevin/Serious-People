@@ -1,0 +1,60 @@
+You are Replit Agent. Convert the Progress page into a pure “table of contents” view that does not embed routing logic or perform auth checks. Make the smallest possible change.
+
+Hard rules:
+
+Only edit client/src/pages/progress.tsx.
+
+Do not modify server code.
+
+Do not change other pages.
+
+Do not add new dependencies.
+
+Do not add redirects to login; server gating and the AuthProvider handle access control.
+
+Return: (1) diff-style summary, (2) full updated file, (3) a 6-step smoke test.
+
+Target behavior for /app/progress:
+
+The page must NOT call refetch() in useEffect() (remove any such calls).
+
+The page must NOT navigate/redirect to /login or anywhere else based on auth state.
+
+It should read cached bootstrap state from the auth context:
+
+routing.resumePath (string)
+
+journey.phase (string) and/or journey.state flags for display
+
+Render:
+
+A header like “Your progress”
+
+A “Resume” button that navigates to routing.resumePath (use useNavigate() from react-router-dom and navigate(resumePath)).
+
+A simple list of steps with completed/locked statuses derived ONLY from journey.state flags. Keep it basic; no complex logic.
+Example steps: Interview, Purchase, Module 1, Module 2, Module 3, Coach Letter, Serious Plan.
+
+If bootstrap has not loaded yet (authChecked is false), show a lightweight loading state (no redirect).
+
+If authenticated but routing is missing for any reason, render a small error box that tells the user to refresh (do not redirect).
+
+Important:
+
+Keep styling minimal and consistent with existing UI components (Button/Card/etc. if already used in this file). Avoid design rabbit holes.
+
+Do not remove existing helpful UI if it’s not harmful—just remove flow logic and refetch/redirect behavior.
+
+Smoke test checklist must include:
+
+/app/progress loads for paid user and shows Resume button
+
+Clicking Resume goes to the server-defined next page
+
+No extra network calls to /auth/me or repeated /api/bootstrap due to Progress mounting
+
+/app/progress does not redirect to /login on its own
+
+Refresh /app/progress works deterministically (server gate still in control)
+
+Steps show reasonable completed/locked states based on flags

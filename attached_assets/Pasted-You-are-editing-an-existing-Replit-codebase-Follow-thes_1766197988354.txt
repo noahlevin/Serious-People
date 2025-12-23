@@ -1,0 +1,96 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT refactor broadly.
+- Server owns journey logic; client just displays + calls endpoints.
+
+## 1) Goal (one sentence)
+GOAL: /app/interview/chat must use the real LLM (server-mediated), not dummy dialogue, and we must be able to smoke-test it from shell in dev.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+server/routes.ts
+client/src/pages/interview-chat.tsx
+client/src/lovable/pages/InterviewChat.tsx
+scripts/smoke-interview-chat.mjs (new)
+(server/storage.ts ONLY if absolutely required; prefer not)
+
+## 3) Current behavior to preserve
+- Keep existing transcript storage behavior (sessionToken-based).
+- Keep auth protections on real endpoints.
+- Any dev-only endpoint must be gated like other dev endpoints (requireDevTools + non-prod + 404 in prod).
+
+## 4) Implementation plan (small + explicit)
+1) Server: add a new endpoint `POST /api/interview/turn` (requireAuth)
+   - Input: { sessionToken: string, message: string }
+   - Behavior:
+     a) Load transcript by sessionToken for this user (create if missing)
+     b) Append the user message to transcript
+     c) Call the existing OpenAI client (use same pattern as coach-chat) with a dedicated Interview system prompt + transcript messages
+     d) Append assistant message to transcript
+     e) Return { success: true, transcript }
+2) Server: add dev-gated mirror endpoint `POST /api/dev/interview/turn`
+   - Gated with requireDevTools
+   - Allows passing EMAIL in body to pick a user without browser auth cookie
+   - Calls the same underlying logic and returns same shape
+3) Client: update InterviewChat (lovable) to remove dummy messages and instead:
+   - Maintain local state from transcript.messages
+   - On send: call POST /api/interview/turn with credentials: "include"
+   - Render returned transcript immediately
+4) Add `scripts/smoke-interview-chat.mjs` to run a dev-only smoke test:
+   - Calls POST /api/dev/interview/turn twice with the same sessionToken and two messages
+   - Asserts assistant replies are non-empty and transcript grows
+
+## 5) Exact edits
+For each file you touch, produce:
+- Path:
+- Change type: surgical edit (new file for script)
+- Diff-style summary (what changed and why)
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+### Build / type sanity
+1) `npm test` if it exists, else say “no test script found”
+2) `npm run build`
+
+### Runtime checks
+3) Start server: `npm run dev` (or workflow)
+
+4) Smoke interview turn (NO UI):
+- Ensure you have DEV_TOOLS_SECRET set in the shell (same one used by other dev endpoints)
+- Run:
+  `ORIGIN=http://localhost:5000 EMAIL=noah@noahlevin.com DEV_TOOLS_SECRET=$DEV_TOOLS_SECRET node scripts/smoke-interview-chat.mjs`
+
+Success looks like:
+- Exit code 0
+- Output includes:
+  - assistant contentLength > 0
+  - transcript message count increases across turns
+
+### Minimal manual check (1 minute)
+5) Visit /app/interview/chat while logged in:
+- Send “hello”
+Success = assistant responds with real content (not the canned dummy script)
+
+## 7) Acceptance criteria (must be met)
+- InterviewChat no longer shows hardcoded dummy dialogue.
+- At least one assistant response comes from the LLM via server.
+- Smoke script passes in dev without UI clicks.
+- Dev endpoints return 404 in production unless dev gating allows (match existing patterns).
+
+## 8) If verification fails
+Do NOT keep making random edits.
+Instead:
+- Paste the raw error output
+- Diagnose:
+  - missing OPENAI key / model error
+  - dev tools secret not present
+  - transcript/sessionToken mismatch
+
+## 9) Rollback note
+- `git checkout -- server/routes.ts client/src/pages/interview-chat.tsx client/src/lovable/pages/InterviewChat.tsx`
+- `git rm scripts/smoke-interview-chat.mjs` if needed
+
+Now execute the plan.

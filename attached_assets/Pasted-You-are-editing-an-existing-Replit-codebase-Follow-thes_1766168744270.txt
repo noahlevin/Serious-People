@@ -1,0 +1,78 @@
+You are editing an existing Replit codebase. Follow these rules strictly.
+
+## 0) Ground rules (no pretending)
+- Do NOT say “tests passed” unless you actually ran the commands in the Replit shell and paste the raw output.
+- Do NOT do wide refactors. Make the smallest change that achieves the goal.
+- Prefer surgical edits.
+- Preserve server-owned journey/state machine and client route gating.
+
+## 1) Goal (one sentence)
+GOAL: Make Module pages (/module/:moduleNumber) render using the same Lovable interview/chat UI components as InterviewChat so the Modules experience matches the chat regime visually and structurally.
+
+## 2) Scope boundaries
+- You may edit ONLY these files (unless you ask first):
+1) client/src/pages/module.tsx
+2) client/src/lovable/components/interview/ChatMessage.tsx
+3) client/src/lovable/components/interview/SectionDivider.tsx
+4) client/src/lovable/components/interview/ChatInput.tsx
+5) client/src/styles/serious-people.css
+
+If you think other files are required, STOP and list the additional file paths and why.
+
+## 3) Current behavior to preserve
+- Preserve route gating/state machine behavior (no new transitions on page load).
+- Preserve the module content order and any existing “moduleNumber” routing behavior.
+- If module content is currently read-only, keep it read-only (do not introduce sending messages unless it already existed).
+- Do not remove or deprecate client/src/components/ChatComponents.tsx in this change.
+
+## 4) Implementation plan (small + explicit)
+1) In module.tsx, replace usage of client/src/components/ChatComponents.tsx with Lovable interview components:
+   - Use ChatMessage for message bubbles
+   - Use SectionDivider for section breaks (if module content has sections; otherwise ignore)
+   - Use ChatInput ONLY if modules currently allow user input; otherwise render it disabled/hidden.
+2) Add a tiny “adapter” inside module.tsx that maps existing module message objects into the props expected by ChatMessage.
+   - If module messages are plain strings, map them into { role: 'assistant' | 'user', content: string } equivalents.
+3) If ChatMessage/ChatInput are too interview-specific (prop mismatch), extend them minimally:
+   - Add optional props with safe defaults (do not break InterviewChat)
+   - Do NOT change CSS class names used by interview pages.
+4) Only adjust serious-people.css if there’s an obvious spacing/width mismatch on module pages after the component swap.
+
+## 5) Exact edits
+For each file you touch, produce:
+- Path:
+- Change type: (surgical edit | replace full contents)
+- Diff-style summary (what changed and why)
+
+## 6) Mandatory verification (must run and paste output)
+After edits, run these commands in the Replit shell and paste raw output:
+
+### Build / type sanity
+1) `npm test` if it exists, else say “no test script found”
+2) `npm run build` (or the closest equivalent in this repo)
+3) `npm run lint` if it exists (otherwise state it doesn’t)
+
+### Runtime checks (no UI click-through required)
+4) Start server: `npm run dev` (or workspace default)
+5) In a second shell (PORT is 5000), verify module route returns HTML (or at least not 500):
+- `curl -i http://localhost:5000/app/module/1 | head -n 20`
+  Success looks like: HTTP 200 (or 304) and `Content-Type: text/html` (or HTML body).
+- Also verify bootstrap still works:
+- `curl -s http://localhost:5000/api/bootstrap | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const j=JSON.parse(d); console.log('ok bootstrap keys:', Object.keys(j));});"`
+
+## 7) Acceptance criteria (must be met)
+- Module page uses Lovable ChatMessage rendering (same bubble look as InterviewChat).
+- No TypeScript build errors.
+- /app/module/1 returns 200 and does not throw runtime errors in the server log.
+- InterviewChat visuals and behavior are unchanged (no regressions).
+
+## 8) If verification fails
+Do NOT keep making random edits.
+Instead:
+- Paste the error output
+- Give 2–3 most likely root causes (prop mismatch, message shape mismatch, missing import)
+- Propose the smallest next diagnostic step (grep/tsc error focus)
+
+## 9) Rollback note
+If anything breaks, revert ONLY the touched files via git:
+- `git diff` to review
+- `git checkout -- <file>` for each touched file

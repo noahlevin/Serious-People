@@ -51,5 +51,8 @@ ADMIN_SECRET = "665903730b547a094bb837b4c49e5106"
 [userenv.production]
 BASE_URL = "https://seriouspeople.app"
 
+[userenv.development]
+DEV_TOOLS_SECRET = "sp-dev-2024"
+
 [objectStorage]
 defaultBucketID = "replit-objstore-1cf631b7-e083-4f04-a1c0-6eeb29c17328"

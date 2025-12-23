@@ -1,0 +1,119 @@
+You are Replit Agent. Make the Offer page actually start Stripe Checkout and ensure the backend records a checkout session id so /api/bootstrap transitions the user into CHECKOUT_PENDING. Keep changes minimal and do not redesign UI.
+
+Hard rules
+
+Keep Lovable Offer layout/styling unchanged.
+
+Prefer reusing existing Stripe checkout endpoint if one already exists.
+
+If you add a new endpoint, do the smallest possible implementation.
+
+Use session auth (cookies) with credentials: "include".
+
+Output: diff-style summary + full contents of changed files + smoke test checklist.
+
+Files you may edit (only if needed)
+
+client/src/lovable/pages/Offer.tsx (the component that renders the button)
+
+server/routes.ts (only if you need to add or adjust the checkout endpoint)
+
+server/storage.ts (only if you need a tiny helper to persist stripeSessionId)
+
+Step 1 — Client: make the CTA button start checkout
+
+In client/src/lovable/pages/Offer.tsx:
+
+Change the header logo link to stay inside the SPA:
+
+Replace Link to="/" with Link to="/offer" (or /interview/start if you prefer). Do not link to the EJS root.
+
+Make the “Start Your Session” button call the server and redirect to Stripe:
+
+Add local state: isLoading and error
+
+On click:
+
+POST /api/checkout/create
+
+body can be empty for now {} (or include { price: 48 } if server expects it)
+
+credentials: "include"
+
+Expect JSON: { url: string }
+
+If url exists: window.location.assign(url)
+
+If error: render a small error message under the button and re-enable
+
+Keep the same button classes; just add onClick, and disable it while loading.
+
+Step 2 — Server: ensure an endpoint exists that creates checkout and sets transcript.stripeSessionId
+
+In server/routes.ts:
+
+Search the codebase for existing checkout routes / Stripe usage (examples: /api/checkout, /api/create-checkout-session, stripe.checkout.sessions.create).
+
+If an existing endpoint already returns a Checkout URL, reuse it and update the client to call that exact path.
+
+Ensure that endpoint also writes the created session id to the transcript record for that user (the same stripeSessionId field your bootstrap phase logic reads).
+
+If no suitable endpoint exists, add:
+
+POST /api/checkout/create (auth required)
+
+Behavior:
+
+Create Stripe Checkout Session with:
+
+mode: "payment"
+
+line item for $48 (use existing Stripe price id if configured; otherwise create a one-off price_data product—minimal)
+
+success_url: ${origin}/app/offer/success
+
+cancel_url: ${origin}/app/offer
+
+customer_email: user email if available
+
+After session creation, persist:
+
+transcript.stripeSessionId = session.id
+
+Return { url: session.url }
+
+Origin should be derived safely:
+
+Prefer const origin = req.get("origin") || process.env.PUBLIC_BASE_URL
+
+If neither exists, fall back to "http://localhost:5000" in dev only.
+
+Step 3 — Smoke tests (must include)
+
+Logged in, click “Start Your Session”:
+
+Network shows POST /api/checkout/create returning { url }
+
+Browser redirects to Stripe Checkout
+
+Without UI (curl), verify pending marker was set:
+
+After calling the endpoint, run:
+
+GET /api/dev/routing/:userId (dev tools) and confirm phase becomes CHECKOUT_PENDING (if paymentVerified is still false)
+
+Cancel in Stripe:
+
+Redirects to /app/offer and Offer loads
+
+Success in Stripe (optional):
+
+Redirects to /app/offer/success and page shows processing (polling)
+
+Output requirements
+
+Diff-style summary of changes
+
+Full contents of any file you touched
+
+Smoke test checklist

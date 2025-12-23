@@ -3,6 +3,21 @@ import { Resend } from 'resend';
 
 let connectionSettings: any;
 
+// In-memory storage for last magic link send attempt (for debugging)
+export interface MagicLinkSendAttempt {
+  timestamp: string;
+  email: string;
+  providerAccepted: boolean;
+  messageId: string | null;
+  error: string | null;
+}
+
+let lastMagicLinkSendAttempt: MagicLinkSendAttempt | null = null;
+
+export function getLastMagicLinkSendAttempt(): MagicLinkSendAttempt | null {
+  return lastMagicLinkSendAttempt;
+}
+
 async function getCredentials() {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY 
@@ -74,14 +89,15 @@ export async function getResendClient() {
 export async function sendMagicLinkEmail(
   toEmail: string, 
   magicLinkUrl: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
+  const timestamp = new Date().toISOString();
+  
   try {
     const { client, fromEmail } = await getResendClient();
     
     // Use the configured from email from Resend connection
     // Domain must be verified at resend.com/domains for this to work
     const senderEmail = fromEmail || 'onboarding@resend.dev';
-    console.log('Sending magic link email from:', senderEmail, 'to:', toEmail);
     
     const result = await client.emails.send({
       from: senderEmail,
@@ -112,18 +128,57 @@ export async function sendMagicLinkEmail(
       `,
     });
     
-    console.log('Email send result:', result);
+    // Extract messageId from result
+    const messageId = result.data?.id || null;
     
     // Check if there was an error in the response
     if (result.error) {
-      console.error('Resend API error:', result.error);
-      return { success: false, error: result.error.message || 'Failed to send email' };
+      const errorMsg = result.error.message || 'Failed to send email';
+      
+      // Store attempt for debugging
+      lastMagicLinkSendAttempt = {
+        timestamp,
+        email: toEmail,
+        providerAccepted: false,
+        messageId: null,
+        error: errorMsg,
+      };
+      
+      // Structured log line
+      console.log(`[MAGIC_LINK_SEND] ts=${timestamp} email=${toEmail} providerAccepted=false messageId=null error="${errorMsg}"`);
+      
+      return { success: false, error: errorMsg };
     }
     
-    return { success: true };
+    // Store successful attempt for debugging
+    lastMagicLinkSendAttempt = {
+      timestamp,
+      email: toEmail,
+      providerAccepted: true,
+      messageId,
+      error: null,
+    };
+    
+    // Structured log line
+    console.log(`[MAGIC_LINK_SEND] ts=${timestamp} email=${toEmail} providerAccepted=true messageId=${messageId}`);
+    
+    return { success: true, messageId: messageId || undefined };
   } catch (error: any) {
-    console.error('Failed to send magic link email:', error);
-    return { success: false, error: error.message };
+    const errorMsg = error.message || 'Unknown error';
+    
+    // Store failed attempt for debugging
+    lastMagicLinkSendAttempt = {
+      timestamp,
+      email: toEmail,
+      providerAccepted: false,
+      messageId: null,
+      error: errorMsg,
+    };
+    
+    // Structured log line
+    console.log(`[MAGIC_LINK_SEND] ts=${timestamp} email=${toEmail} providerAccepted=false messageId=null error="${errorMsg}"`);
+    
+    return { success: false, error: errorMsg };
   }
 }
 
