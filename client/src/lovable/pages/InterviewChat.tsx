@@ -486,9 +486,17 @@ const InterviewChat = () => {
 
     // Auto-focus composer on desktop when coach finishes typing
     const message = messages.find(m => m.id === messageId);
+    console.log('[AutoFocus Debug]', {
+      messageId,
+      message,
+      role: message?.role,
+      isMobile,
+      hasRef: !!chatInputRef.current,
+    });
     if (message && message.role === 'assistant' && !isMobile) {
       // Small delay to ensure scroll completes first
       setTimeout(() => {
+        console.log('[AutoFocus] Attempting to focus');
         chatInputRef.current?.focus();
       }, 100);
     }
