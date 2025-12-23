@@ -5,7 +5,7 @@ import SectionDivider from "@/lovable/components/interview/SectionDivider";
 import UpsellCard from "@/lovable/components/interview/UpsellCard";
 import StructuredOutcomes from "@/lovable/components/interview/StructuredOutcomes";
 import FinalNextStepsCard from "@/lovable/components/interview/FinalNextStepsCard";
-import { Clock, Lock } from "lucide-react";
+import { Clock, Lock, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStreamingChat } from "@/hooks/useStreamingChat";
@@ -587,34 +587,45 @@ const InterviewChat = () => {
       {/* Chat Messages - scrollable area */}
       <div className="sp-chat-scroll">
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-3">
-          {renderChatContent()}
-          
-          {isTyping && messagesToAnimate.size === 0 && !streamingContent && (
-            <ChatMessage
-              message={{
-                id: 'typing',
-                role: 'assistant',
-                content: '',
-                timestamp: new Date()
-              }}
-              isTyping={true}
-              onContentUpdate={scrollToBottom}
-            />
-          )}
-          
-          {isComplete && !showUpsell && (
-            <div className="text-center py-8 animate-fade-in">
-              <div className="inline-flex items-center gap-2 text-muted-foreground">
-                <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                <span className="text-sm">Analyzing your responses...</span>
+          {messages.length === 0 && events.length === 0 ? (
+            <div className="flex items-center justify-center h-full min-h-[400px]">
+              <div className="flex flex-col items-center gap-3 opacity-30">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground font-light">Loading your Interview</p>
               </div>
             </div>
-          )}
+          ) : (
+            <>
+              {renderChatContent()}
 
-          {showUpsell && (
-            <div className="py-6">
-              <UpsellCard userName="Sarah" />
-            </div>
+              {isTyping && messagesToAnimate.size === 0 && !streamingContent && (
+                <ChatMessage
+                  message={{
+                    id: 'typing',
+                    role: 'assistant',
+                    content: '',
+                    timestamp: new Date()
+                  }}
+                  isTyping={true}
+                  onContentUpdate={scrollToBottom}
+                />
+              )}
+
+              {isComplete && !showUpsell && (
+                <div className="text-center py-8 animate-fade-in">
+                  <div className="inline-flex items-center gap-2 text-muted-foreground">
+                    <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+                    <span className="text-sm">Analyzing your responses...</span>
+                  </div>
+                </div>
+              )}
+
+              {showUpsell && (
+                <div className="py-6">
+                  <UpsellCard userName="Sarah" />
+                </div>
+              )}
+            </>
           )}
           
           <div ref={messagesEndRef} />
