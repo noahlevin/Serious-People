@@ -424,9 +424,11 @@ const InterviewChat = () => {
         }
       });
 
-      // Add to messagesToAnimate on first chunk (after setMessages)
+      // DON'T add to messagesToAnimate - streaming messages display content in real-time
+      // The real-time updates ARE the animation, no need for typing animation
+      // Mark as already animated so it doesn't animate later
       if (isFirstChunk) {
-        setMessagesToAnimate(prev => new Set(prev).add(streamingMessageId));
+        setAnimatedMessageIds(prev => new Set(prev).add(streamingMessageId));
       }
     }
   }, [streamingContent, streamingMessageId]);
